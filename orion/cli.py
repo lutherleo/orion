@@ -148,7 +148,8 @@ def _run_scan(args: argparse.Namespace) -> int:
         d_timeout = config.discover_timeout(node_count)
         on_event(_event("discover", "start",
                         detail=f"discovery fleet starting ({node_count} nodes, per-shape timeout {d_timeout}s)"))
-        leads = discover.discover(scan_id, on_event, profile, timeout=d_timeout)
+        leads = discover.discover(scan_id, on_event, profile, timeout=d_timeout,
+                                  dynamic_hint=args.use_dynamic)
         on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"))
 
         on_event(_event("verify", "start", detail=f"verifying {len(leads)} leads"))
@@ -214,11 +215,30 @@ def main(argv: list[str] | None = None) -> int:
     scan.set_defaults(stream=True)
     scan.add_argument("--queue-size", dest="queue_size", type=int, default=64,
                       help="functions held in flight by the streaming build (default 64)")
+    scan.add_argument("--use-dynamic", dest="use_dynamic", action="store_true",
+                      help="tell discovery to use runtime-observed OBSERVED_* edges from a prior "
+                           "`orion trace` (off by default; keeps the eval baseline prompt unchanged)")
 
     idx = sub.add_parser("index-exploits",
                          help="build/refresh the global Metasploit exploit-reference corpus (one-time)")
     idx.add_argument("--refresh", action="store_true",
                      help="re-download the Metasploit metadata index before building")
+
+    tr = sub.add_parser("trace",
+                        help="dynamic layer: run the target and record runtime-observed nodes/edges "
+                             "into the existing scan graph (requires a prior `orion scan`)")
+    tr.add_argument("repo", nargs="?", help="path to the target repo (source sandbox for the harness)")
+    tr.add_argument("--scan-id", dest="scan_id",
+                    help="scan graph to augment (defaults to the deterministic id of repo)")
+    tr.add_argument("--language", dest="language", metavar="py|js",
+                    help="tracer language; overrides repo auto-detection (py or js)")
+    tr.add_argument("--harness-file", dest="harness_file", metavar="PATH",
+                    help="use a pinned driver script instead of the harness agent (skips tokens)")
+    tr.add_argument("--timeout", dest="timeout", type=float, default=120.0,
+                    help="wall-clock seconds for the traced run (default 120)")
+    tr.add_argument("--watch", action="store_true", help="follow live progress while the trace runs")
+    tr.add_argument("--quiet", action="store_true", help="suppress per-event progress prints")
+    tr.add_argument("--json", dest="json", metavar="OUT", help="also write the delta summary as JSON")
 
     args = parser.parse_args(argv)
 
@@ -226,7 +246,106 @@ def main(argv: list[str] | None = None) -> int:
         return _run_scan(args)
     if args.cmd == "index-exploits":
         return _run_index_exploits(args)
+    if args.cmd == "trace":
+        return _run_trace(args)
     return 0
+
+
+_FRONTEND_TO_TRACER = {"pythonsrc": "py", "jssrc": "js"}
+
+
+def _run_trace(args: argparse.Namespace) -> int:
+    """`orion trace`: the dynamic phase. Augments an EXISTING scan graph with runtime-observed facts."""
+    if not args.scan_id and not args.repo:
+        print("orion trace: provide a repo path or --scan-id", file=sys.stderr)
+        return 2
+    if args.repo and not Path(args.repo).is_dir():
+        print(f"orion trace: repo path not found or not a directory: {args.repo}", file=sys.stderr)
+        return 2
+    if not args.harness_file and not args.repo:
+        print("orion trace: a repo path is required unless --harness-file is given", file=sys.stderr)
+        return 2
+
+    from . import graph_build
+    from .dynamic import delta as delta_mod
+    from .dynamic import run as dyn_run
+    from .monitor import run_logger, tail
+
+    repo = args.repo or "."
+    scan_id = args.scan_id or graph_build.scan_id_for(args.repo)
+
+    # Resolve the tracer language: explicit --language wins, else detect from the repo's markers.
+    language = args.language
+    if language not in ("py", "js"):
+        if language:
+            print(f"orion trace: unknown --language {language!r}; use py or js", file=sys.stderr)
+            return 2
+        from .graph import joern_adapter
+        frontend, _ = joern_adapter.resolve_language(repo, None)
+        language = _FRONTEND_TO_TRACER.get(frontend)
+        if language is None:
+            print(f"orion trace: no dynamic tracer for this stack (detected {frontend}); "
+                  f"Python and JS are supported — pin with --language", file=sys.stderr)
+            return 2
+
+    run_dir = _run_dir(scan_id)
+    on_event = run_logger(run_dir, quiet=True if args.watch else args.quiet)
+    print(f"scan_id: {scan_id}")
+    print(f"run log: {run_dir}/progress.jsonl")
+    # Safety notice (design §9): the trace EXECUTES the target's code on this host.
+    print("note: `orion trace` runs the target repo's code locally (timeout + temp cwd only, no "
+          "sandbox) — only trace repos you trust.")
+
+    def _do() -> dict:
+        return dyn_run.trace_repo(scan_id, repo, language, harness_file=args.harness_file,
+                                  timeout=args.timeout, on_event=on_event)
+
+    if args.watch:
+        stop = threading.Event()
+        result: dict = {}
+
+        def _worker() -> None:
+            try:
+                result["summary"] = _do()
+            except Exception as exc:  # noqa: BLE001 -- surface, don't swallow
+                result["error"] = exc
+            finally:
+                stop.set()
+
+        thread = threading.Thread(target=_worker, daemon=True)
+        thread.start()
+        try:
+            tail(run_dir, stop)
+        except KeyboardInterrupt:
+            stop.set()
+        thread.join()
+        if "error" in result:
+            raise result["error"]
+        summary = result.get("summary", {})
+    else:
+        summary = _do()
+
+    print("\n" + "=" * 70)
+    print(delta_mod.report_text(_delta_defaults(summary)))
+    if summary.get("note"):
+        print(f"\n(note: {summary['note']})")
+
+    if args.json:
+        Path(args.json).write_text(json.dumps(summary, indent=2, default=str))
+        print(f"\nwrote delta summary to {args.json}")
+    return 0
+
+
+def _delta_defaults(summary: dict) -> dict:
+    """report_text expects the full key set; a skip summary may omit samples. Fill defaults."""
+    return {
+        "new_methods": summary.get("new_methods", 0),
+        "observed_calls": summary.get("observed_calls", 0),
+        "observed_dispatches": summary.get("observed_dispatches", 0),
+        "calls_to_new_methods": summary.get("calls_to_new_methods", 0),
+        "method_samples": summary.get("method_samples", []),
+        "dispatch_samples": summary.get("dispatch_samples", []),
+    }
 
 
 def _run_index_exploits(args: argparse.Namespace) -> int:

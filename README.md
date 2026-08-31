@@ -11,10 +11,13 @@ false positives, scored by `scripts/run_nodegoat_eval.py` against the ground tru
 `tests/ground_truth_nodegoat.py`. (The 15th, "components with known vulnerabilities," needs a CVE
 feed the current graph does not carry.)
 
-> **On comparisons:** a head-to-head against a deterministic scanner (Semgrep or CodeQL run on the
-> same NodeGoat checkout and scored through the same matcher) is the honest way to show Orion reaches
-> bugs a fixed rule catalog cannot. That baseline is **not committed yet**, so this README does not
-> claim a number for it — the claim above is only what Orion's own eval measures.
+> **On comparisons:** a head-to-head against a deterministic scanner scored through the same matcher is
+> the honest way to show Orion reaches bugs a fixed rule catalog cannot. A first **Semgrep baseline**
+> is now committed under `bench/research/` (via `bench/semgrep_adapter.py`, scored by the same
+> `bench/scoring.py` matcher): `semgrep --config auto` scores **4/15 on NodeGoat** (26 false-positive
+> candidates) and **7/16 on PyGoat** (85 FP-candidates) — catching pattern-matchable sink bugs, missing
+> every design/semantic class, and well below Orion's 14/15. See `bench/research/REPORT.md` (part of the
+> PLAN2 research eval: does graph grounding let a *local* LLM rival a frontier one, measured in tokens).
 
 It is not benchmark-only. Orion has been run end to end against **real third-party code it had never
 seen** — a full scan of the TypeScript project [`pensarai/apex`](https://github.com/pensarai/apex)

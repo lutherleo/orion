@@ -1,0 +1,23 @@
+# LiteLLM proxy config for the PLAN2 Phase 0 local-model spike.
+# Exposes an Anthropic-compatible /v1/messages endpoint that translates to the local ollama model, so
+# `claude -p` (ANTHROPIC_BASE_URL=http://localhost:4000) can drive qwen2.5-coder:3b — the go/no-go test
+# for whether Orion's MCP tool-calling + --json-schema survive a proxy to a non-Claude model.
+model_list:
+  # llama3.2:3b emits STRUCTURED tool_calls through ollama (the qwen2.5-coder templates did not),
+  # so MCP tool-calling survives the proxy. This is the model the local arms use.
+  - model_name: llama-local
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: http://orion-ollama:11434
+      drop_params: true
+      additional_drop_params: ["thinking", "reasoning_effort"]
+  - model_name: qwen-local
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:3b
+      api_base: http://orion-ollama:11434
+      drop_params: true
+      additional_drop_params: ["thinking", "reasoning_effort"]
+litellm_settings:
+  drop_params: true          # silently drop params the ollama backend doesn't support
+general_settings:
+  master_key: sk-orion-local

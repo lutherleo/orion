@@ -107,6 +107,23 @@ outdated, end-of-life, or known-vulnerable third-party components -- this is the
 known-vulnerabilities class, and it does not depend on any request flow.""",
 }
 
+# Opt-in runtime-evidence block. OFF by default so the NodeGoat eval baseline prompt is byte-identical;
+# `orion scan --use-dynamic` (and system_for(dynamic_hint=True)) turns it on when a trace has run.
+_DYNAMIC_HINT = """
+RUNTIME-OBSERVED EDGES (dynamic analysis). If `orion trace` has run for this scan, the graph ALSO
+carries runtime facts stamped `origin='dynamic'`, from actually executing the code:
+  (:CpgMethod)-[:OBSERVED_CALL]->(:CpgMethod|:ObservedMethod)   -- a caller->callee seen at runtime
+  (:CpgCall)-[:OBSERVED_DISPATCH]->(:CpgMethod|:ObservedMethod) -- the CONCRETE target a dynamic call
+                                                                   site reached ("which pointer it hit")
+  (:ObservedMethod {origin:'dynamic', file_path, line})        -- a function that executed with NO
+                                                                   static CpgMethod (reflection/eval/etc)
+These paths were OBSERVED EXECUTING, so a source->sink flow that traverses one is runtime-PROVEN --
+especially valuable exactly where the static graph lies by omission (arrow-function/object-property
+calls, dynamic dispatch, reflection). Query them, e.g.
+  MATCH (a)-[r:OBSERVED_CALL {scan_id:$scan_id}]->(b) RETURN a.full_name, b.full_name
+and RAISE confidence on a lead a dynamic edge corroborates. The grounding rule still holds (cite the
+query). Absence of these edges only means no trace was run -- never treat it as a safety signal."""
+
 _TRAILER = """
 TRAVERSAL: sweep BREADTH-FIRST across the whole graph for THIS shape before concluding -- do not
 chase the first candidate to a verdict while other files or subgraphs remain unexamined. Only
@@ -162,7 +179,8 @@ def _profile_block(profile) -> str:
     return "\n".join(lines)
 
 
-def system_for(shape: str, scan_id: str, files: tuple[str, ...] = (), profile=None) -> str:
+def system_for(shape: str, scan_id: str, files: tuple[str, ...] = (), profile=None,
+               dynamic_hint: bool = False) -> str:
     """Build the system prompt for one discovery shape (A/B/C/D).
 
     `files` is an optional deterministic BFS scaffold (a starting file list); discovery.py does
@@ -172,7 +190,11 @@ def system_for(shape: str, scan_id: str, files: tuple[str, ...] = (), profile=No
     `profile` (graph/profiles.Profile) is optional: when given, its source/sink/entrypoint
     vocabulary is injected as concrete examples for the detected stack. The prompt is fully
     framework-agnostic WITHOUT it (anchored on :EntryPoint nodes + FLOWS_TO), so passing None is a
-    valid, complete prompt for any repo."""
+    valid, complete prompt for any repo.
+
+    `dynamic_hint` (default False) appends the runtime-observed-edges block, telling the agent to use
+    the `origin='dynamic'` OBSERVED_* edges a prior `orion trace` may have added. OFF by default so
+    the eval baseline prompt is byte-identical; `orion scan --use-dynamic` turns it on."""
     if shape not in _SHAPE_TEXT:
         raise ValueError(f"unknown shape: {shape!r} (expected one of {sorted(_SHAPE_TEXT)})")
 
@@ -188,5 +210,7 @@ def system_for(shape: str, scan_id: str, files: tuple[str, ...] = (), profile=No
     profile_block = _profile_block(profile)
     if profile_block:
         parts.append(profile_block)
+    if dynamic_hint:
+        parts.append(_DYNAMIC_HINT)
     parts.append(_TRAILER.format(shape=shape))
     return "\n\n".join(parts)

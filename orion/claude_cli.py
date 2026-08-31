@@ -57,16 +57,22 @@ def _build_cmd(
     add_dir: str | None,
     extra_allowed: tuple[str, ...],
     max_turns: int | None,
+    use_mcp: bool = True,
 ) -> list[str]:
-    allowed = list(_ALLOWED_BASE) + list(extra_allowed)
+    # use_mcp=False is the UNGROUNDED-review path (PLAN2 arms B/C): no Orion MCP graph tools at all,
+    # so the agent works only from what the caller allows (Read/Grep/Glob on the source). The mcp
+    # base tools and --mcp-config are dropped entirely, isolating "same model, minus the graph".
+    allowed = (list(_ALLOWED_BASE) if use_mcp else []) + list(extra_allowed)
     disallowed = [t for t in _BASE_DISALLOWED if t not in extra_allowed]
 
     cmd = [
         "claude", "-p",
         "--model", config.MODEL,
         "--effort", config.EFFORT,
-        "--mcp-config", config.MCP_CONFIG,
-        "--strict-mcp-config",
+    ]
+    if use_mcp:
+        cmd += ["--mcp-config", config.MCP_CONFIG, "--strict-mcp-config"]
+    cmd += [
         "--output-format", "stream-json",
         "--verbose",
         "--system-prompt", system,          # re-passed every call (non-negotiable)
@@ -128,6 +134,43 @@ def parse_stream_events(
     return events, final
 
 
+def extract_usage(final: dict | None) -> dict | None:
+    """Pull the token/cost accounting out of a stream-json `result` event, or None if absent.
+
+    `claude -p --output-format stream-json` puts a `usage` block and `total_cost_usd` on the final
+    `{"type":"result"}` line. run_agent otherwise discards this (it only keeps the structured output),
+    so the research token ledger (bench/token_ledger.py) would have nothing to aggregate. Kept defensive:
+    a missing/oddly-shaped usage yields zeros, never raises. `total_cost_usd` is the CLI's own cost
+    figure (may be null through a non-Anthropic proxy — the ledger then prices from tokens itself)."""
+    if not isinstance(final, dict):
+        return None
+    usage = final.get("usage")
+    if not isinstance(usage, dict):
+        usage = {}
+    return {
+        "model": final.get("model") or "",
+        "input_tokens": int(usage.get("input_tokens") or 0),
+        "output_tokens": int(usage.get("output_tokens") or 0),
+        "cache_creation_input_tokens": int(usage.get("cache_creation_input_tokens") or 0),
+        "cache_read_input_tokens": int(usage.get("cache_read_input_tokens") or 0),
+        "total_cost_usd": final.get("total_cost_usd"),
+        "num_turns": final.get("num_turns"),
+    }
+
+
+def _emit_usage(final: dict | None, on_event: Callable[[dict], None] | None) -> None:
+    """Emit one `{"event":"usage","detail":<json>}` progress event carrying this call's token/cost.
+    Best-effort: no usage or no listener is a silent no-op. Threads through the same on_event the tool
+    events use, so the run logger records it and the ledger can aggregate it — callers that parse
+    structured output ignore an unknown 'usage' event, so nothing downstream breaks."""
+    if on_event is None:
+        return
+    usage = extract_usage(final)
+    if usage is None:
+        return
+    on_event({"event": "usage", "detail": json.dumps(usage)})
+
+
 def _final_to_result(final: dict | None) -> dict:
     """Robust final-event -> structured-object extraction. NEVER fabricates output: any
     ambiguity (missing result line, is_error, unparseable result) becomes `{"_error": "..."}`."""
@@ -170,6 +213,9 @@ def _run_once(cmd: list[str], *, timeout: int, on_event: Callable[[dict], None] 
 
     # Parse regardless of exit code: fires tool events + lets us salvage a partial result / tail.
     _events, final = parse_stream_events(r.stdout, on_event)
+    # Emit token/cost accounting whenever the stream produced a result event, even on a non-zero exit
+    # (a run that failed late still spent tokens the ledger should count).
+    _emit_usage(final, on_event)
 
     if r.returncode != 0:
         stderr = (r.stderr or "").strip()[:300]
@@ -196,6 +242,7 @@ def run_agent(
     timeout: int | None = None,
     retries: int = 0,
     retry_backoff: float | None = None,
+    use_mcp: bool = True,
 ) -> dict:
     """Run one `claude -p` session with real MCP tool-calling and return its structured result.
 
@@ -221,6 +268,7 @@ def run_agent(
         cmd = _build_cmd(
             session_id=sid, system=system, json_schema=json_schema,
             add_dir=add_dir, extra_allowed=extra_allowed, max_turns=max_turns,
+            use_mcp=use_mcp,
         ) + [message]
 
         result = _run_once(cmd, timeout=call_timeout, on_event=on_event)

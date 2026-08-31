@@ -1,0 +1,657 @@
+{
+  "arm": "D",
+  "benchmark": "pygoat",
+  "repo": "fixtures/pygoat",
+  "model": "semgrep",
+  "recall": 7,
+  "total": 16,
+  "checkable": 15,
+  "recall_bar": 10,
+  "found": {
+    "SQLI": [
+      88,
+      89,
+      121,
+      122
+    ],
+    "CMDI": [
+      4,
+      106,
+      107,
+      108
+    ],
+    "XSS": [
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      96,
+      98,
+      100,
+      102
+    ],
+    "SSRF": [
+      124
+    ],
+    "DESER-PICKLE": [
+      90,
+      92,
+      93,
+      114
+    ],
+    "CRYPTO": [
+      127,
+      128
+    ],
+    "CODEEXEC": [
+      90,
+      92,
+      93,
+      111,
+      114
+    ]
+  },
+  "missed": [
+    "SSTI",
+    "XXE",
+    "DESER-YAML",
+    "IDOR",
+    "MISCONFIG",
+    "AUTHZ",
+    "DESIGN-OTP",
+    "LOGGING",
+    "COMPONENTS"
+  ],
+  "false_positive_candidates": 85,
+  "n_findings": 135,
+  "findings": [
+    {
+      "text": "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the action owner, enabling supply-chain attacks \u2014 as seen in the trivy-action and kics-github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.",
+      "evidence": "fixtures/pygoat/.github/workflows/flake8.yml:18 requires login"
+    },
+    {
+      "text": "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the action owner, enabling supply-chain attacks \u2014 as seen in the trivy-action and kics-github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.",
+      "evidence": "fixtures/pygoat/.github/workflows/flake8.yml:20 requires login"
+    },
+    {
+      "text": "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the action owner, enabling supply-chain attacks \u2014 as seen in the trivy-action and kics-github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.",
+      "evidence": "fixtures/pygoat/.github/workflows/hadolint.yml:30 requires login"
+    },
+    {
+      "text": "dockerfile.security.missing-user.missing-user By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.",
+      "evidence": "fixtures/pygoat/Dockerfile:33 requires login"
+    },
+    {
+      "text": "python.django.security.injection.command.subprocess-injection.subprocess-injection Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands.",
+      "evidence": "fixtures/pygoat/challenge/views.py:81 requires login"
+    },
+    {
+      "text": "dockerfile.security.missing-user.missing-user By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/Dockerfile:21 requires login"
+    },
+    {
+      "text": "python.flask.security.audit.secure-set-cookie.secure-set-cookie Found a Flask cookie with insecurely configured properties.  By default the secure, httponly and samesite ar configured insecurely. cookies should be handled securely by setting `secure=True`, `httponly=True`, and `samesite='Lax'` in response.set_cookie(...). If these parameters are not properly set, your cookies are not properly protected and are at risk of being stolen by an attacker. Include the `secure=True`, `httponly=True`, `samesite='Lax'` arguments or set these to be true in the Flask configuration.",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/app.py:49 requires login"
+    },
+    {
+      "text": "python.flask.security.audit.secure-set-cookie.secure-set-cookie Found a Flask cookie with insecurely configured properties.  By default the secure, httponly and samesite ar configured insecurely. cookies should be handled securely by setting `secure=True`, `httponly=True`, and `samesite='Lax'` in response.set_cookie(...). If these parameters are not properly set, your cookies are not properly protected and are at risk of being stolen by an attacker. Include the `secure=True`, `httponly=True`, `samesite='Lax'` arguments or set these to be true in the Flask configuration.",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/app.py:51 requires login"
+    },
+    {
+      "text": "python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host Running flask app with host 0.0.0.0 could expose the server publicly.",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/app.py:123 requires login"
+    },
+    {
+      "text": "python.flask.security.audit.debug-enabled.debug-enabled Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information. Instead, consider using Flask configuration variables or setting 'debug' using system environment variables.",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/app.py:123 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/templates/lab.html:13 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/templates/lab.html:29 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/templates/lab.html:40 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/templates/reset.html:13 requires login"
+    },
+    {
+      "text": "dockerfile.security.missing-user.missing-user By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.",
+      "evidence": "fixtures/pygoat/dockerized_labs/insec_des_lab/Dockerfile:15 requires login"
+    },
+    {
+      "text": "python.flask.security.insecure-deserialization.insecure-deserialization Detected the use of an insecure deserialization library in a Flask route. These libraries are prone to code execution vulnerabilities. Ensure user data does not enter this function. To fix this, try to avoid serializing whole objects. Consider instead using a serializer such as JSON.",
+      "evidence": "fixtures/pygoat/dockerized_labs/insec_des_lab/main.py:27 requires login"
+    },
+    {
+      "text": "python.lang.security.deserialization.pickle.avoid-pickle Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+      "evidence": "fixtures/pygoat/dockerized_labs/insec_des_lab/main.py:27 requires login"
+    },
+    {
+      "text": "python.flask.security.insecure-deserialization.insecure-deserialization Detected the use of an insecure deserialization library in a Flask route. These libraries are prone to code execution vulnerabilities. Ensure user data does not enter this function. To fix this, try to avoid serializing whole objects. Consider instead using a serializer such as JSON.",
+      "evidence": "fixtures/pygoat/dockerized_labs/insec_des_lab/main.py:36 requires login"
+    },
+    {
+      "text": "python.lang.security.deserialization.pickle.avoid-pickle Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+      "evidence": "fixtures/pygoat/dockerized_labs/insec_des_lab/main.py:36 requires login"
+    },
+    {
+      "text": "python.flask.security.audit.app-run-param-config.avoid_app_run_with_bad_host Running flask app with host 0.0.0.0 could expose the server publicly.",
+      "evidence": "fixtures/pygoat/dockerized_labs/insec_des_lab/main.py:51 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/dockerized_labs/insec_des_lab/templates/index.html:61 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/dockerized_labs/insec_des_lab/templates/index.html:69 requires login"
+    },
+    {
+      "text": "dockerfile.security.missing-user-entrypoint.missing-user-entrypoint By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/Dockerfile:18 requires login"
+    },
+    {
+      "text": "dockerfile.security.missing-user.missing-user By not specifying a USER, a program in the container may run as 'root'. This is a security hazard. If an attacker can control a process running as root, they may have control over the container. Ensure that the last USER in a Dockerfile is a USER other than 'root'.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/Dockerfile:19 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/about.html:5 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/about.html:91 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/about.html:92 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/about.html:93 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/base.html:5 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/base.html:60 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/base.html:61 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/base.html:62 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/index.html:5 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/index.html:132 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/index.html:133 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/index.html:134 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/lesson.html:5 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/lesson.html:337 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/lesson.html:338 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/lesson.html:339 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/lesson.html:340 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/login.html:5 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/login.html:54 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/login.html:82 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/login.html:83 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/login.html:84 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/profile.html:5 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/profile.html:211 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/profile.html:212 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/profile.html:213 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/profile.html:214 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/register.html:5 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/register.html:93 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/register.html:94 requires login"
+    },
+    {
+      "text": "html.security.audit.missing-integrity.missing-integrity This tag is missing an 'integrity' subresource integrity attribute. The 'integrity' attribute allows for the browser to verify that externally hosted files (for example from a CDN) are delivered without unexpected manipulation. Without this attribute, if an attacker can modify the externally hosted resource, this could lead to XSS and other types of attacks. To prevent this, include the base64-encoded cryptographic hash of the resource (file) you\u2019re telling the browser to fetch in the 'integrity' attribute for all externally hosted files.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/templates/register.html:95 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:22 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:59 requires login"
+    },
+    {
+      "text": "python.django.security.injection.request-data-write.request-data-write Found user-controlled request data passed into '.write(...)'. This could be dangerous if a malicious actor is able to control data into sensitive files. For example, a malicious actor could force rolling of critical log files, or cause a denial-of-service by using up available disk space. Instead, ensure that request data is properly escaped or sanitized.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:64 requires login"
+    },
+    {
+      "text": "python.django.security.injection.request-data-write.request-data-write Found user-controlled request data passed into '.write(...)'. This could be dangerous if a malicious actor is able to control data into sensitive files. For example, a malicious actor could force rolling of critical log files, or cause a denial-of-service by using up available disk space. Instead, ensure that request data is properly escaped or sanitized.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:65 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:93 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:112 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:125 requires login"
+    },
+    {
+      "text": "python.django.security.injection.request-data-write.request-data-write Found user-controlled request data passed into '.write(...)'. This could be dangerous if a malicious actor is able to control data into sensitive files. For example, a malicious actor could force rolling of critical log files, or cause a denial-of-service by using up available disk space. Instead, ensure that request data is properly escaped or sanitized.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:130 requires login"
+    },
+    {
+      "text": "python.lang.security.audit.md5-used-as-password.md5-used-as-password It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as scrypt. You can use `hashlib.scrypt`.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:161 requires login"
+    },
+    {
+      "text": "python.jwt.security.jwt-hardcode.jwt-python-hardcoded-secret Hardcoded JWT secret or private key is used. This is a Insufficiently Protected Credentials weakness: https://cwe.mitre.org/data/definitions/522.html Consider using an appropriate security mechanism to protect the credentials (e.g. keeping secrets in environment variables)",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:169 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:171 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:176 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:214 requires login"
+    },
+    {
+      "text": "python.django.security.injection.code.user-eval.user-eval Found user data in a call to 'eval'. This is extremely dangerous because it can enable an attacker to execute arbitrary remote code on the system. Instead, refactor your code to not use 'eval' and instead use a safe library for the specific functionality you need.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:217 requires login"
+    },
+    {
+      "text": "python.lang.security.audit.eval-detected.eval-detected Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input from outside the program, this may be a code injection vulnerability. Ensure evaluated content is not definable by external sources.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:218 requires login"
+    },
+    {
+      "text": "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true Found 'subprocess' function 'Popen' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use 'shell=False' instead.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:233 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:237 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/playground/A9/api.py:7 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/playground/A9/archive.py:7 requires login"
+    },
+    {
+      "text": "generic.secrets.security.detected-jwt-token.detected-jwt-token JWT token detected",
+      "evidence": "fixtures/pygoat/introduction/static/js/a7.js:4 requires login"
+    },
+    {
+      "text": "generic.secrets.security.detected-jwt-token.detected-jwt-token JWT token detected",
+      "evidence": "fixtures/pygoat/introduction/static/js/a9.js:18 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/A9/a9_lab.html:10 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/A9/a9_lab2.html:21 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/BrokenAccess/ba_lab.html:11 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/BrokenAuth/otp.html:18 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/CMD/cmd_lab.html:9 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/CMD/cmd_lab2.html:9 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/ssrf/ssrf_discussion.html:125 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/ssrf/ssrf_discussion.html:130 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/ssrf/ssrf_discussion.html:135 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/ssrf/ssrf_discussion.html:140 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab_2021/A1_BrokenAccessControl/broken_access_lab_1.html:11 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab_2021/A1_BrokenAccessControl/broken_access_lab_2.html:11 requires login"
+    },
+    {
+      "text": "python.django.security.injection.tainted-sql-string.tainted-sql-string Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using the Django object-relational mappers (ORM) instead of raw SQL queries.",
+      "evidence": "fixtures/pygoat/introduction/views.py:158 requires login"
+    },
+    {
+      "text": "python.django.security.audit.raw-query.avoid-raw-sql Detected the use of 'RawSQL' or 'raw' indicating the execution of a non-parameterized SQL query. This could lead to a SQL injection and therefore protected information could be leaked. Instead, use Django ORM and parameterized queries before raw SQL. An example of using the Django ORM is: `People.objects.get(name='Bob')`",
+      "evidence": "fixtures/pygoat/introduction/views.py:162 requires login"
+    },
+    {
+      "text": "python.lang.security.deserialization.pickle.avoid-pickle Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+      "evidence": "fixtures/pygoat/introduction/views.py:202 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/views.py:211 requires login"
+    },
+    {
+      "text": "python.django.security.audit.avoid-insecure-deserialization.avoid-insecure-deserialization Avoid using insecure deserialization library, backed by `pickle`, `_pickle`, `cpickle`, `dill`, `shelve`, or `yaml`, which are known to lead to remote code execution vulnerabilities.",
+      "evidence": "fixtures/pygoat/introduction/views.py:214 requires login"
+    },
+    {
+      "text": "python.lang.security.deserialization.pickle.avoid-pickle Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+      "evidence": "fixtures/pygoat/introduction/views.py:214 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:239 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:255 requires login"
+    },
+    {
+      "text": "python.django.security.audit.xss.direct-use-of-httpresponse.direct-use-of-httpresponse Detected data rendered directly to the end user via 'HttpResponse' or a similar object. This bypasses Django's built-in cross-site scripting (XSS) defenses and could result in an XSS vulnerability. Use Django's template engine to safely render HTML.",
+      "evidence": "fixtures/pygoat/introduction/views.py:290 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/views.py:291 requires login"
+    },
+    {
+      "text": "python.django.security.audit.xss.direct-use-of-httpresponse.direct-use-of-httpresponse Detected data rendered directly to the end user via 'HttpResponse' or a similar object. This bypasses Django's built-in cross-site scripting (XSS) defenses and could result in an XSS vulnerability. Use Django's template engine to safely render HTML.",
+      "evidence": "fixtures/pygoat/introduction/views.py:304 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/views.py:305 requires login"
+    },
+    {
+      "text": "python.django.security.audit.xss.direct-use-of-httpresponse.direct-use-of-httpresponse Detected data rendered directly to the end user via 'HttpResponse' or a similar object. This bypasses Django's built-in cross-site scripting (XSS) defenses and could result in an XSS vulnerability. Use Django's template engine to safely render HTML.",
+      "evidence": "fixtures/pygoat/introduction/views.py:318 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/views.py:319 requires login"
+    },
+    {
+      "text": "python.django.security.audit.xss.direct-use-of-httpresponse.direct-use-of-httpresponse Detected data rendered directly to the end user via 'HttpResponse' or a similar object. This bypasses Django's built-in cross-site scripting (XSS) defenses and could result in an XSS vulnerability. Use Django's template engine to safely render HTML.",
+      "evidence": "fixtures/pygoat/introduction/views.py:329 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:335 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:341 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:414 requires login"
+    },
+    {
+      "text": "python.django.security.injection.command.subprocess-injection.subprocess-injection Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability. An attacker could use this vulnerability to execute arbitrary commands on the host, which allows them to download malware, scan sensitive data, or run any command they wish on the server. Do not let users choose the command to run. In general, prefer to use Python API versions of system commands. If you must use subprocess, use a dictionary to allowlist a set of commands.",
+      "evidence": "fixtures/pygoat/introduction/views.py:430 requires login"
+    },
+    {
+      "text": "python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use Detected subprocess function 'cmd_lab' with user controlled data. A malicious actor could leverage this to perform command injection. You may consider using 'shlex.escape()'.",
+      "evidence": "fixtures/pygoat/introduction/views.py:431 requires login"
+    },
+    {
+      "text": "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true Found 'subprocess' function 'Popen' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process. Doing so propagates current shell settings and variables, which makes it much easier for a malicious actor to execute commands. Use 'shell=False' instead.",
+      "evidence": "fixtures/pygoat/introduction/views.py:432 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:452 requires login"
+    },
+    {
+      "text": "python.django.security.injection.code.user-eval.user-eval Found user data in a call to 'eval'. This is extremely dangerous because it can enable an attacker to execute arbitrary remote code on the system. Instead, refactor your code to not use 'eval' and instead use a safe library for the specific functionality you need.",
+      "evidence": "fixtures/pygoat/introduction/views.py:456 requires login"
+    },
+    {
+      "text": "python.lang.security.audit.eval-detected.eval-detected Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input from outside the program, this may be a code injection vulnerability. Ensure evaluated content is not definable by external sources.",
+      "evidence": "fixtures/pygoat/introduction/views.py:460 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:492 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:550 requires login"
+    },
+    {
+      "text": "python.django.security.audit.avoid-insecure-deserialization.avoid-insecure-deserialization Avoid using insecure deserialization library, backed by `pickle`, `_pickle`, `cpickle`, `dill`, `shelve`, or `yaml`, which are known to lead to remote code execution vulnerabilities.",
+      "evidence": "fixtures/pygoat/introduction/views.py:560 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:573 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:738 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:746 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:782 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:846 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:854 requires login"
+    },
+    {
+      "text": "python.django.security.injection.tainted-sql-string.tainted-sql-string Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using the Django object-relational mappers (ORM) instead of raw SQL queries.",
+      "evidence": "fixtures/pygoat/introduction/views.py:864 requires login"
+    },
+    {
+      "text": "python.django.security.audit.raw-query.avoid-raw-sql Detected the use of 'RawSQL' or 'raw' indicating the execution of a non-parameterized SQL query. This could lead to a SQL injection and therefore protected information could be leaked. Instead, use Django ORM and parameterized queries before raw SQL. An example of using the Django ORM is: `People.objects.get(name='Bob')`",
+      "evidence": "fixtures/pygoat/introduction/views.py:878 requires login"
+    },
+    {
+      "text": "python.django.security.injection.path-traversal.path-traversal-join.path-traversal-join Data from request is passed to os.path.join() and to open(). This is a path traversal vulnerability, which can lead to sensitive data being leaked. To mitigate, consider using os.path.abspath or os.path.realpath or Path library.",
+      "evidence": "fixtures/pygoat/introduction/views.py:923 requires login"
+    },
+    {
+      "text": "python.django.security.injection.ssrf.ssrf-injection-requests.ssrf-injection-requests Data from request object is passed to a new server-side request. This could lead to a server-side request forgery (SSRF). To mitigate, ensure that schemes and hosts are validated against an allowlist, do not forward the response to the user, and ensure proper authentication and transport-layer security in the proxied request. See https://owasp.org/www-community/attacks/Server_Side_Request_Forgery to learn more about SSRF vulnerabilities.",
+      "evidence": "fixtures/pygoat/introduction/views.py:961 requires login"
+    },
+    {
+      "text": "python.django.security.injection.request-data-write.request-data-write Found user-controlled request data passed into '.write(...)'. This could be dangerous if a malicious actor is able to control data into sensitive files. For example, a malicious actor could force rolling of critical log files, or cause a denial-of-service by using up available disk space. Instead, ensure that request data is properly escaped or sanitized.",
+      "evidence": "fixtures/pygoat/introduction/views.py:981 requires login"
+    },
+    {
+      "text": "python.django.security.injection.raw-html-format.raw-html-format Detected user input flowing into a manually constructed HTML string. You may be accidentally bypassing secure methods of rendering HTML by manually constructing HTML and this could create a cross-site scripting vulnerability, which could let attackers steal sensitive user data. To be sure this is safe, check that the HTML is rendered safely. Otherwise, use templates (`django.shortcuts.render`) which will safely render HTML instead.",
+      "evidence": "fixtures/pygoat/introduction/views.py:990 requires login"
+    },
+    {
+      "text": "python.lang.security.audit.md5-used-as-password.md5-used-as-password It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as scrypt. You can use `hashlib.scrypt`.",
+      "evidence": "fixtures/pygoat/introduction/views.py:1026 requires login"
+    },
+    {
+      "text": "python.lang.security.audit.md5-used-as-password.md5-used-as-password It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as scrypt. You can use `hashlib.scrypt`.",
+      "evidence": "fixtures/pygoat/introduction/views.py:1027 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/views.py:1076 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/views.py:1081 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/views.py:1109 requires login"
+    },
+    {
+      "text": "python.django.security.audit.csrf-exempt.no-csrf-exempt Detected usage of @csrf_exempt, which indicates that there is no CSRF token set for this route. This could lead to an attacker manipulating the user's account and exfiltration of private data. Instead, create a function without this decorator.",
+      "evidence": "fixtures/pygoat/introduction/views.py:1177 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/views.py:1197 requires login"
+    },
+    {
+      "text": "python.django.security.audit.secure-cookies.django-secure-set-cookie Django cookies should be handled securely by setting secure=True, httponly=True, and samesite='Lax' in response.set_cookie(...). If your situation calls for different settings, explicitly disable the setting. If you want to send the cookie over http, set secure=False. If you want to let client-side JavaScript read the cookie, set httponly=False. If you want to attach cookies to requests for external sites, set samesite=None.",
+      "evidence": "fixtures/pygoat/introduction/views.py:1204 requires login"
+    }
+  ],
+  "tokens": {
+    "total": {
+      "calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "total_tokens": 0,
+      "cli_cost_usd": 0.0,
+      "priced_cost_usd": 0.0
+    },
+    "by_phase": {},
+    "by_phase_shape": {},
+    "n_calls": 0
+  },
+  "wallclock_s": 71.6,
+  "extra": {
+    "ruleset": "auto",
+    "version": "1.175.0",
+    "exit_code": 0,
+    "n_results": 135
+  }
+}

@@ -1,0 +1,231 @@
+{
+  "arm": "C",
+  "benchmark": "pygoat",
+  "repo": "fixtures/pygoat",
+  "model": "claude-opus-5",
+  "recall": 14,
+  "total": 16,
+  "checkable": 15,
+  "recall_bar": 10,
+  "found": {
+    "SQLI": [
+      11,
+      12
+    ],
+    "CMDI": [
+      5
+    ],
+    "XSS": [
+      17
+    ],
+    "SSRF": [
+      4,
+      13,
+      14,
+      15
+    ],
+    "SSTI": [
+      16
+    ],
+    "XXE": [
+      13
+    ],
+    "DESER-PICKLE": [
+      7
+    ],
+    "DESER-YAML": [
+      9
+    ],
+    "IDOR": [
+      21,
+      22
+    ],
+    "CRYPTO": [
+      23
+    ],
+    "MISCONFIG": [
+      18,
+      27
+    ],
+    "DESIGN-OTP": [
+      24
+    ],
+    "CODEEXEC": [
+      6,
+      7,
+      9,
+      10,
+      28
+    ],
+    "COMPONENTS": [
+      28
+    ]
+  },
+  "missed": [
+    "AUTHZ",
+    "LOGGING"
+  ],
+  "false_positive_candidates": 10,
+  "n_findings": 30,
+  "findings": [
+    {
+      "text": "Unauthenticated remote code execution (code injection via eval) in fixtures/pygoat/introduction/mitre.py \u2014 the view mitre_lab_25_api is @csrf_exempt with the @authentication_decorator commented out, and passes the raw POST parameter 'expression' straight into eval().",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:213-219: `# @authentication_decorator` / `@csrf_exempt` / `def mitre_lab_25_api(request):` ... `expression = request.POST.get('expression')` ... `result = eval(expression)`. Route exists: introduction/urls.py:119 `path(\"mitre/25/lab/api\", mitre.mitre_lab_25_api, ...)`."
+    },
+    {
+      "text": "Unauthenticated OS command injection in fixtures/pygoat/introduction/mitre.py \u2014 mitre_lab_17_api concatenates the POST parameter 'ip' into a shell command executed with shell=True, with no auth decorator and CSRF disabled.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:237-247: `@csrf_exempt def mitre_lab_17_api(request): ip = request.POST.get('ip'); command = \"nmap \" + ip; res, err = command_out(command)` and mitre.py:232-234 `def command_out(command): process = subprocess.Popen(command, shell=True, ...)`. Route: introduction/urls.py:122."
+    },
+    {
+      "text": "Unauthenticated arbitrary file write leading to remote code execution in fixtures/pygoat/introduction/apis.py \u2014 log_function_checker writes attacker-supplied POST bodies ('log_code', 'api_code') directly over the source files introduction/playground/A9/main.py and api.py, then immediately triggers HTTP requests to the endpoint served by that rewritten code.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:59-88: `@csrf_exempt` (the `@authentication_decorator` on line 60 is commented out) `log_code = request.POST.get('log_code'); api_code = request.POST.get('api_code')` ... `log_filename = os.path.join(dirname, \"playground/A9/main.py\")` ... `f = open(log_filename,\"w\"); f.write(log_code)` ... `requests.request(\"GET\", \"http://127.0.0.1:8000/2021/discussion/A9/targe"
+    },
+    {
+      "text": "Unauthenticated arbitrary source-file overwrite (code injection) in fixtures/pygoat/introduction/apis.py \u2014 A6_disscussion_api_2 writes the raw POST 'code' parameter into introduction/playground/A6/utility.py, which is imported and executed by apis.py.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:125-138: `@csrf_exempt def A6_disscussion_api_2(request): code = request.POST.get('code'); filename = os.path.join(dirname, \"playground/A6/utility.py\"); f = open(filename,\"w\"); f.write(code)`; the file is imported at apis.py:9 `from introduction.playground.A6.utility import check_vuln`. Route: introduction/urls.py:89."
+    },
+    {
+      "text": "Code injection via attacker-written module in fixtures/pygoat/introduction/apis.py + utility.py \u2014 ssrf_code_checker feeds POST 'python_code' to ssrf_code_converter, which writes the transformed text into playground/ssrf/main.py, and the view then calls main.ssrf_lab(), executing attacker-controlled code.",
+      "evidence": "fixtures/pygoat/introduction/apis.py:26-38 `python_code = request.POST['python_code']` ... `ssrf_code_converter(python_code)` ... `outputs.append(main.ssrf_lab(inputs))`; fixtures/pygoat/introduction/utility.py:9-38 `filename = os.path.join(dirname, \"playground/ssrf/main.py\"); f = open(filename,\"w\"); f.write(output_Code)`."
+    },
+    {
+      "text": "Command injection in fixtures/pygoat/introduction/views.py \u2014 cmd_lab interpolates the POST parameter 'domain' into a string executed by subprocess.Popen(..., shell=True); the only filtering is a regex that strips a leading protocol/www prefix, so ';id' or '$(...)' survives.",
+      "evidence": "fixtures/pygoat/introduction/views.py:414-435: `@csrf_exempt def cmd_lab(request): domain=request.POST.get('domain'); domain = re.sub(r'^(?:(https?|ftp)://)?(?:www\\.)?', '', domain, ...)` ... `command = \"dig {}\".format(domain)` ... `subprocess.Popen(command, shell=True, ...)`."
+    },
+    {
+      "text": "Code injection via eval in fixtures/pygoat/introduction/views.py \u2014 cmd_lab2 passes the POST parameter 'val' directly to eval() (auth-gated but CSRF-exempt).",
+      "evidence": "fixtures/pygoat/introduction/views.py:452-465: `@csrf_exempt def cmd_lab2(request): val=request.POST.get('val') ... output = eval(val)`. Route: introduction/urls.py:37."
+    },
+    {
+      "text": "Insecure deserialization in fixtures/pygoat/introduction/views.py \u2014 insec_des_lab base64-decodes the client-controlled 'token' cookie and calls pickle.loads() on it, giving arbitrary code execution via a crafted __reduce__ payload.",
+      "evidence": "fixtures/pygoat/introduction/views.py:205-215: `token = request.COOKIES.get('token')` ... `token = base64.b64decode(token); admin = pickle.loads(token)`."
+    },
+    {
+      "text": "Insecure deserialization in fixtures/pygoat/dockerized_labs/insec_des_lab/main.py \u2014 the Flask /deserialize route pickle.loads() a base64 blob taken from the request form.",
+      "evidence": "fixtures/pygoat/dockerized_labs/insec_des_lab/main.py:30-36: `@app.route('/deserialize', methods=['POST'])` ... `serialized_data = request.form.get('serialized_data', ''); decoded_data = base64.b64decode(serialized_data); user = pickle.loads(decoded_data)`."
+    },
+    {
+      "text": "Unsafe YAML deserialization (arbitrary code execution) in fixtures/pygoat/introduction/views.py \u2014 a9_lab loads an uploaded file with yaml.load(file, yaml.Loader), the unsafe full Loader, not safe_load.",
+      "evidence": "fixtures/pygoat/introduction/views.py:550-562: `@csrf_exempt def a9_lab(request): ... file=request.FILES[\"file\"]; data = yaml.load(file,yaml.Loader)`. requirements.txt:27 pins `PyYAML==5.1`."
+    },
+    {
+      "text": "Code injection through PIL ImageMath.eval in fixtures/pygoat/introduction/views.py \u2014 a9_lab2 passes the POST parameter 'function' as the expression argument to ImageMath.eval, a documented code-execution sink in Pillow.",
+      "evidence": "fixtures/pygoat/introduction/views.py:573-588: `@csrf_exempt def a9_lab2(request): ... function_str = request.POST.get(\"function\") ... output = ImageMath.eval(function_str, img = img, b=b, r=r, g=g)`. Route: introduction/urls.py:48."
+    },
+    {
+      "text": "SQL injection in fixtures/pygoat/introduction/views.py \u2014 sql_lab builds a raw SQL string by concatenating the POST parameters 'name' and 'pass' and executes it via login.objects.raw(); the failed query (with injected text) is also reflected back into the template.",
+      "evidence": "fixtures/pygoat/introduction/views.py:150-162: `name=request.POST.get('name'); password=request.POST.get('pass')` ... `sql_query = \"SELECT * FROM introduction_login WHERE user='\"+name+\"' AND password='\"+password+\"'\"` ... `val=login.objects.raw(sql_query)`."
+    },
+    {
+      "text": "SQL injection in fixtures/pygoat/introduction/views.py \u2014 injection_sql_lab concatenates POST 'name'/'pass' into a raw query passed to sql_lab_table.objects.raw().",
+      "evidence": "fixtures/pygoat/introduction/views.py:854-878: `@csrf_exempt def injection_sql_lab(request): name=request.POST.get('name'); password=request.POST.get('pass')` ... `sql_query = \"SELECT * FROM introduction_sql_lab_table WHERE id='\"+name+\"'AND password='\"+password+\"'\"` ... `user = sql_lab_table.objects.raw(sql_query)`."
+    },
+    {
+      "text": "XXE (XML external entity) injection in fixtures/pygoat/introduction/views.py \u2014 xxe_parse explicitly enables external general entities on the SAX parser and parses the raw, unauthenticated, CSRF-exempt request body, allowing local file disclosure/SSRF.",
+      "evidence": "fixtures/pygoat/introduction/views.py:255-260: `@csrf_exempt def xxe_parse(request): parser = make_parser(); parser.setFeature(feature_external_ges, True); doc = parseString(request.body.decode('utf-8'), parser=parser)`. Note there is no `request.user.is_authenticated` guard on this view."
+    },
+    {
+      "text": "Server-side request forgery in fixtures/pygoat/introduction/views.py \u2014 ssrf_lab2 issues requests.get() on a fully attacker-controlled POST 'url' and returns the response body to the caller (full read SSRF, incl. 127.0.0.1 and cloud metadata).",
+      "evidence": "fixtures/pygoat/introduction/views.py:955-964: `@authentication_decorator def ssrf_lab2(request): ... url = request.POST[\"url\"]; response = requests.get(url); return render(..., {\"response\": response.content.decode()})`."
+    },
+    {
+      "text": "Path traversal / arbitrary local file read in fixtures/pygoat/introduction/views.py \u2014 ssrf_lab joins the POST parameter 'blog' onto a base directory with os.path.join and opens/returns the file; '../../../etc/passwd' escapes the directory (os.path.join also honours an absolute path outright). The same sink exists in introduction/playground/ssrf/main.py.",
+      "evidence": "fixtures/pygoat/introduction/views.py:918-929: `file=request.POST[\"blog\"]; dirname = os.path.dirname(__file__); filename = os.path.join(dirname, file); file = open(filename,\"r\"); data = file.read()`; mirrored in fixtures/pygoat/introduction/playground/ssrf/main.py:4-10."
+    },
+    {
+      "text": "Server-side template injection in fixtures/pygoat/introduction/views.py \u2014 ssti_lab writes the raw POST 'blog' value into a Django template file on disk (filter_blog is a no-op pass-through) and ssti_view_blog then renders that file, so submitted {% %}/{{ }} template code is executed server-side.",
+      "evidence": "fixtures/pygoat/introduction/views.py:975-998: `blog = request.POST[\"blog\"]` ... `blog = filter_blog(blog)` ... `filename = os.path.join(dirname, f\"templates/Lab_2021/A3_Injection/Blogs/{id}.html\"); file = open(filename, \"w+\"); file.write(blog)`; views.py:1003-1006 `return render(request,f\"Lab_2021/A3_Injection/Blogs/{blog_id}.html\")`; fixtures/pygoat/introduction/utility.py:55-56 `def filter_blog"
+    },
+    {
+      "text": "Reflected cross-site scripting in the PyGoat XSS lab templates \u2014 request-controlled values are rendered through the |safe filter, disabling Django autoescaping: xss_lab reflects GET 'q' and xss_lab2 reflects POST 'username' after only stripping the literal strings '<script>'/'</script>' (trivially bypassed with <img onerror=> or <SCRIPT>).",
+      "evidence": "fixtures/pygoat/introduction/templates/Lab/XSS/xss_lab.html:27 `<h3> The company '{{query|safe}}' You searched for is not Part of FAANG</h3>` fed by views.py:95-101 `q=request.GET.get('q','')`; fixtures/pygoat/introduction/templates/Lab/XSS/xss_lab_2.html:20 `<p>Hello, {{ username|safe }}</p>` fed by views.py:109-118 `username = request.POST.get('username',''); username = username.replace(\"<script"
+    },
+    {
+      "text": "Hardcoded secrets and debug misconfiguration in fixtures/pygoat/pygoat/settings.py \u2014 Django SECRET_KEY is committed in source, DEBUG = True, and SECRET_COOKIE_KEY = \"PYGOAT\" is the HMAC key used to sign the auth JWT, so anyone can forge an admin token for sec_misconfig_lab3.",
+      "evidence": "fixtures/pygoat/pygoat/settings.py:25 `SECRET_KEY = 'lr66%-a!$km5ed@n5ug!tya5bv!0(yqwa1tn!q%0%3m2nh%oml'`, :30 `DEBUG = True`, :171 `SECRET_COOKIE_KEY = \"PYGOAT\"`; consumed in fixtures/pygoat/introduction/views.py:1087-1096 `from pygoat.settings import SECRET_COOKIE_KEY` ... `payload = jwt.decode(cookie, SECRET_COOKIE_KEY, algorithms=['HS256']); if payload['user'] == 'admin':`."
+    },
+    {
+      "text": "Hardcoded JWT signing key in fixtures/pygoat/introduction/mitre.py \u2014 the CSRF-lab session token is signed/verified with the literal string 'csrf_vulneribility', so an attacker can mint a token for any username and impersonate them in the money-transfer flow.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:169 `cookie = jwt.encode(payload, 'csrf_vulneribility', algorithm='HS256')` and mitre.py:182/194 `payload = jwt.decode(cookie, 'csrf_vulneribility', algorithms=['HS256'])` followed by `username = payload['username']`."
+    },
+    {
+      "text": "Cross-site request forgery (state-changing GET, no token, no auth check) in fixtures/pygoat/introduction/mitre.py \u2014 csrf_transfer_monei_api moves money between accounts on a plain GET request whose parameters come from the URL path, authenticated solely by an ambient cookie, with no CSRF token and no authentication_decorator.",
+      "evidence": "fixtures/pygoat/introduction/mitre.py:191-208: `def csrf_transfer_monei_api(request,recipent,amount): if request.method == \"GET\": cookie = request.COOKIES['auth_cookiee'] ... recipent.balance = recipent.balance + int(amount); recipent.save(); User[0].balance = User[0].balance - int(amount)`. Route: introduction/urls.py:118 `path(\"mitre/9/lab/api/<str:recipent>/<int:amount>\", ...)`."
+    },
+    {
+      "text": "Broken access control / authorization by client-controlled value in fixtures/pygoat/introduction/views.py \u2014 admin status is decided from an attacker-settable 'admin' cookie (ba_lab, a1_broken_access_lab_1), from the User-Agent header (a1_broken_access_lab_2), from an unsigned 'cookie' string of the form 'admin|<expiry>' (crypto_failure_lab3), and from the X-Host header (secret); a1_broken_access_lab3_secret performs no authorization check at all.",
+      "evidence": "fixtures/pygoat/introduction/views.py:347 `if request.COOKIES.get('admin') == \"1\": return render(..., {\"data\":\"0NLY_F0R_4DM1N5\"...})`; views.py:791-797 `user_agent = request.META['HTTP_USER_AGENT']` ... `if (user_agent == \"pygoat_admin\")`; views.py:1053-1061 `cookie = request.COOKIES[\"cookie\"]` ... `elif cookie.split('|')[0] == 'admin':`; views.py:536-538 `XHost = request.headers.get('X-Host','Non"
+    },
+    {
+      "text": "Broken authentication / IDOR in fixtures/pygoat/introduction/views.py \u2014 auth_lab_login logs a user in purely from the 'userid' cookie, which is the sequential AutoField primary key of authLogin, so incrementing the cookie authenticates as any other user; the cookie is set with secure=False, samesite=None and a one-year lifetime.",
+      "evidence": "fixtures/pygoat/introduction/views.py:299-305: `obj = authLogin.objects.filter(userid=request.COOKIES['userid'])[0]` ... `response.set_cookie('userid', obj.userid, max_age=31449600, samesite=None, secure=False)`; models.py:30-34 `class authLogin(...): userid = models.AutoField(primary_key=True)`."
+    },
+    {
+      "text": "Cryptographic failure / plaintext credential storage in fixtures/pygoat \u2014 passwords are stored and compared in cleartext (models.login, models.authLogin used by sql_lab/ba_lab/a10_lab), hashed with unsalted MD5 (crypto_failure_lab, csrf_lab_login), or with a homebrew 'reversed SHA-256' (customHash).",
+      "evidence": "fixtures/pygoat/introduction/views.py:1026-1027 `password = md5(password.encode()).hexdigest(); user = CF_user.objects.filter(username=username,password=password)`; fixtures/pygoat/introduction/mitre.py:161-162 `password = md5(password.encode()).hexdigest(); User = CSRF_user_tbl.objects.filter(username=username, password=password)`; fixtures/pygoat/introduction/utility.py:58-59 `def customHash(pas"
+    },
+    {
+      "text": "Broken authentication (guessable OTP + attacker-controlled identity) in fixtures/pygoat/introduction/views.py \u2014 the Otp view generates a 3-digit OTP with randint(100,999), stores the claimed email in a client-side cookie, and accepts login if the submitted OTP matches EITHER the cookie's email row OR the admin row (id=2), so ~900 guesses log an attacker in as admin.",
+      "evidence": "fixtures/pygoat/introduction/views.py:492-518: `@csrf_exempt def Otp(request): ... otpN=randint(100,999)` ... `html.set_cookie(\"email\", email)` ... `otpR=request.POST.get(\"otp\"); email=request.COOKIES.get(\"email\"); if otp.objects.filter(email=email,otp=otpR) or otp.objects.filter(id=2,otp=otpR):`."
+    },
+    {
+      "text": "Unauthenticated sensitive-data exposure and weak secret generation in fixtures/pygoat/dockerized_labs/sensitive_data_exposure/dataexposure/views.py \u2014 all_users_data_view returns every user's credit card, full SSN and API key as JSON with no authentication or authorization, and API keys are generated with the non-cryptographic random.choices over 16 lowercase-alnum chars.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/dataexposure/views.py:112-132: `def all_users_data_view(request):` (no @login_required) ... `all_users_data.append({'username': ..., 'credit_card': user_data.credit_card, 'ssn': user_data.ssn, 'api_key': user_data.api_key})`; views.py:38-42 `def generate_api_key(): chars = string.ascii_lowercase + string.digits; return ''.join(random.choices("
+    },
+    {
+      "text": "Security misconfiguration and broken authentication in fixtures/pygoat/dockerized_labs/broken_auth_lab/app.py \u2014 Flask runs with debug=True (Werkzeug console \u2192 RCE) bound to 0.0.0.0, uses a hardcoded secret_key, stores/compares passwords in plaintext, mints session cookies as unsigned base64('user:timestamp') that the dashboard trusts verbatim, and generates password-reset tokens as md5(email:timestamp).",
+      "evidence": "fixtures/pygoat/dockerized_labs/broken_auth_lab/app.py:8 `app.secret_key = 'your-secret-key-here'`; :41 `if username in users and users[username]['password'] == password:`; :45 `session_token = base64.b64encode(f\"{username}:{datetime.now()}\".encode()).decode()`; :111 `username = base64.b64decode(session_token).decode().split(':')[0]`; :86 `token = hashlib.md5(f\"{email}:{datetime.now()}\".encode())."
+    },
+    {
+      "text": "Security misconfiguration in fixtures/pygoat/dockerized_labs/sensitive_data_exposure/sensitive_data_lab/settings.py \u2014 DEBUG=True with ALLOWED_HOSTS=['*'] and a hardcoded SECRET_KEY, which leaks stack traces/settings to any host and permits session/CSRF token forgery.",
+      "evidence": "fixtures/pygoat/dockerized_labs/sensitive_data_exposure/sensitive_data_lab/settings.py:8 `SECRET_KEY = 'django-insecure-key-for-demonstration-only'`, :11 `DEBUG = True`, :13 `ALLOWED_HOSTS = ['*']`."
+    },
+    {
+      "text": "Vulnerable/outdated dependency in fixtures/pygoat/requirements.txt \u2014 PyYAML is pinned to 5.1, which is affected by CVE-2020-1747 / CVE-2020-14343 (arbitrary code execution through the full Loader); the app actually reaches that sink in a9_lab, and urllib3==1.26.9 / Werkzeug==2.1.2 are likewise outdated.",
+      "evidence": "fixtures/pygoat/requirements.txt:27 `PyYAML==5.1`, :31 `urllib3==1.26.9`, :32 `Werkzeug==2.1.2`; sink at fixtures/pygoat/introduction/views.py:560 `data = yaml.load(file,yaml.Loader)`. The app even self-reports it: views.py:570-571 `return render(...,{\"version\":\"pyyaml v5.1\"})`."
+    },
+    {
+      "text": "Log injection / sensitive data in logs in fixtures/pygoat/introduction/views.py and playground/A9/api.py \u2014 the attacker-controlled X-Forwarded-For header and the submitted username are written unsanitised into the app log via f-strings (newlines allow forging log entries), and the A9 target endpoint logs the submitted password in cleartext.",
+      "evidence": "fixtures/pygoat/introduction/views.py:648-672: `x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR'); ip = x_forwarded_for.split(',')[0]` ... `logging.warning(f\"{now}:{ip}:{user}\")` with views.py:642 `logging.basicConfig(level=logging.DEBUG,filename='app.log')`; fixtures/pygoat/introduction/playground/A9/api.py:14-16 `password = request.POST['password']; L.info(f\"POST request with username {"
+    }
+  ],
+  "tokens": {
+    "total": {
+      "calls": 1,
+      "input_tokens": 18,
+      "output_tokens": 14447,
+      "cache_creation_input_tokens": 45460,
+      "cache_read_input_tokens": 386053,
+      "total_tokens": 445978,
+      "cli_cost_usd": 1.009546,
+      "priced_cost_usd": 0.838417
+    },
+    "by_phase": {
+      "?": {
+        "calls": 1,
+        "input_tokens": 18,
+        "output_tokens": 14447,
+        "cache_creation_input_tokens": 45460,
+        "cache_read_input_tokens": 386053,
+        "total_tokens": 445978,
+        "cli_cost_usd": 1.009546,
+        "priced_cost_usd": 0.838417
+      }
+    },
+    "by_phase_shape": {
+      "?/-": {
+        "calls": 1,
+        "input_tokens": 18,
+        "output_tokens": 14447,
+        "cache_creation_input_tokens": 45460,
+        "cache_read_input_tokens": 386053,
+        "total_tokens": 445978,
+        "cli_cost_usd": 1.009546,
+        "priced_cost_usd": 0.838417
+      }
+    },
+    "n_calls": 1
+  },
+  "wallclock_s": 174.1,
+  "extra": {}
+}

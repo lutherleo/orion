@@ -28,86 +28,22 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from tests.ground_truth_nodegoat import GROUND_TRUTH, RECALL_BAR, TOTAL, CHECKABLE, GroundTruth
-
-# DISTINCTIVE per-vuln tokens. Two hard lessons from the first run drove this design:
-#   1. Match the LEAD'S OWN CLAIM, not the verifier's verbose reason/evidence — the verifier
-#      cross-references other files/vulns ("unlike the open redirect in index.js…"), which leaked
-#      matches across ground truths. `_verdict_blob` below uses lead.text + lead.evidence only.
-#   2. Use tokens UNIQUE to each vuln, never generic words. "access control" collided A4/A7;
-#      "package" spuriously credited A9. Each token here identifies exactly its vuln class, so
-#      vulns that share a file (server.js hosts A2-1/A3/A5; session.js hosts A1-3/A2-1/A2-2) don't
-#      cross-match. A verdict matches iff it names the file AND hits one distinctive token.
-CLASS_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "A1-1": ("eval", "ssjs", "server-side js", "server side js"),
-    "A1-2": ("$where", "nosql"),
-    "A1-3": ("log injection", "log forging", "log/crlf", "crlf"),
-    "A2-1": ("session cookie", "httponly", "session hardening", "session secret",
-             "session management", "cookie name", "secure flag"),
-    "A2-2": ("password policy", "password-policy", "enumeration", "weak password", "weak-password",
-             "plaintext password", "password hashing", "password comparison", "comparepassword", "bcrypt"),
-    "A3": ("autoescape", "auto-escap", "auto escap", "escaping disabled", "swig", "xss"),
-    "A4": ("idor", "direct object", "req.params"),
-    "A5": ("helmet", "x-frame", "clickjack", "hsts", "x-powered-by", "security header",
-           "security response header", "security-misconfiguration"),
-    "A6": ("encrypt", "ssn", "sensitive-data", "sensitive data", "pii"),
-    "A7": ("isadmin", "function-level", "function level", "never attached",
-           "admin-authorization", "admin authorization", "admin middleware"),
-    "A8": ("csrf", "forgery"),
-    # A9 is the known data-gap (0 Dependency nodes / no CVE data). Only a genuine dependency-CVE
-    # signal counts — a finding that merely mentions "package.json" is NOT a dependency finding.
-    "A9": ("cve-", "known vulnerabilit", "vulnerable version", "outdated version", "npm audit", "retire.js"),
-    "A10": ("redirect", "forward", "unvalidated"),
-    "SSRF": ("ssrf", "server-side request", "server side request", "needle.get"),
-    "ReDoS": ("redos", "backtracking", "nested quantifier", "catastrophic", "([0-9]+)+"),
-}
+from tests.ground_truth_nodegoat import (
+    CLASS_KEYWORDS, GROUND_TRUTH, RECALL_BAR, TOTAL, CHECKABLE, GroundTruth)
+from bench import scoring
 
 
-def _text_blob(v) -> str:
-    """The LEAD's focused CLAIM (`lead.text`) only, lowercased. The vuln-CLASS token must come from
-    here -- never from `lead.evidence`, which is the discoverer's raw query result (often a broad
-    `MATCH (c:CpgCall) RETURN c.code, c.file_path` dump whose incidental class-words would otherwise
-    cross-credit unrelated ground truths and inflate recall)."""
-    return (getattr(v.lead, "text", "") or "").lower()
-
-
-def _file_blob(v) -> str:
-    """Text + the discoverer's cited evidence, lowercased -- used ONLY for the file match. The file
-    is legitimately cited in either place (many leads name the vuln in `text` but the file in the
-    query in `evidence`), so allowing evidence here recovers real finds; the class token stays
-    text-only so this cannot inflate."""
+def _finding_of(v) -> tuple[str, str]:
+    """One CONFIRM verdict as the (text, evidence) pair the shared matcher scores: the lead's focused
+    CLAIM (`lead.text`) + its cited `lead.evidence`. Class token comes from text, file from both."""
     lead = v.lead
-    return " ".join(p for p in (getattr(lead, "text", ""), getattr(lead, "evidence", "")) if p).lower()
-
-
-def _matches(gt: GroundTruth, text_blob: str, file_blob: str) -> bool:
-    """A lead matches a ground truth iff (file cited anywhere in the claim/evidence) AND (a
-    distinctive class token appears in the focused CLAIM). Asymmetric on purpose: file from
-    text+evidence recovers real finds; token from text-only prevents a broad evidence dump from
-    crediting several ground truths at once."""
-    if not any(f.lower() in file_blob for f in gt.files):
-        return False
-    kws = CLASS_KEYWORDS.get(gt.id, ())
-    if kws and not any(k in text_blob for k in kws):
-        return False
-    return True
+    return (getattr(lead, "text", "") or "", getattr(lead, "evidence", "") or "")
 
 
 def match_verdicts(confirmed) -> tuple[dict[str, list[int]], list[int]]:
-    """Pure matcher. Given the list of CONFIRM verdicts, return
-    (found: {gt_id -> [verdict indices that matched it]}, unmatched: [verdict indices matching no gt]).
-    A verdict may support more than one ground truth only if it genuinely overlaps both file+class."""
-    text_blobs = [_text_blob(v) for v in confirmed]
-    file_blobs = [_file_blob(v) for v in confirmed]
-    found: dict[str, list[int]] = {}
-    matched_any: set[int] = set()
-    for gt in GROUND_TRUTH:
-        hits = [i for i in range(len(confirmed)) if _matches(gt, text_blobs[i], file_blobs[i])]
-        if hits:
-            found[gt.id] = hits
-            matched_any.update(hits)
-    unmatched = [i for i in range(len(confirmed)) if i not in matched_any]
-    return found, unmatched
+    """Pure matcher (thin wrapper over bench.scoring.match). Given the list of CONFIRM verdicts, return
+    (found: {gt_id -> [verdict indices that matched it]}, unmatched: [indices matching no gt])."""
+    return scoring.match([_finding_of(v) for v in confirmed], GROUND_TRUTH, CLASS_KEYWORDS)
 
 
 def _run_pipeline(repo: str, scan_id: str | None, quiet: bool):

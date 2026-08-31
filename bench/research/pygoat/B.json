@@ -1,0 +1,71 @@
+{
+  "arm": "B",
+  "benchmark": "pygoat",
+  "repo": "fixtures/pygoat",
+  "model": "llama3.2",
+  "recall": 0,
+  "total": 16,
+  "checkable": 15,
+  "recall_bar": 10,
+  "found": {},
+  "missed": [
+    "SQLI",
+    "CMDI",
+    "XSS",
+    "SSRF",
+    "SSTI",
+    "XXE",
+    "DESER-PICKLE",
+    "DESER-YAML",
+    "IDOR",
+    "CRYPTO",
+    "MISCONFIG",
+    "AUTHZ",
+    "DESIGN-OTP",
+    "LOGGING",
+    "CODEEXEC",
+    "COMPONENTS"
+  ],
+  "false_positive_candidates": 0,
+  "n_findings": 0,
+  "findings": [],
+  "tokens": {
+    "total": {
+      "calls": 2,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "total_tokens": 0,
+      "cli_cost_usd": 0.0,
+      "priced_cost_usd": 0.0
+    },
+    "by_phase": {
+      "?": {
+        "calls": 2,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_tokens": 0,
+        "cli_cost_usd": 0.0,
+        "priced_cost_usd": 0.0
+      }
+    },
+    "by_phase_shape": {
+      "?/-": {
+        "calls": 2,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_tokens": 0,
+        "cli_cost_usd": 0.0,
+        "priced_cost_usd": 0.0
+      }
+    },
+    "n_calls": 2
+  },
+  "wallclock_s": 562.5,
+  "extra": {}
+}

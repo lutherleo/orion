@@ -28,6 +28,26 @@ NODE_KEY: dict[str, tuple[str, ...]] = {
     "CandidateFlow": ("scan_id", "uid"),
 }
 
+# Dynamic-layer node identity, kept SEPARATE from NODE_KEY on purpose. persist._clear (the static
+# build's clear) is scoped to NODE_KEY's labels, so it never TARGETS a dynamic label — :ObservedMethod
+# NODES survive an `orion scan` rebuild, and persist_dynamic owns its own clear over exactly these
+# labels (the two-clear invariant: neither clear targets the other's labels).
+#   CAVEAT (measured): a rebuild's DETACH DELETE of a static CpgMethod/CpgCall still removes any
+#   OBSERVED_* EDGE incident to it — you cannot delete a node while sparing its relationships. So a
+#   re-`scan` drops dynamic edges that touch static nodes. That is the correct behavior: a re-scan
+#   means the code changed and the prior trace is stale, so the workflow is `scan` -> `trace`, with
+#   `orion trace` re-run after any re-scan. Re-running `trace` alone is idempotent and leaves static
+#   untouched. See docs/superpowers/specs/2026-08-27-dynamic-trace-layer-design.md §6.
+DYNAMIC_NODE_KEY: dict[str, tuple[str, ...]] = {
+    # A function executed at runtime with no static CpgMethod (reflection/eval/monkey-patch). The
+    # literal "creates newer nodes than before". uid = synthesize_uid(scan_id,"ObservedMethod",...).
+    "ObservedMethod": ("scan_id", "uid"),
+}
+
+# Every node label + its MERGE key, static and dynamic. persist's node-row builder consults this so
+# it can key an ObservedMethod row the same way it keys a CpgMethod, while the two CLEARS stay split.
+ALL_NODE_KEY: dict[str, tuple[str, ...]] = {**NODE_KEY, **DYNAMIC_NODE_KEY}
+
 
 def synthesize_uid(scan_id: str, cpg_type: str, file_path, line, column, code) -> str:
     """Deterministic structural identity (Doc 2 §5.3): the same normalized source always
