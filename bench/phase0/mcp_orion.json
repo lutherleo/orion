@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "orion": {
+      "command": "/home/lutherleo/orion/.venv/bin/python",
+      "args": ["-m", "orion.mcp_server"]
+    }
+  }
+}

@@ -1,0 +1,209 @@
+{
+  "arm": "D",
+  "benchmark": "nodegoat",
+  "repo": "fixtures/NodeGoat",
+  "model": "semgrep",
+  "recall": 4,
+  "total": 15,
+  "checkable": 14,
+  "recall_bar": 13,
+  "found": {
+    "A1-1": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "A2-1": [
+      28,
+      31
+    ],
+    "A5": [
+      28
+    ],
+    "A10": [
+      12
+    ]
+  },
+  "missed": [
+    "A1-2",
+    "A1-3",
+    "A2-2",
+    "A3",
+    "A4",
+    "A6",
+    "A7",
+    "A8",
+    "A9",
+    "SSRF",
+    "ReDoS"
+  ],
+  "false_positive_candidates": 26,
+  "n_findings": 35,
+  "findings": [
+    {
+      "text": "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the action owner, enabling supply-chain attacks \u2014 as seen in the trivy-action and kics-github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.",
+      "evidence": "fixtures/NodeGoat/.github/workflows/e2e-test.yml:16 requires login"
+    },
+    {
+      "text": "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the action owner, enabling supply-chain attacks \u2014 as seen in the trivy-action and kics-github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.",
+      "evidence": "fixtures/NodeGoat/.github/workflows/e2e-test.yml:21 requires login"
+    },
+    {
+      "text": "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the action owner, enabling supply-chain attacks \u2014 as seen in the trivy-action and kics-github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.",
+      "evidence": "fixtures/NodeGoat/.github/workflows/e2e-test.yml:26 requires login"
+    },
+    {
+      "text": "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the action owner, enabling supply-chain attacks \u2014 as seen in the trivy-action and kics-github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.",
+      "evidence": "fixtures/NodeGoat/.github/workflows/e2e-test.yml:58 requires login"
+    },
+    {
+      "text": "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the action owner, enabling supply-chain attacks \u2014 as seen in the trivy-action and kics-github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.",
+      "evidence": "fixtures/NodeGoat/.github/workflows/lint.yml:16 requires login"
+    },
+    {
+      "text": "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently repointed by the action owner, enabling supply-chain attacks \u2014 as seen in the trivy-action and kics-github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.",
+      "evidence": "fixtures/NodeGoat/.github/workflows/lint.yml:21 requires login"
+    },
+    {
+      "text": "javascript.browser.security.eval-detected.eval-detected Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input from outside the program, this may be a code injection vulnerability. Ensure evaluated content is not definable by external sources.",
+      "evidence": "fixtures/NodeGoat/app/routes/contributions.js:32 requires login"
+    },
+    {
+      "text": "javascript.lang.security.audit.code-string-concat.code-string-concat Found data from an Express or Next web request flowing to `eval`. If this data is user-controllable this can lead to execution of arbitrary system commands in the context of your application process. Avoid `eval` whenever possible.",
+      "evidence": "fixtures/NodeGoat/app/routes/contributions.js:32 requires login"
+    },
+    {
+      "text": "javascript.browser.security.eval-detected.eval-detected Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input from outside the program, this may be a code injection vulnerability. Ensure evaluated content is not definable by external sources.",
+      "evidence": "fixtures/NodeGoat/app/routes/contributions.js:33 requires login"
+    },
+    {
+      "text": "javascript.lang.security.audit.code-string-concat.code-string-concat Found data from an Express or Next web request flowing to `eval`. If this data is user-controllable this can lead to execution of arbitrary system commands in the context of your application process. Avoid `eval` whenever possible.",
+      "evidence": "fixtures/NodeGoat/app/routes/contributions.js:33 requires login"
+    },
+    {
+      "text": "javascript.browser.security.eval-detected.eval-detected Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input from outside the program, this may be a code injection vulnerability. Ensure evaluated content is not definable by external sources.",
+      "evidence": "fixtures/NodeGoat/app/routes/contributions.js:34 requires login"
+    },
+    {
+      "text": "javascript.lang.security.audit.code-string-concat.code-string-concat Found data from an Express or Next web request flowing to `eval`. If this data is user-controllable this can lead to execution of arbitrary system commands in the context of your application process. Avoid `eval` whenever possible.",
+      "evidence": "fixtures/NodeGoat/app/routes/contributions.js:34 requires login"
+    },
+    {
+      "text": "javascript.express.security.audit.express-open-redirect.express-open-redirect The application redirects to a URL specified by user-supplied input `req` that is not validated. This could redirect users to malicious locations. Consider using an allow-list approach to validate URLs, or warn users they are being redirected to a third-party website.",
+      "evidence": "fixtures/NodeGoat/app/routes/index.js:72 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/NodeGoat/app/views/benefits.html:54 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/NodeGoat/app/views/login.html:107 requires login"
+    },
+    {
+      "text": "python.django.security.django-no-csrf-token.django-no-csrf-token Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.",
+      "evidence": "fixtures/NodeGoat/app/views/memos.html:15 requires login"
+    },
+    {
+      "text": "html.security.plaintext-http-link.plaintext-http-link This link points to a plaintext HTTP URL. Prefer an encrypted HTTPS URL if possible.",
+      "evidence": "fixtures/NodeGoat/app/views/tutorial/a2.html:207 requires login"
+    },
+    {
+      "text": "html.security.plaintext-http-link.plaintext-http-link This link points to a plaintext HTTP URL. Prefer an encrypted HTTPS URL if possible.",
+      "evidence": "fixtures/NodeGoat/app/views/tutorial/a2.html:209 requires login"
+    },
+    {
+      "text": "html.security.plaintext-http-link.plaintext-http-link This link points to a plaintext HTTP URL. Prefer an encrypted HTTPS URL if possible.",
+      "evidence": "fixtures/NodeGoat/app/views/tutorial/a2.html:210 requires login"
+    },
+    {
+      "text": "html.security.plaintext-http-link.plaintext-http-link This link points to a plaintext HTTP URL. Prefer an encrypted HTTPS URL if possible.",
+      "evidence": "fixtures/NodeGoat/app/views/tutorial/a5.html:50 requires login"
+    },
+    {
+      "text": "html.security.plaintext-http-link.plaintext-http-link This link points to a plaintext HTTP URL. Prefer an encrypted HTTPS URL if possible.",
+      "evidence": "fixtures/NodeGoat/app/views/tutorial/a5.html:51 requires login"
+    },
+    {
+      "text": "generic.secrets.security.detected-private-key.detected-private-key Private Key detected. This is a sensitive credential and should not be hardcoded here. Instead, store this in a separate, private file.",
+      "evidence": "fixtures/NodeGoat/artifacts/cert/server.key:1 requires login"
+    },
+    {
+      "text": "generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash bcrypt hash detected",
+      "evidence": "fixtures/NodeGoat/artifacts/db-reset.js:19 requires login"
+    },
+    {
+      "text": "generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash bcrypt hash detected",
+      "evidence": "fixtures/NodeGoat/artifacts/db-reset.js:28 requires login"
+    },
+    {
+      "text": "generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash bcrypt hash detected",
+      "evidence": "fixtures/NodeGoat/artifacts/db-reset.js:36 requires login"
+    },
+    {
+      "text": "yaml.docker-compose.security.no-new-privileges.no-new-privileges Service 'mongo' allows for privilege escalation via setuid or setgid binaries. Add 'no-new-privileges:true' in 'security_opt' to prevent this.",
+      "evidence": "fixtures/NodeGoat/docker-compose.yml:13 requires login"
+    },
+    {
+      "text": "yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service Service 'mongo' is running with a writable root filesystem. This may allow malicious applications to download and run additional payloads, or modify container files. If an application inside a container has to save something temporarily consider using a tmpfs. Add 'read_only: true' to this service to prevent this.",
+      "evidence": "fixtures/NodeGoat/docker-compose.yml:13 requires login"
+    },
+    {
+      "text": "javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage A CSRF middleware was not detected in your express application. Ensure you are either using one such as `csurf` or `csrf` (see rule references) and/or you are properly doing CSRF validation in your routes with a token or cookies.",
+      "evidence": "fixtures/NodeGoat/server.js:15 requires login"
+    },
+    {
+      "text": "javascript.express.security.audit.express-cookie-settings.express-cookie-session-default-name Don\u2019t use the default session cookie name Using the default session cookie name can open your app to attacks. The security issue posed is similar to X-Powered-By: a potential attacker can use it to fingerprint the server and target attacks accordingly.",
+      "evidence": "fixtures/NodeGoat/server.js:78 requires login"
+    },
+    {
+      "text": "javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-domain Default session middleware settings: `domain` not set. It indicates the domain of the cookie; use it to compare against the domain of the server in which the URL is being requested. If they match, then check the path attribute next.",
+      "evidence": "fixtures/NodeGoat/server.js:78 requires login"
+    },
+    {
+      "text": "javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-expires Default session middleware settings: `expires` not set. Use it to set expiration date for persistent cookies.",
+      "evidence": "fixtures/NodeGoat/server.js:78 requires login"
+    },
+    {
+      "text": "javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-httponly Default session middleware settings: `httpOnly` not set. It ensures the cookie is sent only over HTTP(S), not client JavaScript, helping to protect against cross-site scripting attacks.",
+      "evidence": "fixtures/NodeGoat/server.js:78 requires login"
+    },
+    {
+      "text": "javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-path Default session middleware settings: `path` not set. It indicates the path of the cookie; use it to compare against the request path. If this and domain match, then send the cookie in the request.",
+      "evidence": "fixtures/NodeGoat/server.js:78 requires login"
+    },
+    {
+      "text": "javascript.express.security.audit.express-cookie-settings.express-cookie-session-no-secure Default session middleware settings: `secure` not set. It ensures the browser only sends the cookie over HTTPS.",
+      "evidence": "fixtures/NodeGoat/server.js:78 requires login"
+    },
+    {
+      "text": "problem-based-packs.insecure-transport.js-node.using-http-server.using-http-server Checks for any usage of http servers instead of https servers. Encourages the usage of https protocol instead of http, which does not have TLS and is therefore unencrypted. Using http can lead to man-in-the-middle attacks in which the attacker is able to read sensitive information.",
+      "evidence": "fixtures/NodeGoat/server.js:145 requires login"
+    }
+  ],
+  "tokens": {
+    "total": {
+      "calls": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "total_tokens": 0,
+      "cli_cost_usd": 0.0,
+      "priced_cost_usd": 0.0
+    },
+    "by_phase": {},
+    "by_phase_shape": {},
+    "n_calls": 0
+  },
+  "wallclock_s": 27.9,
+  "extra": {
+    "ruleset": "auto",
+    "version": "1.175.0",
+    "exit_code": 0,
+    "n_results": 35
+  }
+}

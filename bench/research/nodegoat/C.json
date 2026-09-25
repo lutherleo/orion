@@ -1,0 +1,186 @@
+{
+  "arm": "C",
+  "benchmark": "nodegoat",
+  "repo": "fixtures/NodeGoat",
+  "model": "claude-opus-5",
+  "recall": 15,
+  "total": 15,
+  "checkable": 14,
+  "recall_bar": 13,
+  "found": {
+    "A1-1": [
+      0
+    ],
+    "A1-2": [
+      1
+    ],
+    "A1-3": [
+      20
+    ],
+    "A2-1": [
+      12
+    ],
+    "A2-2": [
+      14
+    ],
+    "A3": [
+      6,
+      8
+    ],
+    "A4": [
+      4
+    ],
+    "A5": [
+      16
+    ],
+    "A6": [
+      15
+    ],
+    "A7": [
+      5
+    ],
+    "A8": [
+      11
+    ],
+    "A9": [
+      19
+    ],
+    "A10": [
+      3
+    ],
+    "SSRF": [
+      2
+    ],
+    "ReDoS": [
+      10
+    ]
+  },
+  "missed": [],
+  "false_positive_candidates": 5,
+  "n_findings": 21,
+  "findings": [
+    {
+      "text": "Server-Side JavaScript / code injection (RCE) in app/routes/contributions.js: the POST /contributions handler passes raw request-body fields straight to eval().",
+      "evidence": "fixtures/NodeGoat/app/routes/contributions.js:30-34 \u2014 `/*jslint evil: true */ // Insecure use of eval() to parse inputs` then `const preTax = eval(req.body.preTax); const afterTax = eval(req.body.afterTax); const roth = eval(req.body.roth);`. The safe alternative (`parseInt`) is present but commented out at lines 36-41. Route wired at app/routes/index.js:52 `app.post(\"/contributions\", isLoggedIn, "
+    },
+    {
+      "text": "NoSQL injection ($where JavaScript operator) in app/data/allocations-dao.js: the `threshold` query-string parameter is string-concatenated into a MongoDB $where expression.",
+      "evidence": "fixtures/NodeGoat/app/data/allocations-dao.js:77-79 \u2014 `return { $where: `this.userId == ${parsedUserId} && this.stocks > '${threshold}'` };`. Source is untrusted: app/routes/allocations.js:19-23 `const { threshold } = req.query; allocationsDAO.getByUserIdAndThreshold(userId, threshold, ...)`. The commented-out fix at lines 63-76 names the payloads `0';while(true){}'` and `1'; return 1 == '1`."
+    },
+    {
+      "text": "Server-Side Request Forgery (SSRF) in app/routes/research.js: attacker-controlled `req.query.url` is fetched with needle.get and the response body is written back to the client.",
+      "evidence": "fixtures/NodeGoat/app/routes/research.js:14-27 \u2014 `if (req.query.symbol) { const url = req.query.url + req.query.symbol; return needle.get(url, (error, newResponse, body) => { ... if (body) { res.write(body); } ...`. The `url` is only a hidden form field (app/views/research.html:17 `<input type=\"hidden\" id=\"url\" name=\"url\" value=\"https://finance.yahoo.com/quote/\"/>`) with no server-side allowlist, "
+    },
+    {
+      "text": "Unvalidated / open redirect in app/routes/index.js: the /learn route redirects to a raw query-string URL.",
+      "evidence": "fixtures/NodeGoat/app/routes/index.js:70-73 \u2014 `app.get(\"/learn\", isLoggedIn, (req, res) => { // Insecure way to handle redirects by taking redirect url from query string  return res.redirect(req.query.url); });` \u2014 no allowlist or scheme check, so `/learn?url=https://evil.tld` (or a `javascript:` URI) is honored."
+    },
+    {
+      "text": "Broken access control / IDOR in app/routes/allocations.js: the allocations page takes the userId from the URL path instead of the session, so any logged-in user can read another user's financial allocations.",
+      "evidence": "fixtures/NodeGoat/app/routes/allocations.js:12-23 \u2014 the fix `// const { userId } = req.session;` is commented out and the code uses `const { userId } = req.params;` which flows into `allocationsDAO.getByUserIdAndThreshold(userId, threshold, ...)`. Route: app/routes/index.js:63 `app.get(\"/allocations/:userId\", isLoggedIn, allocationsHandler.displayAllocations)` \u2014 only isLoggedIn, no ownership check"
+    },
+    {
+      "text": "Missing function-level access control on the /benefits admin endpoints in app/routes/index.js: the isAdmin middleware is commented out, so any authenticated non-admin can view all users and rewrite benefit start dates.",
+      "evidence": "fixtures/NodeGoat/app/routes/index.js:55-60 \u2014 `app.get(\"/benefits\", isLoggedIn, benefitsHandler.displayBenefits); app.post(\"/benefits\", isLoggedIn, benefitsHandler.updateBenefits);` with the fix `/* Fix for A7 - checks user role ... app.get(\"/benefits\", isLoggedIn, isAdmin, ...) */` commented out. `isAdmin` is defined but unused at line 27. The handler even hardcodes `user: { isAdmin: true }` (app"
+    },
+    {
+      "text": "Cross-site scripting: the Swig template engine is explicitly configured with autoescape disabled in server.js, so every `{{ }}` interpolation of user data in app/views/*.html is a raw HTML sink.",
+      "evidence": "fixtures/NodeGoat/server.js:135-142 \u2014 `swig.setDefaults({ // Autoescape disabled  autoescape: false /* // Fix for A3 - XSS, enable auto escaping  autoescape: true */ });`. Sinks reached by user input: app/views/profile.html:45-70 renders `{{lastName}}`, `{{ssn}}`, `{{address}}`, `{{bankRouting}}` straight from `req.body` (app/routes/profile.js:42-75), and app/views/error-template.html:11 renders `"
+    },
+    {
+      "text": "XSS via wrong-context encoding in app/routes/profile.js / app/views/profile.html: firstName is emitted unescaped into an href attribute (javascript: URI), and doc.website is HTML-encoded but used in a URL context.",
+      "evidence": "fixtures/NodeGoat/app/routes/profile.js:64 `const firstNameSafeString = firstName;` (no encoding at all) and app/views/profile.html:78 `<a href=\"{{firstNameSafeString}}\">Google search this profile by name</a>` \u2014 with autoescape off, `javascript:alert(1)` or `\"><script>` executes. Related mis-context noted at app/routes/profile.js:24-31: `doc.website = ESAPI.encoder().encodeForHTML(doc.website);` w"
+    },
+    {
+      "text": "Stored XSS in the memos feature: memo text from req.body is persisted unfiltered and rendered through marked() in a non-autoescaping template.",
+      "evidence": "fixtures/NodeGoat/app/routes/memos.js:11-16 `memosDAO.insert(req.body.memo, ...)` \u2192 app/data/memos-dao.js:15-24 stores it verbatim \u2192 app/views/memos.html:31 `{{ marked(doc.memo) }}` with swig autoescape:false (server.js:140). The only mitigation is `marked.setOptions({ sanitize: true })` (server.js:126-128) on marked 0.3.5 (package.json:16), whose sanitize option is a known-bypassable deprecated f"
+    },
+    {
+      "text": "Broken authentication / cryptographic failure in app/data/user-dao.js: passwords are stored in cleartext and verified with a plain string equality comparison.",
+      "evidence": "fixtures/NodeGoat/app/data/user-dao.js:20-31 \u2014 user document is built with `password //received from request param` while `password: bcrypt.hashSync(password, bcrypt.genSaltSync())` sits commented out; and lines 59-67 `const comparePassword = (fromDB, fromUser) => { return fromDB === fromUser; }` with the `bcrypt.compareSync` fix commented out. Seed data confirms plaintext: artifacts/db-reset.js:1"
+    },
+    {
+      "text": "ReDoS (catastrophic backtracking) in app/routes/profile.js: the bank-routing validation regex uses nested quantifiers and is run against unbounded request-body input.",
+      "evidence": "fixtures/NodeGoat/app/routes/profile.js:52-61 \u2014 `const regexPattern = /([0-9]+)+\\#/;` followed by `const testComplyWithRequirements = regexPattern.test(bankRouting);` where `bankRouting` comes from `req.body` (line 42-50). The comment itself states the safe form is `/([0-9]+)\\#/` without the second `+`. A long digit string with no `#` blocks the single-threaded event loop."
+    },
+    {
+      "text": "Missing CSRF protection application-wide: csurf is imported-but-commented in server.js, so all state-changing POSTs (/profile, /contributions, /benefits, /memos) are forgeable; templates render an always-empty `{{csrftoken}}`.",
+      "evidence": "fixtures/NodeGoat/server.js:7 `// const csrf = require('csurf');` and 104-113 `/* // Fix for A8 - CSRF  app.use(csrf()); app.use((req, res, next) => { res.locals.csrftoken = req.csrfToken(); next(); }); */`. Meanwhile app/views/profile.html:73 still emits `<input type=\"hidden\" name=\"_csrf\" value=\"{{csrftoken}}\" />` (undefined \u21d2 empty), and no route in app/routes/index.js applies any token check."
+    },
+    {
+      "text": "Session security misconfiguration in server.js: the session cookie has no httpOnly/secure/maxAge flags and the signing secret is a hardcoded constant checked into config/env/all.js.",
+      "evidence": "fixtures/NodeGoat/server.js:78-102 \u2014 `app.use(session({ secret: cookieSecret, saveUninitialized: true, resave: true` with the `cookie: { httpOnly: true ... secure: true }` block and generic `key: \"sessionId\"` both commented out. Secret source: fixtures/NodeGoat/config/env/all.js:8 `cookieSecret: \"session_cookie_secret_key_here\"` (also `cryptoKey: \"a_secure_key_for_crypto_here\"` at line 9). Cookies"
+    },
+    {
+      "text": "Session fixation in app/routes/session.js: the login handler assigns the user id onto the pre-authentication session without regenerating the session id.",
+      "evidence": "fixtures/NodeGoat/app/routes/session.js:104-117 \u2014 a comment block explicitly describes the fix (`req.session.regenerate(() => {})`) and the code below it simply does `req.session.userId = user._id; return res.redirect(...)`. By contrast handleSignup at line 234 does call `req.session.regenerate`, confirming the login path's omission is the defect."
+    },
+    {
+      "text": "Username enumeration and weak password policy in app/routes/session.js: login returns distinct 'Invalid username' vs 'Invalid password' messages, and signup accepts any 1-20 character password.",
+      "evidence": "fixtures/NodeGoat/app/routes/session.js:59-98 \u2014 `invalidUserNameErrorMessage`/`invalidPasswordErrorMessage` are rendered in separate branches while the unified `errorMessage` fix is commented out; and line 144 `const PASS_RE = /^.{1,20}$/;` with the strong policy `/^(?=.*\\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/` commented out at lines 145-149."
+    },
+    {
+      "text": "Sensitive data exposure in app/data/profile-dao.js: SSN, date of birth and bank account/routing numbers are written to MongoDB in cleartext, and the whole app is served over plaintext HTTP.",
+      "evidence": "fixtures/NodeGoat/app/data/profile-dao.js:42-66 assigns `user.ssn = ssn; user.dob = dob; user.bankAcc = bankAcc; user.bankRouting = bankRouting;` directly, with the encrypt() helper and `user.ssn = encrypt(ssn)` fix commented out (lines 15-40, 67-76). Transport: fixtures/NodeGoat/server.js:144-155 `// Insecure HTTP connection  http.createServer(app).listen(port, ...)` with the https.createServer f"
+    },
+    {
+      "text": "Security misconfiguration in server.js: all helmet protections and the MIME-sniffing guard are disabled, so no CSP, HSTS, X-Frame-Options, nosniff or x-powered-by suppression is sent.",
+      "evidence": "fixtures/NodeGoat/server.js:10,14 (`// const helmet = require(\"helmet\");`, `//const nosniff = require('dont-sniff-mimetype');`) and 38-65, the whole `/* Fix for A5 - Security MisConfig ... app.disable(\"x-powered-by\"); app.use(helmet.frameguard()); app.use(helmet.noCache()); app.use(helmet.contentSecurityPolicy()); app.use(helmet.hsts()); app.use(nosniff()); */` block is commented out. helmet and d"
+    },
+    {
+      "text": "Sensitive information disclosure through the error handler in app/routes/error.js: the raw Error object (including stack) is rendered into the 500 response body.",
+      "evidence": "fixtures/NodeGoat/app/routes/error.js:3-13 \u2014 `console.error(err.stack); res.status(500); res.render(\"error-template\", { error: err });` and app/views/error-template.html:11 `<br>{{error}}` \u2014 with swig autoescape disabled (server.js:140) this both leaks internals and reflects attacker-influenced error text as HTML. Registered app-wide at app/routes/index.js:82 `app.use(ErrorHandler)`."
+    },
+    {
+      "text": "Hardcoded secrets committed to the repository: session/crypto keys, a ZAP API key, and admin credentials.",
+      "evidence": "fixtures/NodeGoat/config/env/all.js:8-9 `cookieSecret: \"session_cookie_secret_key_here\", cryptoKey: \"a_secure_key_for_crypto_here\"`; fixtures/NodeGoat/config/env/development.js:6 `zapApiKey: \"v9dn0balpqas1pcc281tn5ood1\"`; fixtures/NodeGoat/artifacts/db-reset.js:12-37 seeds `userName: \"admin\", password: \"Admin_123\", isAdmin: true` plus `User1_123`/`User2_123`. The whole merged config (secrets inclu"
+    },
+    {
+      "text": "Use of components with known vulnerabilities declared in package.json (marked 0.3.5, bcrypt-nodejs 0.0.3, node-esapi 0.0.1, mongodb ^2.x, needle 2.2.4).",
+      "evidence": "fixtures/NodeGoat/package.json:7-24 pins `\"bcrypt-nodejs\": \"0.0.3\"`, `\"marked\": \"0.3.5\"`, `\"mongodb\": \"^2.1.18\"`, `\"needle\": \"2.2.4\"`, `\"node-esapi\": \"0.0.1\"`, with the repo's own annotation at lines 25-27 `\"comments\": { \"//\": \"a9 insecure components\" }`. marked 0.3.5 in particular is the version whose `sanitize:true` XSS filter and ReDoS issues are publicly known, and it is on the memo render pat"
+    },
+    {
+      "text": "Log injection / log forging in app/routes/session.js: an unsanitized username from the request body is written to the application log on failed login.",
+      "evidence": "fixtures/NodeGoat/app/routes/session.js:64 `console.log(\"Error: attempt to login with invalid user: \", userName);` where `userName` comes from `req.body` (lines 53-57). Lines 66-80 spell out the missing fix (ESAPI encoding or `userName.replace(/(\\r\\n|\\r|\\n)/g, '_')`), so CRLF sequences let an attacker forge log entries."
+    }
+  ],
+  "tokens": {
+    "total": {
+      "calls": 1,
+      "input_tokens": 20,
+      "output_tokens": 10589,
+      "cache_creation_input_tokens": 32385,
+      "cache_read_input_tokens": 283217,
+      "total_tokens": 326211,
+      "cli_cost_usd": 0.730938,
+      "priced_cost_usd": 0.60884
+    },
+    "by_phase": {
+      "?": {
+        "calls": 1,
+        "input_tokens": 20,
+        "output_tokens": 10589,
+        "cache_creation_input_tokens": 32385,
+        "cache_read_input_tokens": 283217,
+        "total_tokens": 326211,
+        "cli_cost_usd": 0.730938,
+        "priced_cost_usd": 0.60884
+      }
+    },
+    "by_phase_shape": {
+      "?/-": {
+        "calls": 1,
+        "input_tokens": 20,
+        "output_tokens": 10589,
+        "cache_creation_input_tokens": 32385,
+        "cache_read_input_tokens": 283217,
+        "total_tokens": 326211,
+        "cli_cost_usd": 0.730938,
+        "priced_cost_usd": 0.60884
+      }
+    },
+    "n_calls": 1
+  },
+  "wallclock_s": 139.1,
+  "extra": {}
+}

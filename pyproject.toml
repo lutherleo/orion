@@ -26,7 +26,11 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["orion", "orion.graph"]
+packages = ["orion", "orion.graph", "orion.runtime"]
+
+[tool.setuptools.package-data]
+# The Node bootstrap the runtime stage runs a JS harness under -- not a .py, so declare it.
+"orion.runtime" = ["_boot_js.js"]
 
 [tool.pytest.ini_options]
 # Scope bare `pytest` to Orion's own suite so it never recurses into the gitignored `fixtures/` scan

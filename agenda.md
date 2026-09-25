@@ -29,6 +29,14 @@ we make the claim real.
 checkout, scored through `ground_truth_nodegoat.py`, and the README cites that number instead of a
 qualitative claim. Reproducible via a single documented command.
 
+**Progress (2026-08-31, via PLAN2).** A first Semgrep baseline is committed under `bench/research/`
+(not `examples/baseline/`): `bench/semgrep_adapter.py` runs `semgrep --config auto` and scores through
+the shared `bench/scoring.py` matcher — **NodeGoat 4/15** (26 FP-candidates), **PyGoat 7/16** (85
+FP-candidates). README updated to cite these. Reproduce:
+`python bench/research_eval.py --arm D --benchmark nodegoat --repo fixtures/NodeGoat`. Remaining for a
+full close: pin the exact NodeGoat commit as the eval fixture and (optionally) relocate under
+`examples/baseline/`. See `bench/research/REPORT.md`.
+
 **Risks / notes.** Keep it apples-to-apples — same checkout, same matcher, disclosed tool versions and
 rulesets. A baseline that quietly uses a weaker ruleset is worse than no baseline. Report the number
 honestly even if it is less flattering than expected.

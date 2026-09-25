@@ -48,3 +48,31 @@ GROUND_TRUTH: list[GroundTruth] = [
 TOTAL = len(GROUND_TRUTH)          # 15
 CHECKABLE = sum(1 for g in GROUND_TRUTH if not g.known_gap)  # 14 (A9 needs a CVE feed, not in scan)
 RECALL_BAR = 13                    # the bar to match or beat
+
+# DISTINCTIVE per-vuln tokens (moved here from run_nodegoat_eval.py so the matcher is benchmark-
+# agnostic — PyGoat has its own map in ground_truth_pygoat.py). Two hard lessons drove this design:
+#   1. Match the FINDING'S OWN CLAIM (text), not verbose evidence — the verifier cross-references other
+#      files/vulns, which leaked matches across ground truths.
+#   2. Use tokens UNIQUE to each vuln. "access control" collided A4/A7; "package" spuriously credited
+#      A9. Each token identifies exactly its vuln class so vulns that share a file don't cross-match.
+CLASS_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "A1-1": ("eval", "ssjs", "server-side js", "server side js"),
+    "A1-2": ("$where", "nosql"),
+    "A1-3": ("log injection", "log forging", "log/crlf", "crlf"),
+    "A2-1": ("session cookie", "httponly", "session hardening", "session secret",
+             "session management", "cookie name", "secure flag"),
+    "A2-2": ("password policy", "password-policy", "enumeration", "weak password", "weak-password",
+             "plaintext password", "password hashing", "password comparison", "comparepassword", "bcrypt"),
+    "A3": ("autoescape", "auto-escap", "auto escap", "escaping disabled", "swig", "xss"),
+    "A4": ("idor", "direct object", "req.params"),
+    "A5": ("helmet", "x-frame", "clickjack", "hsts", "x-powered-by", "security header",
+           "security response header", "security-misconfiguration"),
+    "A6": ("encrypt", "ssn", "sensitive-data", "sensitive data", "pii"),
+    "A7": ("isadmin", "function-level", "function level", "never attached",
+           "admin-authorization", "admin authorization", "admin middleware"),
+    "A8": ("csrf", "forgery"),
+    "A9": ("cve-", "known vulnerabilit", "vulnerable version", "outdated version", "npm audit", "retire.js"),
+    "A10": ("redirect", "forward", "unvalidated"),
+    "SSRF": ("ssrf", "server-side request", "server side request", "needle.get"),
+    "ReDoS": ("redos", "backtracking", "nested quantifier", "catastrophic", "([0-9]+)+"),
+}

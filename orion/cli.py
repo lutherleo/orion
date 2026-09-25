@@ -131,6 +131,19 @@ def _run_scan(args: argparse.Namespace) -> int:
         from .graph import profiles
         profile = profiles.select_profile(args.repo)
 
+    # Opt-in runtime enrichment (--runtime): EXECUTE the target and fold observed coverage back into
+    # the graph before discovery reads it. Best-effort by contract -- a failure is an event, never an
+    # abort, and it only ADDS props/nodes/edges (never touches NODE_KEY labels), so the static graph
+    # and its FLOWS_TO parity are untouched. Needs a repo checkout to boot/build; skipped on --scan-id.
+    if getattr(args, "runtime", False):
+        if args.repo:
+            from . import runtime
+            runtime.enrich(scan_id, args.repo, on_event, budget=args.runtime_budget,
+                           driver=args.runtime_driver, harness_file=args.harness_file)
+        else:
+            on_event(_event("runtime", "warn",
+                            detail="--runtime needs a repo checkout to execute; skipped on --scan-id"))
+
     def _pipeline():
         # Size the per-shape discovery timeout to the graph: a bigger graph is a bigger search space
         # and needs longer sweeps (see config.discover_timeout). Sizing is best-effort -- if the
@@ -148,7 +161,11 @@ def _run_scan(args: argparse.Namespace) -> int:
         d_timeout = config.discover_timeout(node_count)
         on_event(_event("discover", "start",
                         detail=f"discovery fleet starting ({node_count} nodes, per-shape timeout {d_timeout}s)"))
-        leads = discover.discover(scan_id, on_event, profile, timeout=d_timeout)
+        # Runtime facts in the graph turn on the runtime prompt block: `--runtime` (the enrichment
+        # just above) or `--use-dynamic` (a prior `orion trace`). Neither keeps the eval baseline.
+        dynamic_hint = getattr(args, "use_dynamic", False) or getattr(args, "runtime", False)
+        leads = discover.discover(scan_id, on_event, profile, timeout=d_timeout,
+                                  dynamic_hint=dynamic_hint)
         on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"))
 
         on_event(_event("verify", "start", detail=f"verifying {len(leads)} leads"))
@@ -214,11 +231,45 @@ def main(argv: list[str] | None = None) -> int:
     scan.set_defaults(stream=True)
     scan.add_argument("--queue-size", dest="queue_size", type=int, default=64,
                       help="functions held in flight by the streaming build (default 64)")
+    scan.add_argument("--use-dynamic", "--use-runtime", dest="use_dynamic", action="store_true",
+                      help="tell discovery to use runtime facts a prior `orion trace` wrote (off by "
+                           "default; keeps the eval baseline prompt unchanged)")
+    scan.add_argument("--runtime", action="store_true",
+                      help="EXECUTES the target: after the static build, drive it and enrich the graph "
+                           "with what ran (executed/hit_count, :ObservedMethod, OBSERVED_CALL/DISPATCH). "
+                           "Implies --use-dynamic. Off by default; runs on the host.")
+    scan.add_argument("--runtime-budget", dest="runtime_budget", type=int, default=200,
+                      help="max inputs the runtime drive loop sends (default 200)")
+    scan.add_argument("--runtime-driver", dest="runtime_driver", choices=_RUNTIME_DRIVERS,
+                      default="auto", help="how --runtime exercises the target (default: auto-detect)")
+    scan.add_argument("--harness-file", dest="harness_file", metavar="PATH",
+                      help="with --runtime: drive with this pinned script instead of the harness agent")
 
     idx = sub.add_parser("index-exploits",
                          help="build/refresh the global Metasploit exploit-reference corpus (one-time)")
     idx.add_argument("--refresh", action="store_true",
                      help="re-download the Metasploit metadata index before building")
+
+    tr = sub.add_parser("trace",
+                        help="runtime stage on its own: drive the target and record what ran into an "
+                             "existing scan graph (requires a prior `orion scan`)")
+    tr.add_argument("repo", nargs="?", help="path to the target repo (what gets executed)")
+    tr.add_argument("--scan-id", dest="scan_id",
+                    help="scan graph to augment (defaults to the deterministic id of repo)")
+    tr.add_argument("--driver", dest="driver", choices=_RUNTIME_DRIVERS, default="auto",
+                    help="harness (script calling entry points) | http (boot + fuzz routes) | "
+                         "process (build exe + fuzz argv/stdin); default auto-detect")
+    tr.add_argument("--language", dest="language", metavar="py|js",
+                    help="harness language; overrides repo auto-detection (py or js)")
+    tr.add_argument("--harness-file", dest="harness_file", metavar="PATH",
+                    help="use a pinned driver script instead of the harness agent (skips tokens)")
+    tr.add_argument("--budget", dest="budget", type=int, default=200,
+                    help="max inputs the drive loop sends (default 200)")
+    tr.add_argument("--timeout", dest="timeout", type=float, default=120.0,
+                    help="wall-clock seconds per harness run (default 120)")
+    tr.add_argument("--watch", action="store_true", help="follow live progress while the trace runs")
+    tr.add_argument("--quiet", action="store_true", help="suppress per-event progress prints")
+    tr.add_argument("--json", dest="json", metavar="OUT", help="also write the delta summary as JSON")
 
     args = parser.parse_args(argv)
 
@@ -226,6 +277,82 @@ def main(argv: list[str] | None = None) -> int:
         return _run_scan(args)
     if args.cmd == "index-exploits":
         return _run_index_exploits(args)
+    if args.cmd == "trace":
+        return _run_trace(args)
+    return 0
+
+
+_RUNTIME_DRIVERS = ("auto", "harness", "http", "process")   # == runtime.targets.DRIVERS
+
+
+def _run_trace(args: argparse.Namespace) -> int:
+    """`orion trace`: the runtime stage on its own, against an EXISTING scan graph."""
+    if not args.scan_id and not args.repo:
+        print("orion trace: provide a repo path or --scan-id", file=sys.stderr)
+        return 2
+    if args.repo and not Path(args.repo).is_dir():
+        print(f"orion trace: repo path not found or not a directory: {args.repo}", file=sys.stderr)
+        return 2
+    if not args.harness_file and not args.repo:
+        print("orion trace: a repo path is required unless --harness-file is given", file=sys.stderr)
+        return 2
+    if args.language and args.language not in ("py", "js"):
+        print(f"orion trace: unknown --language {args.language!r}; use py or js", file=sys.stderr)
+        return 2
+
+    from . import graph_build, runtime
+    from .monitor import run_logger, tail
+    from .runtime import report
+
+    repo = args.repo or "."
+    scan_id = args.scan_id or graph_build.scan_id_for(args.repo)
+
+    run_dir = _run_dir(scan_id)
+    on_event = run_logger(run_dir, quiet=True if args.watch else args.quiet)
+    print(f"scan_id: {scan_id}")
+    print(f"run log: {run_dir}/progress.jsonl")
+    # Safety notice: the runtime stage EXECUTES the target's code on this host.
+    print("note: `orion trace` runs the target repo's code locally (timeout + temp dir only, no "
+          "sandbox) — only trace repos you trust.")
+
+    def _do() -> dict:
+        return runtime.enrich(scan_id, repo, on_event, budget=args.budget, driver=args.driver,
+                              language=args.language, harness_file=args.harness_file,
+                              timeout=args.timeout) or {}
+
+    if args.watch:
+        stop = threading.Event()
+        result: dict = {}
+
+        def _worker() -> None:
+            try:
+                result["summary"] = _do()
+            except Exception as exc:  # noqa: BLE001 -- surface, don't swallow
+                result["error"] = exc
+            finally:
+                stop.set()
+
+        thread = threading.Thread(target=_worker, daemon=True)
+        thread.start()
+        try:
+            tail(run_dir, stop)
+        except KeyboardInterrupt:
+            stop.set()
+        thread.join()
+        if "error" in result:
+            raise result["error"]
+        summary = result.get("summary", {})
+    else:
+        summary = _do()
+
+    print("\n" + "=" * 70)
+    print(report.report_text(summary))
+    if not summary:
+        print(f"\n(runtime stage skipped or failed -- see {run_dir}/progress.jsonl)")
+
+    if args.json:
+        Path(args.json).write_text(json.dumps(summary, indent=2, default=str))
+        print(f"\nwrote runtime summary to {args.json}")
     return 0
 
 

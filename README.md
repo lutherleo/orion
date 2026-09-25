@@ -11,10 +11,13 @@ false positives, scored by `scripts/run_nodegoat_eval.py` against the ground tru
 `tests/ground_truth_nodegoat.py`. (The 15th, "components with known vulnerabilities," needs a CVE
 feed the current graph does not carry.)
 
-> **On comparisons:** a head-to-head against a deterministic scanner (Semgrep or CodeQL run on the
-> same NodeGoat checkout and scored through the same matcher) is the honest way to show Orion reaches
-> bugs a fixed rule catalog cannot. That baseline is **not committed yet**, so this README does not
-> claim a number for it — the claim above is only what Orion's own eval measures.
+> **On comparisons:** a head-to-head against a deterministic scanner scored through the same matcher is
+> the honest way to show Orion reaches bugs a fixed rule catalog cannot. A first **Semgrep baseline**
+> is now committed under `bench/research/` (via `bench/semgrep_adapter.py`, scored by the same
+> `bench/scoring.py` matcher): `semgrep --config auto` scores **4/15 on NodeGoat** (26 false-positive
+> candidates) and **7/16 on PyGoat** (85 FP-candidates) — catching pattern-matchable sink bugs, missing
+> every design/semantic class, and well below Orion's 14/15. See `bench/research/REPORT.md` (part of the
+> PLAN2 research eval: does graph grounding let a *local* LLM rival a frontier one, measured in tokens).
 
 It is not benchmark-only. Orion has been run end to end against **real third-party code it had never
 seen** — a full scan of the TypeScript project [`pensarai/apex`](https://github.com/pensarai/apex)
@@ -178,6 +181,35 @@ with a prebuilt `cpg.bin` under `fixtures/NodeGoat/` to run the build and evalua
 
 This prints an N-of-15 recall table matched against `tests/ground_truth_nodegoat.py`, plus any
 confirmed findings that match no ground-truth item (false-positive candidates).
+
+## Open-weight study (in progress — no results yet)
+
+Branch `eval/open-weight-study` tests one research claim: **a free open-weight model running inside
+Orion finds real vulnerabilities in large codebases as well as or better than frontier models working
+alone, and at lower cost.** The claim is set up so it can fail; whatever the runs show gets reported.
+Full design: `docs/superpowers/specs/2026-09-17-open-weight-eval-design.md`.
+
+| Arm | Model | Harness |
+|---|---|---|
+| `orion-gemma4` | Gemma 4 (Ollama) | Orion |
+| `orion-gptoss20b` | gpt-oss-20b (Ollama) | Orion |
+| `plain-gemma4` | Gemma 4 (Ollama) | Claude Code, no graph — isolates what the graph adds |
+| `plain-sonnet5` | Claude Sonnet 5, xhigh effort | Claude Code |
+| `plain-opus5` | Claude Opus 5, xhigh effort | Claude Code |
+| `plain-gpt` | GPT-5.6 Sol | Codex CLI |
+
+- **Dataset:** large JavaScript/TypeScript, Python and Java repositories checked out at the commit
+  before a real security fix. Headline vulnerabilities must have both the advisory and the fix commit
+  dated after 2026-05-31, the latest training cutoff among the models. Candidates:
+  `eval/dataset/candidates.tsv` (not yet the locked manifest).
+- **Protocol:** 3 runs per arm per repo, run sequentially (local arms first, then frontier). The
+  arms, dataset manifest, prompt and matching rule are frozen with a git tag before the first scored
+  run.
+- **What this branch produces:** raw run data only — findings, tokens, context use, time, memory and
+  failures, indexed in a queryable SQLite log (`eval/runs.db`).
+- **Scoring is separate.** Matching findings to the answer key, cost per bug caught, confidence
+  intervals and human labeling of unmatched findings are built in a separate session over the
+  recorded data. Until then this section claims no numbers.
 
 ## Layout
 

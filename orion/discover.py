@@ -99,7 +99,7 @@ def _dedup(leads: list[Lead]) -> list[Lead]:
 
 
 async def _run_shape(scan_id: str, shape: str, on_event: OnEvent, profile=None,
-                     timeout: int | None = None) -> list[Lead]:
+                     timeout: int | None = None, dynamic_hint: bool = False) -> list[Lead]:
     on_event(_event(phase="discover", shape=shape, event="start", detail=f"shape {shape} sweep starting"))
 
     def shape_on_event(ev: dict) -> None:
@@ -108,7 +108,7 @@ async def _run_shape(scan_id: str, shape: str, on_event: OnEvent, profile=None,
             event=ev.get("event", "tool"), detail=ev.get("detail", ""),
         ))
 
-    system = strategies.system_for(shape, scan_id, profile=profile)
+    system = strategies.system_for(shape, scan_id, profile=profile, dynamic_hint=dynamic_hint)
     message = (
         f'scan_id = "{scan_id}". Begin your Shape {shape} sweep now. Every '
         f'mcp__orion__run_cypher call must pass scan_id="{scan_id}" and filter the query by '
@@ -140,14 +140,15 @@ async def _run_shape(scan_id: str, shape: str, on_event: OnEvent, profile=None,
 
 
 async def _discover_async(scan_id: str, on_event: OnEvent, profile=None,
-                          timeout: int | None = None) -> list[Lead]:
+                          timeout: int | None = None, dynamic_hint: bool = False) -> list[Lead]:
     results = await asyncio.gather(
-        *(_run_shape(scan_id, shape, on_event, profile, timeout) for shape in SHAPES))
+        *(_run_shape(scan_id, shape, on_event, profile, timeout, dynamic_hint) for shape in SHAPES))
     all_leads = [lead for shape_leads in results for lead in shape_leads]
     return _dedup(all_leads)
 
 
-def discover(scan_id: str, on_event: OnEvent, profile=None, timeout: int | None = None) -> list[Lead]:
+def discover(scan_id: str, on_event: OnEvent, profile=None, timeout: int | None = None,
+             dynamic_hint: bool = False) -> list[Lead]:
     """Fan out the 4 discovery shapes CONCURRENTLY (each a blocking `run_agent` subprocess call
     run in a thread), dedup, and return `list[Lead]`.
 
@@ -160,5 +161,9 @@ def discover(scan_id: str, on_event: OnEvent, profile=None, timeout: int | None 
 
     `timeout` is the per-shape `claude -p` wall-clock budget in seconds; None uses the reality-based
     floor `config.DISCOVER_TIMEOUT`. Callers that know the graph size pass a scaled value from
-    `config.discover_timeout(node_count)` so large repos get proportionally longer sweeps."""
-    return asyncio.run(_discover_async(scan_id, on_event, profile, timeout))
+    `config.discover_timeout(node_count)` so large repos get proportionally longer sweeps.
+
+    `dynamic_hint` (default False) appends the runtime-facts block to every shape prompt so the fleet
+    uses what the runtime stage (`--runtime` / `orion trace`) wrote. Off keeps the prompt
+    byte-identical to the eval baseline."""
+    return asyncio.run(_discover_async(scan_id, on_event, profile, timeout, dynamic_hint))

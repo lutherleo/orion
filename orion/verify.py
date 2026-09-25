@@ -77,10 +77,19 @@ Edges (rel props carry scan_id):
   (:CpgMethod)-[:DEFINED_IN]->(:CpgFile)
   (:CpgCall)-[:FLOWS_TO {arg_index}]->(:CpgCall)
   (:EntryPoint)-[:ENTERS_AT]->(:CpgMethod)
+  (:CpgMethod)-[:OBSERVED_CALL {hits}]->(:CpgMethod|:ObservedMethod)  -- caller->callee SEEN AT RUNTIME
+  (:CpgCall)-[:OBSERVED_DISPATCH]->(:CpgMethod|:ObservedMethod)       -- concrete dynamic-call target
+                                              (both only after a runtime stage ran, see RUNTIME below)
 File attribution: use CpgCall.file_path (stamped on every call) -- CONTAINS_CALL alone is NOT
 reliable (calls nested in arrow-functions assigned to object properties get no edge). Because the
 graph lies by omission this way, you MUST also read the real source under the added directory --
-do not trust graph attribution alone."""
+do not trust graph attribution alone.
+RUNTIME (present only after `orion scan --runtime` or `orion trace`): `executed=true` / `hit_count`
+on a CpgMethod/CpgCall is GROUND TRUTH that the node ran during a live drive -- it CONFIRMS
+reachability even where `reachable_from_entry=false`. An OBSERVED_CALL / OBSERVED_DISPATCH edge or an
+:ObservedMethod node is a real observed call or function the static graph may lack.
+Absence of any of these proves nothing (fuzzing is incomplete); never REJECT a lead solely because
+runtime did not reach it -- read the source."""
 
 VERIFY_SYSTEM = """You are an INDEPENDENT security verifier, running in your own fresh session.
 A candidate lead was produced by a SEPARATE analyst agent whose session and reasoning you cannot
