@@ -1,14 +1,14 @@
-"""Execute a command for the dynamic layer behind a swappable Sandbox seam.
+"""Execute a command for the runtime stage behind a swappable Sandbox seam.
 
 Per the operator's decision (design §9), the shipped isolation floor is a wall-clock timeout + a
-temp working directory — NO container, NO network/resource isolation. `orion trace` runs the
+temp working directory — NO container, NO network/resource isolation. The runtime stage runs the
 target repo's code on the host, which is fine for trusted targets and unacceptable for untrusted
 third-party code. This module is the ONE seam where a `DockerSandbox` (Orion already requires Docker
 for Neo4j) drops in later to raise that floor without touching any caller: everything upstream calls
 `Sandbox.run` and reads a `RunResult`, so the implementation swaps freely.
 
 A run that times out is NOT an error to the caller — it returns a `RunResult(timed_out=True)` with
-whatever stdout/stderr was salvaged, matching the layer's "failure is a logged skip, never a crash"
+whatever stdout/stderr was salvaged, matching the stage's "failure is a logged skip, never a crash"
 contract.
 """
 from __future__ import annotations

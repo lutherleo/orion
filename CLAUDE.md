@@ -85,22 +85,33 @@ Rules for working on it:
   Semgrep 4/15, 7/16); `eval/` is the pre-registered, CVE-based successor. Reuse `bench/scoring.py`
   and `bench/token_ledger.py` rather than re-deriving them in the scoring session.
 
-## Two runtime layers (both kept, merged 2026-09-25)
+## Runtime stage (one layer, unified 2026-09-25)
 
-Both execute the target and write runtime facts into the SAME scan graph. They are complementary,
-and each owns a disjoint slice of the graph so neither's idempotent clear can wipe the other's:
+lutherleo's `orion trace` (`orion/dynamic/`) and Krish's `orion scan --runtime` were merged into ONE
+package, `orion/runtime/`, with two surfaces over one pipeline (`runtime.enrich`):
+`orion scan --runtime [--runtime-driver X] [--harness-file F]` (inline, after the static build) and
+`orion trace <repo> [--driver X] [--language py|js] [--harness-file F] [--budget N]` (against an
+existing graph). `select → start → engine.run → stop → collect → correlate → writeback → report`.
 
-| | `orion trace` (`orion/dynamic/`, lutherleo) | `orion scan --runtime` (`orion/runtime/`, Krish) |
+| Driver (how it's exercised) | Tracer (how it's observed) | Picked when |
 |---|---|---|
-| Drive | agent-written harness (or `--harness-file`) | built-in HTTP/process fuzz loop (`--runtime-budget`) |
-| Langs | Python (`sys.settrace`), JS (V8 profiler) | JS (V8), Go |
-| Writes | `:ObservedMethod`, `OBSERVED_CALL`/`OBSERVED_DISPATCH` `{origin:'dynamic'}` | `executed`/`hit_count` props, `OBSERVED_CALL {origin:'runtime', hits}` |
-| Clear | `persist._clear_dynamic`: `origin='dynamic'` rels + `:ObservedMethod` | `runtime/writeback._clear`: `origin='runtime'` rels + runtime props |
+| `HarnessDriver` — a script calling the entry points (agent-written, or pinned) | `PyTracer` (`sys.monitoring`, settrace <3.12) / `V8Tracer` | Python repo; JS package without `npm start` |
+| `HttpDriver` — boot app, log in, fuzz routes seeded from the graph | `V8Tracer` (`NODE_V8_COVERAGE` + `--cpu-prof`) | `npm start` script |
+| `ProcessDriver` — `go build -cover`, fuzz argv/stdin | `GoCoverTracer` (`covdata textfmt`, module prefix from go.mod) | `go.mod` |
 
-INVARIANT: every runtime-written relationship carries an `origin` stamp and each clear is scoped to its
-own origin. A clear that matches `OBSERVED_CALL` by type alone would silently delete the other layer's
-edges. The discovery prompt's runtime block is opt-in (`--use-dynamic`, implied by `--runtime`) so the
-DEFAULT prompt stays byte-identical to the eval baseline (`tests/test_dynamic_hint.py` pins this).
+`.orion/runtime.json` (kind `http`/`process`/`harness`) overrides the sniff. Writes, all `origin:'runtime'`:
+`executed`/`hit_count` on CpgCall/CpgMethod, `:ObservedMethod` nodes (`RUNTIME_NODE_KEY`), and
+`OBSERVED_CALL`/`OBSERVED_DISPATCH {hits}` — one edge per endpoint pair. `writeback`'s clear is
+label-scoped to exactly those, so re-runs are idempotent and the static graph is untouched. Discovery's
+runtime prompt block is opt-in (`--runtime` or `--use-dynamic`/`--use-runtime`) so the DEFAULT prompt
+stays byte-identical to the eval baseline (`tests/test_runtime_hint.py` pins this).
+
+Load-bearing details: correlation matches a DEFINITION line exactly first, disambiguating same-line
+methods by name (a `def f():` on line 1 shares its line with `<module>`), then falls back to the
+containing method (greatest decl line ≤ L), then a unique basename. The engine only collects per input
+when the driver has `feedback` (process exits / harness runs); a server (`feedback=False`) is driven
+blind and collected once after stop. V8 line hits come from the INNERMOST range (a count-0 block
+carves out unexecuted lines); a function's first range count is its exact invocation count.
 
 ## Working agreement (how Love Kush wants to build)
 
@@ -166,20 +177,16 @@ DEFAULT prompt stays byte-identical to the eval baseline (`tests/test_dynamic_hi
   on the target side keeping method-less sources) and threaded into `build_summary`'s
   `cross_rd`/`closure_targets` args; `build_summary`/`_reach_full`/`stitch` are byte-for-byte the
   Phase-1 code.
-- **Runtime enrichment is an OPT-IN, POST-PERSIST, ADDITIVE stage** (2026-08-12, `orion/runtime/`,
-  `orion scan --runtime`): it EXECUTES the target (a web app over HTTP, or an exe rebuilt from source
-  with coverage) via Orion's own bounded coverage-guided loop, correlates observed coverage back to
-  graph nodes by `(file_path, line)`, and writes `executed`/`hit_count` props + a new `OBSERVED_CALL`
-  edge onto the ALREADY-PERSISTED graph through its own driver. It adds NO `NODE_KEY` label, so
-  `persist._clear` never wipes it and the static graph (and the 217/1075 FLOWS_TO parity) is
-  byte-for-byte unchanged — verified live (FLOWS_TO held at 217 through a writeback+clear cycle).
-  Seam is parallel to `Profile`: `runtime/targets.py` picks `(Driver, Tracer)` — HttpDriver+V8Tracer
-  (`NODE_V8_COVERAGE` + `--cpu-prof`, zero-instrumentation) or ProcessDriver+GoCoverTracer
-  (`go build -cover`). The pure core (`runtime/correlate.py`) resolves the missing-method-end-line
-  problem by "greatest declaration line ≤ covered line". Value metrics on live NodeGoat: U=123 nodes
-  runtime overturned a `reachable_from_entry=false` guess on, J=2 `OBSERVED_CALL` edges with no static
-  path. Coverage is NOT a call graph: props come from coverage (every language), OBSERVED_CALL edges
-  ONLY from the profiler's call tree. Design: `docs/superpowers/specs/2026-08-11-runtime-observation-design.md`.
+- **Runtime enrichment is an OPT-IN, POST-PERSIST, ADDITIVE stage** (2026-08-12; unified with the
+  dynamic-trace layer 2026-09-25 — see "Runtime stage" above): it EXECUTES the target and writes onto
+  the ALREADY-PERSISTED graph through its own writer. It adds NO `NODE_KEY` label, so `persist._clear`
+  never wipes it and the static graph (and the 217/1075 FLOWS_TO parity) is byte-for-byte unchanged —
+  verified live (FLOWS_TO held at 217 through a writeback+clear cycle). Value metrics on live NodeGoat
+  (pre-unification HttpDriver run): U=123 nodes runtime overturned a `reachable_from_entry=false` guess
+  on, J=2 `OBSERVED_CALL` edges with no static path. Coverage is NOT a call graph: props come from
+  coverage (every language), OBSERVED_CALL edges ONLY from a call tree (V8 profile / Python PY_START).
+  Designs: `docs/superpowers/specs/2026-08-11-runtime-observation-design.md` and
+  `2026-08-27-dynamic-trace-layer-design.md` (both superseded in structure by the unified package).
 
 ## Gotchas (paid for by the PoC — bake in)
 
@@ -188,19 +195,20 @@ DEFAULT prompt stays byte-identical to the eval baseline (`tests/test_dynamic_hi
 - File-path property is `CpgFile.file_path`, not `.name`.
 - The graph **lies by omission**: calls nested in arrow-functions assigned to object properties get
   no `CONTAINS_CALL` edge — so the verifier must read real source, not trust file attribution. (The
-  `--runtime` stage's `OBSERVED_CALL` edges exist to fill exactly this gap with observed calls.)
+  runtime stage's `OBSERVED_CALL` edges exist to fill exactly this gap with observed calls.)
 - **Runtime coverage flushes ONLY on a clean process exit.** `NODE_V8_COVERAGE` and `--cpu-prof`
   write nothing when a long-running server is SIGTERM'd. Two things are load-bearing (both in
   `runtime/`): (1) a `--require` preload that traps SIGTERM/SIGINT → `process.exit(0)`, launched into
   the target's own start via `NODE_OPTIONS`, and signalling the whole process GROUP (`os.killpg`) so
-  `npm start`'s `node` child gets it; (2) `enrich` collects coverage ONCE, AFTER `driver.stop()` — a
-  mid-run collect sees an empty dir. Also: `launch_env(work)` and `tracer.collect(work)` MUST use the
+  `npm start`'s `node` child gets it (Windows: CTRL_BREAK → `SIGBREAK`, also trapped); (2) that is why
+  `HttpDriver.feedback = False` and `enrich` collects ONCE, AFTER `driver.stop()` — a mid-run collect
+  sees an empty dir. Also: `launch_env(work)` and `tracer.collect(work)` MUST use the
   same `work` dir (the driver holds its tracer and derives the env at `start()`, not at select time).
   And NodeGoat host-run needs mongo PUBLISHED on `localhost:27017` (its compose only `expose`s it) +
   seeded via `artifacts/db-reset.js`, and `npm install` run in the fixture.
 - `orion/runtime/__init__.py` re-exports `enrich` (the function), so `orion.runtime.enrich` is the
-  FUNCTION, not the submodule — import the module via `importlib.import_module` if you need its
-  internals (`_call_index`, `_methods`).
+  FUNCTION, not the submodule — import the module via `importlib.import_module("orion.runtime.enrich")`
+  if you need its internals (`_has_static_graph`).
 - The old `FINAL:`/`CYPHER:` text protocol is GONE — agents use real MCP tools + `--json-schema`
   structured output. Still non-negotiable: a non-zero exit / timeout / `is_error` / missing result
   is NEVER a clean success — it becomes the `{"_error":...}` sentinel (`claude_cli._final_to_result`),

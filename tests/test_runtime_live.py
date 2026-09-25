@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -77,7 +78,7 @@ def test_nodegoat_http_enrich():
 
     scan_id = graph_build.build(str(FIXTURE), stream=True)
     events = []
-    metric = enrich_fn(scan_id, str(FIXTURE), None, on_event=events.append, budget=60)
+    metric = enrich_fn(scan_id, str(FIXTURE), events.append, budget=60)
     assert metric is not None, f"runtime stage skipped: {[e['detail'] for e in events]}"
     assert metric["calls_marked"] >= 1, f"no coverage correlated; events={[e['detail'] for e in events]}"
     # The value claim: at least one observed edge the static graph lacked, or (weaker) executed

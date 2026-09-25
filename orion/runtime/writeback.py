@@ -1,92 +1,109 @@
-"""The one additive writer for the runtime stage. The only impure DB module here.
+"""The runtime stage's one writer: apply a WritePlan to the scan partition. The only impure DB module.
 
-Mirrors embed.py exactly: its OWN neo4j driver (not the read-only GraphDB), additive SET/CREATE, and
-its OWN idempotent per-scan clear. It writes NO NODE_KEY label -- only `executed`/`hit_count` props on
-existing CpgCall/CpgMethod nodes and a new OBSERVED_CALL edge between existing CpgMethod nodes. So
-persist._clear (label-scoped to NODE_KEY.keys()) never touches it, and the static graph -- and its
-217/1075 FLOWS_TO parity -- stays byte-for-byte identical.
+Additive by construction -- it never deletes or rewrites a static node or a static edge:
 
-`build_static_pairs` and the plan come from correlate.py (pure). Everything here is I/O.
+  props   `executed` / `hit_count` on existing CpgCall / CpgMethod nodes
+  nodes   :ObservedMethod (RUNTIME_NODE_KEY -- outside NODE_KEY, so the static clear never targets it)
+  edges   OBSERVED_CALL / OBSERVED_DISPATCH, one per endpoint pair, {scan_id, origin:'runtime', hits}
+
+Its own idempotent clear removes exactly that and nothing else, so a re-run replaces the previous
+enrichment and the static graph -- and its 217/1075 FLOWS_TO parity -- stays byte-for-byte identical.
+(A static RE-scan's DETACH DELETE still drops OBSERVED_* edges incident to rebuilt nodes: a new scan
+means the code changed and the old runtime facts are stale; re-run the runtime stage after it.)
+
+Writes reuse persist's chunked, parallel, index-backed job runner rather than one giant transaction.
 """
 from __future__ import annotations
 
 from neo4j import GraphDatabase
 
 from .. import config
-from .base import WritePlan
+from ..graph import persist
+from ..graph.schema import RUNTIME_NODE_KEY, Batch
+from .correlate import ENDPOINT_KEY, WritePlan
 
-# The stage's write vocabulary, as constants so a token-free test can assert it only ever DELETEs
-# OBSERVED_CALL relationships and REMOVEs runtime props -- never DELETEs a node and never names a
-# NODE_KEY label in a destructive clause (that is the mechanical guarantee the static graph, and its
-# 217/1075 FLOWS_TO parity, cannot be perturbed).
-# Every edge this stage writes is stamped origin='runtime', and the clear is scoped to that stamp.
-# `orion trace` (orion/dynamic/) writes OBSERVED_CALL edges into the SAME scan with origin='dynamic';
-# a clear matching the type alone would silently wipe that layer's edges on every `--runtime` re-run.
 ORIGIN = "runtime"
-CLEAR_EDGES = ("MATCH (:CpgMethod {scan_id:$scan_id})-[r:OBSERVED_CALL]->() "
-               f"WHERE r.origin = '{ORIGIN}' DELETE r")
-CLEAR_PROPS = ("MATCH (n {scan_id:$scan_id}) WHERE n.executed IS NOT NULL "
-               "REMOVE n.executed, n.hit_count")
-SET_CALLS = ("UNWIND $rows AS row MATCH (c:CpgCall {scan_id:$scan_id, uid:row.uid}) "
-             "SET c.executed = true, c.hit_count = row.hits")
-SET_METHODS = ("UNWIND $rows AS row MATCH (m:CpgMethod {scan_id:$scan_id, full_name:row.full_name}) "
-               "SET m.executed = true, m.hit_count = row.hits")
-CREATE_EDGES = ("UNWIND $rows AS row "
-                "MATCH (a:CpgMethod {scan_id:$scan_id, full_name:row.a}) "
-                "MATCH (b:CpgMethod {scan_id:$scan_id, full_name:row.b}) "
-                f"CREATE (a)-[:OBSERVED_CALL {{scan_id:$scan_id, origin:'{ORIGIN}', hits:row.hits}}]->(b)")
+RUNTIME_RELS = ("OBSERVED_CALL", "OBSERVED_DISPATCH")
+
+# Every destructive statement, as constants so a token-free test can pin that the clear only ever
+# deletes runtime relationships / runtime nodes and REMOVEs runtime props -- label-scoped, never a
+# NODE_KEY node, never a full-partition scan.
+CLEAR_EDGES = "MATCH ()-[r:OBSERVED_CALL|OBSERVED_DISPATCH {scan_id:$scan_id}]->() DELETE r"
+CLEAR_NODES = "MATCH (n:ObservedMethod {scan_id:$scan_id}) DETACH DELETE n"
+CLEAR_PROPS = tuple(
+    f"MATCH (n:{label} {{scan_id:$scan_id}}) WHERE n.executed IS NOT NULL REMOVE n.executed, n.hit_count"
+    for label in ("CpgMethod", "CpgCall"))
+
+SET_CALLS = ("UNWIND $rows AS row MATCH (c:CpgCall {scan_id:row.sid, uid:row.k}) "
+             "SET c.executed = true, c.hit_count = row.n")
+SET_METHODS = ("UNWIND $rows AS row MATCH (m:CpgMethod {scan_id:row.sid, full_name:row.k}) "
+               "SET m.executed = true, m.hit_count = row.n")
+
+# Of the OBSERVED_CALL pairs just written, how many does the STATIC graph already link? Checked per
+# written pair (index-backed endpoint lookups), not by loading every static pair in the scan.
+_STATIC_LINKED = (
+    "UNWIND $rows AS row "
+    "MATCH (a:CpgMethod {scan_id:$scan_id, full_name:row.a}) "
+    "WHERE EXISTS { (a)-[:CONTAINS_CALL]->(:CpgCall)-[:RESOLVES_TO]->"
+    "(:CpgMethod {scan_id:$scan_id, full_name:row.b}) } "
+    "RETURN count(*) AS n")
+_UNREACHABLE_EXECUTED = (
+    "CALL { MATCH (n:CpgMethod {scan_id:$scan_id}) WHERE n.executed AND n.reachable_from_entry = false "
+    "RETURN count(n) AS c UNION ALL MATCH (n:CpgCall {scan_id:$scan_id}) "
+    "WHERE n.executed AND n.reachable_from_entry = false RETURN count(n) AS c } RETURN sum(c) AS u")
 
 
-def _clear(session, scan_id: str) -> None:
-    """Remove any prior runtime enrichment for this scan (idempotent re-run)."""
-    session.run(CLEAR_EDGES, scan_id=scan_id)
-    session.run(CLEAR_PROPS, scan_id=scan_id)
+def to_batch(scan_id: str, plan: WritePlan) -> Batch:
+    """The plan's new nodes + edges as a schema.Batch (edges keyed the way persist MATCHes them).
+    Pure."""
+    b = Batch(scan_id)
+    for props in plan.new_methods:
+        b.emit_node("ObservedMethod", dict(props))
+    for (rtype, fl, fv, tl, tv), hits in plan.edges.items():
+        b.emit_edge(rtype, fl, {ENDPOINT_KEY[fl]: fv}, tl, {ENDPOINT_KEY[tl]: tv},
+                    {"origin": ORIGIN, "hits": hits})
+    return b
 
 
-def static_pairs(session, scan_id: str) -> set[tuple[str, str]]:
-    """The set of method→method pairs the STATIC graph already links (CONTAINS_CALL+RESOLVES_TO).
-    Used to score which OBSERVED_CALL edges are novel (the J metric). Read-only."""
-    rows = session.run(
-        "MATCH (a:CpgMethod {scan_id:$scan_id})-[:CONTAINS_CALL]->(:CpgCall)"
-        "-[:RESOLVES_TO]->(b:CpgMethod {scan_id:$scan_id}) "
-        "RETURN DISTINCT a.full_name AS a, b.full_name AS b", scan_id=scan_id)
-    return {(r["a"], r["b"]) for r in rows}
-
-
-def unreachable_executed(session, scan_id: str) -> int:
-    """Count nodes runtime executed that the static BFS marked reachable_from_entry=false (the U
-    metric): guesses overturned with ground truth. Read after writeback stamps `executed`."""
-    rec = session.run(
-        "MATCH (n {scan_id:$scan_id}) WHERE n.executed = true AND n.reachable_from_entry = false "
-        "RETURN count(n) AS u", scan_id=scan_id).single()
-    return int(rec["u"]) if rec else 0
+def _prop_jobs(scan_id: str, plan: WritePlan) -> list[tuple[str, list]]:
+    jobs = []
+    for cypher, hits in ((SET_CALLS, plan.call_hits), (SET_METHODS, plan.method_hits)):
+        rows = [{"sid": scan_id, "k": k, "n": n} for k, n in hits.items()]
+        jobs += [(cypher, chunk) for chunk in persist._chunks(rows, config.PERSIST_CHUNK_SIZE)]
+    return jobs
 
 
 def apply_plan(scan_id: str, plan: WritePlan) -> dict:
-    """Write `plan` into the scan partition and return a metric dict. Own driver, closed in finally."""
+    """Replace this scan's runtime enrichment with `plan`; return the metric dict."""
+    batch = to_batch(scan_id, plan)
+    conc = config.PERSIST_CONCURRENCY
     driver = GraphDatabase.driver(config.NEO4J_URI, auth=config.NEO4J_AUTH)
     try:
         with driver.session(database=config.NEO4J_DATABASE) as s:
-            _clear(s, scan_id)
-            if plan.call_hits:
-                s.run(SET_CALLS, scan_id=scan_id,
-                      rows=[{"uid": u, "hits": h} for u, h in plan.call_hits.items()])
-            if plan.method_hits:
-                s.run(SET_METHODS, scan_id=scan_id,
-                      rows=[{"full_name": f, "hits": h} for f, h in plan.method_hits.items()])
-            if plan.edges:
-                s.run(CREATE_EDGES, scan_id=scan_id,
-                      rows=[{"a": a, "b": b, "hits": h} for (a, b), h in plan.edges.items()])
-            pairs = static_pairs(s, scan_id)
-            novel = sum(1 for pair in plan.edges if pair not in pairs)
-            u = unreachable_executed(s, scan_id)
-        return {
-            "calls_marked": len(plan.call_hits),
-            "methods_marked": len(plan.method_hits),
-            "observed_edges": len(plan.edges),
-            "novel_edges": novel,
-            "unreachable_executed": u,
-            "dropped": plan.dropped,
-        }
+            persist._ensure_indexes(s, RUNTIME_NODE_KEY)
+            for q in (CLEAR_EDGES, CLEAR_NODES, *CLEAR_PROPS):
+                s.execute_write(lambda tx, q=q: tx.run(q, scan_id=scan_id).consume())
+        persist._run_jobs(driver, _prop_jobs(scan_id, plan), conc)
+        persist._run_jobs(driver, persist._node_jobs(batch.nodes, RUNTIME_NODE_KEY), conc)
+        persist._run_jobs(driver, persist._edge_jobs(batch.edges), conc)
+
+        calls = [{"a": fv, "b": tv} for (fl, fv, tl, tv) in plan.edges_of("OBSERVED_CALL")
+                 if fl == tl == "CpgMethod"]
+        with driver.session(database=config.NEO4J_DATABASE) as s:
+            linked = s.run(_STATIC_LINKED, scan_id=scan_id, rows=calls).single()["n"] if calls else 0
+            unreachable = s.run(_UNREACHABLE_EXECUTED, scan_id=scan_id).single()["u"]
     finally:
         driver.close()
+
+    observed_calls = plan.edges_of("OBSERVED_CALL")
+    return {
+        "calls_marked": len(plan.call_hits),
+        "methods_marked": len(plan.method_hits),
+        "new_methods": len(plan.new_methods),
+        "observed_calls": len(observed_calls),
+        "observed_dispatches": len(plan.edges_of("OBSERVED_DISPATCH")),
+        # novel = no static CONTAINS_CALL/RESOLVES_TO path, incl. every edge into a runtime-only method
+        "novel_edges": len(observed_calls) - int(linked),
+        "unreachable_executed": int(unreachable or 0),
+        "dropped": dict(plan.dropped),
+    }

@@ -163,7 +163,7 @@ def discover(scan_id: str, on_event: OnEvent, profile=None, timeout: int | None 
     floor `config.DISCOVER_TIMEOUT`. Callers that know the graph size pass a scaled value from
     `config.discover_timeout(node_count)` so large repos get proportionally longer sweeps.
 
-    `dynamic_hint` (default False) appends the runtime-observed-edges block to every shape prompt so
-    the fleet uses the `origin='dynamic'` OBSERVED_* edges a prior `orion trace` added. Off keeps the
-    prompt byte-identical to the eval baseline."""
+    `dynamic_hint` (default False) appends the runtime-facts block to every shape prompt so the fleet
+    uses what the runtime stage (`--runtime` / `orion trace`) wrote. Off keeps the prompt
+    byte-identical to the eval baseline."""
     return asyncio.run(_discover_async(scan_id, on_event, profile, timeout, dynamic_hint))

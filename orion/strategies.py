@@ -107,29 +107,25 @@ outdated, end-of-life, or known-vulnerable third-party components -- this is the
 known-vulnerabilities class, and it does not depend on any request flow.""",
 }
 
-# Opt-in runtime-evidence block covering BOTH runtime layers. OFF by default so the NodeGoat eval
-# baseline prompt is byte-identical; `orion scan --use-dynamic` or `--runtime` (and
-# system_for(dynamic_hint=True)) turns it on.
+# Opt-in runtime-evidence block. OFF by default so the NodeGoat eval baseline prompt is byte-identical;
+# `orion scan --runtime` / `--use-dynamic` (and system_for(dynamic_hint=True)) turns it on.
 _DYNAMIC_HINT = """
-RUNTIME-OBSERVED FACTS. The graph may ALSO carry facts from actually executing the code, written by
-either of two runtime layers (each stamps its relationships with an `origin`):
-  `orion trace` (origin='dynamic'):
-  (:CpgMethod)-[:OBSERVED_CALL]->(:CpgMethod|:ObservedMethod)   -- a caller->callee seen at runtime
-  (:CpgCall)-[:OBSERVED_DISPATCH]->(:CpgMethod|:ObservedMethod) -- the CONCRETE target a dynamic call
-                                                                   site reached ("which pointer it hit")
-  (:ObservedMethod {origin:'dynamic', file_path, line})        -- a function that executed with NO
-                                                                   static CpgMethod (reflection/eval/etc)
-  `orion scan --runtime` (origin='runtime', a fuzz drive of the running target):
-  (:CpgMethod)-[:OBSERVED_CALL {hits}]->(:CpgMethod)            -- a caller->callee seen at runtime
-  `executed` (bool) / `hit_count` (int) on CpgMethod/CpgCall     -- the node ACTUALLY RAN
+RUNTIME-OBSERVED FACTS. The runtime stage (`orion scan --runtime` / `orion trace`) EXECUTED the code
+and wrote what it saw, stamped `origin='runtime'`:
+  `executed` (bool) / `hit_count` (int) on CpgMethod/CpgCall        -- the node ACTUALLY RAN
+  (:CpgMethod)-[:OBSERVED_CALL {hits}]->(:CpgMethod|:ObservedMethod)   -- a caller->callee seen at runtime
+  (:CpgCall)-[:OBSERVED_DISPATCH]->(:CpgMethod|:ObservedMethod)       -- the CONCRETE target a dynamic call
+                                                                        site reached ("which pointer it hit")
+  (:ObservedMethod {origin:'runtime', file_path, line})              -- a function that executed with NO
+                                                                        static CpgMethod (reflection/eval/etc)
 These were OBSERVED EXECUTING, so a source->sink flow that traverses one is runtime-PROVEN, and
 `executed = true` OVERRIDES a `reachable_from_entry = false` guess -- especially valuable exactly where
 the static graph lies by omission (arrow-function/object-property calls, dynamic dispatch,
 reflection). Query them, e.g.
-  MATCH (a)-[r:OBSERVED_CALL {scan_id:$scan_id}]->(b) RETURN a.full_name, b.full_name, r.origin
+  MATCH (a)-[r:OBSERVED_CALL {scan_id:$scan_id}]->(b) RETURN a.full_name, b.full_name, r.hits
 and RAISE confidence on a lead a runtime fact corroborates. The grounding rule still holds (cite the
-query). ABSENCE is never proof: no edge/prop may just mean no trace ran or fuzzing never reached that
-code -- never treat it as a safety signal or discard a lead because runtime did not reach it."""
+query). ABSENCE is never proof: the drive is incomplete, so a missing edge/prop may just mean it never
+reached that code -- never treat it as a safety signal or discard a lead because runtime missed it."""
 
 _TRAILER = """
 TRAVERSAL: sweep BREADTH-FIRST across the whole graph for THIS shape before concluding -- do not
@@ -199,10 +195,10 @@ def system_for(shape: str, scan_id: str, files: tuple[str, ...] = (), profile=No
     framework-agnostic WITHOUT it (anchored on :EntryPoint nodes + FLOWS_TO), so passing None is a
     valid, complete prompt for any repo.
 
-    `dynamic_hint` (default False) appends the runtime-facts block, telling the agent to use what
-    either runtime layer wrote (`orion trace`'s origin='dynamic' OBSERVED_* edges, `--runtime`'s
-    `executed`/`hit_count` + origin='runtime' edges). OFF by default so the eval baseline prompt is
-    byte-identical; `orion scan --use-dynamic` or `--runtime` turns it on."""
+    `dynamic_hint` (default False) appends the runtime-facts block, telling the agent to use what the
+    runtime stage wrote (`executed`/`hit_count`, :ObservedMethod, OBSERVED_CALL/DISPATCH). OFF by
+    default so the eval baseline prompt is byte-identical; `orion scan --runtime` or `--use-dynamic`
+    turns it on."""
     if shape not in _SHAPE_TEXT:
         raise ValueError(f"unknown shape: {shape!r} (expected one of {sorted(_SHAPE_TEXT)})")
 

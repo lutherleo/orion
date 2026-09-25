@@ -1,5 +1,7 @@
 # Runtime observation: enriching Orion's graph from a live fuzz run
 
+> **Superseded in structure (2026-09-25):** this layer was merged with its sibling into one package, `orion/runtime/` (see CLAUDE.md "Runtime stage"). The rationale here still holds; module names, the `{origin:'dynamic'}` stamp and the separate clears do not.
+
 **Status:** design (2026-08-11). Adds an **opt-in** stage that runs *after* the static build and
 persist. It does **not** touch `normalize`, the taint seam, `FLOWS_TO` construction, `schema.NODE_KEY`,
 or the 217/1075 parity tripwires — it writes only additive props and one new edge type onto the

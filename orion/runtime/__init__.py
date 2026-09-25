@@ -1,14 +1,17 @@
-"""Runtime observation: enrich the static graph with what actually executes.
+"""Runtime observation: execute the target and fold what actually ran into the scan graph.
 
-Opt-in stage (`orion scan --runtime`) that runs AFTER the static build and persist. It boots or
-rebuilds the scanned target, drives it with a bounded coverage-guided loop, correlates the observed
-coverage/call-tree back onto existing graph nodes by (file_path, line), and writes the result into
-the same Neo4j partition the agents query -- additive props (`executed`/`hit_count`) plus one new
-edge type (`OBSERVED_CALL`), through its own driver, with its own idempotent clear.
+One opt-in stage with two surfaces -- `orion scan --runtime` (right after the static build) and
+`orion trace` (against a graph an earlier scan built). A (Driver, Tracer) pair is picked per repo
+(targets.py), driven by one coverage-guided loop (engine.py), correlated onto existing nodes
+(correlate.py) and written additively (writeback.py):
 
-It touches NO existing build output: no `normalize`, no taint seam, no `FLOWS_TO`, no `NODE_KEY`
-change. The static graph stays byte-for-byte identical, which is why the 217/1075 FLOWS_TO parity
-tripwires cannot move. See docs/superpowers/specs/2026-08-11-runtime-observation-design.md.
+  executed / hit_count      on CpgCall / CpgMethod   -- what ran, overriding reachability guesses
+  :ObservedMethod                                     -- functions that ran with no static node
+  OBSERVED_CALL / OBSERVED_DISPATCH {origin:'runtime'} -- links the static graph lies about
+
+It never touches normalize, the taint seam, FLOWS_TO or a NODE_KEY label, so the static graph (and
+its 217/1075 FLOWS_TO parity) stays byte-for-byte identical. Runs the target's code on this host
+(timeout + temp dir only) -- trace repos you trust.
 """
 from __future__ import annotations
 

@@ -1,10 +1,9 @@
-"""Process driver: build the target exe with coverage, then drive it via argv/stdin. Stdlib only.
+"""ProcessDriver: build the target exe with coverage once, then exec it per input (argv/stdin). Stdlib.
 
-For a compiled target built from the scanned source. `start()` runs the coverage build once
-(`go build -cover ...` via the tracer's build_flags), then each `send()` execs the instrumented
-binary with a mutated argv/stdin under the tracer's coverage env (GOCOVERDIR). Seeds come from the
-graph's :EntryPoint methods (a main() taking argv already registers as an EntryPoint), falling back
-to a single empty-argv run.
+`start()` runs the coverage build (the tracer's build_flags, e.g. `go build -cover`) into the work
+dir; each `send()` execs the instrumented binary under the tracer's env. The process exits per input,
+so its coverage is on disk immediately: `feedback = True`, the engine steers by new coverage.
+It seeds one empty-argv run and lets the mutator derive argv/stdin variants from it.
 """
 from __future__ import annotations
 
@@ -14,54 +13,52 @@ from pathlib import Path
 
 from .base import Input, Response, RunningTarget
 
-_ENTRY_CYPHER = (
-    "MATCH (e:EntryPoint {scan_id:$scan_id}) RETURN e.method_full_name AS m ORDER BY m"
-)
-
 
 class ProcessDriver:
-    """Build + drive a Go (or other compiled-from-source) exe."""
+    """Build + drive a Go (or other compiled-from-source) executable."""
+
+    feedback = True
+    mutable = True
 
     def __init__(self, build_cmd: list[str], out_bin: str, tracer,
-                 build_flags: list[str] | None = None) -> None:
-        self._build_cmd = build_cmd        # e.g. ["go","build","-o","<out_bin>","./..."]
+                 build_flags: list[str] | None = None, run_timeout: float = 30.0) -> None:
+        self._build_cmd = build_cmd        # e.g. ["go", "build", "./..."]
         self._out_bin = out_bin
-        self._tracer = tracer              # supplies launch_env(work) keyed to the actual work dir
+        self._tracer = tracer
         self._extra_flags = build_flags or []
+        self._run_timeout = run_timeout
+        self._env: dict[str, str] = {}
 
     def start(self, repo: str, work: Path, build_flags: list[str]) -> RunningTarget:
-        self._env = self._tracer.launch_env(work)
+        self._env = {**os.environ, **self._tracer.launch_env(work)}
         out = str(Path(work) / self._out_bin)
         cmd = self._inject_flags(self._build_cmd, build_flags + self._extra_flags, out)
-        env = {**os.environ, **self._env}
-        subprocess.run(cmd, cwd=repo, env=env, capture_output=True, text=True,
-                       timeout=600, check=True)
-        return RunningTarget(kind="process", repo=repo, work=work, exe_path=out)
+        r = subprocess.run(cmd, cwd=repo, env=self._env, capture_output=True, text=True,
+                           timeout=600, check=False)
+        if r.returncode != 0:
+            raise RuntimeError(f"coverage build failed: {(r.stderr or r.stdout).strip()[-300:]}")
+        return RunningTarget(kind="process", repo=repo, work=Path(work), exe_path=out)
 
     @staticmethod
     def _inject_flags(build_cmd: list[str], flags: list[str], out: str) -> list[str]:
-        """Insert coverage flags and the -o output right after the `build` verb. Pure."""
+        """Insert coverage flags and `-o <out>` right after the `build` verb. Pure."""
         cmd = list(build_cmd)
-        try:
-            i = cmd.index("build") + 1
-        except ValueError:
-            i = 1
+        i = cmd.index("build") + 1 if "build" in cmd else 1
         cmd[i:i] = [*flags, "-o", out]
         return cmd
 
     def seeds(self, db, scan_id: str) -> list[Input]:
-        res = db.run_cypher(scan_id, _ENTRY_CYPHER, limit=200)
-        rows = res.get("rows", [])
-        seeds = [Input(kind="process", label=f"argv:{r.get('m')}", argv=()) for r in rows]
-        return seeds or [Input(kind="process", label="argv:empty", argv=())]
+        # argv carries no per-entry information yet; one seed per entry point would only repeat the
+        # same empty run, so seed once and let the mutator derive variants.
+        return [Input(kind="process", label="argv:empty", argv=())]
 
     def send(self, target: RunningTarget, inp: Input) -> Response:
-        env = {**os.environ, **self._env, "GOCOVERDIR": str(target.work / "covdata")}
-        (target.work / "covdata").mkdir(parents=True, exist_ok=True)
         try:
-            out = subprocess.run([target.exe_path, *inp.argv], input=inp.stdin,
-                                 capture_output=True, env=env, timeout=30, check=False)
+            out = subprocess.run([target.exe_path, *inp.argv], input=inp.stdin, capture_output=True,
+                                 env=self._env, timeout=self._run_timeout, check=False)
             return Response(ok=True, status=out.returncode)
+        except subprocess.TimeoutExpired:
+            return Response(ok=True, detail="timeout", timed_out=True)
         except (OSError, subprocess.SubprocessError) as e:
             return Response(ok=False, detail=str(e))
 

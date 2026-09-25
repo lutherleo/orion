@@ -1,5 +1,5 @@
 """`orion trace` pre-flight guards. Token-free: every guard here runs before any heavy import
-(no Neo4j, no joern, no `claude` subprocess) and before the dynamic phase starts.
+(no Neo4j, no joern, no `claude` subprocess) and before the runtime stage starts.
 """
 from __future__ import annotations
 
@@ -24,20 +24,23 @@ def test_bad_language_exits_2(tmp_path, capsys):
     assert "unknown --language" in capsys.readouterr().err
 
 
-def test_language_passes_guards_into_phase(tmp_path, monkeypatch):
-    """A valid py OR js target clears every guard and reaches the dynamic phase. Stub trace_repo so
-    the test stays token-free/infra-free — the point is only that the guards let a valid call
-    through (and that JS is no longer rejected)."""
-    import orion.dynamic.run as dyn_run
+def test_valid_args_reach_the_runtime_stage(tmp_path, monkeypatch):
+    """A valid call clears every guard and reaches runtime.enrich with the parsed options. Stubbed so
+    the test stays token-free/infra-free."""
+    import orion.runtime as runtime
 
-    def _boom(*a, **k):
-        raise RuntimeError("reached-phase")
-
-    monkeypatch.setattr(dyn_run, "trace_repo", _boom)
+    seen = []
+    monkeypatch.setattr(runtime, "enrich", lambda *a, **k: seen.append((a, k)) or {})
+    monkeypatch.chdir(tmp_path)          # the run log lands under ./.orion
     for lang in ("py", "js"):
-        try:
-            cli.main(["trace", str(tmp_path), "--language", lang, "--scan-id", "s1"])
-        except RuntimeError as exc:
-            assert "reached-phase" in str(exc)
-        else:
-            raise AssertionError(f"guards should have passed a valid {lang} trace into the phase")
+        assert cli.main(["trace", str(tmp_path), "--language", lang, "--scan-id", "s1",
+                         "--driver", "harness", "--budget", "7", "--quiet"]) == 0
+    (a, k), _ = seen
+    assert a[:2] == ("s1", str(tmp_path))
+    assert (k["language"], k["driver"], k["budget"]) == ("py", "harness", 7)
+
+
+def test_unknown_driver_is_rejected(tmp_path):
+    import pytest
+    with pytest.raises(SystemExit):
+        cli.main(["trace", str(tmp_path), "--driver", "docker"])

@@ -29,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor
 from neo4j import GraphDatabase
 
 from .. import config
-from .schema import ALL_NODE_KEY, DYNAMIC_NODE_KEY, NODE_KEY, Batch
+from .schema import ALL_NODE_KEY, NODE_KEY, Batch
 
 
 def _index_name(label: str) -> str:
@@ -44,8 +44,8 @@ def _ensure_indexes(session, key_map: dict[str, tuple[str, ...]] = NODE_KEY) -> 
     ~25 min). RANGE indexes are correctness-neutral (they only change lookup speed). DDL is auto-committed,
     so this runs on the session BEFORE the data-write transaction (mirrors embed._ensure_vector_index).
 
-    `key_map` selects which labels to index: NODE_KEY for the static load, DYNAMIC_NODE_KEY for the
-    dynamic load (persist_dynamic) so the ObservedMethod endpoint MATCH is index-backed too."""
+    `key_map` selects which labels to index: NODE_KEY for the static load, RUNTIME_NODE_KEY for the
+    runtime stage's writer (runtime/writeback) so its ObservedMethod endpoint MATCH is index-backed."""
     for label, keys in key_map.items():
         props = ", ".join(f"n.`{k}`" for k in keys)
         session.run(f"CREATE RANGE INDEX `{_index_name(label)}` IF NOT EXISTS "
@@ -206,57 +206,6 @@ def flows_count(scan_id: str) -> int:
                          sid=scan_id).single()["n"]
     finally:
         driver.close()
-
-
-def _clear_dynamic(driver, scan_id: str) -> None:
-    """The dynamic layer's OWN clear (the second of the two-clear invariant): remove only this scan's
-    dynamic facts, leaving the static graph fully intact. Two deletes:
-      1. every `origin='dynamic'` relationship (OBSERVED_CALL / OBSERVED_DISPATCH) -- including those
-         between two STATIC nodes, which a node-scoped DETACH would never reach; and
-      2. every DYNAMIC_NODE_KEY node (:ObservedMethod), DETACH sweeping any remaining incident edges.
-    Order matters only for tidiness (edges first), not correctness. Idempotent -- a re-trace clears
-    then reloads. persist._clear (static) never targets these labels/edges, and this never touches a
-    static node or a static edge. (A static REBUILD is different: its DETACH DELETE of a CpgMethod/
-    CpgCall removes OBSERVED_* edges incident to that node -- see the schema.DYNAMIC_NODE_KEY caveat --
-    so `orion trace` is re-run after any re-scan.)"""
-    dyn_labels = list(DYNAMIC_NODE_KEY.keys())
-    with driver.session(database=config.NEO4J_DATABASE) as s:
-        s.execute_write(lambda tx: tx.run(
-            "MATCH ()-[r {scan_id:$sid}]->() WHERE r.origin = 'dynamic' DELETE r", sid=scan_id))
-        s.execute_write(lambda tx: tx.run(
-            "MATCH (n {scan_id:$sid}) WHERE any(l IN labels(n) WHERE l IN $labels) DETACH DELETE n",
-            sid=scan_id, labels=dyn_labels))
-
-
-def persist_dynamic(batch: Batch) -> dict:
-    """Load a DYNAMIC batch (ObservedMethod nodes + OBSERVED_* edges) into an EXISTING scan partition,
-    alongside the static graph, without disturbing it. Clears only the dynamic facts first (the
-    two-clear invariant, `_clear_dynamic`), then loads nodes then edges with the same chunked/parallel
-    writer the static persist uses.
-
-    The static graph must already be loaded: OBSERVED_* edges MATCH static CpgMethod/CpgCall endpoints
-    by their NODE_KEY, so `orion trace` requires a prior `orion scan` for this scan_id. Endpoints that
-    are dynamic (:ObservedMethod) are created here, before the edges. Idempotent per the dynamic clear.
-    Returns a summary incl. a clear/nodes/edges timing split."""
-    driver = GraphDatabase.driver(config.NEO4J_URI, auth=config.NEO4J_AUTH)
-    timings: dict[str, float] = {}
-    conc = config.PERSIST_CONCURRENCY
-    try:
-        with driver.session(database=config.NEO4J_DATABASE) as s:
-            _ensure_indexes(s, DYNAMIC_NODE_KEY)     # index :ObservedMethod's key before the load
-        t = time.monotonic()
-        _clear_dynamic(driver, batch.scan_id)
-        timings["clear"] = time.monotonic() - t
-        t = time.monotonic()
-        _run_jobs(driver, _node_jobs(batch.nodes, DYNAMIC_NODE_KEY), conc)   # ObservedMethod nodes
-        timings["nodes"] = time.monotonic() - t
-        t = time.monotonic()
-        _run_jobs(driver, _edge_jobs(batch.edges), conc)    # OBSERVED_* edges (endpoints matched by key)
-        timings["edges"] = time.monotonic() - t
-    finally:
-        driver.close()
-    return {"scan_id": batch.scan_id, "nodes": len(batch.nodes), "edges": len(batch.edges),
-            "timings": timings}
 
 
 def persist(batch: Batch) -> dict:

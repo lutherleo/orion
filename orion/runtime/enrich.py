@@ -1,105 +1,92 @@
-"""Orchestrate the runtime stage: select → start → drive → collect → correlate → writeback → metric.
+"""The runtime stage pipeline: select -> start -> drive -> collect -> correlate -> write -> report.
 
-Best-effort by contract: any failure (unsupported target, unbootable app, missing toolchain, driver
-error) emits a `runtime/error` event and returns without touching the graph -- exactly as the
-semantic index degrades when the model is absent (cli.py). The static graph is never at risk here:
-writeback only adds props/edges, never clears NODE_KEY labels.
-
-This module owns the two graph READS correlation needs (the CpgCall (file,line)→uid index and the
-CpgMethod (full_name,file,line) list); everything downstream is pure.
+One entry point for both surfaces: `orion scan --runtime` calls it right after the static build, and
+`orion trace` calls it against a graph an earlier scan built. Best-effort by contract: an unsupported
+target, an unbootable app, a missing toolchain or a driver error is a `runtime` warn/error event and a
+None return -- the scan continues and the graph is left exactly as it was.
 """
 from __future__ import annotations
 
 import datetime as _dt
+import os
+import shutil
 import tempfile
 from pathlib import Path
 
 from ..graphdb import GraphDB
-from . import correlate, engine, targets, writeback
-from .base import RuntimeTrace
+from . import correlate, engine, report, targets, writeback
+
+_PROGRESS_EVERY = 25   # inputs between drive-progress events
 
 
 def _event(event: str, detail: str = "") -> dict:
-    return {
-        "ts": _dt.datetime.now(_dt.timezone.utc).isoformat(),
-        "phase": "runtime", "shape": None, "lead": None, "turn": None,
-        "event": event, "detail": detail,
-    }
+    return {"ts": _dt.datetime.now(_dt.timezone.utc).isoformat(), "phase": "runtime",
+            "shape": None, "lead": None, "turn": None, "event": event, "detail": detail}
 
 
-def _call_index(db: GraphDB, scan_id: str) -> dict[tuple[str, int], list[str]]:
-    """(file_path, line) -> [CpgCall uid]. Calls with line 0 / unknown file cannot correlate; they
-    are still returned but will simply never be hit by a real (file,line) coverage key."""
-    res = db.run_cypher(
-        scan_id,
-        "MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.line > 0 "
-        "RETURN c.file_path AS f, c.line AS l, c.uid AS uid", limit=1_000_000)
-    idx: dict[tuple[str, int], list[str]] = {}
-    for r in res.get("rows", []):
-        idx.setdefault((r["f"], r["l"]), []).append(r["uid"])
-    return idx
+def _has_static_graph(db: GraphDB, scan_id: str) -> bool:
+    res = db.run_cypher(scan_id, "MATCH (m:CpgMethod {scan_id:$scan_id}) RETURN count(m) AS c", limit=1)
+    rows = res.get("rows") if isinstance(res, dict) else None
+    return bool(rows) and int(rows[0].get("c") or 0) > 0
 
 
-def _methods(db: GraphDB, scan_id: str) -> list[tuple[str, str, int]]:
-    """(full_name, file_path, line) for internal methods with both file and line -- the containment
-    resolver's input."""
-    res = db.run_cypher(
-        scan_id,
-        "MATCH (m:CpgMethod {scan_id:$scan_id}) "
-        "WHERE m.is_external = false AND m.file_path IS NOT NULL AND m.line IS NOT NULL "
-        "RETURN m.full_name AS fn, m.file_path AS f, m.line AS l", limit=1_000_000)
-    return [(r["fn"], r["f"], r["l"]) for r in res.get("rows", [])]
-
-
-def enrich(scan_id: str, repo: str, profile=None, on_event=None, *, budget: int = 200) -> dict | None:
-    """Run the runtime stage for `scan_id`. Returns a metric dict, or None if the stage was skipped.
-    Never raises: a failure is an event + None."""
-    def emit(ev, detail=""):
+def enrich(scan_id: str, repo: str, on_event=None, *, budget: int = 200, driver: str = "auto",
+           language: str | None = None, harness_file: str | None = None,
+           timeout: float = 120.0) -> dict | None:
+    """Run the runtime stage for `scan_id`. Returns the metric dict, or None when skipped/failed.
+    Never raises."""
+    def emit(ev: str, detail: str = "") -> None:
         if on_event is not None:
             on_event(_event(ev, detail))
 
     try:
-        sel = targets.select(repo, profile)
+        sel = targets.select(repo, driver=driver, language=language, harness_file=harness_file,
+                             timeout=timeout, on_event=on_event)
         if sel is None:
-            emit("warn", "no runtime target detected for this repo; skipping (graph unchanged)")
+            emit("warn", "no runtime driver fits this repo (add .orion/runtime.json or pass "
+                         "--driver/--harness-file); skipping, graph unchanged")
             return None
-        driver, tracer = sel
-        emit("start", f"runtime stage: driving target (budget {budget} inputs)")
-
+        drv, tracer = sel
         work = Path(tempfile.mkdtemp(prefix="orion_runtime_"))
         db = GraphDB()
         try:
-            seeds = driver.seeds(db, scan_id)
-            emit("tool", f"{len(seeds)} seed inputs from the graph")
-            target = driver.start(repo, work, tracer.build_flags())
-            try:
-                engine.run(driver, tracer, target, seeds, budget=budget)
-            finally:
-                driver.stop(target)
-            # Collect ONCE, AFTER stop. A long-running server flushes V8 coverage only on exit, so a
-            # mid-run collect sees nothing; a compiled exe's GOCOVERDIR has accumulated every run's
-            # data by now. This post-stop collect is authoritative for both shapes.
-            trace = tracer.collect(work, repo)
+            if not _has_static_graph(db, scan_id):
+                emit("warn", f"no static graph for scan_id {scan_id}; run `orion scan` first")
+                return None
+            seeds = drv.seeds(db, scan_id)
+            if not seeds:
+                emit("warn", f"{type(drv).__name__} produced no inputs; skipping, graph unchanged")
+                return None
+            emit("start", f"{type(drv).__name__} + {type(tracer).__name__}: {len(seeds)} seeds, "
+                          f"budget {budget} inputs")
 
-            emit("tool", f"observed {len(trace.coverage)} covered lines, "
-                         f"{len(trace.calls)} call frames")
-            plan = _correlate(db, scan_id, trace)
+            def on_step(i, inp, new):
+                if i % _PROGRESS_EVERY == 0 or new:
+                    emit("tool", f"input {i}: {inp.label}" + (f" (+{new} new lines)" if new else ""))
+
+            target = drv.start(repo, work, tracer.build_flags())
+            try:
+                trace = engine.run(drv, tracer, target, seeds, budget=budget, on_step=on_step)
+            finally:
+                drv.stop(target)
+            # What the loop did not collect: everything, for a server that flushes on exit.
+            trace = trace.merge(tracer.collect(work, repo))
+            emit("tool", f"observed {len(trace.coverage)} lines, {len(trace.methods)} methods, "
+                         f"{len(trace.calls)} calls, {len(trace.dispatches)} dispatches")
+            if trace.is_empty():
+                # Keep any previous enrichment: an empty run is no evidence the old one is stale.
+                emit("warn", "empty trace -- the drive exercised nothing observable; graph unchanged")
+                return None
+            plan = correlate.correlate(trace, correlate.load_static_index(scan_id), scan_id)
         finally:
             db.close()
+            if not os.environ.get("ORION_KEEP_RUNTIME_WORK"):
+                shutil.rmtree(work, ignore_errors=True)
 
         metric = writeback.apply_plan(scan_id, plan)
-        emit("done",
-             f"{metric['calls_marked']} calls + {metric['methods_marked']} methods marked executed; "
-             f"{metric['observed_edges']} OBSERVED_CALL edges "
-             f"({metric['novel_edges']} with no static path); "
-             f"{metric['unreachable_executed']} executed nodes were marked reachable_from_entry=false")
+        metric["method_samples"] = report.samples(plan)
+        report.emit(metric, on_event)
         return metric
     except Exception as exc:  # noqa: BLE001 -- best-effort stage; never abort the scan
-        emit("error", f"runtime stage failed, continuing without it: {exc}")
+        emit("error", f"runtime stage failed, continuing without it: {type(exc).__name__}: {exc}")
         return None
-
-
-def _correlate(db: GraphDB, scan_id: str, trace: RuntimeTrace):
-    call_index = _call_index(db, scan_id)
-    resolver = correlate.MethodResolver(_methods(db, scan_id))
-    return correlate.correlate(trace, call_index, resolver)

@@ -13,7 +13,7 @@ from orion import strategies
 def test_hint_absent_by_default():
     sys_default = strategies.system_for("A", "scan1")
     assert "OBSERVED_CALL" not in sys_default
-    assert "origin='dynamic'" not in sys_default
+    assert "origin='runtime'" not in sys_default
     # default and explicit-False are the same string (the baseline prompt)
     assert sys_default == strategies.system_for("A", "scan1", dynamic_hint=False)
 
@@ -22,7 +22,7 @@ def test_hint_present_when_enabled():
     s = strategies.system_for("A", "scan1", dynamic_hint=True)
     assert "OBSERVED_CALL" in s
     assert "OBSERVED_DISPATCH" in s
-    assert "origin='dynamic'" in s
+    assert "origin='runtime'" in s
     assert "runtime-PROVEN" in s
 
 

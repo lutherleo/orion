@@ -1,10 +1,18 @@
-"""The bounded, coverage-guided mutational loop. Language-agnostic.
+"""The bounded, coverage-guided drive loop. Language-agnostic, deterministic given a seed.
 
-Orion's own engine (not AFL++/libFuzzer): the goal here is OBSERVING linkages, not crash-hunting, so
-a simple loop that keeps inputs which reach new coverage is enough and runs on any target with zero
-install burden. The impurity is entirely inside the injected `driver.send` and `tracer.collect`; the
-control flow and the mutator are pure and DETERMINISTIC given a seed, so a fixed seed + fake driver
-yields a fixed corpus (test 8). No `Math.random`-style ambient randomness.
+Orion's own loop, not AFL++/libFuzzer: the goal is OBSERVING linkages, not crash-hunting, so keeping
+inputs that reach new coverage is enough and runs anywhere with zero install burden. The loop adapts
+to what the driver can report:
+
+  feedback=True  (process exits per input, harness script) -> collect + reset after EVERY input, fold
+                  the disjoint step trace into the accumulator, and grow the corpus with inputs that
+                  reached new lines. Collect cost is paid only where it buys steering.
+  feedback=False (a server that flushes on exit)           -> drive blind: no per-input collect at all
+                  (it would read nothing), mutate the seeds round the budget; the pipeline collects
+                  once after stop().
+  mutable=False  (whole scripts)                           -> run the seeds once each, no mutation.
+
+All impurity lives in the injected driver/tracer; the control flow and mutator are pure.
 """
 from __future__ import annotations
 
@@ -12,10 +20,11 @@ import random
 import urllib.parse
 from dataclasses import replace
 
-from .base import Driver, Input, RuntimeTrace, Tracer
+from .base import Driver, Input, Tracer
+from .trace import RuntimeTrace, TraceAccumulator
 
 # Byte menu for mutation -- small, deterministic, security-flavoured (path traversal, template/JS
-# injection, SQL/NoSQL metacharacters). Not exhaustive; enough to reach error branches.
+# injection, SQL/NoSQL metacharacters). Enough to reach error branches.
 _INJECT = [
     b"'", b'"', b"<script>", b"../../../../etc/passwd", b"{{7*7}}", b"$where",
     b"; ls", b"| id", b"\x00", b"%00", b"-1", b"0", b"true", b"[]", b"{}",
@@ -23,72 +32,56 @@ _INJECT = [
 
 
 def _mutate(rng: random.Random, inp: Input) -> Input:
-    """Derive one variant of `inp`. Pure given `rng`. Mutates the body/stdin and, occasionally, a
-    query string on the path -- the attacker-controlled surfaces the graph's sources point at."""
+    """Derive one variant of `inp`. Pure given `rng`."""
     payload = rng.choice(_INJECT)
     if inp.kind == "http":
         if rng.random() < 0.5 and "?" not in inp.path:
-            # Percent-encode the payload: raw control bytes (\x00 etc.) are illegal in a URL and
-            # urllib rejects them with ValueError. The server still decodes them back on receipt.
+            # Percent-encode: raw control bytes are illegal in a URL (urllib raises ValueError).
             q = urllib.parse.quote(payload, safe="")
             return replace(inp, path=f"{inp.path}?q={q}", label=f"{inp.label}~q")
         return replace(inp, body=inp.body + payload, label=f"{inp.label}~b")
+    if rng.random() < 0.5:
+        # argv cannot carry NUL; the stdin branch covers binary payloads.
+        arg = payload.replace(b"\x00", b"").decode("latin-1") or "0"
+        return replace(inp, argv=(*inp.argv, arg), label=f"{inp.label}~a")
     return replace(inp, stdin=inp.stdin + payload, label=f"{inp.label}~s")
 
 
-def _coverage_keys(trace: RuntimeTrace) -> set:
-    return {(h.file_path, h.line) for h in trace.coverage}
-
-
-def run(
-    driver: Driver,
-    tracer: Tracer,
-    target,
-    seeds: list[Input],
-    *,
-    budget: int = 200,
-    seed: int = 1337,
-    on_step=None,
-) -> RuntimeTrace:
-    """Drive `target` for up to `budget` inputs, keeping the ones that grow coverage as new parents.
-
-    Deterministic: same seed + same driver/tracer responses -> same sequence of inputs. Returns the
-    accumulated RuntimeTrace (coverage + any observed calls). `on_step(i, input, new_cov)` is an
-    optional progress hook."""
+def run(driver: Driver, tracer: Tracer, target, seeds: list[Input], *,
+        budget: int = 200, seed: int = 1337, on_step=None) -> RuntimeTrace:
+    """Drive `target` with up to `budget` inputs and return the accumulated per-input traces
+    (empty for a no-feedback driver -- its trace is collected after stop). `on_step(i, input,
+    new_lines)` is an optional progress hook."""
+    feedback = getattr(driver, "feedback", True)
+    mutable = getattr(driver, "mutable", True)
     rng = random.Random(seed)
+    acc = TraceAccumulator()
     corpus: list[Input] = list(seeds)
-    seen: set = set()
-    total = RuntimeTrace()
     sent = 0
 
-    def _drive(inp: Input) -> set:
-        """Send one input, fold its trace in, and return the NEW coverage keys it reached."""
-        nonlocal total, sent
+    def drive(inp: Input) -> bool:
+        nonlocal sent
         driver.send(target, inp)
         sent += 1
-        trace = tracer.collect(target.work, target.repo)
-        total = total.merge(trace)
-        new = _coverage_keys(trace) - seen
+        new = 0
+        if feedback:
+            before = acc.line_count()
+            acc.add(tracer.collect(target.work, target.repo))
+            tracer.reset(target.work)
+            new = acc.line_count() - before
         if on_step is not None:
-            on_step(sent, inp, len(new))
-        tracer.reset(target.work)
-        return new
+            on_step(sent, inp, new)
+        return new > 0
 
-    # Prime with the seeds first, then mutate the fruitful ones until the budget is spent.
     for inp in seeds:
         if sent >= budget:
             break
-        new = _drive(inp)
-        if new:
-            seen |= new
-            corpus.append(inp)
+        if drive(inp):
+            corpus.append(inp)          # a fruitful seed gets extra weight as a parent
 
-    while sent < budget and corpus:
-        parent = corpus[rng.randrange(len(corpus))]
-        child = _mutate(rng, parent)
-        new = _drive(child)
-        if new:
-            seen |= new
+    while mutable and corpus and sent < budget:
+        child = _mutate(rng, corpus[rng.randrange(len(corpus))])
+        if drive(child):
             corpus.append(child)
 
-    return total
+    return acc.freeze()

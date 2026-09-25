@@ -1,5 +1,7 @@
 # Orion Dynamic Trace Layer — runtime-observed nodes/edges into the static graph
 
+> **Superseded in structure (2026-09-25):** this layer was merged with its sibling into one package, `orion/runtime/` (see CLAUDE.md "Runtime stage"). The rationale here still holds; module names, the `{origin:'dynamic'}` stamp and the separate clears do not.
+
 **Status:** design (2026-08-27). Adds a new phase *after* the static graph build of
 `2026-07-12-orion-design.md`; the static build path, MCP tools' read contract, discovery, and
 verify are unchanged except for one behavior-preserving `origin` stamp (§6) and one optional
