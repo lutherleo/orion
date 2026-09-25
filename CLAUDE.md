@@ -99,6 +99,16 @@ existing graph). `select → start → engine.run → stop → collect → corre
 | `HttpDriver` — boot app, log in, fuzz routes seeded from the graph | `V8Tracer` (`NODE_V8_COVERAGE` + `--cpu-prof`) | `npm start` script |
 | `ProcessDriver` — `go build -cover`, fuzz argv/stdin | `GoCoverTracer` (`covdata textfmt`, module prefix from go.mod) | `go.mod` |
 
+HARNESS runs are isolated (2026-09-25): `--sandbox` / `--runtime-sandbox` `auto|docker|host`, auto =
+Docker when `docker info` answers, else host + a `warn`. `runtime/sandbox.DockerSandbox` runs the
+script with `--network none --read-only --cap-drop ALL`, bounded memory/CPU/pids, source mounted
+read-only at /src, only /work writable, bootstraps at /orion; host paths/interpreters are rewritten
+to container ones. Images: `ORION_SANDBOX_PY_IMAGE` (python:3.12-slim) / `ORION_SANDBOX_NODE_IMAGE`
+(node:22-slim), or `"image"` in the harness descriptor for a target that needs its deps installed.
+`_boot_py.py` runs BY FILE PATH (stdlib only, no orion/neo4j import) and drops its own dir from
+sys.path so a target `report.py`/`trace.py` is never shadowed. HTTP/process drivers still run on the
+host (they execute the repo's own start/build commands) -- follow-up. Unit tests pin
+`isolation="host"` so they never pull images.
 `.orion/runtime.json` (kind `http`/`process`/`harness`) overrides the sniff. Writes, all `origin:'runtime'`:
 `executed`/`hit_count` on CpgCall/CpgMethod, `:ObservedMethod` nodes (`RUNTIME_NODE_KEY`), and
 `OBSERVED_CALL`/`OBSERVED_DISPATCH {hits}` — one edge per endpoint pair. `writeback`'s clear is

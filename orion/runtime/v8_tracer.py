@@ -198,10 +198,10 @@ class V8Tracer:
                 "NODE_OPTIONS": f'--cpu-prof --cpu-prof-dir="{prof}" --require "{preload}"'}
 
     def script_command(self, script: str, repo: str, work: Path) -> tuple[list[str], dict[str, str]]:
-        """argv + env to run a harness SCRIPT under `_boot_js`, dumping into the same dirs."""
-        node = resolve_node(self._node)
-        if node is None:
-            raise FileNotFoundError("node executable not found (install Node or set ORION_NODE)")
+        """argv + env to run a harness SCRIPT under `_boot_js`, dumping into the same dirs. With no
+        Node on this host the bare `node` is used: a container sandbox supplies its own, and on the
+        host the launch fails as a reported exit 127, never an exception."""
+        node = resolve_node(self._node) or "node"
         cov, prof = self._dirs(work)
         return ([node, _BOOT_JS, os.path.abspath(script), os.path.abspath(repo), str(cov), str(prof)],
                 {"ORION_JS_SETTLE_MS": str(self._settle_ms)})

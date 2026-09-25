@@ -207,7 +207,8 @@ def _run_scan(args: argparse.Namespace) -> int:
         if args.repo:
             from . import runtime
             runtime.enrich(scan_id, args.repo, on_event, budget=args.runtime_budget,
-                           driver=args.runtime_driver, harness_file=args.harness_file)
+                           driver=args.runtime_driver, harness_file=args.harness_file,
+                           sandbox=args.runtime_sandbox)
         else:
             on_event(_event("runtime", "warn",
                             detail="--runtime needs a repo checkout to execute; skipped on --scan-id"))
@@ -333,6 +334,8 @@ def main(argv: list[str] | None = None) -> int:
                            "Implies --use-dynamic. Off by default; runs on the host.")
     scan.add_argument("--runtime-budget", dest="runtime_budget", type=int, default=200,
                       help="max inputs the runtime drive loop sends (default 200)")
+    scan.add_argument("--runtime-sandbox", dest="runtime_sandbox", choices=_RUNTIME_SANDBOXES,
+                      default="auto", help="where --runtime runs a harness script: docker (isolated), host, or auto = docker when available (default)")
     scan.add_argument("--runtime-driver", dest="runtime_driver", choices=_RUNTIME_DRIVERS,
                       default="auto", help="how --runtime exercises the target (default: auto-detect)")
     scan.add_argument("--harness-file", dest="harness_file", metavar="PATH",
@@ -349,6 +352,9 @@ def main(argv: list[str] | None = None) -> int:
     tr.add_argument("repo", nargs="?", help="path to the target repo (what gets executed)")
     tr.add_argument("--scan-id", dest="scan_id",
                     help="scan graph to augment (defaults to the deterministic id of repo)")
+    tr.add_argument("--sandbox", dest="sandbox", choices=_RUNTIME_SANDBOXES, default="auto",
+                    help="where a harness script runs: docker (no network, read-only source), host, "
+                         "or auto = docker when its daemon answers (default)")
     tr.add_argument("--driver", dest="driver", choices=_RUNTIME_DRIVERS, default="auto",
                     help="harness (script calling entry points) | http (boot + fuzz routes) | "
                          "process (build exe + fuzz argv/stdin); default auto-detect")
@@ -376,6 +382,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 _RUNTIME_DRIVERS = ("auto", "harness", "http", "process")   # == runtime.targets.DRIVERS
+_RUNTIME_SANDBOXES = ("auto", "docker", "host")              # == runtime.targets.SANDBOXES
 
 
 def _run_trace(args: argparse.Namespace) -> int:
@@ -404,13 +411,15 @@ def _run_trace(args: argparse.Namespace) -> int:
     on_event = run_logger(run_dir, quiet=True if args.watch else args.quiet)
     print(f"scan_id: {scan_id}")
     print(f"run log: {run_dir}/progress.jsonl")
-    # Safety notice: the runtime stage EXECUTES the target's code on this host.
-    print("note: `orion trace` runs the target repo's code locally (timeout + temp dir only, no "
-          "sandbox) — only trace repos you trust.")
+    # Safety notice: the runtime stage EXECUTES the target's code.
+    print("note: `orion trace` executes the target's code. Harness scripts run in a locked-down Docker "
+          "container when available (--sandbox); a web app or binary started by --driver http/process "
+          "runs on this host -- only drive repos you trust.")
 
     def _do() -> dict:
         return runtime.enrich(scan_id, repo, on_event, budget=args.budget, driver=args.driver,
                               language=args.language, harness_file=args.harness_file,
+                              sandbox=args.sandbox,
                               timeout=args.timeout) or {}
 
     if args.watch:

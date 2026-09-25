@@ -32,7 +32,7 @@ def _has_static_graph(db: GraphDB, scan_id: str) -> bool:
 
 def enrich(scan_id: str, repo: str, on_event=None, *, budget: int = 200, driver: str = "auto",
            language: str | None = None, harness_file: str | None = None,
-           timeout: float = 120.0) -> dict | None:
+           timeout: float = 120.0, sandbox: str = "auto") -> dict | None:
     """Run the runtime stage for `scan_id`. Returns the metric dict, or None when skipped/failed.
     Never raises."""
     def emit(ev: str, detail: str = "") -> None:
@@ -41,7 +41,7 @@ def enrich(scan_id: str, repo: str, on_event=None, *, budget: int = 200, driver:
 
     try:
         sel = targets.select(repo, driver=driver, language=language, harness_file=harness_file,
-                             timeout=timeout, on_event=on_event)
+                             timeout=timeout, on_event=on_event, sandbox=sandbox)
         if sel is None:
             emit("warn", "no runtime driver fits this repo (add .orion/runtime.json or pass "
                          "--driver/--harness-file); skipping, graph unchanged")

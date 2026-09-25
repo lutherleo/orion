@@ -8,7 +8,7 @@ questions). Precedence:
        {"kind":"http","boot":["npm","start"],"base_url":"http://localhost:4000",
         "login":{"path":"/login","fields":{"userName":"user1","password":"User1_123"}}}
        {"kind":"process","build":["go","build","./..."],"out":"target.bin"}
-       {"kind":"harness","language":"py","file":"scripts/drive.py"}
+       {"kind":"harness","language":"py","file":"scripts/drive.py","image":"myapp-deps:latest"}
   2. an explicit `driver` ("harness" | "http" | "process") or a pinned `harness_file`;
   3. manifest sniff: npm `start` script -> http; go.mod -> process; Python markers -> py harness;
      any other package.json -> js harness.
@@ -29,6 +29,7 @@ from .v8_tracer import V8Tracer
 
 DESCRIPTOR = ".orion/runtime.json"
 DRIVERS = ("auto", "harness", "http", "process")
+SANDBOXES = ("auto", "docker", "host")   # isolation for HARNESS runs (see runtime/sandbox.py)
 _PY_MARKERS = ("requirements.txt", "setup.py", "pyproject.toml", "setup.cfg", "Pipfile")
 
 
@@ -85,17 +86,19 @@ def _process(repo: str, desc: dict | None = None):
                          out_bin=desc.get("out", "orion-target.bin"), tracer=tracer), tracer
 
 
-def _harness(repo: str, language: str | None, harness_file: str | None, timeout: float, on_event):
+def _harness(repo: str, language: str | None, harness_file: str | None, timeout: float, on_event,
+             sandbox: str = "auto", image: str | None = None):
     language = language or _script_language(repo, harness_file)
     if language not in ("py", "js"):
         return None
     tracer = PyTracer() if language == "py" else V8Tracer()
     return HarnessDriver(repo, language, tracer, harness_file=harness_file, timeout=timeout,
-                         on_event=on_event), tracer
+                         on_event=on_event, isolation=sandbox, image=image), tracer
 
 
 def select(repo: str, *, driver: str = "auto", language: str | None = None,
-           harness_file: str | None = None, timeout: float = 120.0, on_event=None):
+           harness_file: str | None = None, timeout: float = 120.0, on_event=None,
+           sandbox: str = "auto"):
     """Return (Driver, Tracer) or None. Descriptor wins; then the explicit choice; then a sniff."""
     desc = load_descriptor(repo)
     if desc:
@@ -107,7 +110,8 @@ def select(repo: str, *, driver: str = "auto", language: str | None = None,
         if kind == "harness":
             f = desc.get("file")
             return _harness(repo, desc.get("language") or language,
-                            str(Path(repo) / f) if f else harness_file, timeout, on_event)
+                            str(Path(repo) / f) if f else harness_file, timeout, on_event,
+                            sandbox, desc.get("image"))
         return None
 
     if driver == "http":
@@ -115,7 +119,7 @@ def select(repo: str, *, driver: str = "auto", language: str | None = None,
     if driver == "process":
         return _process(repo)
     if driver == "harness" or harness_file:
-        return _harness(repo, language, harness_file, timeout, on_event)
+        return _harness(repo, language, harness_file, timeout, on_event, sandbox)
 
     return (_http(repo) or _process(repo)
-            or _harness(repo, language, harness_file, timeout, on_event))
+            or _harness(repo, language, harness_file, timeout, on_event, sandbox))
