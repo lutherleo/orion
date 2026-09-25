@@ -52,3 +52,15 @@ def test_score_reports_missed_and_known_gap():
     assert s["recall"] == 0
     assert set(s["missed"]) == {g.id for g in pg.GROUND_TRUTH}
     assert s["checkable"] == pg.CHECKABLE < s["total"]          # COMPONENTS is a known gap
+
+
+def test_structured_file_in_a_triple_satisfies_the_file_side_only():
+    from tests.ground_truth_nodegoat import CLASS_KEYWORDS, GROUND_TRUTH
+    # the prose names no file; the structured file supplies it -> credited
+    found, _ = scoring.match([("NoSQL injection via $where", "query", "app/data/allocations-dao.js")],
+                             GROUND_TRUTH, CLASS_KEYWORDS)
+    assert "A1-2" in found
+    # a structured file never supplies the CLASS token: no class word in the claim -> not credited
+    found, _ = scoring.match([("something bad", "", "app/data/allocations-dao.js")],
+                             GROUND_TRUTH, CLASS_KEYWORDS)
+    assert "A1-2" not in found

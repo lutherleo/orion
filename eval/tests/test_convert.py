@@ -32,3 +32,13 @@ def test_load_reads_real_json(tmp_path):
     p = tmp_path / "findings.json"
     p.write_text(json.dumps(REAL))
     assert len(convert.load(str(p))) == 2
+
+
+def test_structured_fields_verifier_first_then_lead():
+    v = {"lead": {"index": 0, "shape": "A", "text": "sqli", "evidence": "", "confidence": "HIGH",
+                  "file": "a.py", "line_start": 3, "function": "q", "cwe": "CWE-89"},
+         "decision": "CONFIRM", "reason": "r", "evidence": "", "sink_centrality": 0.0,
+         "file": "b.py", "line_start": 9}
+    (f,) = convert.confirmed_verdicts([v])
+    assert (f["file"], f["line_start"], f["cwe"], f["function"]) == ("b.py", 9, "CWE-89", "q")
+    assert "line_end" not in f

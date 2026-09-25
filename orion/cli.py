@@ -56,7 +56,7 @@ def _run_dir(scan_id: str) -> str:
 # ── run-dir artifacts: a scan's leads and verdicts are on disk as soon as they exist ─────────────
 # <run_dir>/leads.json      {"scan_id", "repo", "leads": [...]}  -- written right after discovery
 # <run_dir>/verdicts.jsonl  one verdict per line, appended as EACH lead finishes verifying
-# <run_dir>/verdicts.json + report.txt                           -- written at the end
+# <run_dir>/verdicts.json + report.txt + results.sarif           -- written at the end
 # A crash mid-verify therefore loses nothing already verified, and `--resume <run_dir>` finishes the
 # run without re-running discovery or re-paying for verdicts already in hand.
 _LEADS_FILE, _VERDICTS_LOG = "leads.json", "verdicts.jsonl"
@@ -130,6 +130,7 @@ def _run_scan(args: argparse.Namespace) -> int:
 
     # Deferred on purpose -- see module docstring.
     from . import config, discover, embed, graph_build, graphdb, report, verify
+    from . import sarif as sarif_mod
     from .monitor import run_logger, tail
 
     needs_build = not args.scan_id
@@ -284,10 +285,15 @@ def _run_scan(args: argparse.Namespace) -> int:
     payload = json.dumps([dataclasses.asdict(v) for v in verdicts], indent=2, default=str)
     Path(run_dir, "verdicts.json").write_text(payload, encoding="utf-8")
     Path(run_dir, "report.txt").write_text(text, encoding="utf-8")
-    print(f"\nreport + verdicts saved under {run_dir}")
+    sarif = json.dumps(sarif_mod.to_sarif(verdicts), indent=2)
+    Path(run_dir, "results.sarif").write_text(sarif, encoding="utf-8")
+    print(f"\nreport, verdicts and SARIF saved under {run_dir}")
     if args.json:
         Path(args.json).write_text(payload)
         print(f"wrote {len(verdicts)} verdicts to {args.json}")
+    if getattr(args, "sarif", None):
+        Path(args.sarif).write_text(sarif, encoding="utf-8")
+        print(f"wrote SARIF to {args.sarif}")
 
     return _exit_code(verdicts, getattr(args, "fail_on", "none"))
 
@@ -302,6 +308,9 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument("--watch", action="store_true", help="follow live progress while the scan runs")
     scan.add_argument("--json", dest="json", metavar="OUT", help="also write verdicts as JSON to OUT")
     scan.add_argument("--quiet", action="store_true", help="suppress per-event progress prints (still logs to file)")
+    scan.add_argument("--sarif", metavar="OUT",
+                      help="also write CONFIRM/INCONCLUSIVE findings as SARIF 2.1.0 to OUT (GitHub "
+                           "code scanning); a copy is always saved as <run_dir>/results.sarif")
     scan.add_argument("--resume", metavar="RUN_DIR",
                       help="finish an interrupted scan from its run dir: reuse its leads, verify only "
                            "the leads without a verdict (or with an ERROR), then report")

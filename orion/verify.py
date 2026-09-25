@@ -34,7 +34,7 @@ import re
 import uuid
 
 from . import config
-from .contracts import Lead, OnEvent, Verdict
+from .contracts import Lead, OnEvent, Verdict, clean_location
 from .exploit_corpus import EXPLOIT_SEARCH_GUIDANCE
 
 _DECISIONS = {"CONFIRM", "REJECT", "INCONCLUSIVE", "ERROR"}
@@ -52,6 +52,13 @@ VERDICT_SCHEMA = {
         "decision": {"type": "string", "enum": ["CONFIRM", "REJECT", "INCONCLUSIVE", "ERROR"]},
         "reason": {"type": "string"},
         "evidence": {"type": "string"},
+        # The verifier's own reading of where the bug is and what it is (optional; validated by
+        # contracts.clean_location). Overrides the analyst's location in reports and SARIF.
+        "file": {"type": "string"},
+        "line_start": {"type": "integer"},
+        "line_end": {"type": "integer"},
+        "cwe": {"type": "string"},
+        "severity": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
     },
     "required": ["decision", "reason"],
 }
@@ -116,7 +123,10 @@ Rules:
 
 When you are done, output the final verdict as the required structured JSON with fields
 `decision` (CONFIRM | REJECT | INCONCLUSIVE), `reason` (why, citing your own evidence), and
-`evidence` (the specific file/line or query result you found)."""
+`evidence` (the specific file/line or query result you found). For a CONFIRM or INCONCLUSIVE, also
+give the location as YOU found it in the source -- `file` (repo-relative), `line_start`/`line_end`,
+`cwe` (e.g. "CWE-89") and `severity` (LOW | MEDIUM | HIGH | CRITICAL) -- correcting the analyst's
+claimed location if it was wrong. Omit any field you did not establish yourself."""
 
 
 def _lead_message(scan_id: str, lead: Lead, evidence_subgraph: str = "") -> str:
@@ -134,9 +144,21 @@ def _lead_message(scan_id: str, lead: Lead, evidence_subgraph: str = "") -> str:
         f"  analyst's cited evidence (unverified): {lead.evidence}\n"
         f"  analyst's confidence: {lead.confidence}\n"
     )
+    loc = _claimed_location(lead)
+    if loc:
+        msg += f"  analyst's claimed location (unverified): {loc}\n"
     if evidence_subgraph:
         msg += "\n" + evidence_subgraph + "\n"
     return msg + "\nVerify this one lead now."
+
+
+def _claimed_location(lead: Lead) -> str:
+    """`file:line-line (function) CWE-n` from the lead's structured fields, or "" if it gave none."""
+    where = lead.file or ""
+    if where and lead.line_start:
+        where += f":{lead.line_start}" + (f"-{lead.line_end}" if lead.line_end else "")
+    parts = [p for p in (where, f"({lead.function})" if lead.function else "", lead.cwe or "") if p]
+    return " ".join(parts)
 
 
 def _format_evidence_subgraph(subgraph: dict) -> str:
@@ -225,11 +247,14 @@ def _verdict_from_result(lead: Lead, result: dict) -> Verdict:
             evidence="",
         )
 
+    loc = clean_location(result)
+    loc.pop("function", None)            # not in the verdict schema; the lead's function stands
     return Verdict(
         lead=lead,
         decision=decision,
         reason=result.get("reason") or "",
         evidence=result.get("evidence") or "",
+        **loc,
     )
 
 

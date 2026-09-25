@@ -15,7 +15,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 
 from . import claude_cli, config, strategies
-from .contracts import Lead, OnEvent, ProgressEvent
+from .contracts import Lead, OnEvent, ProgressEvent, clean_location
 
 SHAPES: tuple[str, ...] = ("A", "B", "C", "D")
 
@@ -62,13 +62,19 @@ def _to_leads(final_json: dict, shape: str) -> list[Lead]:
             item_shape = shape
         source_uid = item.get("source_uid") or None
         sink_uid = item.get("sink_uid") or None
+        loc = clean_location(item)
+        loc.pop("severity", None)           # a verdict field; leads carry confidence instead
         leads.append(Lead(index=i, shape=item_shape, text=text, evidence=evidence,
-                          confidence=confidence, source_uid=source_uid, sink_uid=sink_uid))
+                          confidence=confidence, source_uid=source_uid, sink_uid=sink_uid, **loc))
     return leads
+
+
+_CONFIDENCE_RANK = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
 
 
 def _dedup(leads: list[Lead]) -> list[Lead]:
     """Collapse duplicate leads, keeping the first occurrence and reassigning sequential indices.
+    Every collapsed duplicate is one verifier session (the run's dominant cost) not spent.
 
     STRUCTURAL first: a lead anchored on a :CandidateFlow carries `source_uid`+`sink_uid`; two leads
     with the same (source_uid, sink_uid) are the SAME flow no matter how differently they are worded,
@@ -77,18 +83,38 @@ def _dedup(leads: list[Lead]) -> list[Lead]:
     rather than clustering on partial (source-only / sink-only) overlap on purpose: two genuinely
     distinct bugs that merely share a source must NOT be merged in a precision-first tool.
 
-    LEXICAL fallback: leads with no structural anchor (shapes B/C/D, or a shape-A lead the model
-    didn't tag) keep the original `(shape, text[:80])` key. The two keyspaces are disjoint, so a
-    structural and a lexical lead never collide."""
+    FINGERPRINT next: a lead that names its file + CWE + function (or line) is the same bug as any
+    other lead with that fingerprint, whichever shape found it and however it is worded -- two
+    shapes routinely report one XSS. The HIGHER-confidence lead is kept, in the earlier one's slot,
+    unless the earlier one is structurally anchored (then it always stays).
+    The key includes the function/line, so two bugs of one class in different functions stay apart.
+
+    LEXICAL fallback: leads with neither anchor keep the original `(shape, text[:80])` key. The
+    keyspaces are disjoint, so leads keyed differently never collide."""
     seen_struct: set[tuple[str, str]] = set()
     seen_lex: set[tuple[str, str]] = set()
+    by_fingerprint: dict[tuple, int] = {}          # fingerprint -> position in `kept`
     kept: list[Lead] = []
     for lead in leads:
+        fp = lead.fingerprint()
         if lead.source_uid and lead.sink_uid:
             key = (lead.source_uid, lead.sink_uid)
             if key in seen_struct:
                 continue
             seen_struct.add(key)
+            if fp is not None:
+                by_fingerprint.setdefault(fp, len(kept))   # later unanchored duplicates fold into it
+        elif fp is not None:
+            pos = by_fingerprint.get(fp)
+            if pos is not None:
+                # An anchored lead is never displaced: its flow endpoints feed the verifier's
+                # evidence subgraph. Otherwise the more confident report of the bug wins.
+                incumbent = kept[pos]
+                if (not incumbent.source_uid
+                        and _CONFIDENCE_RANK[lead.confidence] > _CONFIDENCE_RANK[incumbent.confidence]):
+                    kept[pos] = lead
+                continue
+            by_fingerprint[fp] = len(kept)
         else:
             key = (lead.shape, lead.text[:80])
             if key in seen_lex:

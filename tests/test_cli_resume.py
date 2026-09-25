@@ -57,6 +57,8 @@ def test_fresh_scan_writes_leads_and_each_verdict(run_dir, monkeypatch):
     assert sorted(v["decision"] for v in logged) == ["CONFIRM", "ERROR", "REJECT"]
     assert len(json.loads((run_dir / "verdicts.json").read_text())) == 3
     assert "CONFIRM" in (run_dir / "report.txt").read_text()
+    sarif = json.loads((run_dir / "results.sarif").read_text())
+    assert sarif["version"] == "2.1.0"          # always written (prose-only leads: nothing located)
 
 
 def test_resume_verifies_only_missing_or_errored_leads(run_dir, monkeypatch):

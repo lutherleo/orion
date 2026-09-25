@@ -135,8 +135,12 @@ pull the full CpgCall.code once a call is already a promising candidate.
 When your sweep for this shape is complete, emit your final answer as the required structured
 JSON object: a "leads" array, each item {{"shape": "{shape}", "text": <the candidate-lead
 statement, specific enough to re-derive>, "evidence": <the actual query you ran and the result
-that grounds this claim>, "confidence": "LOW"|"MEDIUM"|"HIGH"}}. If your sweep for this shape
-found nothing, return an empty "leads" array -- never invent one to fill it."""
+that grounds this claim>, "confidence": "LOW"|"MEDIUM"|"HIGH"}}. Also give the location and class
+whenever you have them: "file" (the repo-relative CpgCall.file_path / CpgMethod.file_path of the
+vulnerable code), "line_start"/"line_end" (its CpgCall.line), "function" (the enclosing method's
+name) and "cwe" (e.g. "CWE-89"). Copy locations from nodes you actually queried -- never guess one;
+omit a field you do not know. If your sweep for this shape found nothing, return an empty "leads"
+array -- never invent one to fill it."""
 
 # The JSON Schema handed to `--json-schema` (dict -> claude_cli.run_agent json.dumps's it inline).
 LEADS_JSON_SCHEMA: dict = {
@@ -156,6 +160,13 @@ LEADS_JSON_SCHEMA: dict = {
                     # with no graph anchor.
                     "source_uid": {"type": "string"},
                     "sink_uid": {"type": "string"},
+                    # Structured location + class (optional; contracts.clean_location validates).
+                    # Names match eval/arms/findings.schema.json so every arm scores the same way.
+                    "file": {"type": "string"},
+                    "line_start": {"type": "integer"},
+                    "line_end": {"type": "integer"},
+                    "function": {"type": "string"},
+                    "cwe": {"type": "string"},
                 },
                 "required": ["shape", "text", "evidence", "confidence"],
             },

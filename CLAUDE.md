@@ -242,6 +242,14 @@ carves out unexecuted lines); a function's first range count is its exact invoca
   `verdicts.jsonl` appended per verdict (`verify_all(on_verdict=...)`), then `verdicts.json` +
   `report.txt`. `orion scan --resume <run_dir>` re-verifies only missing/ERROR leads (no
   rediscovery); `--fail-on confirm|inconclusive` sets a CI exit code.
+- **Findings are structured** (2026-09-25): leads and verdicts carry optional `file`/`line_start`/
+  `line_end`/`function`/`cwe` (+ verdict `severity`), named like `eval/arms/findings.schema.json`.
+  `contracts.clean_location` validates every agent-supplied value and DROPS junk rather than guessing.
+  The verifier's location wins (`Verdict.location()`). `discover._dedup` keys: structural
+  (source_uid, sink_uid) → fingerprint (file, cwe, function|line; higher confidence kept, an anchored
+  lead never displaced) → lexical. Every run writes `<run_dir>/results.sarif` (`orion/sarif.py`,
+  CONFIRM=error, INCONCLUSIVE=warning, file-less findings counted as `unlocated`); `--sarif OUT` too.
+  `bench/scoring` accepts `(text, evidence, file)` triples — the file only feeds the FILE side.
 
 ## Environment
 
