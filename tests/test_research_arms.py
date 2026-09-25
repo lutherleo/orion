@@ -64,3 +64,49 @@ def test_use_mcp_false_drops_graph_tools_and_mcp_config():
     allowed = cmd[cmd.index("--allowedTools") + 1]
     assert "mcp__orion__run_cypher" not in allowed
     assert "Read" in allowed and "Grep" in allowed          # source-reading tools remain
+
+
+# --- arm O (Orion + Claude) wiring and the prove.py harness -------------------------------------
+
+def test_arm_o_writes_labelled_result_with_every_decision(tmp_path, monkeypatch):
+    import json
+    from bench import research_eval
+    rows = [{"decision": "CONFIRM", "shape": "A", "text": "NoSQL injection via $where"},
+            {"decision": "REJECT", "shape": "B", "text": "maybe"}]
+    monkeypatch.setattr(research_eval, "_arm_orion", lambda repo, sid, ev: (
+        [("NoSQL injection via $where", "q", "app/data/allocations-dao.js"),
+         ("stray claim", "", "x.js")], rows))
+    out = tmp_path / "O-test.json"
+    assert research_eval.main(["--arm", "O", "--benchmark", "nodegoat", "--repo", ".", "--model",
+                               "sonnet", "--label", "O-test", "--out", str(out), "--quiet"]) == 0
+    r = json.loads(out.read_text())
+    assert (r["arm"], r["label"], r["model"]) == ("O", "O-test", "sonnet")
+    assert "A1-2" in r["found"]                                   # credited via the structured file
+    assert r["decisions"] == {"CONFIRM": 1, "INCONCLUSIVE": 0, "REJECT": 1, "ERROR": 0}
+    assert r["false_positive_candidates_detail"] == [{"text": "stray claim", "file": "x.js"}]
+    assert r["findings"][0]["file"] == "app/data/allocations-dao.js"
+
+
+def test_prove_preflight_reports_each_missing_prerequisite(monkeypatch):
+    from bench import prove
+    monkeypatch.setattr(prove, "_check_claude", lambda: "no claude")
+    monkeypatch.setattr(prove, "_check_neo4j", lambda: None)
+    monkeypatch.setattr(prove, "_check_joern", lambda: "no joern")
+    monkeypatch.setattr(prove, "_check_fixture", lambda b: None if b == "nodegoat" else f"no {b}")
+    assert prove.preflight(["nodegoat", "pygoat"]) == ["no claude", "no joern", "no pygoat"]
+    assert prove.main(["--dry-run", "--benchmarks", "nodegoat,pygoat"]) == 1
+    assert prove.main(["--benchmarks", "juice-shop"]) == 2
+
+
+def test_prove_table_includes_committed_baselines():
+    from bench import prove
+    t = prove.table(["nodegoat"], ["O-sonnet"])
+    assert "Opus 5, no Orion (C)" in t and "Semgrep (D)" in t
+    assert "| 15 / 15 |" in t                                    # the committed Opus-alone row
+
+
+def test_plot_results_recognises_orion_runs():
+    from bench import plot_results as pr
+    assert pr._is_arm("O-opus") and pr._is_arm("O") and not pr._is_arm("notes")
+    assert pr._label("O-opus", {"model": "opus"}) == "Orion + opus"
+    assert pr._arms({"nodegoat": {"O-sonnet": {}, "C": {}, "D": {}}}) == ["C", "D", "O-sonnet"]

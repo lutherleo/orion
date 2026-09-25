@@ -250,6 +250,12 @@ carves out unexecuted lines); a function's first range count is its exact invoca
   lead never displaced) → lexical. Every run writes `<run_dir>/results.sarif` (`orion/sarif.py`,
   CONFIRM=error, INCONCLUSIVE=warning, file-less findings counted as `unlocated`); `--sarif OUT` too.
   `bench/scoring` accepts `(text, evidence, file)` triples — the file only feeds the FILE side.
+- **Measuring Orion itself:** `python bench/prove.py` (on a box with Neo4j + Joern + fixtures + a
+  Claude login; `--dry-run` = token-free preflight) runs arm **O** (Orion + Claude, `research_eval
+  --arm O --label O-<model>`) for sonnet and opus on NodeGoat and PyGoat through the same matcher and
+  token ledger as the committed Opus-alone (C: 15/15 NodeGoat, $0.61) and Semgrep (D) rows, and prints
+  the REPORT.md table. Orion result JSONs keep EVERY decision (`verdicts`, `decisions`) and the
+  unmatched CONFIRMs (`false_positive_candidates_detail`) for hand-labelling true FPs.
 
 ## Environment
 
