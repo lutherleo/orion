@@ -1,7 +1,19 @@
+import pytest
 from neo4j import GraphDatabase
 
 from orion import config
 from orion.graph import persist, schema
+
+
+@pytest.fixture(autouse=True)
+def _neo4j_or_skip():
+    drv = GraphDatabase.driver(config.NEO4J_URI, auth=config.NEO4J_AUTH)
+    try:
+        drv.verify_connectivity()
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip(f"Neo4j not reachable: {exc}")
+    finally:
+        drv.close()
 
 
 def _index_names(session) -> set:

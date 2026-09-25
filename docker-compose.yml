@@ -13,6 +13,9 @@ services:
       NEO4J_AUTH: "neo4j/orion_dev_changeme"
       NEO4J_server_memory_heap_max__size: "2G"
       NEO4J_server_memory_pagecache_size: "1G"
+      # Defense in depth for the agents' read-only tool (which already refuses LOAD CSV): the
+      # server itself will not read local files through LOAD CSV either.
+      NEO4J_dbms_security_allow__csv__import__from__file__urls: "false"
     volumes:
       - orion_neo4j_data:/data
 

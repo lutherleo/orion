@@ -1,7 +1,12 @@
 import os
 import stat
 import subprocess
+import pytest
+
 from eval import shim_setup
+
+# The shim is a POSIX shell script (#!/bin/bash); Windows can neither mark nor exec it.
+pytestmark = pytest.mark.skipif(os.name == "nt", reason="POSIX shell shim")
 
 
 def test_shim_dir_is_executable():

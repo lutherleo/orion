@@ -1,6 +1,5 @@
 import json
 import random
-import resource
 from collections import Counter, defaultdict
 from itertools import islice
 from pathlib import Path
@@ -301,6 +300,7 @@ def test_sharpemu_fits_memory(tmp_path):
     stats_path = tmp_path / "mem.json"
     graph_build.build(repo, "csharpsrc", None, stream=True, queue_size=64,
                       mem_stats_path=str(stats_path))
+    resource = pytest.importorskip("resource")   # POSIX-only
     peak_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024)  # bytes on macOS
     assert peak_mb < 6000, f"stream build peaked at {peak_mb:.0f} MB"
     br = json.loads(stats_path.read_text())

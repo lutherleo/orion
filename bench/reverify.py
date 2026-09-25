@@ -7,7 +7,7 @@ ERROR (or any chosen decision) leads from a run's findings.json, so you can rais
 a clean CONFIRM/REJECT without repeating the ~25-minute build+discover pipeline. No Orion source is
 modified — it calls the public `verify_all` seam and reuses the graph by scan_id.
 
-Run it FROM the repo root (so `.mcp/orion.json` resolves) with Neo4j env sourced, e.g.:
+Run it with Neo4j env sourced (the MCP tool server is launched with this interpreter), e.g.:
 
     source bench/env.sh
     ORION_VERIFY_MAX_TURNS=30 ORION_VERIFY_TIMEOUT=600 \

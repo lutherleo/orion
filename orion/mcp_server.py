@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from fastmcp import FastMCP
 
-from .graphdb import GraphDB
+from .graphdb import GraphDB, scope_problem
 
 mcp = FastMCP("orion")
 
@@ -32,7 +32,11 @@ def _get_db() -> GraphDB:
 
 
 def run_cypher_impl(query: str, scan_id: str) -> dict:
-    """Delegates to GraphDB().run_cypher. Returns {"row_count","rows"} or {"error"}."""
+    """Delegates to GraphDB().run_cypher (read-only, server-enforced). Returns {"row_count","rows"}
+    or {"error"}. The agent boundary additionally requires every MATCH to be scoped by $scan_id."""
+    problem = scope_problem(query, scan_id)
+    if problem:
+        return {"error": problem}
     return _get_db().run_cypher(scan_id, query)
 
 

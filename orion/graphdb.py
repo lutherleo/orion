@@ -12,21 +12,66 @@ from __future__ import annotations
 
 import re
 
-from neo4j import GraphDatabase
+from neo4j import GraphDatabase, Query
 
 from . import config
 
 _WRITE = re.compile(r"\b(CREATE|MERGE|DELETE|SET|REMOVE|DROP|DETACH)\b", re.IGNORECASE)
-# Cypher string literals ('...' or "..."), escaped-quote aware. Blanked before the write-keyword
-# scan so a legitimate READ query that searches source text for DML words -- e.g.
+# Read clauses that still reach OUTSIDE the graph or batch-execute: LOAD CSV can fetch a URL (so a
+# prompt-injected agent could exfiltrate graph data in the query string) or read server files;
+# FOREACH / IN TRANSACTIONS / PERIODIC COMMIT exist only to drive writes.
+_ESCAPE = re.compile(r"\bLOAD\s+CSV\b|\bFOREACH\b|\bIN\s+TRANSACTIONS\b|\bPERIODIC\s+COMMIT\b",
+                     re.IGNORECASE)
+# `CALL name(` / `CALL name` -- a procedure call. `CALL {` (a subquery) is not matched.
+_PROC_CALL = re.compile(r"\bCALL\s+([A-Za-z_][\w.]*)", re.IGNORECASE)
+# Read-only procedures an agent legitimately needs (schema introspection, index lookups).
+_ALLOWED_PROCS = re.compile(
+    r"^db\.(schema\.\w+|labels|relationshipTypes|propertyKeys|index\.fulltext\.query\w*|"
+    r"index\.vector\.queryNodes)$", re.IGNORECASE)
+# Cypher string literals ('...' or "..."), escaped-quote aware, plus backtick-quoted names. Blanked
+# before every scan so a legitimate READ query that searches source text for DML words -- e.g.
 # `WHERE c.code CONTAINS 'SET role=admin'` (a natural SQLi-hunting query for a security scanner) --
 # is not falsely rejected. Structural writes (SET n.x=1) are outside any literal and still caught.
-_STRING_LITERAL = re.compile(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"")
+_STRING_LITERAL = re.compile(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"|`[^`]*`")
+
+
+def _strip_literals(query: str) -> str:
+    return _STRING_LITERAL.sub("''", query)
+
+
+def blocked_reason(query: str) -> str | None:
+    """Why `query` must not run, or None. Pure/testable. The pre-check in front of a server-enforced
+    read transaction (run_cypher): it turns the common mistakes into a readable error for the agent
+    and blocks the reads that escape the graph, which a read transaction alone would allow."""
+    q = _strip_literals(query)
+    if _WRITE.search(q):
+        return "read-only: write keywords are blocked"
+    m = _ESCAPE.search(q)
+    if m:
+        return f"read-only: {' '.join(m.group(0).upper().split())} is blocked"
+    for proc in _PROC_CALL.findall(q):
+        if not _ALLOWED_PROCS.match(proc):
+            return (f"read-only: procedure {proc} is blocked (allowed: db.schema.*, db.labels, "
+                    "db.relationshipTypes, db.propertyKeys, db.index.fulltext/vector queries)")
+    return None
+
+
+def scope_problem(query: str, scan_id: str) -> str | None:
+    """Agent-boundary policy: a query that MATCHes must be scoped -- by `$scan_id` or by this scan's
+    id inlined as a literal -- or it silently reads every other scan in the database too. Returns an
+    actionable error, or None. Not enforced for Orion's own internal reads (a cross-scan integrity
+    check is a legitimate harness query)."""
+    q = _strip_literals(query)
+    scoped = "$scan_id" in q or (bool(scan_id) and scan_id in query)
+    if re.search(r"\bMATCH\b", q, re.IGNORECASE) and not scoped:
+        return ("unscoped query: filter every MATCH by scan_id, e.g. "
+                "MATCH (c:CpgCall {scan_id:$scan_id}) ... (the tool binds $scan_id for you)")
+    return None
 
 
 def _has_write_keyword(query: str) -> bool:
-    """True if `query` contains a Cypher write clause OUTSIDE any string literal. Pure/testable."""
-    return bool(_WRITE.search(_STRING_LITERAL.sub("''", query)))
+    """True if `query` would be refused by the read-only pre-check. Kept for existing callers."""
+    return blocked_reason(query) is not None
 
 
 class GraphDB:
@@ -85,12 +130,28 @@ class GraphDB:
 
     def run_cypher(self, scan_id: str, query: str, limit: int = 50) -> dict:
         """One read-only query. Returns {row_count, rows} or {error}. The scan_id is bound as a
-        parameter so the agent's query is always scoped to one scan."""
-        if _has_write_keyword(query):
-            return {"error": "read-only: write keywords are blocked"}
+        parameter so the agent's query is always scoped to one scan.
+
+        Read-only is enforced by the SERVER, not just the pre-check: the query runs in a read
+        transaction, so Neo4j rejects any write -- a write procedure included. It carries a timeout
+        (config.CYPHER_TIMEOUT) so a runaway cartesian product cannot pin the database, and rows are
+        streamed: only the first `limit` are kept, while `row_count` still counts them all.
+        `record.data()` renders nodes/relationships as plain JSON-safe values."""
+        reason = blocked_reason(query)
+        if reason:
+            return {"error": reason}
+
+        def _read(tx) -> dict:
+            result = tx.run(Query(query, timeout=config.CYPHER_TIMEOUT), scan_id=scan_id)
+            rows, count = [], 0
+            for record in result:
+                count += 1
+                if count <= limit:
+                    rows.append(record.data())
+            return {"row_count": count, "rows": rows}
+
         try:
             with self._driver.session(database=config.NEO4J_DATABASE) as s:
-                rows = [dict(r) for r in s.run(query, scan_id=scan_id)]
-                return {"row_count": len(rows), "rows": rows[:limit]}
+                return s.execute_read(_read)
         except Exception as exc:  # surface the Cypher error straight back to the agent
             return {"error": f"{exc.__class__.__name__}: {exc}"}

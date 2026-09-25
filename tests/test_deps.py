@@ -6,6 +6,9 @@ than crashing the build.
 from __future__ import annotations
 
 import json
+from pathlib import Path
+
+import pytest
 
 from orion.graph.deps import parse_dependencies
 
@@ -72,6 +75,7 @@ def test_malformed_manifest_yields_empty_not_crash(tmp_path):
     assert parse_dependencies(tmp_path) == []
 
 
+@pytest.mark.skipif(not Path("fixtures/NodeGoat").exists(), reason="NodeGoat fixture not present")
 def test_nodegoat_dependencies_are_populated():
     deps = dict(parse_dependencies("fixtures/NodeGoat"))
     assert "express" in deps          # the A9 data-gap is now closed for a real repo

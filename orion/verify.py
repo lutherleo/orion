@@ -100,7 +100,8 @@ from scratch.
 
 Use the **fp-check skill** to verify the candidate lead you are given against the REAL SOURCE
 (available under the added directory for this repo) and, where useful, the code graph via the
-`mcp__orion__run_cypher` tool (always filter by scan_id = "{scan_id}"). Confirm or reject the lead
+`mcp__orion__run_cypher` tool (pass scan_id = "{scan_id}" and filter every MATCH by
+`scan_id:$scan_id`; unscoped queries are refused). Confirm or reject the lead
 ONLY on evidence you gather yourself in this session -- never on the analyst's say-so.
 
 Rules:
@@ -295,22 +296,28 @@ def verify_lead(scan_id: str, lead: Lead, repo_path: str, on_event: OnEvent, run
 
 
 async def _verify_all_async(scan_id: str, leads: list[Lead], repo_path: str, on_event: OnEvent,
-                            run_agent, concurrency: int, fetch_subgraph) -> list[Verdict]:
+                            run_agent, concurrency: int, fetch_subgraph,
+                            on_verdict=None) -> list[Verdict]:
     """Fan the per-lead verifiers out under a semaphore. Each verify_lead is a blocking subprocess
     call, so it runs in a worker thread (asyncio.to_thread); the semaphore bounds how many are in
-    flight. asyncio.gather preserves input (lead) order in the returned list."""
+    flight. asyncio.gather preserves input (lead) order in the returned list. `on_verdict` fires on
+    the event-loop thread as each verdict lands (one at a time -- no locking needed)."""
     sem = asyncio.Semaphore(max(1, concurrency))
 
     async def _one(lead: Lead) -> Verdict:
         async with sem:
-            return await asyncio.to_thread(
+            verdict = await asyncio.to_thread(
                 verify_lead, scan_id, lead, repo_path, on_event, run_agent, fetch_subgraph)
+        if on_verdict is not None:
+            on_verdict(verdict)
+        return verdict
 
     return list(await asyncio.gather(*(_one(lead) for lead in leads)))
 
 
 def verify_all(scan_id: str, leads: list[Lead], repo_path: str, on_event: OnEvent,
-               *, run_agent=None, concurrency: int | None = None, fetch_subgraph=None) -> list[Verdict]:
+               *, run_agent=None, concurrency: int | None = None, fetch_subgraph=None,
+               on_verdict=None) -> list[Verdict]:
     """Verifies each lead in ITS OWN fresh claude -p session, up to `concurrency` at a time
     (defaults to config.VERIFY_CONCURRENCY). Every verifier is independent and isolated, so running
     several concurrently does not weaken the trust invariant; the cap just avoids an unbounded
@@ -320,7 +327,9 @@ def verify_all(scan_id: str, leads: list[Lead], repo_path: str, on_event: OnEven
     without a real subprocess; `concurrency=1` restores strictly-sequential verification.
     `fetch_subgraph` is injectable too (defaults to the GraphDB-backed `_fetch_evidence_subgraph`);
     it only runs for leads that carry :CandidateFlow endpoints, so an endpoint-less test set never
-    touches a graph."""
+    touches a graph.
+    `on_verdict(verdict)` (optional) is called as EACH verdict completes, so a caller can persist
+    progress incrementally -- a crash mid-verify then loses nothing already verified."""
     if not leads:
         return []
     if run_agent is None:
@@ -331,4 +340,5 @@ def verify_all(scan_id: str, leads: list[Lead], repo_path: str, on_event: OnEven
     if concurrency is None:
         concurrency = config.VERIFY_CONCURRENCY
     return asyncio.run(
-        _verify_all_async(scan_id, leads, repo_path, on_event, run_agent, concurrency, fetch_subgraph))
+        _verify_all_async(scan_id, leads, repo_path, on_event, run_agent, concurrency, fetch_subgraph,
+                          on_verdict))

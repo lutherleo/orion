@@ -89,7 +89,12 @@ def discover_timeout(node_count: int | None) -> int:
     return max(DISCOVER_TIMEOUT, min(scaled, DISCOVER_TIMEOUT_CAP))
 
 # --- MCP tool server the agents call (real tool-calling, not the old text protocol) ---
-MCP_CONFIG = _env("ORION_MCP_CONFIG", ".mcp/orion.json")
+# "" (the default) = claude_cli passes an INLINE server config launched with THIS interpreter
+# (sys.executable), so agents start on any OS/venv layout. Set a path to use a config file instead.
+MCP_CONFIG = _env("ORION_MCP_CONFIG", "")
+# Server-side timeout (seconds) on every agent graph query, so a runaway pattern (a cartesian
+# product, an unbounded variable-length path) cannot pin Neo4j or stall a discovery turn.
+CYPHER_TIMEOUT = float(_env("ORION_CYPHER_TIMEOUT", "30"))
 
 # --- Semantic index: "neo4j" (native vector index) or "lancedb" (standalone fallback) ---
 SEMANTIC_BACKEND = _env("ORION_SEMANTIC_BACKEND", "neo4j")

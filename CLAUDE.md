@@ -222,16 +222,31 @@ carves out unexecuted lines); a function's first range count is its exact invoca
   cross-edge family (cross-method REACHING_DEF closure captures). Keep the seam threaded into
   `build_summary` in pass 2 (pass 1 accumulates the cross-method tables `stitch` needs), and run
   `tests/test_stream_build.py::test_stream_flows_parity` (217) as the tripwire.
-- The token-free suite is Orion's own `tests/` (`pytest -m "not slow"`, 75 passing). `pyproject.toml`
-  sets `testpaths = ["tests"]` so bare pytest does NOT recurse into the gitignored `fixtures/` scan
-  targets (e.g. a Django authentik checkout with hundreds of `django`-importing test files whose own
-  `tests/` package would otherwise shadow Orion's top-level `tests` and break collection). Passing an
-  explicit path that reaches into `fixtures/` bypasses that scoping.
+- The token-free suite is Orion's own `tests/` (`pytest -m "not slow"`, 231 passing / 0 failing on
+  Windows with no Neo4j or fixtures — anything needing Neo4j, `fixtures/`, Node or POSIX SKIPS, never
+  fails; keep it that way). CI: `.github/workflows/tests.yml` (a plain job + a Neo4j-service job).
+  `pyproject.toml` sets `testpaths = ["tests"]` so bare pytest does NOT recurse into the gitignored
+  `fixtures/` scan targets (e.g. a Django authentik checkout with hundreds of `django`-importing test
+  files whose own `tests/` package would otherwise shadow Orion's top-level `tests` and break
+  collection). Passing an explicit path that reaches into `fixtures/` bypasses that scoping.
+- **The agents' graph tool is read-only by SERVER enforcement** (2026-09-25): `GraphDB.run_cypher`
+  runs in `execute_read` with a `CYPHER_TIMEOUT` (30s) and streams rows (`row_count` still counts
+  all). The regex pre-check (`graphdb.blocked_reason`) is the readable-error layer on top: it also
+  refuses `LOAD CSV` (URL exfiltration), `FOREACH`/`IN TRANSACTIONS`, and any `CALL` procedure outside
+  the db.schema/labels/index-query allowlist. The MCP boundary (`mcp_server.run_cypher_impl`) also
+  refuses a MATCH not scoped by `$scan_id` (or the literal id); Orion's own internal reads are exempt.
+- **The MCP server is launched INLINE with `sys.executable`** (`claude_cli.mcp_config`), not via
+  `.mcp/orion.json` (which hardcodes `./.venv/bin/python` and silently fails on Windows). Set
+  `ORION_MCP_CONFIG=<path>` to force a config file.
+- **A scan's work is on disk as it happens:** `<run_dir>/leads.json` after discovery,
+  `verdicts.jsonl` appended per verdict (`verify_all(on_verdict=...)`), then `verdicts.json` +
+  `report.txt`. `orion scan --resume <run_dir>` re-verifies only missing/ERROR leads (no
+  rediscovery); `--fail-on confirm|inconclusive` sets a CI exit code.
 
 ## Environment
 
-- Python venv at `.venv` (`./.venv/bin/python`); install with `pip install -e ".[semantic,dev]"`
-  (the `semantic` extra pulls the embedding deps for `embed.py`).
+- Python venv at `.venv` (`./.venv/bin/python`; Windows `.venv\Scripts\python.exe`); install with
+  `pip install -e ".[semantic,dev]"` (the `semantic` extra pulls the embedding deps for `embed.py`).
 - Joern CLI at `~/joern/joern-cli` (`joern-parse`, `joern-export`).
 - Neo4j via Orion's own `docker-compose.yml` — Docker Desktop must be running.
 - `claude` CLI v2.1.210 supports `--mcp-config`, `--json-schema`, `--add-dir`, `--effort`.

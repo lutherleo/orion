@@ -5,6 +5,8 @@
     orion scan ./NodeGoat --watch           # follow live progress while the scan runs
     orion scan ./NodeGoat --json out.json   # also write the verdicts as JSON
     orion scan ./NodeGoat --quiet           # suppress per-event prints (still logs to file)
+    orion scan --resume .orion/runs/<id>/<ts>   # finish an interrupted scan without re-discovering
+    orion scan ./NodeGoat --fail-on confirm # exit 1 if any lead is CONFIRMed (CI gate)
 
 Discovery and verification are two SEPARATE `claude -p` sessions (see the design doc) fanned out
 and joined here; this module owns only the wiring -- build -> index -> discover -> verify ->
@@ -51,9 +53,71 @@ def _run_dir(scan_id: str) -> str:
     return str(path)
 
 
+# ── run-dir artifacts: a scan's leads and verdicts are on disk as soon as they exist ─────────────
+# <run_dir>/leads.json      {"scan_id", "repo", "leads": [...]}  -- written right after discovery
+# <run_dir>/verdicts.jsonl  one verdict per line, appended as EACH lead finishes verifying
+# <run_dir>/verdicts.json + report.txt                           -- written at the end
+# A crash mid-verify therefore loses nothing already verified, and `--resume <run_dir>` finishes the
+# run without re-running discovery or re-paying for verdicts already in hand.
+_LEADS_FILE, _VERDICTS_LOG = "leads.json", "verdicts.jsonl"
+_FAIL_LEVELS = {"none": set(), "confirm": {"CONFIRM"}, "inconclusive": {"CONFIRM", "INCONCLUSIVE"}}
+
+
+def _save_leads(run_dir: str, scan_id: str, repo: str | None, leads: list) -> None:
+    payload = {"scan_id": scan_id, "repo": repo, "leads": [dataclasses.asdict(lead) for lead in leads]}
+    Path(run_dir, _LEADS_FILE).write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+
+
+def _append_verdict(run_dir: str, verdict) -> None:
+    with open(Path(run_dir, _VERDICTS_LOG), "a", encoding="utf-8") as f:
+        f.write(json.dumps(dataclasses.asdict(verdict), default=str) + "\n")
+
+
+def _load_run(run_dir: str):
+    """(scan_id, repo, leads, finished) from a run dir. `finished` maps lead index -> the LATEST
+    non-ERROR verdict logged for it (an ERROR is retried on resume). A torn last line from a crash
+    mid-write is skipped. Raises FileNotFoundError/ValueError on a run dir with no leads.json."""
+    from .contracts import Lead, Verdict
+
+    meta = json.loads(Path(run_dir, _LEADS_FILE).read_text(encoding="utf-8"))
+    leads = [Lead(**d) for d in meta["leads"]]
+    by_index = {lead.index: lead for lead in leads}
+    finished: dict = {}
+    log = Path(run_dir, _VERDICTS_LOG)
+    for line in (log.read_text(encoding="utf-8").splitlines() if log.exists() else []):
+        try:
+            d = json.loads(line)
+            lead = by_index[d["lead"]["index"]]
+        except (ValueError, KeyError, TypeError):
+            continue
+        v = Verdict(lead=lead, decision=d.get("decision", "ERROR"), reason=d.get("reason", ""),
+                    evidence=d.get("evidence", ""), sink_centrality=d.get("sink_centrality", 0.0))
+        if v.decision == "ERROR":
+            finished.pop(lead.index, None)
+        else:
+            finished[lead.index] = v
+    return meta["scan_id"], meta.get("repo"), leads, finished
+
+
+def _exit_code(verdicts: list, fail_on: str) -> int:
+    """1 when a verdict at or above `fail_on` exists (CI gating), else 0."""
+    levels = _FAIL_LEVELS.get(fail_on, set())
+    return 1 if any(v.decision in levels for v in verdicts) else 0
+
+
 def _run_scan(args: argparse.Namespace) -> int:
     # Cheap arg validation BEFORE the heavy lazy imports below, so a typo'd path fails instantly
     # instead of after loading the embedding model / Neo4j driver.
+    resume = getattr(args, "resume", None)
+    if resume:
+        try:
+            scan_id, saved_repo, saved_leads, finished = _load_run(resume)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(f"orion scan: cannot resume {resume}: no readable {_LEADS_FILE} ({exc})",
+                  file=sys.stderr)
+            return 2
+        args.scan_id = scan_id
+        args.repo = args.repo or saved_repo
     if not args.scan_id and not args.repo:
         print("orion scan: provide a repo path or --scan-id", file=sys.stderr)
         return 2
@@ -70,7 +134,7 @@ def _run_scan(args: argparse.Namespace) -> int:
 
     needs_build = not args.scan_id
     scan_id = args.scan_id or graph_build.scan_id_for(args.repo)
-    run_dir = _run_dir(scan_id)
+    run_dir = resume or _run_dir(scan_id)   # a resumed run keeps appending to its own dir
 
     # In --watch mode the foreground `tail` is the one rendering progress (reading the same
     # JSONL), so the background pipeline's own logger stays quiet to avoid printing every event
@@ -96,7 +160,10 @@ def _run_scan(args: argparse.Namespace) -> int:
                 detail=f"semantic index failed, continuing graph-only: {exc}",
             ))
 
-    if needs_build:
+    if resume:
+        on_event(_event("build", "done", detail=f"resuming {resume}: {len(saved_leads)} leads, "
+                                                 f"{len(finished)} already verified"))
+    elif needs_build:
         on_event(_event("build", "start", detail=f"building graph for {args.repo}"))
         # Overlap the semantic index with persist: build runs _index_semantic(batch) concurrently
         # with the persist write (item 4), so the two independent costs no longer serialize.
@@ -135,7 +202,7 @@ def _run_scan(args: argparse.Namespace) -> int:
     # the graph before discovery reads it. Best-effort by contract -- a failure is an event, never an
     # abort, and it only ADDS props/nodes/edges (never touches NODE_KEY labels), so the static graph
     # and its FLOWS_TO parity are untouched. Needs a repo checkout to boot/build; skipped on --scan-id.
-    if getattr(args, "runtime", False):
+    if getattr(args, "runtime", False) and not resume:
         if args.repo:
             from . import runtime
             runtime.enrich(scan_id, args.repo, on_event, budget=args.runtime_budget,
@@ -144,7 +211,7 @@ def _run_scan(args: argparse.Namespace) -> int:
             on_event(_event("runtime", "warn",
                             detail="--runtime needs a repo checkout to execute; skipped on --scan-id"))
 
-    def _pipeline():
+    def _discover():
         # Size the per-shape discovery timeout to the graph: a bigger graph is a bigger search space
         # and needs longer sweeps (see config.discover_timeout). Sizing is best-effort -- if the
         # count query fails we fall back to the reality-based floor, never abort the scan.
@@ -167,9 +234,18 @@ def _run_scan(args: argparse.Namespace) -> int:
         leads = discover.discover(scan_id, on_event, profile, timeout=d_timeout,
                                   dynamic_hint=dynamic_hint)
         on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"))
+        _save_leads(run_dir, scan_id, args.repo, leads)
+        return leads
 
-        on_event(_event("verify", "start", detail=f"verifying {len(leads)} leads"))
-        verdicts = verify.verify_all(scan_id, leads, repo_for_verify, on_event)
+    def _pipeline():
+        leads, done = (saved_leads, finished) if resume else (_discover(), {})
+        todo = [lead for lead in leads if lead.index not in done]
+        on_event(_event("verify", "start", detail=f"verifying {len(todo)} leads"
+                        + (f" ({len(done)} already verified)" if done else "")))
+        fresh = verify.verify_all(scan_id, todo, repo_for_verify, on_event,
+                                  on_verdict=lambda v: _append_verdict(run_dir, v))
+        by_index = {**done, **{v.lead.index: v for v in fresh}}
+        verdicts = [by_index[lead.index] for lead in leads if lead.index in by_index]
         on_event(_event("verify", "done", detail=f"{len(verdicts)} verdicts"))
         return verdicts
 
@@ -205,12 +281,15 @@ def _run_scan(args: argparse.Namespace) -> int:
     print("\n" + "=" * 70)
     print(text)
 
+    payload = json.dumps([dataclasses.asdict(v) for v in verdicts], indent=2, default=str)
+    Path(run_dir, "verdicts.json").write_text(payload, encoding="utf-8")
+    Path(run_dir, "report.txt").write_text(text, encoding="utf-8")
+    print(f"\nreport + verdicts saved under {run_dir}")
     if args.json:
-        payload = [dataclasses.asdict(v) for v in verdicts]
-        Path(args.json).write_text(json.dumps(payload, indent=2, default=str))
-        print(f"\nwrote {len(payload)} verdicts to {args.json}")
+        Path(args.json).write_text(payload)
+        print(f"wrote {len(verdicts)} verdicts to {args.json}")
 
-    return 0
+    return _exit_code(verdicts, getattr(args, "fail_on", "none"))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -223,6 +302,11 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument("--watch", action="store_true", help="follow live progress while the scan runs")
     scan.add_argument("--json", dest="json", metavar="OUT", help="also write verdicts as JSON to OUT")
     scan.add_argument("--quiet", action="store_true", help="suppress per-event progress prints (still logs to file)")
+    scan.add_argument("--resume", metavar="RUN_DIR",
+                      help="finish an interrupted scan from its run dir: reuse its leads, verify only "
+                           "the leads without a verdict (or with an ERROR), then report")
+    scan.add_argument("--fail-on", dest="fail_on", choices=tuple(_FAIL_LEVELS), default="none",
+                      help="exit 1 if any verdict is at or above this level (CI gating; default none)")
     scan.add_argument("--language", dest="language", metavar="FRONTEND",
                       help="Joern frontend id (jssrc/pythonsrc/golang/javasrc); overrides repo auto-detection")
     scan.add_argument("--stream", dest="stream", action="store_true",

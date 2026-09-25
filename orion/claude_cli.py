@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -35,8 +36,8 @@ from . import config
 # Base seconds; attempt k waits base * 2**k. Kept here (config.py is frozen) not as magic numbers.
 _RETRY_BACKOFF_BASE = 3.0
 
-# cwd for the subprocess: the repo root (contains .mcp/orion.json and any --add-dir targets are
-# resolved relative to it too, e.g. "fixtures/NodeGoat").
+# cwd for the subprocess: the repo root (so the `orion` package the MCP server imports resolves, and
+# any relative --add-dir target resolves against it too, e.g. "fixtures/NodeGoat").
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 _ALLOWED_BASE = ("mcp__orion__run_cypher", "mcp__orion__semantic_search")
@@ -47,6 +48,18 @@ _BASE_DISALLOWED = (
     "Bash", "Read", "Write", "Edit", "Grep", "Glob",
     "WebFetch", "WebSearch", "Agent", "Task", "Skill", "NotebookEdit", "TodoWrite",
 )
+
+
+def mcp_config() -> str:
+    """The `--mcp-config` argument: config.MCP_CONFIG when set (a file path), else an INLINE JSON
+    config that launches the Orion MCP server with the interpreter running Orion right now. The old
+    default pointed at `.mcp/orion.json`, which hardcodes `./.venv/bin/python` -- absent on Windows
+    (`.venv\\Scripts\\python.exe`) and in any install without that exact venv, so the agents' tool
+    server silently failed to start."""
+    if config.MCP_CONFIG:
+        return config.MCP_CONFIG
+    return json.dumps({"mcpServers": {"orion": {
+        "command": sys.executable, "args": ["-m", "orion.mcp_server"]}}})
 
 
 def _build_cmd(
@@ -71,7 +84,7 @@ def _build_cmd(
         "--effort", config.EFFORT,
     ]
     if use_mcp:
-        cmd += ["--mcp-config", config.MCP_CONFIG, "--strict-mcp-config"]
+        cmd += ["--mcp-config", mcp_config(), "--strict-mcp-config"]
     cmd += [
         "--output-format", "stream-json",
         "--verbose",
