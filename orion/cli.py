@@ -131,6 +131,18 @@ def _run_scan(args: argparse.Namespace) -> int:
         from .graph import profiles
         profile = profiles.select_profile(args.repo)
 
+    # Opt-in runtime enrichment (--runtime): EXECUTE the target and fold observed coverage back into
+    # the graph before discovery reads it. Best-effort by contract -- a failure is an event, never an
+    # abort, and it only ADDS props/edges (never touches NODE_KEY labels), so the static graph and its
+    # FLOWS_TO parity are untouched. Needs a repo checkout to boot/build; skipped on --scan-id only.
+    if getattr(args, "runtime", False):
+        if args.repo:
+            from . import runtime
+            runtime.enrich(scan_id, args.repo, profile, on_event, budget=args.runtime_budget)
+        else:
+            on_event(_event("runtime", "warn",
+                            detail="--runtime needs a repo checkout to execute; skipped on --scan-id"))
+
     def _pipeline():
         # Size the per-shape discovery timeout to the graph: a bigger graph is a bigger search space
         # and needs longer sweeps (see config.discover_timeout). Sizing is best-effort -- if the
@@ -148,8 +160,11 @@ def _run_scan(args: argparse.Namespace) -> int:
         d_timeout = config.discover_timeout(node_count)
         on_event(_event("discover", "start",
                         detail=f"discovery fleet starting ({node_count} nodes, per-shape timeout {d_timeout}s)"))
+        # Either runtime layer turns on the runtime-facts prompt block: `--use-dynamic` (a prior
+        # `orion trace`) or `--runtime` (the enrichment just above). Neither set keeps the eval baseline.
+        dynamic_hint = getattr(args, "use_dynamic", False) or getattr(args, "runtime", False)
         leads = discover.discover(scan_id, on_event, profile, timeout=d_timeout,
-                                  dynamic_hint=args.use_dynamic)
+                                  dynamic_hint=dynamic_hint)
         on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"))
 
         on_event(_event("verify", "start", detail=f"verifying {len(leads)} leads"))
@@ -218,6 +233,12 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument("--use-dynamic", dest="use_dynamic", action="store_true",
                       help="tell discovery to use runtime-observed OBSERVED_* edges from a prior "
                            "`orion trace` (off by default; keeps the eval baseline prompt unchanged)")
+    scan.add_argument("--runtime", action="store_true",
+                      help="EXECUTES the target: after the static build, boot/build and drive it to "
+                           "enrich the graph with observed coverage (executed/hit_count + OBSERVED_CALL). "
+                           "Implies --use-dynamic. Off by default; runs on the host.")
+    scan.add_argument("--runtime-budget", dest="runtime_budget", type=int, default=200,
+                      help="max inputs the runtime fuzz loop drives (default 200)")
 
     idx = sub.add_parser("index-exploits",
                          help="build/refresh the global Metasploit exploit-reference corpus (one-time)")

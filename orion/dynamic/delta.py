@@ -27,8 +27,10 @@ def compute(scan_id: str) -> dict:
         with driver.session(database=config.NEO4J_DATABASE) as s:
             new_methods = int(s.run(
                 "MATCH (m:ObservedMethod {scan_id:$sid}) RETURN count(m) AS c", sid=scan_id).single()["c"])
+            # Scoped to origin='dynamic': `orion scan --runtime` writes OBSERVED_CALL into the same
+            # partition (origin='runtime'), and this delta reports only what THIS trace observed.
             n_calls = int(s.run(
-                "MATCH ()-[r:OBSERVED_CALL {scan_id:$sid}]->() RETURN count(r) AS c",
+                "MATCH ()-[r:OBSERVED_CALL {scan_id:$sid, origin:'dynamic'}]->() RETURN count(r) AS c",
                 sid=scan_id).single()["c"])
             n_disp = int(s.run(
                 "MATCH ()-[r:OBSERVED_DISPATCH {scan_id:$sid}]->() RETURN count(r) AS c",
