@@ -17,6 +17,9 @@ dependencies = [
 # the default backend; lancedb is the standalone fallback (both behind the semantic_search tool).
 semantic = ["sentence-transformers>=3.0", "lancedb>=0.13"]
 dev = ["pytest>=8"]
+# Open-weight study harness (eval/): psutil lets eval/resources.py record peak RSS (without it the
+# number is recorded as missing, never guessed).
+eval = ["psutil>=5"]
 
 [project.scripts]
 orion = "orion.cli:main"
