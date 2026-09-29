@@ -88,6 +88,8 @@ def test_no_cross_scan_bleed():
     then we assert NO RESOLVES_TO edge connects a call in one scan to a method in another. The
     bug (edge MERGE matching CpgMethod by full_name alone) would bind the wrong scan's method."""
     _db_or_skip().close()
+    if not os.path.exists("fixtures/NodeGoat/cpg.bin"):
+        pytest.skip("needs the prebuilt fixtures/NodeGoat/cpg.bin (a build does not write one there)")
     scan_a = build("fixtures/NodeGoat")
 
     tmp = tempfile.mkdtemp(prefix="orion_scan_b_")

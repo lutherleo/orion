@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 
-from neo4j import GraphDatabase, Query
+from neo4j import GraphDatabase, unit_of_work
 
 from . import config
 
@@ -141,8 +141,11 @@ class GraphDB:
         if reason:
             return {"error": reason}
 
+        # A managed transaction takes its timeout from @unit_of_work -- the driver REJECTS a
+        # Query(..., timeout=) object inside execute_read ("only supported for session.run").
+        @unit_of_work(timeout=config.CYPHER_TIMEOUT)
         def _read(tx) -> dict:
-            result = tx.run(Query(query, timeout=config.CYPHER_TIMEOUT), scan_id=scan_id)
+            result = tx.run(query, scan_id=scan_id)
             rows, count = [], 0
             for record in result:
                 count += 1

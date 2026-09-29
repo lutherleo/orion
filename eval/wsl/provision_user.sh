@@ -23,7 +23,9 @@ bash bench/setup.sh
 
 say "eval extras (psutil)"
 export PATH="$HOME/.local/bin:$PATH"
-VIRTUAL_ENV="$REPO_ROOT/.venv" uv pip install -e ".[semantic,dev,eval]"
+# Keep the transformers<5 pin from bench/setup.sh: re-resolving the extras without it upgrades
+# transformers and breaks the jina embedding model (get_extended_attention_mask).
+VIRTUAL_ENV="$REPO_ROOT/.venv" uv pip install -e ".[semantic,dev,eval]" "transformers<5"
 
 say "fixtures"
 mkdir -p fixtures
