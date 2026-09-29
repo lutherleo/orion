@@ -6,6 +6,9 @@ services:
   orion-neo4j:
     image: neo4j:5.26-community
     container_name: orion-neo4j
+    # Come back up whenever the Docker daemon starts: WSL stops an idle distro, and a Mac or Linux
+    # host reboots. Without this, the graph DB silently stays down afterwards.
+    restart: unless-stopped
     ports:
       - "7688:7687"
       - "7475:7474"

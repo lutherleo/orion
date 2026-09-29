@@ -1,8 +1,9 @@
 # Running the eval on a Windows PC (WSL2 Ubuntu)
 
 The harness is POSIX by design (bash usage shim, `:` PATH, `~/joern/joern-cli`), so on Windows it
-runs **inside WSL2 Ubuntu 24.04, unmodified**. These steps were set up on an i7-11850H / 48 GB /
-NVIDIA T1200 (4 GB VRAM) laptop.
+runs **inside a WSL2 Ubuntu, unmodified** (24.04 or newer; set up and verified on 26.04 LTS). These
+steps were run on an i7-11850H / 48 GB / NVIDIA T1200 (4 GB VRAM) laptop. Below, `<distro>` is the
+WSL distribution name (`wsl -l -v`), e.g. `Ubuntu`.
 
 ## One-time setup
 
@@ -14,13 +15,17 @@ NVIDIA T1200 (4 GB VRAM) laptop.
    swap=8GB
    ```
    The default (50% of RAM) is tight for gpt-oss:20b + Neo4j. Apply with `wsl --shutdown`.
-2. **Distro.** `wsl --install -d Ubuntu-24.04`, then open it once and create your Linux user.
-   systemd is on by default (`/etc/wsl.conf`), which Docker and Ollama need.
-3. **System packages** (no password needed via `-u root`):
+2. **Distro.** Use an existing Ubuntu, or `wsl --install -d Ubuntu-24.04` and open it once to create
+   your Linux user. systemd must be on (`/etc/wsl.conf` `[boot] systemd=true`, the default), because
+   Docker and Ollama run as services.
+3. **System packages** (no password needed via `-u root`). The Windows checkout has CRLF line endings,
+   so strip them first:
    ```bash
-   wsl -d Ubuntu-24.04 -u root -- bash /mnt/c/<path>/orion/eval/wsl/provision_root.sh <linux-user>
-   wsl --shutdown        # so the new docker-group membership takes effect
+   wsl -d <distro> -u root -- bash -c "sed 's/\r$//' /mnt/c/<path>/orion/eval/wsl/provision_root.sh > /root/p.sh && bash /root/p.sh <linux-user>"
+   wsl --terminate <distro>   # so the new docker-group membership takes effect
    ```
+   Docker Desktop on Windows is not used: WSL puts its `docker.exe` on the Linux PATH, and the scripts
+   deliberately install and use a Linux Docker Engine instead.
    It installs base packages, cloc, Docker Engine, Node.js 22, the Codex CLI and Ollama (systemd service).
 4. **Repo on the Linux filesystem** (`/mnt/c` is far too slow for Joern):
    ```bash
@@ -44,7 +49,7 @@ NVIDIA T1200 (4 GB VRAM) laptop.
 The WSL clone's `origin` is the Windows checkout, never GitHub.
 - Windows → WSL: `git pull --ff-only` in `~/orion`.
 - WSL → Windows (eval results committed on `Oracle` in WSL): in the Windows checkout,
-  `git pull \\wsl.localhost\Ubuntu-24.04\home\<user>\orion Oracle`.
+  `git pull \\wsl.localhost\<distro>\home\<user>\orion Oracle`.
 
 ## What to expect from the hardware
 

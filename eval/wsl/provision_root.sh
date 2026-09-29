@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# System-level setup for the Orion eval inside WSL2 Ubuntu. Run as root, no password needed:
+# System-level setup for the Orion eval inside WSL2 Ubuntu (24.04+). Run as root, no password needed:
 #
-#   wsl -d Ubuntu-24.04 -u root -- bash /mnt/c/<path-to>/orion/eval/wsl/provision_root.sh [linux-user]
+#   wsl -d <distro> -u root -- bash provision_root.sh [linux-user]   (strip CRLF first, see README)
 #
 # Installs: base packages + cloc, Docker Engine (for Neo4j + the harness sandbox), Node.js 22 + the
 # Codex CLI (plain-gpt arm), and Ollama as a systemd service (CUDA through the WSL GPU driver).
@@ -9,7 +9,7 @@
 # `docker` group. Everything user-local (JDK, Joern, venv, Claude CLI, models, fixtures) is
 # provision_user.sh's job.
 set -euo pipefail
-[ "$(id -u)" -eq 0 ] || { echo "run as root: wsl -d Ubuntu-24.04 -u root -- bash $0" >&2; exit 1; }
+[ "$(id -u)" -eq 0 ] || { echo "run as root: wsl -d <distro> -u root -- bash $0" >&2; exit 1; }
 say() { printf '\n\033[1m== %s ==\033[0m\n' "$*"; }
 export DEBIAN_FRONTEND=noninteractive
 # WSL appends the WINDOWS PATH (/mnt/c/...): a Docker Desktop or Git-for-Windows binary would satisfy a
