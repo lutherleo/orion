@@ -65,3 +65,18 @@ def test_gpt_arm_builds_codex_cmd(tmp_path):
                     base_env={"PATH": "/bin"}, on_line=lambda l: None, popen=fake_popen)
     assert cap["cmd"][:3] == ["codex", "exec", "--json"]
     assert plain.TASK_PROMPT in cap["cmd"]
+
+
+def test_qwen_arm_routes_to_ollama(tmp_path):
+    cap = {}
+
+    def fake_popen(cmd, **kw):
+        cap["env"] = kw.get("env")
+        return FakePopen()
+    plain.plain_arm(arm="plain-qwen3coder", repo_dir=str(tmp_path / "repo"),
+                    ollama_url="http://127.0.0.1:11434", model_tag="qwen3-coder:30b",
+                    json_out=str(tmp_path / "o/findings.json"),
+                    usage_log=str(tmp_path / "u.jsonl"), shim_dir="/shim",
+                    base_env={"PATH": "/bin"}, on_line=lambda l: None, popen=fake_popen)
+    assert cap["env"]["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:11434"
+    assert cap["env"]["ORION_MODEL"] == "qwen3-coder:30b"

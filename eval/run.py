@@ -5,6 +5,10 @@ from . import db, queue
 
 ARMS = ["orion-gemma4", "orion-gptoss20b", "plain-gemma4",
         "plain-sonnet5", "plain-opus5", "plain-gpt"]
+# EXPLORATORY arms (added 2026-09-29, eval/CHANGELOG.md): Qwen has no published training cutoff, so
+# its results cannot support the post-cutoff headline claim. Never run by default -- only via
+# `--exploratory` or an explicit `--arm`, and reported separately from the six registered arms.
+EXPLORATORY_ARMS = ["orion-qwen3coder", "plain-qwen3coder"]
 
 # Exact tags confirmed in Phase 0; frozen at pre-registration.
 MODEL_TAGS = {
@@ -14,6 +18,8 @@ MODEL_TAGS = {
     "plain-sonnet5": "claude-sonnet-5",
     "plain-opus5": "claude-opus-5",
     "plain-gpt": "gpt-5.6-sol",
+    "orion-qwen3coder": "qwen3-coder:30b",
+    "plain-qwen3coder": "qwen3-coder:30b",
 }
 
 
@@ -83,13 +89,15 @@ def main(argv=None):
     from . import preflight
     from .shim_setup import shim_dir as _shim_dir
     ap = argparse.ArgumentParser()
-    ap.add_argument("--arm", action="append", choices=ARMS)
+    ap.add_argument("--arm", action="append", choices=ARMS + EXPLORATORY_ARMS)
+    ap.add_argument("--exploratory", action="store_true",
+                    help="also run the exploratory (non-headline) arms, e.g. Qwen")
     ap.add_argument("--manifest", default="eval/dataset/manifest.json")
     ap.add_argument("--db", default="eval/runs.db")
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--ollama-url", default="http://127.0.0.1:11434")
     args = ap.parse_args(argv)
-    arms = args.arm or ARMS
+    arms = args.arm or (ARMS + EXPLORATORY_ARMS if args.exploratory else ARMS)
     repos = _json.loads(open(args.manifest).read())["repos"]  # [{id, repo_dir, tier, ...}]
     repo_ids = [r["id"] for r in repos]
     meta_by_id = {r["id"]: r for r in repos}

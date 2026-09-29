@@ -5,12 +5,15 @@ from .env import plain_claude_env
 from .launch import stream_subprocess
 from .prompt import TASK_PROMPT
 
+# Plain (no-graph) Claude Code arms whose model is served by Ollama rather than Anthropic.
+OLLAMA_PLAIN_ARMS = {"plain-gemma4", "plain-qwen3coder"}
+
 
 def _build_cmd(arm: str, repo_dir: str) -> list[str]:
     if arm == "plain-gpt":
         # Codex: non-interactive, JSON events (carry token usage), cwd = repo.
         return ["codex", "exec", "--json", "--cd", repo_dir, TASK_PROMPT]
-    # Claude Code arms (plain-sonnet5 / plain-opus5 / plain-gemma4).
+    # Claude Code arms (plain-sonnet5 / plain-opus5, and the Ollama-served OLLAMA_PLAIN_ARMS).
     return ["claude", "-p", TASK_PROMPT, "--output-format", "stream-json", "--verbose",
             "--add-dir", repo_dir, "--permission-mode", "bypassPermissions"]
 
@@ -22,9 +25,10 @@ def plain_arm(*, arm, repo_dir, ollama_url, model_tag, json_out, usage_log, shim
         env = dict(base_env)  # Codex reports usage itself; no claude shim
         cwd = repo_dir
     else:
-        # plain-gemma4 routes Claude Code to Ollama; frontier Claude arms do not.
-        ollama = ollama_url if arm == "plain-gemma4" else None
-        tag = model_tag if arm == "plain-gemma4" else None
+        # Ollama-served arms route Claude Code to Ollama; frontier Claude arms do not.
+        local = arm in OLLAMA_PLAIN_ARMS
+        ollama = ollama_url if local else None
+        tag = model_tag if local else None
         env = plain_claude_env(base_env, usage_log=usage_log, shim_dir=shim_dir,
                                ollama_url=ollama, model_tag=tag)
         cwd = repo_dir

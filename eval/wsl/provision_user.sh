@@ -32,8 +32,8 @@ mkdir -p fixtures
 [ -d fixtures/NodeGoat/.git ] || git clone --depth 1 https://github.com/OWASP/NodeGoat.git fixtures/NodeGoat
 [ -d fixtures/pygoat/.git ] || git clone --depth 1 https://github.com/adeyosemanputra/pygoat.git fixtures/pygoat
 
-say "Ollama models (pre-registered tags, eval/run.py MODEL_TAGS)"
-for tag in gemma3:12b gpt-oss:20b; do
+say "Ollama models (eval/run.py MODEL_TAGS; qwen3-coder is for the exploratory arms)"
+for tag in gemma3:12b gpt-oss:20b qwen3-coder:30b; do
   ollama list | awk '{print $1}' | grep -qx "$tag" || ollama pull "$tag"
 done
 ollama list

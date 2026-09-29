@@ -16,6 +16,14 @@ Plan: `../docs/superpowers/plans/2026-09-17-open-weight-eval.md`.
 | `plain-opus5` | `claude-opus-5` | Claude Code | no |
 | `plain-gpt` | `gpt-5.6-sol` | Codex CLI | no |
 
+**Exploratory arms** (not part of the six; `--exploratory` or `--arm`; reported separately, see
+`CHANGELOG.md`). Qwen has no published training cutoff, so it cannot support the post-cutoff claim:
+
+| id | model | harness | graph |
+|---|---|---|---|
+| `orion-qwen3coder` | `qwen3-coder:30b` (Ollama) | Orion | yes |
+| `plain-qwen3coder` | `qwen3-coder:30b` (Ollama) | Claude Code, no graph | no |
+
 ## Phase 0 — feasibility (run once, before any scored run)
 
 1. **Ollama + models**
@@ -23,6 +31,7 @@ Plan: `../docs/superpowers/plans/2026-09-17-open-weight-eval.md`.
    ollama serve &                 # or launch the app
    ollama pull gemma3:12b         # confirm the exact Gemma tag that fits 16 GB
    ollama pull gpt-oss:20b
+   ollama pull qwen3-coder:30b    # exploratory arms only
    ```
 2. **Codex** — `npm i -g @openai/codex` (or `brew install codex`), then `codex` and sign in with
    your ChatGPT account.

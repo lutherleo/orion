@@ -28,3 +28,10 @@ def test_run_one_catches_launcher_exception(tmp_path):
     assert status == "error"
     err = conn.execute("select message from events where level='error'").fetchone()
     assert "launch failed" in err[0]
+
+
+def test_qwen_arms_are_exploratory_not_default():
+    # Qwen has no published training cutoff: never in the registered six, never run by default.
+    assert not set(run.EXPLORATORY_ARMS) & set(run.ARMS)
+    assert all(run.MODEL_TAGS[a] == "qwen3-coder:30b" for a in run.EXPLORATORY_ARMS)
+    assert len(run.ARMS) == 6

@@ -53,7 +53,10 @@ Rules for working on it:
 - **Six arms, fixed:** `orion-gemma4`, `orion-gptoss20b` (Ollama; discovery AND verifier on the
   open-weight model), `plain-gemma4` (graph ablation), `plain-sonnet5` / `plain-opus5` (Claude Code,
   xhigh), `plain-gpt` (Codex, GPT-5.6 Sol). Orion is only used with open-weight models; Codex only
-  with GPT. No Qwen (no published cutoff), no Gemini (not open-weight), no Go repos.
+  with GPT. No Gemini (not open-weight), no Go repos. **Qwen is EXPLORATORY only** (added
+  2026-09-29, `eval/CHANGELOG.md`): `orion-qwen3coder` / `plain-qwen3coder` on `qwen3-coder:30b`,
+  outside the six (`EXPLORATORY_ARMS`, run only with `--exploratory`), reported separately --
+  it has no published cutoff, so it can never back the post-cutoff headline claim.
 - **Dataset rule:** headline CVEs need advisory AND fix commit after 2026-05-31 (latest cutoff =
   Opus 5, May 2026), a localized fix (≤10 non-test files, one bug), and vulnerable code in JS/TS,
   Python or Java. Otherwise → control tier (possibly memorized) or scale tier (won't build on 16 GB).
