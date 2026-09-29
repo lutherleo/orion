@@ -54,7 +54,10 @@ def _patch_transformers_compat() -> None:
     """
     import torch
     import transformers.pytorch_utils as pt_utils
-    from transformers.configuration_utils import PreTrainedConfig
+    try:
+        from transformers.configuration_utils import PreTrainedConfig
+    except ImportError:  # transformers 4.x (the pin bench/setup.sh needs) spells it PretrainedConfig
+        from transformers.configuration_utils import PretrainedConfig as PreTrainedConfig
     from transformers.modeling_utils import PreTrainedModel
 
     # 1) `from transformers.pytorch_utils import find_pruneable_heads_and_indices` (removed).
