@@ -311,3 +311,11 @@ every line after the first CRLF; counting UTF-8 bytes shifts lines after any non
 - `claude` CLI v2.1.210 supports `--mcp-config`, `--json-schema`, `--add-dir`, `--effort`.
 - NodeGoat fixture + prebuilt `cpg.bin` at `~/Documents/sentryV2/scratchpad/NodeGoat` (copy into
   `orion/fixtures/`).
+- **Windows dev box (2026-10-01):** Neo4j, Joern, Node and NodeGoat's MongoDB live in WSL `Ubuntu`
+  (`~/orion`; Mongo = container `orion-nodegoat-mongo`, mongo:4.4 on 127.0.0.1:27017, restart
+  unless-stopped). Windows reaches that Neo4j at `localhost:7688` ONLY while the distro is running
+  (it idle-stops; keep a `wsl` shell open). Both checkouts have `fixtures/NodeGoat` @ c5cb68a (LF).
+  scan_id hashes the ABSOLUTE path, so the Windows checkout's NodeGoat graph is built in WSL under
+  the Windows scan id: `graph_build.build("fixtures/NodeGoat", stream=True, scan_id=<Windows
+  scan_id_for(...)>)` + `embed.index`. Graph-building tests take the `needs_joern` fixture
+  (`tests/conftest.py`) so they skip on Windows instead of failing.

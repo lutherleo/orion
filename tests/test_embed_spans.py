@@ -59,7 +59,7 @@ def test_spans_from_batch_unions_props_like_persist():
     assert methods2 == methods
 
 
-def test_spans_from_batch_matches_graph_query():
+def test_spans_from_batch_matches_graph_query(needs_joern):
     """The item-4 correctness guarantee: batch-derived spans == graph-derived spans on a real build."""
     from neo4j import GraphDatabase
     from orion import config, graph_build
@@ -87,7 +87,7 @@ def test_spans_from_batch_matches_graph_query():
     assert batch_spans == graph_spans, "batch-derived spans must match the persisted-graph query"
 
 
-def test_build_with_concurrent_index_overlap():
+def test_build_with_concurrent_index_overlap(needs_joern):
     """Review finding #2 coverage: exercise the real item-4 overlap -- build with the semantic index
     running as on_batch CONCURRENTLY with persist (both issuing schema DDL to the same DB). Assert it
     does not error, and that BOTH the graph nodes and the :Chunk nodes land for the scan."""

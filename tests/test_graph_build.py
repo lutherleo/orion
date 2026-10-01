@@ -34,7 +34,7 @@ def _count(db: GraphDB, scan_id: str, query: str) -> int:
     return res["rows"][0]["c"]
 
 
-def test_build_nodegoat():
+def test_build_nodegoat(needs_joern):
     _db_or_skip().close()
     scan_id = build("fixtures/NodeGoat")
     db = GraphDB()
@@ -53,7 +53,7 @@ def test_build_nodegoat():
         db.close()
 
 
-def test_call_file_attribution():
+def test_call_file_attribution(needs_joern):
     """B3: every CALL is stamped with its owning file_path (via AST-ancestry to the enclosing
     method), so file attribution never depends on the fragile CONTAINS_CALL edge. The eval()
     calls in contributions.js are the canonical case."""
@@ -82,7 +82,7 @@ def test_call_file_attribution():
         db.close()
 
 
-def test_no_cross_scan_bleed():
+def test_no_cross_scan_bleed(needs_joern):
     """B2: two scans that share method full_names must not cross-link. A second scan is built
     from a temp copy of the CPG (different abspath -> different scan_id, identical full_names),
     then we assert NO RESOLVES_TO edge connects a call in one scan to a method in another. The

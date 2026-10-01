@@ -612,8 +612,12 @@ def search(query: str, scan_id: str, k: int = 5, mode: str | None = None) -> lis
             ).single()["c"]
             if not has_index:
                 return []
+            # The index can exist (from other scans) while THIS scan has no chunks at all.
+            if session.run("MATCH (c:Chunk {scan_id: $scan_id}) RETURN 1 AS one LIMIT 1",
+                           scan_id=scan_id).single() is None:
+                return []
 
-            # Load the (~300MB) model only once we know there IS an index to search -- a
+            # Load the (~300MB) model only once we know there IS something to search -- a
             # never-indexed scan returns [] without paying the model load.
             model = _get_model()
             query_vector = model.encode(query, convert_to_numpy=True).tolist()

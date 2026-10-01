@@ -207,7 +207,7 @@ def test_stream_envelope_parity_nodegoat(tmp_path):
 
 
 @pytest.mark.slow
-def test_stream_two_partition_persist_parity():
+def test_stream_two_partition_persist_parity(needs_joern):
     cpg = "fixtures/NodeGoat/cpg.bin"
     if not Path(cpg).exists():
         pytest.skip("NodeGoat cpg.bin not present")
@@ -292,7 +292,7 @@ def test_stream_order_independence(tmp_path):
 
 # ─────────────────────────── Task 10: sharpemu scale smoke (peak-RSS bound + honest breakdown) ───────────────────────────
 @pytest.mark.slow
-def test_sharpemu_fits_memory(tmp_path):
+def test_sharpemu_fits_memory(tmp_path, needs_joern):
     repo = "fixtures/sharpemu"
     if not Path(repo).exists():
         pytest.skip("sharpemu not cloned")
