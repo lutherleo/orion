@@ -112,6 +112,9 @@ def _exit_code(verdicts: list, fail_on: str) -> int:
 def _run_scan(args: argparse.Namespace) -> int:
     # Cheap arg validation BEFORE the heavy lazy imports below, so a typo'd path fails instantly
     # instead of after loading the embedding model / Neo4j driver.
+    if getattr(args, "semantic_mode", None):
+        from . import config as _config               # light; also reaches the agents' MCP server via env
+        _config.set_semantic_mode(args.semantic_mode)
     resume = getattr(args, "resume", None)
     if resume:
         try:
@@ -329,6 +332,9 @@ def main(argv: list[str] | None = None) -> int:
                       help="give discovery shapes B/C/D the build's precomputed candidate lists "
                            "(missing controls, hedge comments, ReDoS regexes, deps) inlined in their "
                            "first message. Off by default (ORION_SHORTLISTS)")
+    scan.add_argument("--semantic-mode", dest="semantic_mode", choices=("vector", "hybrid", "keyword"),
+                      help="how the agents' semantic_search ranks: vector (meaning; the default), hybrid "
+                           "(meaning + exact keywords, fused) or keyword (ORION_SEMANTIC_MODE)")
     scan.add_argument("--fail-on", dest="fail_on", choices=tuple(_FAIL_LEVELS), default="none",
                       help="exit 1 if any verdict is at or above this level (CI gating; default none)")
     scan.add_argument("--language", dest="language", metavar="FRONTEND",

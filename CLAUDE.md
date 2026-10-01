@@ -286,6 +286,15 @@ every line after the first CRLF; counting UTF-8 bytes shifts lines after any non
   inlines the top `SHORTLIST_INLINE` (25) rows into the FIRST MESSAGE; off, prompts and messages are
   byte-identical (`tests/test_shortlists.py` pins it). Shape A is unchanged either way. No source files
   read means no B rows (absence can't be claimed without source).
+- **Hybrid semantic search** (2026-10-01, opt-in `--semantic-mode hybrid|keyword` / `ORION_SEMANTIC_MODE`,
+  default `vector` = the original code path and the original MCP tool description, byte-for-byte):
+  a Neo4j FULLTEXT index `chunk_text_index` on `Chunk.text` (analyzer `simple`: split on non-letters,
+  lowercase, so `req.body.preTax` → req/body/pretax, `$where` → where), fused with the vector ranking
+  by Reciprocal Rank Fusion (k=60); rows carry `matched` = vector|keyword|both. `embed.keyword_query`
+  keeps only letter runs, so no Lucene syntax can reach the index (nothing to escape). Creating the
+  index backfills existing chunks, so no re-index is needed. If the model or vector index is missing,
+  hybrid answers keyword-only with a `note` on the first row. `config.set_semantic_mode` also sets the
+  env var, because the agents' MCP server is a subprocess that reads it.
 - **Measuring Orion itself:** `python bench/prove.py` (on a box with Neo4j + Joern + fixtures + a
   Claude login; `--dry-run` = token-free preflight) runs arm **O** (Orion + Claude, `research_eval
   --arm O --label O-<model>`) for sonnet and opus on NodeGoat and PyGoat through the same matcher and

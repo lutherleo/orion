@@ -112,6 +112,8 @@ def main(argv=None) -> int:
                     help="Orion arms (A/O): adaptive verification (light pass + escalation)")
     ap.add_argument("--shortlists", action="store_true",
                     help="Orion arms (A/O): inline the precomputed B/C/D shortlists into discovery")
+    ap.add_argument("--semantic-mode", choices=("vector", "hybrid", "keyword"), default=None,
+                    help="Orion arms (A/O): how semantic_search ranks (default: ORION_SEMANTIC_MODE)")
     ap.add_argument("--label", default=None,
                     help="result name (default: the arm) -> bench/research/<benchmark>/<label>.json")
     ap.add_argument("--benchmark", required=True, choices=["nodegoat", "pygoat"])
@@ -123,6 +125,9 @@ def main(argv=None) -> int:
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args(argv)
 
+    if args.semantic_mode:
+        from orion import config as _cfg_sm
+        _cfg_sm.set_semantic_mode(args.semantic_mode)
     if args.model:                      # per-arm model override (claude_cli reads config.MODEL at call time)
         from orion import config
         config.MODEL = args.model
@@ -179,7 +184,9 @@ def main(argv=None) -> int:
         result["decisions"] = {d: sum(1 for r in verdict_rows if r["decision"] == d)
                                for d in ("CONFIRM", "INCONCLUSIVE", "REJECT", "ERROR")}
         # Which opt-in efficiency features this run used, so variant results are never confused.
-        result["options"] = {"verify_routing": bool(args.verify_routing), "shortlists": bool(args.shortlists)}
+        from orion import config as _cfg_opt
+        result["options"] = {"verify_routing": bool(args.verify_routing), "shortlists": bool(args.shortlists),
+                             "semantic_mode": _cfg_opt.SEMANTIC_MODE}
 
     name = args.label or args.arm
     out = Path(args.out) if args.out else _ROOT / "bench" / "research" / args.benchmark / f"{name}.json"

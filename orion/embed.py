@@ -23,6 +23,7 @@ so the ~300MB model loads once per process.
 from __future__ import annotations
 
 import os
+import re
 import threading
 
 from neo4j import GraphDatabase
@@ -38,6 +39,14 @@ FALLBACK_BLOCK_LINES = 60
 # vector index so it never mixes with per-scan Chunk nodes. See orion/exploit_corpus.py.
 EXPLOIT_LABEL = "ExploitChunk"
 EXPLOIT_VECTOR_INDEX_NAME = "exploit_embedding_index"
+
+# Hybrid search (ORION_SEMANTIC_MODE=hybrid|keyword): a BM25 full-text index over the same Chunk text.
+# The `simple` analyzer splits on every non-letter and lowercases, which suits code: `req.body.preTax`
+# indexes as req / body / pretax and `$where` as where. Fused with the vector ranking by RRF, k=60.
+FULLTEXT_INDEX_NAME = "chunk_text_index"
+FULLTEXT_ANALYZER = "simple"
+RRF_K = 60
+_MAX_QUERY_TERMS = 32
 
 _model = None
 _model_lock = threading.Lock()
@@ -319,6 +328,8 @@ def index(repo_path: str, scan_id: str, *, batch=None) -> None:
     try:
         with driver.session(database=config.NEO4J_DATABASE) as session:
             _ensure_vector_index(session)
+            if config.SEMANTIC_MODE != "vector":
+                _ensure_fulltext_index(session, wait=False)   # fills as the chunks below are written
             session.run("MATCH (c:Chunk {scan_id: $scan_id}) DETACH DELETE c", scan_id=scan_id)
             if batch is None:
                 methods, all_files = _spans_from_graph(session, scan_id)
@@ -476,11 +487,122 @@ def exploit_search(query: str, k: int = 5, model=None) -> list[dict]:
         driver.close()
 
 
-def search(query: str, scan_id: str, k: int = 5) -> list[dict]:
+def keyword_query(text: str) -> str:
+    """A Lucene query that is safe by construction: the letter runs of `text`, lowercased, deduped,
+    OR-ed (Lucene's default). It mirrors the `simple` analyzer the full-text index uses, so
+    `eval(req.body.preTax)` becomes `eval req body pretax` and `$where` becomes `where`. No operator,
+    quote, wildcard or escape character can survive, so nothing needs escaping. "" = nothing to match."""
+    terms: list[str] = []
+    for t in re.findall(r"[A-Za-z]+", text):
+        t = t.lower()
+        if t not in terms:
+            terms.append(t)
+    return " ".join(terms[:_MAX_QUERY_TERMS])
+
+
+def rrf(rankings: list[list], k: int = RRF_K) -> list[tuple]:
+    """Reciprocal Rank Fusion: each item scores sum(1 / (k + rank)) over the rankings it appears in
+    (rank 1 = best). Rank-based, so the vector's cosine and BM25's unbounded scores never have to be
+    put on one scale. Returns [(item, score)] best first; ties keep first-seen order."""
+    scores: dict = {}
+    for ranking in rankings:
+        for rank, item in enumerate(ranking, start=1):
+            scores[item] = scores.get(item, 0.0) + 1.0 / (k + rank)
+    return sorted(scores.items(), key=lambda kv: -kv[1])
+
+
+def _ensure_fulltext_index(session, wait: bool = True) -> None:
+    """The BM25 index over Chunk.text. Creating it indexes every existing chunk, so a scan embedded
+    before hybrid mode existed needs no re-index; `wait` blocks until it is ONLINE."""
+    session.run(f"CREATE FULLTEXT INDEX {FULLTEXT_INDEX_NAME} IF NOT EXISTS FOR (c:Chunk) ON EACH [c.text] "
+                f"OPTIONS {{indexConfig: {{`fulltext.analyzer`: '{FULLTEXT_ANALYZER}'}}}}")
+    if wait:
+        session.run("CALL db.awaitIndex($name, 300)", name=FULLTEXT_INDEX_NAME)
+
+
+def _vector_hits(session, query: str, scan_id: str, n: int) -> list[dict]:
+    query_vector = _get_model().encode(query, convert_to_numpy=True).tolist()
+    result = session.run(
+        f"CALL db.index.vector.queryNodes('{VECTOR_INDEX_NAME}', $top_k, $query_vector) "
+        "YIELD node, score WHERE node.scan_id = $scan_id "
+        "RETURN node.file AS file, node.span AS span, node.text AS text, score "
+        "ORDER BY score DESC LIMIT $n",
+        top_k=max(n * 20, 200), query_vector=query_vector, scan_id=scan_id, n=n)
+    return [dict(r) for r in result]
+
+
+def _keyword_hits(session, lucene: str, scan_id: str, n: int) -> list[dict]:
+    result = session.run(
+        f"CALL db.index.fulltext.queryNodes('{FULLTEXT_INDEX_NAME}', $q, {{limit: $top}}) "
+        "YIELD node, score WHERE node.scan_id = $scan_id "
+        "RETURN node.file AS file, node.span AS span, node.text AS text, score "
+        "ORDER BY score DESC LIMIT $n",
+        q=lucene, top=max(n * 20, 200), scan_id=scan_id, n=n)
+    return [dict(r) for r in result]
+
+
+def fuse(vector: list[dict], keyword: list[dict], k: int) -> list[dict]:
+    """Merge two ranked hit lists (same chunk = same file+span) by RRF into the top `k`. Each row
+    keeps file/span/text, `score` becomes the RRF score, and `matched` says which ranking(s) found it."""
+    rows: dict[tuple, dict] = {}
+    seen: dict[tuple, set] = {}
+    for source, hits in (("vector", vector), ("keyword", keyword)):
+        for h in hits:
+            key = (h["file"], h["span"])
+            rows.setdefault(key, {"file": h["file"], "span": h["span"], "text": h["text"]})
+            seen.setdefault(key, set()).add(source)
+    fused = rrf([[(h["file"], h["span"]) for h in vector], [(h["file"], h["span"]) for h in keyword]])
+    out = []
+    for key, score in fused[:k]:
+        both = seen[key] == {"vector", "keyword"}
+        out.append({**rows[key], "score": round(score, 6), "matched": "both" if both else next(iter(seen[key]))})
+    return out
+
+
+def _search_hybrid(session, query: str, scan_id: str, k: int, mode: str) -> list[dict]:
+    """`hybrid`: vector + BM25 fused by RRF; `keyword`: BM25 alone. If the embedding model (or the
+    vector index) is unavailable in hybrid mode, the keyword ranking still answers -- the first row
+    carries a `note` saying so -- instead of the whole search returning nothing."""
+    depth = max(k * 4, 20)          # how deep each ranking goes before fusion
+    vector: list[dict] = []
+    note = None
+    if mode == "hybrid":
+        has_vec = session.run("SHOW INDEXES YIELD name WHERE name = $name RETURN count(*) AS c",
+                              name=VECTOR_INDEX_NAME).single()["c"]
+        if has_vec:
+            try:
+                vector = _vector_hits(session, query, scan_id, depth)
+            except Exception as exc:  # noqa: BLE001 -- model/vector trouble degrades to keyword-only
+                note = f"keyword-only: vector search unavailable ({exc.__class__.__name__}: {exc})"
+    keyword: list[dict] = []
+    lucene = keyword_query(query)
+    if lucene:
+        _ensure_fulltext_index(session)
+        keyword = _keyword_hits(session, lucene, scan_id, depth)
+    rows = fuse(vector, keyword, k)
+    if rows and note:
+        rows[0]["note"] = note
+    return rows
+
+
+def search(query: str, scan_id: str, k: int = 5, mode: str | None = None) -> list[dict]:
     """Nearest code chunks to `query` (by meaning), scoped to `scan_id`, best first. Returns []
     if this scan has never been indexed (no vector index yet, or no matching chunks) — that is
-    not an error. A missing model or an unreachable DB still raises."""
+    not an error. A missing model or an unreachable DB still raises.
+
+    `mode` (None = config.SEMANTIC_MODE): "vector" is the original path below, unchanged; "hybrid"
+    and "keyword" add/use the BM25 ranking (`_search_hybrid`)."""
+    mode = (mode or config.SEMANTIC_MODE).lower()
+    if mode not in config.SEMANTIC_MODES:
+        raise RuntimeError(f"unknown ORION_SEMANTIC_MODE {mode!r} (expected one of {config.SEMANTIC_MODES})")
     _require_neo4j_backend()
+    if mode != "vector":
+        driver = _driver()
+        try:
+            with driver.session(database=config.NEO4J_DATABASE) as session:
+                return _search_hybrid(session, query, scan_id, k, mode)
+        finally:
+            driver.close()
     driver = _driver()
     try:
         with driver.session(database=config.NEO4J_DATABASE) as session:

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from fastmcp import FastMCP
 
+from . import config
 from .graphdb import GraphDB, scope_problem
 
 mcp = FastMCP("orion")
@@ -89,7 +90,22 @@ def exploit_search(query: str, k: int = 5) -> list[dict]:
     return exploit_search_impl(query, k)
 
 
-@mcp.tool()
+_SEMANTIC_DESCRIPTIONS = {
+    # "vector" is the docstring the tool always had, so the default tool list is unchanged.
+    "vector": "Nearest code chunks to `query` in the given scan, by meaning (not structure).",
+    "hybrid": "Code chunks in the given scan that match `query` by meaning OR by exact words: a vector "
+              "ranking and a keyword (BM25) ranking fused, so an exact identifier like `eval` or `$where` "
+              "is found too. Each result says which ranking matched it (`matched`).",
+    "keyword": "Code chunks in the given scan that contain the words of `query` (keyword/BM25 ranking; "
+               "exact identifiers like `eval` or `$where` match).",
+}
+
+
+def semantic_search_description(mode: str | None = None) -> str:
+    return _SEMANTIC_DESCRIPTIONS.get(mode or config.SEMANTIC_MODE, _SEMANTIC_DESCRIPTIONS["vector"])
+
+
+@mcp.tool(description=semantic_search_description())
 def semantic_search(query: str, scan_id: str, k: int = 5) -> list[dict]:
     """Nearest code chunks to `query` in the given scan, by meaning (not structure)."""
     return semantic_search_impl(query, scan_id, k)

@@ -115,3 +115,17 @@ CYPHER_TIMEOUT = float(_env("ORION_CYPHER_TIMEOUT", "30"))
 # --- Semantic index: "neo4j" (native vector index) or "lancedb" (standalone fallback) ---
 SEMANTIC_BACKEND = _env("ORION_SEMANTIC_BACKEND", "neo4j")
 EMBED_MODEL = _env("ORION_EMBED_MODEL", "jinaai/jina-embeddings-v2-base-code")
+# How `semantic_search` ranks (default "vector", unchanged until measured): "hybrid" fuses the vector
+# ranking with a BM25 keyword ranking over the same chunks (Reciprocal Rank Fusion), so an exact
+# identifier like `eval` or `$where` is found even when its meaning is not; "keyword" is BM25 alone.
+SEMANTIC_MODES = ("vector", "hybrid", "keyword")
+SEMANTIC_MODE = _env("ORION_SEMANTIC_MODE", "vector").strip().lower()
+
+
+def set_semantic_mode(mode: str) -> None:
+    """Set the search mode for this process AND the MCP server it launches (which reads the env)."""
+    global SEMANTIC_MODE
+    if mode not in SEMANTIC_MODES:
+        raise ValueError(f"unknown semantic mode {mode!r} (expected one of {SEMANTIC_MODES})")
+    SEMANTIC_MODE = mode
+    os.environ["ORION_SEMANTIC_MODE"] = mode
