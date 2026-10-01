@@ -77,7 +77,7 @@ def parse_v8_coverage(blobs: list[dict], repo: str, read_source) -> tuple[Runtim
     """V8 coverage blobs -> (trace of line hits + executed functions, malformed_count).
 
     Blob shape: `{result: [{url, functions: [{functionName, ranges: [{startOffset, endOffset,
-    count}]}]}]}`. `read_source(relpath)` supplies file text so byte offsets become lines. A
+    count}]}]}]}`. `read_source(relpath)` supplies the raw file text so offsets become lines. A
     function's FIRST range is the function itself, so its count is the exact invocation count.
     Malformed entries are counted and skipped, never raised."""
     acc = TraceAccumulator()
@@ -159,7 +159,10 @@ def parse_cpu_profile(profile: dict, repo: str) -> tuple[RuntimeTrace, int]:
 def _fs_reader(repo: str):
     def read(rel: str) -> str | None:
         try:
-            return (Path(repo) / rel).read_text(encoding="utf-8", errors="replace")
+            # newline="": keep CRLF as-is. V8's offsets index the raw script, so translating CRLF
+            # to LF here would shift every line after the first CRLF.
+            with open(Path(repo) / rel, encoding="utf-8", errors="replace", newline="") as f:
+                return f.read()
         except OSError:
             return None
     return read

@@ -47,22 +47,25 @@ def relativize(path: str, root: str) -> str | None:
     return None if rel == ".." or rel.startswith(".." + os.sep) else norm(rel)
 
 
-# ─────────────────────────── byte offset -> line (V8) ───────────────────────────
+# ─────────────────────────── source offset -> line (V8) ───────────────────────────
 
 def build_line_starts(source: str) -> list[int]:
-    """Byte offsets at which each line begins (`starts[i]` = offset of line i+1). V8 keys ranges by
-    UTF-8 byte offset, so offsets are over the ENCODED bytes -- a multi-byte char must not shift it."""
-    data = source.encode("utf-8")
+    """Offsets at which each line begins (`starts[i]` = offset of line i+1), in the unit V8 coverage
+    uses: UTF-16 code units of the RAW script text, i.e. a JavaScript string index. Verified: after
+    "// café 😀 naïve" + newline the next line starts at 17 -- not 21 UTF-8 bytes, not 16 code points.
+    `source` must be the file exactly as Node read it: a CRLF translated to LF would shift every line
+    after it (see v8_tracer._fs_reader)."""
     starts = [0]
-    i = data.find(b"\n")
-    while i != -1:
-        starts.append(i + 1)
-        i = data.find(b"\n", i + 1)
+    unit = 0
+    for ch in source:
+        unit += 2 if ord(ch) > 0xFFFF else 1      # astral characters are a surrogate pair in UTF-16
+        if ch == "\n":
+            starts.append(unit)
     return starts
 
 
 def offset_to_line(line_starts: list[int], offset: int) -> int:
-    """1-based line containing byte `offset` (the count of line starts <= offset)."""
+    """1-based line containing `offset` (the count of line starts <= offset)."""
     if offset < 0:
         return 1
     return max(1, bisect.bisect_right(line_starts, offset))

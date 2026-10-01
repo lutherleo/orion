@@ -38,10 +38,21 @@ def test_byte_to_line():
     assert offset_to_line(starts, -1) == 1         # degenerate -> clamp
 
 
-def test_byte_to_line_multibyte():
-    starts = build_line_starts("é = 1\nx = 2\n")   # 'é' is 2 bytes
-    assert starts[1] == 7
-    assert offset_to_line(starts, 7) == 2
+def test_offsets_are_utf16_units_like_v8():
+    # V8 coverage offsets are JavaScript string indices (UTF-16 code units), verified against Node:
+    # 'é' is ONE unit (not 2 UTF-8 bytes); an astral emoji is TWO units (not 1 code point).
+    starts = build_line_starts("é = 1\nx = 2\n")
+    assert starts[1] == 6
+    assert offset_to_line(starts, 6) == 2
+    starts = build_line_starts("// café 😀 naïve\nfunction late() {}\n")
+    assert starts[1] == 17                     # the value Node's precise coverage reported
+
+
+def test_crlf_lines_are_counted_on_the_raw_text():
+    # V8 indexes the raw file, CRLF included; the \r stays at the end of its own line.
+    starts = build_line_starts("a();\r\nb();\r\nc();\r\n")
+    assert starts == [0, 6, 12, 18]
+    assert offset_to_line(starts, 6) == 2 and offset_to_line(starts, 11) == 2
 
 
 def test_relativize(tmp_path):
