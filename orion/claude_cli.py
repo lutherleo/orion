@@ -22,6 +22,7 @@ Hard-won rules baked in (see orion-shared-context.md):
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import time
@@ -184,6 +185,20 @@ def _emit_usage(final: dict | None, on_event: Callable[[dict], None] | None) -> 
     on_event({"event": "usage", "detail": json.dumps(usage)})
 
 
+# The WHOLE reply is one fenced block: optional "json" tag, nothing before or after it.
+_FENCE = re.compile(r"\A\s*```(?:json)?[ \t]*\r?\n(.*?)\r?\n?[ \t]*```\s*\Z", re.DOTALL | re.IGNORECASE)
+
+
+def _unfence(text: str) -> str:
+    """Strip a markdown fence when the reply is EXACTLY one fenced block. Local models served through
+    Ollama answer the --json-schema request in a ```json fence instead of Claude Code's
+    structured-output channel (found by the eval's Phase 0 gate). Only the wrapper is removed: prose
+    around a fence, or several fences, are left as-is and still fail json.loads -- nothing is guessed
+    out of free text."""
+    m = _FENCE.match(text)
+    return m.group(1) if m and "```" not in m.group(1) else text
+
+
 def _final_to_result(final: dict | None) -> dict:
     """Robust final-event -> structured-object extraction. NEVER fabricates output: any
     ambiguity (missing result line, is_error, unparseable result) becomes `{"_error": "..."}`."""
@@ -199,7 +214,7 @@ def _final_to_result(final: dict | None) -> dict:
     result_str = final.get("result")
     if isinstance(result_str, str):
         try:
-            parsed = json.loads(result_str)
+            parsed = json.loads(_unfence(result_str))
         except json.JSONDecodeError:
             return {"_error": "result field was not valid JSON"}
         if isinstance(parsed, dict):
