@@ -238,7 +238,8 @@ def _run_scan(args: argparse.Namespace) -> int:
         # just above) or `--use-dynamic` (a prior `orion trace`). Neither keeps the eval baseline.
         dynamic_hint = getattr(args, "use_dynamic", False) or getattr(args, "runtime", False)
         leads = discover.discover(scan_id, on_event, profile, timeout=d_timeout,
-                                  dynamic_hint=dynamic_hint)
+                                  dynamic_hint=dynamic_hint,
+                                  shortlists=getattr(args, "shortlists", None) or None)
         on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"))
         _save_leads(run_dir, scan_id, args.repo, leads)
         return leads
@@ -324,6 +325,10 @@ def main(argv: list[str] | None = None) -> int:
                       help="adaptive verification: clear-cut single-location leads get a light pass "
                            "(same model, smaller budget); anything it can't settle escalates to the "
                            "full pass. Off by default (ORION_VERIFY_ROUTING)")
+    scan.add_argument("--shortlists", dest="shortlists", action="store_true",
+                      help="give discovery shapes B/C/D the build's precomputed candidate lists "
+                           "(missing controls, hedge comments, ReDoS regexes, deps) inlined in their "
+                           "first message. Off by default (ORION_SHORTLISTS)")
     scan.add_argument("--fail-on", dest="fail_on", choices=tuple(_FAIL_LEVELS), default="none",
                       help="exit 1 if any verdict is at or above this level (CI gating; default none)")
     scan.add_argument("--language", dest="language", metavar="FRONTEND",

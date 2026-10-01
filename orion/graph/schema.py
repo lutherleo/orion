@@ -26,6 +26,8 @@ NODE_KEY: dict[str, tuple[str, ...]] = {
     # Precomputed source->sink candidate flows (graph/pathfind.py). Persisted like any other node so
     # the label-scoped clear/reload + NODE_KEY index apply; agents fetch it via run_cypher.
     "CandidateFlow": ("scan_id", "uid"),
+    # Precomputed shape B/C/D candidates (graph/shortlists.py): controls, hedge comments, regexes, deps.
+    "CandidateFinding": ("scan_id", "uid"),
 }
 
 # Runtime-stage node identity, kept SEPARATE from NODE_KEY on purpose. persist._clear (the static

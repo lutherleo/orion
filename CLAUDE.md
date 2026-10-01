@@ -276,6 +276,16 @@ every line after the first CRLF; counting UTF-8 bytes shifts lines after any non
   escalates to the full pass in a fresh session (`route="light→full"`). Auth/IDOR CWEs and multi-file
   flows are always FULL. `Verdict.route` is in verdicts.jsonl, the report and SARIF. A reply that is
   exactly one ```json fence is unwrapped (`claude_cli._unfence`); prose around it stays an `_error`.
+- **Shortlists for shapes B/C/D** (2026-10-01): the build ALWAYS writes `:CandidateFinding {shape, kind,
+  file_path, line, cwe, code, detail, rank}` (`graph/shortlists.py`, a NODE_KEY label, cleared with the
+  static graph; rank unique per shape; ≤60 per shape). B = the profile's `controls` checklist
+  (`profiles.Control`: present / commented_out / absent / disabled), C = hedge COMMENTS near security
+  terms (comments are not in CpgCall.code, so this is the only graph view of them), D = nested-quantifier
+  regexes, regexes built from a variable, and the Dependency list. Lexical by design: rows are
+  candidates. Opt-in `--shortlists` / `ORION_SHORTLISTS` adds a block to the B/C/D system prompts and
+  inlines the top `SHORTLIST_INLINE` (25) rows into the FIRST MESSAGE; off, prompts and messages are
+  byte-identical (`tests/test_shortlists.py` pins it). Shape A is unchanged either way. No source files
+  read means no B rows (absence can't be claimed without source).
 - **Measuring Orion itself:** `python bench/prove.py` (on a box with Neo4j + Joern + fixtures + a
   Claude login; `--dry-run` = token-free preflight) runs arm **O** (Orion + Claude, `research_eval
   --arm O --label O-<model>`) for sonnet and opus on NodeGoat and PyGoat through the same matcher and

@@ -57,7 +57,7 @@ def _mk_on_event(ledger: TokenLedger, quiet: bool):
 
 # ── Arm A: Local + Orion (full grounded pipeline) ──────────────────────────────────────────────
 def _arm_orion(repo: str, scan_id: str | None, on_event,
-               verify_routing: bool = False) -> tuple[list[tuple[str, str, str]], list[dict]]:
+               verify_routing: bool = False, shortlists: bool = False) -> tuple[list[tuple[str, str, str]], list[dict]]:
     """Run Orion's pipeline exactly as `orion scan` does (same profile, same graph-sized discovery
     timeout). Returns (findings, verdict_rows): findings are the CONFIRMs as (text, evidence, file)
     triples -- the file is the verifier-corrected structured location -- and verdict_rows records
@@ -77,7 +77,7 @@ def _arm_orion(repo: str, scan_id: str | None, on_event,
         timeout = config.discover_timeout(db.node_count(scan_id))
     finally:
         db.close()
-    leads = discover.discover(scan_id, on_event, profile, timeout=timeout)
+    leads = discover.discover(scan_id, on_event, profile, timeout=timeout, shortlists=shortlists)
     verdicts = verify.verify_all(scan_id, leads, repo, on_event, routing=verify_routing)
     rows = [{"decision": v.decision, "shape": v.lead.shape, "route": v.route, "text": v.lead.text[:300],
              **{k: val for k, val in v.location().items() if val}} for v in verdicts]
@@ -110,6 +110,8 @@ def main(argv=None) -> int:
     ap.add_argument("--arm", required=True, choices=["A", "B", "C", "D", "O"])
     ap.add_argument("--verify-routing", action="store_true",
                     help="Orion arms (A/O): adaptive verification (light pass + escalation)")
+    ap.add_argument("--shortlists", action="store_true",
+                    help="Orion arms (A/O): inline the precomputed B/C/D shortlists into discovery")
     ap.add_argument("--label", default=None,
                     help="result name (default: the arm) -> bench/research/<benchmark>/<label>.json")
     ap.add_argument("--benchmark", required=True, choices=["nodegoat", "pygoat"])
@@ -138,7 +140,8 @@ def main(argv=None) -> int:
     t0 = time.monotonic()
     if args.arm in ("A", "O"):
         findings, verdict_rows = _arm_orion(args.repo, args.scan_id, on_event,
-                                            verify_routing=args.verify_routing)
+                                            verify_routing=args.verify_routing,
+                                            shortlists=args.shortlists)
     elif args.arm in ("B", "C"):
         findings = _arm_ungrounded(args.repo, on_event)
     else:  # D
@@ -175,6 +178,8 @@ def main(argv=None) -> int:
         result["verdicts"] = verdict_rows
         result["decisions"] = {d: sum(1 for r in verdict_rows if r["decision"] == d)
                                for d in ("CONFIRM", "INCONCLUSIVE", "REJECT", "ERROR")}
+        # Which opt-in efficiency features this run used, so variant results are never confused.
+        result["options"] = {"verify_routing": bool(args.verify_routing), "shortlists": bool(args.shortlists)}
 
     name = args.label or args.arm
     out = Path(args.out) if args.out else _ROOT / "bench" / "research" / args.benchmark / f"{name}.json"

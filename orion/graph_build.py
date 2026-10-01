@@ -18,7 +18,7 @@ import time
 from datetime import datetime, timezone
 
 from .contracts import OnEvent, ProgressEvent
-from .graph import deps, joern_adapter, pathfind, persist, profiles, reachability
+from .graph import deps, joern_adapter, pathfind, persist, profiles, reachability, shortlists
 
 
 def _event(phase: str, event: str, *, detail: str = "") -> ProgressEvent:
@@ -160,6 +160,18 @@ def build(repo_path: str, language: str | None = None,
         on_event(_event("build", "timing",
                         detail=f"pathfind: {flows['flows']} candidate flows from {flows['sources']} "
                                f"sources to {flows['sinks']} sink hits"))
+    # Phase 2: the same kind of precomputed list for shapes B/C/D (:CandidateFinding). Lexical, over the
+    # repo's first-party files; additive like pathfind. Discovery inlines it only with --shortlists.
+    try:
+        found, _ = _timed(on_event, "shortlists",
+                          lambda: shortlists.shortlists(batch, profile, repo_path))
+        if on_event is not None:
+            on_event(_event("build", "timing",
+                            detail=f"shortlists: B {found['B']}, C {found['C']}, D {found['D']} "
+                                   f"candidates from {found['files']} source files"))
+    except Exception as exc:  # noqa: BLE001 -- a discovery aid, never worth a failed build
+        if on_event is not None:
+            on_event(_event("build", "warn", detail=f"shortlists skipped: {exc}"))
     if on_batch is not None:
         # Overlap the batch consumer (semantic index) with persist (item 4). on_batch reads the
         # in-memory batch, so it does not wait on persist; persist's label-scoped clear won't wipe
