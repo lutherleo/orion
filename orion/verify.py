@@ -258,8 +258,37 @@ def _verdict_from_result(lead: Lead, result: dict) -> Verdict:
     )
 
 
+# Adaptive verification: deterministic routing, no LLM involved. LIGHT = the bug lives in one place
+# and is recognisable on sight; FULL = it needs reasoning across code (authorization, multi-file flows).
+_LIGHT_CWES = frozenset({
+    "CWE-1333",                          # ReDoS (a regex literal)
+    "CWE-798",                           # hard-coded credentials
+    "CWE-1104", "CWE-937", "CWE-1035",   # vulnerable / unmaintained components
+    "CWE-16", "CWE-693", "CWE-1021",     # misconfiguration, missing protection/headers, framing
+})
+_ALWAYS_FULL_CWES = frozenset({"CWE-284", "CWE-285", "CWE-287", "CWE-639", "CWE-862", "CWE-863"})
+
+
+def route(lead: Lead, subgraph: dict | None = None) -> str:
+    """"light" or "full" for one lead. Pure. Access-control/auth classes and any flow whose evidence
+    path crosses files are always FULL; a local-pattern CWE, or a shape C/D lead with no source->sink
+    anchor, is LIGHT; everything else is FULL. An anchored flow whose subgraph could not be fetched is
+    FULL too -- without the path we cannot show it stays in one file."""
+    if lead.cwe in _ALWAYS_FULL_CWES:
+        return "full"
+    if lead.source_uid and lead.sink_uid:
+        files = {n.get("file_path") for n in (subgraph or {}).get("path") or [] if n.get("file_path")}
+        if subgraph is None or len(files) != 1:
+            return "full"
+    if lead.cwe in _LIGHT_CWES:
+        return "light"
+    if lead.shape in ("C", "D") and not (lead.source_uid and lead.sink_uid):
+        return "light"
+    return "full"
+
+
 def verify_lead(scan_id: str, lead: Lead, repo_path: str, on_event: OnEvent, run_agent,
-                fetch_subgraph=None) -> Verdict:
+                fetch_subgraph=None, routing: bool = False) -> Verdict:
     """Verifies ONE lead in its own fresh claude -p session. `run_agent` is injected (rather than
     imported at module scope) so this stays testable without claude_cli, and so verify_all is the
     single place that does the lazy import.
@@ -276,10 +305,12 @@ def verify_lead(scan_id: str, lead: Lead, repo_path: str, on_event: OnEvent, run
     )
     evidence_subgraph = ""
     sink_centrality = 0.0
+    sub_for_route = None
     if lead.source_uid and lead.sink_uid and fetch_subgraph is not None:
         try:
             sub = fetch_subgraph(scan_id, lead.source_uid, lead.sink_uid)
             if sub:
+                sub_for_route = sub
                 evidence_subgraph = _format_evidence_subgraph(sub)
                 sink_centrality = float(sub.get("sink_centrality") or 0.0)
         except Exception:  # noqa: BLE001 -- the subgraph is advisory; never fail verify over it
@@ -291,22 +322,38 @@ def verify_lead(scan_id: str, lead: Lead, repo_path: str, on_event: OnEvent, run
         "event": "start", "detail": lead.text[:200],
     })
 
-    result = run_agent(
-        session_id, system, message,
-        json_schema=VERDICT_SCHEMA,
-        add_dir=repo_path,
-        # exploit_search is verifier-only (not in claude_cli._ALLOWED_BASE) -- discovery never gets
-        # it; the verifier uses it advisorily for severity/version calibration per EXPLOIT_SEARCH_GUIDANCE.
-        extra_allowed=("Read", "Grep", "Glob", "Task", "Skill", "mcp__orion__exploit_search"),
-        on_event=on_event,
-        max_turns=config.VERIFY_MAX_TURNS,
-        timeout=config.VERIFY_TIMEOUT,
-        # fp-check spawns subagents and intermittently hits transient API overload under a heavy
-        # back-to-back batch; retry so a blip doesn't silently degrade to an ERROR verdict.
-        retries=2,
-    )
+    def _verify(light: bool, sid: str) -> Verdict:
+        kwargs = dict(
+            json_schema=VERDICT_SCHEMA,
+            add_dir=repo_path,
+            # exploit_search is verifier-only (not in claude_cli._ALLOWED_BASE) -- discovery never gets
+            # it; the verifier uses it advisorily for severity/version calibration per
+            # EXPLOIT_SEARCH_GUIDANCE.
+            extra_allowed=("Read", "Grep", "Glob", "Task", "Skill", "mcp__orion__exploit_search"),
+            on_event=on_event,
+            max_turns=config.VERIFY_MAX_TURNS,
+            timeout=config.VERIFY_TIMEOUT,
+            # fp-check spawns subagents and intermittently hits transient API overload under a heavy
+            # back-to-back batch; retry so a blip doesn't silently degrade to an ERROR verdict.
+            retries=2,
+        )
+        if light:   # same model + fp-check, smaller budget (Adaptive verification, opt-in)
+            kwargs.update(max_turns=config.VERIFY_LIGHT_MAX_TURNS, timeout=config.VERIFY_LIGHT_TIMEOUT,
+                          effort=config.VERIFY_LIGHT_EFFORT, retries=1)
+        return _verdict_from_result(lead, run_agent(sid, system, message, **kwargs))
 
-    verdict = _verdict_from_result(lead, result)
+    path = route(lead, sub_for_route) if routing else "full"
+    verdict = _verify(path == "light", session_id)
+    verdict.route = path
+    if path == "light" and verdict.decision in ("INCONCLUSIVE", "ERROR"):
+        # The light pass may only settle clear-cut leads: anything it can't decide gets the full pass
+        # in a FRESH session, so routing never trades away precision.
+        on_event({
+            "phase": "verify", "shape": lead.shape, "lead": lead.index, "turn": None,
+            "event": "warn", "detail": f"light verification {verdict.decision} -> escalating to full",
+        })
+        verdict = _verify(False, str(uuid.uuid4()))
+        verdict.route = "light→full"
     verdict.sink_centrality = sink_centrality   # blast-radius signal for report ranking (Item 3b)
     if verdict.decision == "ERROR":
         on_event({
@@ -322,7 +369,7 @@ def verify_lead(scan_id: str, lead: Lead, repo_path: str, on_event: OnEvent, run
 
 async def _verify_all_async(scan_id: str, leads: list[Lead], repo_path: str, on_event: OnEvent,
                             run_agent, concurrency: int, fetch_subgraph,
-                            on_verdict=None) -> list[Verdict]:
+                            on_verdict=None, routing: bool = False) -> list[Verdict]:
     """Fan the per-lead verifiers out under a semaphore. Each verify_lead is a blocking subprocess
     call, so it runs in a worker thread (asyncio.to_thread); the semaphore bounds how many are in
     flight. asyncio.gather preserves input (lead) order in the returned list. `on_verdict` fires on
@@ -332,7 +379,7 @@ async def _verify_all_async(scan_id: str, leads: list[Lead], repo_path: str, on_
     async def _one(lead: Lead) -> Verdict:
         async with sem:
             verdict = await asyncio.to_thread(
-                verify_lead, scan_id, lead, repo_path, on_event, run_agent, fetch_subgraph)
+                verify_lead, scan_id, lead, repo_path, on_event, run_agent, fetch_subgraph, routing)
         if on_verdict is not None:
             on_verdict(verdict)
         return verdict
@@ -342,7 +389,7 @@ async def _verify_all_async(scan_id: str, leads: list[Lead], repo_path: str, on_
 
 def verify_all(scan_id: str, leads: list[Lead], repo_path: str, on_event: OnEvent,
                *, run_agent=None, concurrency: int | None = None, fetch_subgraph=None,
-               on_verdict=None) -> list[Verdict]:
+               on_verdict=None, routing: bool | None = None) -> list[Verdict]:
     """Verifies each lead in ITS OWN fresh claude -p session, up to `concurrency` at a time
     (defaults to config.VERIFY_CONCURRENCY). Every verifier is independent and isolated, so running
     several concurrently does not weaken the trust invariant; the cap just avoids an unbounded
@@ -354,7 +401,8 @@ def verify_all(scan_id: str, leads: list[Lead], repo_path: str, on_event: OnEven
     it only runs for leads that carry :CandidateFlow endpoints, so an endpoint-less test set never
     touches a graph.
     `on_verdict(verdict)` (optional) is called as EACH verdict completes, so a caller can persist
-    progress incrementally -- a crash mid-verify then loses nothing already verified."""
+    progress incrementally -- a crash mid-verify then loses nothing already verified.
+    `routing` (default config.VERIFY_ROUTING, off) turns on adaptive verification: see `route()`."""
     if not leads:
         return []
     if run_agent is None:
@@ -364,6 +412,8 @@ def verify_all(scan_id: str, leads: list[Lead], repo_path: str, on_event: OnEven
         fetch_subgraph = _fetch_evidence_subgraph
     if concurrency is None:
         concurrency = config.VERIFY_CONCURRENCY
+    if routing is None:
+        routing = config.VERIFY_ROUTING
     return asyncio.run(
         _verify_all_async(scan_id, leads, repo_path, on_event, run_agent, concurrency, fetch_subgraph,
-                          on_verdict))
+                          on_verdict, routing))

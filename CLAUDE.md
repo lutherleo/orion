@@ -125,6 +125,10 @@ containing method (greatest decl line ≤ L), then a unique basename. The engine
 when the driver has `feedback` (process exits / harness runs); a server (`feedback=False`) is driven
 blind and collected once after stop. V8 line hits come from the INNERMOST range (a count-0 block
 carves out unexecuted lines); a function's first range count is its exact invocation count.
+GOTCHA (verified against Node 2026-10-01): V8 coverage offsets are **UTF-16 code units of the RAW
+script** (a JS string index), not UTF-8 bytes and not code points. `correlate.build_line_starts`
+counts that way, and `v8_tracer._fs_reader` reads with `newline=""`. Translating CRLF to LF shifts
+every line after the first CRLF; counting UTF-8 bytes shifts lines after any non-ASCII character.
 
 ## Working agreement (how Love Kush wants to build)
 
@@ -263,6 +267,15 @@ carves out unexecuted lines); a function's first range count is its exact invoca
   lead never displaced) → lexical. Every run writes `<run_dir>/results.sarif` (`orion/sarif.py`,
   CONFIRM=error, INCONCLUSIVE=warning, file-less findings counted as `unlocated`); `--sarif OUT` too.
   `bench/scoring` accepts `(text, evidence, file)` triples — the file only feeds the FILE side.
+- **One model per scan** (decision 2026-10-01): discovery and verification always run on the same
+  model (`ORION_MODEL`). No local+Claude split. Efficiency features change budgets, never the model.
+- **Adaptive verification** (opt-in `--verify-routing` / `ORION_VERIFY_ROUTING`, default OFF until
+  measured): `verify.route()` (deterministic) sends clear-cut single-location leads (ReDoS, hard-coded
+  secrets, vulnerable deps, misconfiguration/missing headers, unanchored shape C/D) to a LIGHT pass:
+  same model and fp-check, `VERIFY_LIGHT_MAX_TURNS` 8, 240 s, effort medium. A light INCONCLUSIVE/ERROR
+  escalates to the full pass in a fresh session (`route="light→full"`). Auth/IDOR CWEs and multi-file
+  flows are always FULL. `Verdict.route` is in verdicts.jsonl, the report and SARIF. A reply that is
+  exactly one ```json fence is unwrapped (`claude_cli._unfence`); prose around it stays an `_error`.
 - **Measuring Orion itself:** `python bench/prove.py` (on a box with Neo4j + Joern + fixtures + a
   Claude login; `--dry-run` = token-free preflight) runs arm **O** (Orion + Claude, `research_eval
   --arm O --label O-<model>`) for sonnet and opus on NodeGoat and PyGoat through the same matcher and

@@ -72,6 +72,7 @@ def _build_cmd(
     extra_allowed: tuple[str, ...],
     max_turns: int | None,
     use_mcp: bool = True,
+    effort: str | None = None,
 ) -> list[str]:
     # use_mcp=False is the UNGROUNDED-review path (PLAN2 arms B/C): no Orion MCP graph tools at all,
     # so the agent works only from what the caller allows (Read/Grep/Glob on the source). The mcp
@@ -82,7 +83,7 @@ def _build_cmd(
     cmd = [
         "claude", "-p",
         "--model", config.MODEL,
-        "--effort", config.EFFORT,
+        "--effort", effort or config.EFFORT,
     ]
     if use_mcp:
         cmd += ["--mcp-config", mcp_config(), "--strict-mcp-config"]
@@ -271,6 +272,7 @@ def run_agent(
     retries: int = 0,
     retry_backoff: float | None = None,
     use_mcp: bool = True,
+    effort: str | None = None,
 ) -> dict:
     """Run one `claude -p` session with real MCP tool-calling and return its structured result.
 
@@ -296,7 +298,7 @@ def run_agent(
         cmd = _build_cmd(
             session_id=sid, system=system, json_schema=json_schema,
             add_dir=add_dir, extra_allowed=extra_allowed, max_turns=max_turns,
-            use_mcp=use_mcp,
+            use_mcp=use_mcp, effort=effort,
         ) + [message]
 
         result = _run_once(cmd, timeout=call_timeout, on_event=on_event)

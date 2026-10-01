@@ -48,7 +48,9 @@ def render(verdicts: list[Verdict]) -> str:
 
     for v in ranked:
         lead = v.lead
-        lines.append(f"[{v.decision}] lead {lead.index} - shape {lead.shape} - confidence {lead.confidence}")
+        route = "" if getattr(v, "route", "full") == "full" else f" - verified {v.route}"
+        lines.append(f"[{v.decision}] lead {lead.index} - shape {lead.shape} - confidence {lead.confidence}"
+                     f"{route}")
         where = _location_text(v)
         if where:
             lines.append(f"  location:          {where}")

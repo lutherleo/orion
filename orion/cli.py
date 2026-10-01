@@ -90,8 +90,12 @@ def _load_run(run_dir: str):
             lead = by_index[d["lead"]["index"]]
         except (ValueError, KeyError, TypeError):
             continue
-        v = Verdict(lead=lead, decision=d.get("decision", "ERROR"), reason=d.get("reason", ""),
-                    evidence=d.get("evidence", ""), sink_centrality=d.get("sink_centrality", 0.0))
+        # Every logged Verdict field (location, severity, route...), not just the original four --
+        # a resumed scan must report exactly what was verified. Unknown keys from a newer log are
+        # ignored rather than crashing an older Orion.
+        known = {f.name for f in dataclasses.fields(Verdict)} - {"lead"}
+        v = Verdict(lead=lead, **{k: d[k] for k in known if k in d})
+        v.decision = v.decision or "ERROR"
         if v.decision == "ERROR":
             finished.pop(lead.index, None)
         else:
@@ -245,7 +249,8 @@ def _run_scan(args: argparse.Namespace) -> int:
         on_event(_event("verify", "start", detail=f"verifying {len(todo)} leads"
                         + (f" ({len(done)} already verified)" if done else "")))
         fresh = verify.verify_all(scan_id, todo, repo_for_verify, on_event,
-                                  on_verdict=lambda v: _append_verdict(run_dir, v))
+                                  on_verdict=lambda v: _append_verdict(run_dir, v),
+                                  routing=getattr(args, "verify_routing", None) or None)
         by_index = {**done, **{v.lead.index: v for v in fresh}}
         verdicts = [by_index[lead.index] for lead in leads if lead.index in by_index]
         on_event(_event("verify", "done", detail=f"{len(verdicts)} verdicts"))
@@ -315,6 +320,10 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument("--resume", metavar="RUN_DIR",
                       help="finish an interrupted scan from its run dir: reuse its leads, verify only "
                            "the leads without a verdict (or with an ERROR), then report")
+    scan.add_argument("--verify-routing", dest="verify_routing", action="store_true",
+                      help="adaptive verification: clear-cut single-location leads get a light pass "
+                           "(same model, smaller budget); anything it can't settle escalates to the "
+                           "full pass. Off by default (ORION_VERIFY_ROUTING)")
     scan.add_argument("--fail-on", dest="fail_on", choices=tuple(_FAIL_LEVELS), default="none",
                       help="exit 1 if any verdict is at or above this level (CI gating; default none)")
     scan.add_argument("--language", dest="language", metavar="FRONTEND",

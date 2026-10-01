@@ -56,7 +56,8 @@ def _mk_on_event(ledger: TokenLedger, quiet: bool):
 
 
 # ── Arm A: Local + Orion (full grounded pipeline) ──────────────────────────────────────────────
-def _arm_orion(repo: str, scan_id: str | None, on_event) -> tuple[list[tuple[str, str, str]], list[dict]]:
+def _arm_orion(repo: str, scan_id: str | None, on_event,
+               verify_routing: bool = False) -> tuple[list[tuple[str, str, str]], list[dict]]:
     """Run Orion's pipeline exactly as `orion scan` does (same profile, same graph-sized discovery
     timeout). Returns (findings, verdict_rows): findings are the CONFIRMs as (text, evidence, file)
     triples -- the file is the verifier-corrected structured location -- and verdict_rows records
@@ -77,8 +78,8 @@ def _arm_orion(repo: str, scan_id: str | None, on_event) -> tuple[list[tuple[str
     finally:
         db.close()
     leads = discover.discover(scan_id, on_event, profile, timeout=timeout)
-    verdicts = verify.verify_all(scan_id, leads, repo, on_event)
-    rows = [{"decision": v.decision, "shape": v.lead.shape, "text": v.lead.text[:300],
+    verdicts = verify.verify_all(scan_id, leads, repo, on_event, routing=verify_routing)
+    rows = [{"decision": v.decision, "shape": v.lead.shape, "route": v.route, "text": v.lead.text[:300],
              **{k: val for k, val in v.location().items() if val}} for v in verdicts]
     findings = [(v.lead.text or "", v.lead.evidence or "", v.location()["file"] or "")
                 for v in verdicts if v.decision == "CONFIRM"]
@@ -107,6 +108,8 @@ def _arm_semgrep(repo: str, ruleset: str) -> tuple[list[tuple[str, str]], dict]:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="PLAN2 research-eval runner")
     ap.add_argument("--arm", required=True, choices=["A", "B", "C", "D", "O"])
+    ap.add_argument("--verify-routing", action="store_true",
+                    help="Orion arms (A/O): adaptive verification (light pass + escalation)")
     ap.add_argument("--label", default=None,
                     help="result name (default: the arm) -> bench/research/<benchmark>/<label>.json")
     ap.add_argument("--benchmark", required=True, choices=["nodegoat", "pygoat"])
@@ -134,7 +137,8 @@ def main(argv=None) -> int:
 
     t0 = time.monotonic()
     if args.arm in ("A", "O"):
-        findings, verdict_rows = _arm_orion(args.repo, args.scan_id, on_event)
+        findings, verdict_rows = _arm_orion(args.repo, args.scan_id, on_event,
+                                            verify_routing=args.verify_routing)
     elif args.arm in ("B", "C"):
         findings = _arm_ungrounded(args.repo, on_event)
     else:  # D

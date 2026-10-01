@@ -73,7 +73,7 @@ def test_arm_o_writes_labelled_result_with_every_decision(tmp_path, monkeypatch)
     from bench import research_eval
     rows = [{"decision": "CONFIRM", "shape": "A", "text": "NoSQL injection via $where"},
             {"decision": "REJECT", "shape": "B", "text": "maybe"}]
-    monkeypatch.setattr(research_eval, "_arm_orion", lambda repo, sid, ev: (
+    monkeypatch.setattr(research_eval, "_arm_orion", lambda repo, sid, ev, **kw: (
         [("NoSQL injection via $where", "q", "app/data/allocations-dao.js"),
          ("stray claim", "", "x.js")], rows))
     out = tmp_path / "O-test.json"

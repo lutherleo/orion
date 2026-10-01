@@ -66,7 +66,7 @@ def to_sarif(verdicts: list[Verdict]) -> dict:
         if region:
             physical["region"] = region
         props = {"shape": v.lead.shape, "confidence": v.lead.confidence, "decision": v.decision,
-                 "sinkCentrality": round(v.sink_centrality, 4)}
+                 "sinkCentrality": round(v.sink_centrality, 4), "verifyRoute": v.route}
         if v.severity:
             props["severity"] = v.severity
             props["security-severity"] = _SECURITY_SEVERITY[v.severity]

@@ -97,6 +97,9 @@ class Verdict:
     line_end: int | None = None
     cwe: str | None = None
     severity: Severity | None = None
+    # How it was verified: "full" (the default and the only route without --verify-routing),
+    # "light" (the smaller-budget pass settled it) or "light→full" (light was unsure, escalated).
+    route: str = "full"
 
     def location(self) -> dict:
         """Effective {file, line_start, line_end, function, cwe}: the verifier's value where it gave

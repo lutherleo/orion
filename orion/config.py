@@ -74,6 +74,15 @@ DISCOVER_TIMEOUT_CAP = int(_env("ORION_DISCOVER_TIMEOUT_CAP", "1200"))   # secon
 # the call at 300s first, and the apex recovery run that CONFIRMed the RCE used 600s.
 VERIFY_TIMEOUT = int(_env("ORION_VERIFY_TIMEOUT", "600"))                # seconds per lead
 
+# Adaptive verification (opt-in, default OFF until bench/prove.py measures it). With routing on,
+# verify.route() sends clear-cut, single-location leads (ReDoS, hard-coded secrets, vulnerable deps,
+# misconfiguration) to a LIGHT pass -- the same model and fp-check on a smaller budget -- and a light
+# INCONCLUSIVE/ERROR escalates to the full pass, so the cheap path can only settle easy leads.
+VERIFY_ROUTING = _env("ORION_VERIFY_ROUTING", "0").strip().lower() in ("1", "true", "yes", "on")
+VERIFY_LIGHT_MAX_TURNS = int(_env("ORION_VERIFY_LIGHT_MAX_TURNS", "8"))
+VERIFY_LIGHT_TIMEOUT = int(_env("ORION_VERIFY_LIGHT_TIMEOUT", "240"))
+VERIFY_LIGHT_EFFORT = _env("ORION_VERIFY_LIGHT_EFFORT", "medium")
+
 
 def discover_timeout(node_count: int | None) -> int:
     """Reality-based per-shape discovery timeout that scales with graph size.
