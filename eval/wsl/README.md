@@ -32,9 +32,11 @@ WSL distribution name (`wsl -l -v`), e.g. `Ubuntu`.
    git clone /mnt/c/<path>/orion ~/orion && cd ~/orion && git checkout Oracle
    bash eval/wsl/provision_user.sh
    ```
-   This runs `bench/setup.sh` (JDK, Joern, venv with CUDA torch, Claude CLI, Neo4j), installs
-   `.[eval]`, clones the NodeGoat and PyGoat fixtures, and pulls `gemma3:12b` and `gpt-oss:20b`
-   (about 21 GB).
+   This runs `bench/setup.sh` (JDK, Joern, venv with CUDA torch, Claude CLI, Neo4j), registers the
+   JDK as the system `java` (so Joern runs from any shell, not just ones that sourced
+   `bench/env.sh`), installs `.[eval]`, clones the NodeGoat and PyGoat fixtures, makes NodeGoat
+   runnable (MongoDB 4.4 container `orion-nodegoat-mongo` on 127.0.0.1:27017, runtime npm deps, demo
+   data), and pulls `gemma3:12b`, `gpt-oss:20b` and `qwen3-coder:30b`.
 5. **Log in** (interactive, once): `claude`, then `codex`.
 6. **Check:**
    ```bash

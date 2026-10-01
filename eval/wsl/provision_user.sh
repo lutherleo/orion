@@ -21,6 +21,14 @@ docker ps >/dev/null 2>&1 || {
 say "bench/setup.sh (JDK, Joern, venv, Claude CLI, Neo4j)"
 bash bench/setup.sh
 
+say "system java (so non-login shells, e.g. \`wsl -- bash -c ...\`, can run Joern)"
+# bench/setup.sh installs the JDK user-local and only bench/env.sh puts it on PATH; a plain
+# `wsl -- cmd` never reads that, so Joern failed there. Register it as the system java instead.
+for t in java javac jar keytool; do
+  [ -x "$HOME/jdk/current/bin/$t" ] && sudo update-alternatives --install "/usr/bin/$t" "$t" "$HOME/jdk/current/bin/$t" 2100 >/dev/null
+done
+java -version 2>&1 | head -1
+
 say "eval extras (psutil)"
 export PATH="$HOME/.local/bin:$PATH"
 # Keep the transformers<5 pin from bench/setup.sh: re-resolving the extras without it upgrades
@@ -31,6 +39,19 @@ say "fixtures"
 mkdir -p fixtures
 [ -d fixtures/NodeGoat/.git ] || git clone --depth 1 https://github.com/OWASP/NodeGoat.git fixtures/NodeGoat
 [ -d fixtures/pygoat/.git ] || git clone --depth 1 https://github.com/adeyosemanputra/pygoat.git fixtures/pygoat
+
+say "NodeGoat runtime (for --runtime / tests/test_runtime_live.py)"
+# NodeGoat's mongodb@2 driver cannot talk to Mongo 6+, so 4.4; published on loopback only.
+docker ps -a --format '{{.Names}}' | grep -qx orion-nodegoat-mongo || \
+  docker run -d --name orion-nodegoat-mongo --restart unless-stopped -p 127.0.0.1:27017:27017 mongo:4.4 >/dev/null
+docker start orion-nodegoat-mongo >/dev/null
+# Runtime deps only; --ignore-scripts also skips Cypress's large browser download.
+(cd fixtures/NodeGoat && npm install --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error)
+for _ in $(seq 1 30); do
+  docker exec orion-nodegoat-mongo mongo --quiet --eval 'db.runCommand({ping:1}).ok' 2>/dev/null | grep -q 1 && break
+  sleep 2
+done
+(cd fixtures/NodeGoat && node artifacts/db-reset.js >/dev/null && echo "NodeGoat demo data seeded")
 
 say "Ollama models (eval/run.py MODEL_TAGS; qwen3-coder is for the exploratory arms)"
 for tag in gemma3:12b gpt-oss:20b qwen3-coder:30b; do

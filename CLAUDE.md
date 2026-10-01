@@ -315,6 +315,9 @@ every line after the first CRLF; counting UTF-8 bytes shifts lines after any non
   (`~/orion`; Mongo = container `orion-nodegoat-mongo`, mongo:4.4 on 127.0.0.1:27017, restart
   unless-stopped). Windows reaches that Neo4j at `localhost:7688` ONLY while the distro is running
   (it idle-stops; keep a `wsl` shell open). Both checkouts have `fixtures/NodeGoat` @ c5cb68a (LF).
+  The WSL JDK (`~/jdk/current`, Temurin 21) is the system `java` via `update-alternatives`, so Joern
+  runs from ANY shell; before that, only shells that sourced `bench/env.sh` could, and a plain
+  `wsl -- bash -c ...` failed every graph build. Joern is not installed on Windows.
   scan_id hashes the ABSOLUTE path, so the Windows checkout's NodeGoat graph is built in WSL under
   the Windows scan id: `graph_build.build("fixtures/NodeGoat", stream=True, scan_id=<Windows
   scan_id_for(...)>)` + `embed.index`. Graph-building tests take the `needs_joern` fixture
