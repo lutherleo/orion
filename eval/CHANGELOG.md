@@ -19,3 +19,15 @@ the entries below are pre-registration changes.
   capabilities `completion, vision`, with **no tool support**, so the `orion-gemma4` and
   `plain-gemma4` arms cannot make Orion's MCP tool calls as registered. The Gemma tag needs to be
   re-chosen (a tool-capable tag) before `eval-prereg-v1`.
+
+## 2026-10-27 — Oracle and krish/main merged; Qwen exploratory arms removed
+
+- **Removed** `orion-qwen3coder` / `plain-qwen3coder` (`EXPLORATORY_ARMS`, `--exploratory`). The merge
+  takes Krish's reworked harness (five arms, no Ollama path), which supersedes the 09-17 six-arm design
+  and these exploratory arms with it. No run of either was ever scored.
+- **Kept** from Oracle: the `joern-parse --help` probe (v4 exits 1 on `--version`) in `eval/preflight.py`,
+  and `eval/wsl/`.
+- **Changed** `eval/normalize.py` reads a lead's `line_start` (the merged `contracts.Lead` field), falling
+  back to `line` for lm runs recorded before the merge. Scoring semantics are unchanged.
+- Krish's pre-tag changes since 2026-10-18 (path in `TASK_PROMPT`, any-fix-site L1 rule, one-to-one
+  matching, five arms) still need their own dated entries; to be written with Krish before the tag.

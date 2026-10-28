@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from typing import Callable, Literal
 
-Shape = Literal["A", "B", "C", "D"]
+Shape = Literal["A", "B", "C", "D", "LM"]  # "LM" = the in-process Orion-LM engine (orion/lm/engine.py)
 Confidence = Literal["LOW", "MEDIUM", "HIGH"]
 Decision = Literal["CONFIRM", "REJECT", "INCONCLUSIVE", "ERROR"]
 Severity = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
@@ -64,13 +64,17 @@ class Lead:
     # which fall back to lexical dedup.
     source_uid: str | None = None
     sink_uid: str | None = None
-    # Structured location + class, taken from the graph nodes the analyst queried (all optional; see
-    # clean_location). They drive fingerprint dedup, SARIF output and structured scoring.
+    # Structured location + class, taken from the graph nodes the analyst queried, or from the Orion-LM
+    # engine's final answer (all optional; see clean_location). They drive fingerprint dedup, SARIF
+    # output and structured scoring (the eval matcher: same file AND function-or-line).
     file: str | None = None        # repo-relative path
     line_start: int | None = None
     line_end: int | None = None
     function: str | None = None
     cwe: str | None = None         # "CWE-<n>"
+    # The flow's slice, set by the Orion-LM engine (shape "LM"): [{file, function, line, code, role}]
+    # with role source/step/sink. None on shapes A-D.
+    path: list[dict] | None = None
 
     def fingerprint(self) -> tuple[str, str, str] | None:
         """(file, cwe, function-or-line): the same bug however it is worded or whichever shape found

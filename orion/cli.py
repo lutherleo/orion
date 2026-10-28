@@ -7,10 +7,21 @@
     orion scan ./NodeGoat --quiet           # suppress per-event prints (still logs to file)
     orion scan --resume .orion/runs/<id>/<ts>   # finish an interrupted scan without re-discovering
     orion scan ./NodeGoat --fail-on confirm # exit 1 if any lead is CONFIRMed (CI gate)
+    orion scan ./NodeGoat --engine lm --model <path>   # in-process Orion-LM discovery, no claude
 
 Discovery and verification are two SEPARATE `claude -p` sessions (see the design doc) fanned out
 and joined here; this module owns only the wiring -- build -> index -> discover -> verify ->
 report -- and the run's progress log.
+
+`--engine lm` (default: `claude`) swaps discovery for the in-process Orion-LM engine
+(`orion/lm/engine.py`, MLX-LM; never `claude_cli`) and SKIPS the verifier: every lead is reported
+as INCONCLUSIVE "unverified (engine=lm)". The lm sink profile (`profiles.with_lm_sinks`) is applied
+at BUILD time so the graph carries the extra CandidateFlows (and gets its own scan_id). With
+`--scan-id`, the scan's OrionScan record must say it finished building with the profile the engine
+needs, or the scan is refused with the command that rebuilds it.
+
+    orion gc --keep 3 [--prefix P] [--dry-run] [--include-unrecorded]   # delete old scan partitions
+    orion reanalyze --scan-id <id> [--engine claude|lm]   # recompute CandidateFlows, no Joern
 
 graph_build / embed / discover / verify pull in the Neo4j driver, the local embedding model, and
 the `claude` CLI subprocess wrapper. Those are imported LAZILY inside `_run_scan`, not at module
@@ -63,9 +74,19 @@ _LEADS_FILE, _VERDICTS_LOG = "leads.json", "verdicts.jsonl"
 _FAIL_LEVELS = {"none": set(), "confirm": {"CONFIRM"}, "inconclusive": {"CONFIRM", "INCONCLUSIVE"}}
 
 
-def _save_leads(run_dir: str, scan_id: str, repo: str | None, leads: list) -> None:
-    payload = {"scan_id": scan_id, "repo": repo, "leads": [dataclasses.asdict(lead) for lead in leads]}
+def _save_leads(run_dir: str, scan_id: str, repo: str | None, leads: list, *,
+                engine: str = "claude", model: str | None = None) -> None:
+    """`engine` (and the lm `model` path) are recorded so `--resume` never finishes a run on a
+    different engine than the one that discovered its leads (one model per scan)."""
+    payload = {"scan_id": scan_id, "repo": repo, "engine": engine, "model": model,
+               "leads": [dataclasses.asdict(lead) for lead in leads]}
     Path(run_dir, _LEADS_FILE).write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+
+
+def _run_engine(run_dir: str) -> str:
+    """The engine a run dir's leads came from; runs recorded before engines were logged are claude."""
+    meta = json.loads(Path(run_dir, _LEADS_FILE).read_text(encoding="utf-8"))
+    return meta.get("engine") or "claude"
 
 
 def _append_verdict(run_dir: str, verdict) -> None:
@@ -109,6 +130,30 @@ def _exit_code(verdicts: list, fail_on: str) -> int:
     return 1 if any(v.decision in levels for v in verdicts) else 0
 
 
+def lm_verdicts(leads: list) -> list:
+    """The lm engine's leads as verdicts. There is no independent verifier on this engine (yet), so
+    every lead is reported INCONCLUSIVE "unverified (engine=lm)" -- never an invented CONFIRM.
+    `report._ORDER` ranks INCONCLUSIVE, so the report and --json work unchanged. Shared with the eval
+    harness's in-process orion-lm arm (eval/arms/lm.py), whose findings.json must match --json."""
+    from .contracts import Verdict
+    return [Verdict(lead, "INCONCLUSIVE", "unverified (engine=lm)") for lead in leads]
+
+
+def write_verdicts_json(path, verdicts: list) -> int:
+    """Write `verdicts` as the `--json` payload (a JSON list of dataclasses.asdict(Verdict)) and
+    return how many were written."""
+    payload = [dataclasses.asdict(v) for v in verdicts]
+    Path(path).write_text(json.dumps(payload, indent=2, default=str))
+    return len(payload)
+
+
+def _load_lm_model(path: str):
+    """Load the Orion-LM model wrapper for `path` (MLX-LM, llama-cpp fallback). A seam: tests replace
+    it, and the MLX import stays inside the lm branch -- `orion.lm.model`'s top level is stdlib-only."""
+    from .lm import model as lm_model
+    return lm_model.load(path)
+
+
 def _run_scan(args: argparse.Namespace) -> int:
     # Cheap arg validation BEFORE the heavy lazy imports below, so a typo'd path fails instantly
     # instead of after loading the embedding model / Neo4j driver.
@@ -123,6 +168,15 @@ def _run_scan(args: argparse.Namespace) -> int:
             print(f"orion scan: cannot resume {resume}: no readable {_LEADS_FILE} ({exc})",
                   file=sys.stderr)
             return 2
+        saved_engine, wanted = _run_engine(resume), getattr(args, "engine", "claude")
+        if saved_engine != wanted:
+            print(f"orion scan: {resume} is an --engine {saved_engine} run; it can only be resumed on "
+                  f"that engine (one model per scan)", file=sys.stderr)
+            return 2
+        if saved_engine == "lm":
+            print(f"orion scan: {resume} is an --engine lm run, which has no verify step to resume; "
+                  "its verdicts are in verdicts.jsonl", file=sys.stderr)
+            return 2
         args.scan_id = scan_id
         args.repo = args.repo or saved_repo
     if not args.scan_id and not args.repo:
@@ -134,14 +188,48 @@ def _run_scan(args: argparse.Namespace) -> int:
     if args.repo and not Path(args.repo).is_dir():
         print(f"orion scan: repo path not found or not a directory: {args.repo}", file=sys.stderr)
         return 2
+    lm_engine = getattr(args, "engine", "claude") == "lm"
+    # There is no default model path: `--engine lm` without `--model` is a usage error, not a crash
+    # deep inside the pipeline after the graph has been built.
+    if lm_engine and not args.lm_model:
+        print("orion scan: --engine lm needs --model <path to the Orion-LM model>", file=sys.stderr)
+        return 2
+    # The repo path is the engine's `read_code` sandbox. Without it the only fallback would be the
+    # CWD -- Orion's own checkout (CLAUDE.md, eval/, answer keys) -- which must never be what the
+    # model reads. So unlike the claude path, --scan-id alone is not enough here.
+    if lm_engine and not args.repo:
+        print("orion scan: --engine lm needs the repo path for read_code even with --scan-id", file=sys.stderr)
+        return 2
 
     # Deferred on purpose -- see module docstring.
     from . import config, discover, embed, graph_build, graphdb, report, verify
     from . import sarif as sarif_mod
     from .monitor import run_logger, tail
 
+    # The lm sink profile must be in the graph, so it is chosen BEFORE the build and handed to
+    # graph_build.build(profile=). select_profile ignores the language today (it only keys on
+    # package.json/express), so passing none here mirrors the discovery-profile pick below; build
+    # resolves the Joern frontend itself and would select the same base profile.
+    lm_profile = None
+    if lm_engine and args.repo:
+        from .graph import profiles
+        lm_profile = profiles.with_lm_sinks(profiles.select_profile(args.repo))
+
+    # --scan-id trusts only a scan whose OrionScan record says it finished building with the profile
+    # this engine needs; anything else (no record, a crashed build, the other profile) is refused here,
+    # before any discovery runs, with the command that rebuilds it.
+    if args.scan_id:
+        from .graph import scans
+        problem = scans.check_usable(args.scan_id, engine="lm" if lm_engine else "claude", repo=args.repo)
+        if problem:
+            print(f"orion scan: {problem}", file=sys.stderr)
+            return 2
+
     needs_build = not args.scan_id
-    scan_id = args.scan_id or graph_build.scan_id_for(args.repo)
+    # The lm profile changes the CandidateFlows, so its graph gets its own scan_id (scan_id_for adds
+    # the profile name); the claude path calls scan_id_for exactly as before.
+    scan_id_kwargs = {"profile": lm_profile} if lm_profile is not None else {}
+    scan_id = args.scan_id or graph_build.scan_id_for(args.repo, **scan_id_kwargs)
     run_dir = resume or _run_dir(scan_id)   # a resumed run keeps appending to its own dir
 
     # In --watch mode the foreground `tail` is the one rendering progress (reading the same
@@ -175,9 +263,14 @@ def _run_scan(args: argparse.Namespace) -> int:
         on_event(_event("build", "start", detail=f"building graph for {args.repo}"))
         # Overlap the semantic index with persist: build runs _index_semantic(batch) concurrently
         # with the persist write (item 4), so the two independent costs no longer serialize.
+        # The claude path passes no `profile` (build auto-selects, exactly as before); the lm path
+        # pins the extended-sink profile so pathfind emits the extra CandidateFlows.
+        build_kwargs = {"profile": lm_profile} if lm_profile is not None else {}
+        if lm_profile is not None:
+            on_event(_event("build", "start", detail=f"lm sink profile {lm_profile.name} applied to the build"))
         graph_build.build(args.repo, args.language, on_event,
                           stream=args.stream, queue_size=args.queue_size,
-                          on_batch=_index_semantic)
+                          on_batch=_index_semantic, **build_kwargs)
         on_event(_event("build", "done", detail="graph build complete"))
     else:
         on_event(_event("build", "done", detail=f"using existing scan_id {scan_id}"))
@@ -205,6 +298,8 @@ def _run_scan(args: argparse.Namespace) -> int:
     if args.repo:
         from .graph import profiles
         profile = profiles.select_profile(args.repo)
+    if lm_profile is not None:
+        profile = lm_profile   # the same object the graph was built with
 
     # Opt-in runtime enrichment (--runtime): EXECUTE the target and fold observed coverage back into
     # the graph before discovery reads it. Best-effort by contract -- a failure is an event, never an
@@ -220,20 +315,23 @@ def _run_scan(args: argparse.Namespace) -> int:
             on_event(_event("runtime", "warn",
                             detail="--runtime needs a repo checkout to execute; skipped on --scan-id"))
 
-    def _discover():
+    def _node_count() -> int:
         # Size the per-shape discovery timeout to the graph: a bigger graph is a bigger search space
         # and needs longer sweeps (see config.discover_timeout). Sizing is best-effort -- if the
         # count query fails we fall back to the reality-based floor, never abort the scan.
-        node_count = 0
         try:
             db = graphdb.GraphDB()
             try:
-                node_count = db.node_count(scan_id)
+                return db.node_count(scan_id)
             finally:
                 db.close()
         except Exception as exc:  # noqa: BLE001 -- best-effort sizing; the floor is a safe default
             on_event(_event("discover", "warn",
                             detail=f"graph node count unavailable, using base discovery timeout: {exc}"))
+            return 0
+
+    def _discover():
+        node_count = _node_count()
         d_timeout = config.discover_timeout(node_count)
         on_event(_event("discover", "start",
                         detail=f"discovery fleet starting ({node_count} nodes, per-shape timeout {d_timeout}s)"))
@@ -248,6 +346,8 @@ def _run_scan(args: argparse.Namespace) -> int:
         return leads
 
     def _pipeline():
+        if lm_engine:          # its own discover + (no) verify; an lm run is never resumed (see above)
+            return _pipeline_lm(_node_count())
         leads, done = (saved_leads, finished) if resume else (_discover(), {})
         todo = [lead for lead in leads if lead.index not in done]
         on_event(_event("verify", "start", detail=f"verifying {len(todo)} leads"
@@ -258,6 +358,30 @@ def _run_scan(args: argparse.Namespace) -> int:
         by_index = {**done, **{v.lead.index: v for v in fresh}}
         verdicts = [by_index[lead.index] for lead in leads if lead.index in by_index]
         on_event(_event("verify", "done", detail=f"{len(verdicts)} verdicts"))
+        return verdicts
+
+    def _pipeline_lm(node_count: int):
+        # The in-process Orion-LM engine: one local model, no `claude -p`, no verifier. The model is
+        # loaded HERE -- after the build -- so Joern and the model are never resident together
+        # (16 GB machine). MLX is imported lazily by _load_lm_model; `orion.lm.engine` itself is
+        # stdlib + graphdb only.
+        from .lm import engine as lm_engine_mod
+
+        on_event(_event("discover", "start",
+                        detail=f"Orion-LM discovery starting ({node_count} nodes, engine=lm, "
+                               f"loading model {args.lm_model})"))
+        model = _load_lm_model(args.lm_model)
+        # args.repo, never the "." fallback: it is the read_code sandbox (guarded in pre-flight).
+        leads = lm_engine_mod.discover_lm(scan_id, args.repo, on_event, profile=profile, model=model)
+        on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"))
+        _save_leads(run_dir, scan_id, args.repo, leads, engine="lm", model=args.lm_model)
+
+        # No independent verifier on this engine (yet): say so loudly and report every lead as
+        # INCONCLUSIVE rather than inventing a CONFIRM (lm_verdicts).
+        on_event(_event("verify", "done", detail="skipped (engine=lm)"))
+        verdicts = lm_verdicts(leads)
+        for v in verdicts:
+            _append_verdict(run_dir, v)
         return verdicts
 
     if args.watch:
@@ -299,8 +423,8 @@ def _run_scan(args: argparse.Namespace) -> int:
     Path(run_dir, "results.sarif").write_text(sarif, encoding="utf-8")
     print(f"\nreport, verdicts and SARIF saved under {run_dir}")
     if args.json:
-        Path(args.json).write_text(payload)
-        print(f"wrote {len(verdicts)} verdicts to {args.json}")
+        n = write_verdicts_json(args.json, verdicts)
+        print(f"wrote {n} verdicts to {args.json}")
     if getattr(args, "sarif", None):
         Path(args.sarif).write_text(sarif, encoding="utf-8")
         print(f"wrote SARIF to {args.sarif}")
@@ -308,7 +432,7 @@ def _run_scan(args: argparse.Namespace) -> int:
     return _exit_code(verdicts, getattr(args, "fail_on", "none"))
 
 
-def main(argv: list[str] | None = None) -> int:
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="orion")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
@@ -360,11 +484,28 @@ def main(argv: list[str] | None = None) -> int:
                       default="auto", help="how --runtime exercises the target (default: auto-detect)")
     scan.add_argument("--harness-file", dest="harness_file", metavar="PATH",
                       help="with --runtime: drive with this pinned script instead of the harness agent")
+    scan.add_argument("--engine", choices=["claude", "lm"], default="claude",
+                      help="discovery engine: `claude` (default; `claude -p` fleet + verifier) or `lm` "
+                           "(in-process Orion-LM model via --model; verifier skipped, leads reported "
+                           "INCONCLUSIVE)")
+    scan.add_argument("--model", dest="lm_model", metavar="PATH",
+                      help="path to the Orion-LM model (engine=lm)")
 
-    idx = sub.add_parser("index-exploits",
-                         help="build/refresh the global Metasploit exploit-reference corpus (one-time)")
-    idx.add_argument("--refresh", action="store_true",
-                     help="re-download the Metasploit metadata index before building")
+    re_ = sub.add_parser("reanalyze",
+                         help="recompute a scan's CandidateFlows from the graph in Neo4j (no Joern)")
+    re_.add_argument("--scan-id", dest="scan_id", required=True)
+    re_.add_argument("--engine", choices=["claude", "lm"], default=None,
+                     help="must match the profile the scan was built with (default: the recorded one)")
+
+    gc = sub.add_parser("gc", help="delete old scan partitions, keeping the N newest recorded scans")
+    gc.add_argument("--keep", type=int, required=True, metavar="N",
+                    help="recorded scans to keep (newest first); at least 1")
+    gc.add_argument("--prefix", default="", help="only consider scan_ids starting with this")
+    gc.add_argument("--dry-run", dest="dry_run", action="store_true",
+                    help="list what would be deleted, delete nothing")
+    gc.add_argument("--include-unrecorded", dest="include_unrecorded", action="store_true",
+                    help="also delete scans with no OrionScan record (built before records existed); "
+                         "refused until a --dry-run --include-unrecorded has listed them")
 
     tr = sub.add_parser("trace",
                         help="runtime stage on its own: drive the target and record what ran into an "
@@ -390,7 +531,15 @@ def main(argv: list[str] | None = None) -> int:
     tr.add_argument("--quiet", action="store_true", help="suppress per-event progress prints")
     tr.add_argument("--json", dest="json", metavar="OUT", help="also write the delta summary as JSON")
 
-    args = parser.parse_args(argv)
+    idx = sub.add_parser("index-exploits",
+                         help="build/refresh the global Metasploit exploit-reference corpus (one-time)")
+    idx.add_argument("--refresh", action="store_true",
+                     help="re-download the Metasploit metadata index before building")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _build_parser().parse_args(argv)
 
     if args.cmd == "scan":
         return _run_scan(args)
@@ -398,6 +547,10 @@ def main(argv: list[str] | None = None) -> int:
         return _run_index_exploits(args)
     if args.cmd == "trace":
         return _run_trace(args)
+    if args.cmd == "gc":
+        return _run_gc(args)
+    if args.cmd == "reanalyze":
+        return _run_reanalyze(args)
     return 0
 
 
@@ -475,6 +628,45 @@ def _run_trace(args: argparse.Namespace) -> int:
     if args.json:
         Path(args.json).write_text(json.dumps(summary, indent=2, default=str))
         print(f"\nwrote runtime summary to {args.json}")
+    return 0
+
+
+def _run_reanalyze(args: argparse.Namespace) -> int:
+    """`orion reanalyze`: rebuild one scan's CandidateFlows from Neo4j (see graph/reanalyze.py)."""
+    from .graph import reanalyze
+    try:
+        out = reanalyze.reanalyze(args.scan_id, args.engine)
+    except reanalyze.ReanalyzeRefused as exc:
+        print(f"orion reanalyze: {exc}", file=sys.stderr)
+        return 2
+    pf = out["pathfind"]
+    print(f"reanalyzed {out['scan_id']} (profile {out['profile']}): {out['removed']} CandidateFlows removed, "
+          f"{out['written']} written ({pf['sources']} sources, {pf['sinks']} sink hits)")
+    return 0
+
+
+def _run_gc(args: argparse.Namespace) -> int:
+    """`orion gc`: delete scan partitions beyond the --keep newest recorded ones (see scans.gc)."""
+    from .graph import scans
+    try:
+        out = scans.gc(keep=args.keep, prefix=args.prefix, dry_run=args.dry_run,
+                       include_unrecorded=args.include_unrecorded)
+    except scans.GcRefused as exc:
+        print(f"orion gc: {exc}", file=sys.stderr)
+        return 2
+    verb = "would delete" if args.dry_run else "deleted"
+    for sid in out["kept"]:
+        print(f"kept          {sid}")
+    for row in out["deleted"]:
+        removed = row.get("removed")
+        what = (", ".join(f"{k} {v}" for k, v in removed.items() if v) or "nothing") if removed else ""
+        print(f"{verb:<13} {row['scan_id']} ({row['status'] or 'unrecorded'}){': ' + what if what else ''}")
+    if out["unrecorded"] and not args.include_unrecorded:
+        print(f"{len(out['unrecorded'])} unrecorded scan(s) not touched; list them with "
+              "--dry-run --include-unrecorded")
+    elif args.include_unrecorded and args.dry_run:
+        print(f"{len(out['unrecorded'])} unrecorded scan(s) listed in {scans.UNRECORDED_PLAN}; "
+              "run again without --dry-run to delete them")
     return 0
 
 

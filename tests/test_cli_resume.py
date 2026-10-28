@@ -9,6 +9,7 @@ import json
 import pytest
 
 from orion import claude_cli, cli, discover, embed, graphdb
+from orion.graph import scans
 from orion.contracts import Lead
 
 LEADS = [Lead(index=i, shape="A", text=f"lead-{i} sqli in app/{i}.js", evidence="q", confidence="HIGH")
@@ -30,6 +31,7 @@ def run_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "_run_dir", lambda scan_id: str(d))
     monkeypatch.setattr(embed, "ensure_exploit_index", lambda: False)
     monkeypatch.setattr(graphdb, "GraphDB", _NoGraph)
+    monkeypatch.setattr(scans, "check_usable", lambda *a, **k: None)   # the --scan-id record gate
     return d
 
 
@@ -91,3 +93,31 @@ def test_fail_on_levels():
 def test_resume_without_leads_file_exits_2(tmp_path, capsys):
     assert cli.main(["scan", "--resume", str(tmp_path)]) == 2
     assert "cannot resume" in capsys.readouterr().err
+
+
+def test_resume_refuses_a_run_from_another_engine(run_dir, monkeypatch, capsys):
+    # One model per scan: an lm run dir is never finished by the claude verifier, and vice versa.
+    (run_dir / "leads.json").write_text(json.dumps(
+        {"scan_id": "sid", "repo": None, "engine": "lm", "model": "m", "leads": []}))
+    assert cli.main(["scan", "--resume", str(run_dir), "--quiet"]) == 2
+    assert "--engine lm run" in capsys.readouterr().err
+
+
+def test_lm_run_dir_records_its_engine_and_model(tmp_path, monkeypatch):
+    from orion.lm import engine as lm_engine
+    d = tmp_path / "run"
+    d.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(cli, "_run_dir", lambda scan_id: str(d))
+    monkeypatch.setattr(embed, "ensure_exploit_index", lambda: False)
+    monkeypatch.setattr(graphdb, "GraphDB", _NoGraph)
+    monkeypatch.setattr(scans, "check_usable", lambda *a, **k: None)
+    monkeypatch.setattr(cli, "_load_lm_model", lambda path: object())
+    lead = Lead(index=0, shape="LM", text="t", evidence="e", confidence="HIGH", file="a.js", line_start=1)
+    monkeypatch.setattr(lm_engine, "discover_lm", lambda *a, **k: [lead])
+    assert cli.main(["scan", str(repo), "--scan-id", "sid", "--engine", "lm", "--model", "m", "--quiet"]) == 0
+    meta = json.loads((d / "leads.json").read_text())
+    assert (meta["engine"], meta["model"], len(meta["leads"])) == ("lm", "m", 1)
+    logged = [json.loads(line) for line in (d / "verdicts.jsonl").read_text().splitlines()]
+    assert [v["decision"] for v in logged] == ["INCONCLUSIVE"]

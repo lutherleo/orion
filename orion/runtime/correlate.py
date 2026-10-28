@@ -21,6 +21,7 @@ from __future__ import annotations
 import bisect
 import os
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from ..graph.schema import synthesize_uid
@@ -138,6 +139,42 @@ class StaticIndex:
             alt = self.by_base.get(os.path.basename(rel))
             uids = self.calls.get((alt, line)) if alt is not None else None
         return uids or []
+
+
+class MethodResolver:
+    """Resolve a (file_path, line) to the full_name of the CpgMethod that contains it.
+
+    Krish's pre-unification resolver, kept verbatim because train/fixmap.py maps fix-diff lines to
+    methods with it: the frozen Stage 1/2 pair yields were computed this way, so they must stay
+    reproducible. The runtime's own correlation uses StaticIndex (exact definition line first, then
+    containing method, then a unique basename), which can answer differently on ties and basenames.
+
+    Built from the internal methods' declaration lines. A covered line L in file F resolves to the
+    method in F with the greatest declaration line <= L. Methods with no file_path or a non-int line
+    are simply absent from the index (they cannot anchor containment)."""
+
+    def __init__(self, methods: Iterable[tuple[str, str, int]]) -> None:
+        # methods: (full_name, file_path, line)
+        by_file: dict[str, list[tuple[int, str]]] = {}
+        for full_name, file_path, line in methods:
+            if not file_path or not isinstance(line, int):
+                continue
+            by_file.setdefault(file_path, []).append((line, full_name))
+        # Sort each file's methods by declaration line so bisect can find the closest preceding one.
+        # Ties (two methods declared on the same line, rare) resolve to the last-inserted after sort;
+        # deterministic given a stable input order.
+        self._by_file = {f: sorted(v, key=lambda t: t[0]) for f, v in by_file.items()}
+        self._lines = {f: [line for line, _ in v] for f, v in self._by_file.items()}
+
+    def resolve(self, file_path: str, line: int) -> str | None:
+        """The containing method's full_name, or None (line above the first method / unknown file)."""
+        rows = self._by_file.get(file_path)
+        if not rows:
+            return None
+        idx = bisect.bisect_right(self._lines[file_path], line) - 1
+        if idx < 0:
+            return None
+        return rows[idx][1]
 
 
 def index_from_rows(method_rows, call_rows) -> StaticIndex:
