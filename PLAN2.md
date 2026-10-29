@@ -104,7 +104,7 @@ Three make-or-break checks (in order):
   verify per lead, harness, trace) → totals, cost, and a per-arm JSON. For the **local arm**, Claude's
   usage may be wrong through a proxy — also scrape token counts from the proxy/vLLM `/metrics` and
   prefer those; record which source was used.
-- Pricing table (Claude API skill, cached 2026-06-24): opus-5 $5/$25, sonnet-5 $3/$15,
+- Pricing table (Anthropic's price list, cached 2026-06-24): opus-5 $5/$25, sonnet-5 $3/$15,
   haiku-4.5 $1/$5 per 1M in/out; cache write ~1.25×, cache read ~0.1×. Local = tokens only ($0 API),
   note compute/wall-clock separately.
 

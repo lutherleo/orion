@@ -16,7 +16,20 @@ dependencies = [
 # Semantic layer (Task E): local code embeddings + a vector store. Neo4j-native vector index is
 # the default backend; lancedb is the standalone fallback (both behind the semantic_search tool).
 semantic = ["sentence-transformers>=3.0", "lancedb>=0.13"]
+# Orion-LM in-process model (Task B4): MLX-LM for the 4-bit weights + prompt cache, Outlines for the
+# constrained action JSON. Versions = what `pip install mlx-lm outlines` resolved on the M4 on
+# 2026-10-18 (mlx 0.32.4 / outlines_core 0.2.14 came along). `huggingface_hub` is MLX-LM's dependency
+# and the only download path (a one-time setup step; inference never touches the network).
+# The llama-cpp fallback (`model.LlamaCppModel`) is NOT pinned here: it needs a from-source build
+# (`pip install llama-cpp-python`, 0.3.36 built fine on this machine) and only matters where MLX is absent.
+# Tree-sitter code index (Task H1, orion/lm/codeindex.py): versions = what `pip install tree-sitter
+# tree-sitter-{javascript,typescript,python,java}` resolved on 2026-10-18.
+lm = ["mlx-lm==0.32.2", "outlines==1.3.3", "tree-sitter==0.26.0", "tree-sitter-javascript==0.25.0",
+      "tree-sitter-typescript==0.23.2", "tree-sitter-python==0.25.0", "tree-sitter-java==0.23.5"]
 dev = ["pytest>=8"]
+# Open-weight study harness (eval/): psutil lets eval/resources.py record peak RSS (without it the
+# number is recorded as missing, never guessed).
+eval = ["psutil>=5"]
 
 [project.scripts]
 orion = "orion.cli:main"
@@ -26,17 +39,23 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["orion", "orion.graph", "orion.runtime"]
+packages = ["orion", "orion.graph", "orion.lm", "orion.runtime", "orion.ui"]
 
 [tool.setuptools.package-data]
+# Krish's Orion-LM system prompt ships with the package (format.system_message reads it).
+"orion.lm" = ["system_prompt.txt", "schema_card.txt"]
 # The Node bootstrap the runtime stage runs a JS harness under -- not a .py, so declare it.
 "orion.runtime" = ["_boot_js.js"]
+"orion.ui" = ["static/*"]   # the page `orion ui` serves (plain HTML/JS/CSS, no build step)
 
 [tool.pytest.ini_options]
 # Scope bare `pytest` to Orion's own suite so it never recurses into the gitignored `fixtures/` scan
 # targets (a Django authentik checkout, etc.) whose own `tests/` package would shadow this one and
 # break collection. An explicit path arg (e.g. `pytest fixtures/...`) bypasses this, as intended.
 testpaths = ["tests"]
+# Repo root on sys.path so `from tests.<module> import ...` resolves when one test file is run on its
+# own (it otherwise fails to collect: a site-packages `tests` namespace shadows ours).
+pythonpath = ["."]
 markers = [
     "slow: costs no Claude tokens but does real local compute (e.g. embedding-model download/inference); run explicitly.",
 ]

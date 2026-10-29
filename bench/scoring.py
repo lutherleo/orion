@@ -34,13 +34,15 @@ def _matches(gt, text_blob: str, file_blob: str, class_keywords: dict[str, tuple
     return True
 
 
-def match(findings: Sequence[tuple[str, str]], ground_truth: Iterable,
+def match(findings: Sequence[tuple], ground_truth: Iterable,
           class_keywords: dict[str, tuple[str, ...]]) -> tuple[dict[str, list[int]], list[int]]:
-    """Given `findings` as (text, evidence) pairs, return (found: {gt_id -> [indices]}, unmatched:
-    [indices matching no gt]). Pure."""
+    """Given `findings` as (text, evidence) pairs -- or (text, evidence, file) triples when the arm
+    reports a structured location -- return (found: {gt_id -> [indices]}, unmatched: [indices
+    matching no gt]). A structured file only joins the FILE side of the rule; the class token still
+    has to come from the claim, so a 2-tuple scores exactly as before. Pure."""
     ground_truth = list(ground_truth)
-    text_blobs = [_text_blob(t) for t, _ in findings]
-    file_blobs = [_file_blob(t, e) for t, e in findings]
+    text_blobs = [_text_blob(f[0]) for f in findings]
+    file_blobs = [_file_blob(f[0], " ".join(p for p in f[1:] if p)) for f in findings]
     found: dict[str, list[int]] = {}
     matched_any: set[int] = set()
     for gt in ground_truth:
@@ -53,7 +55,7 @@ def match(findings: Sequence[tuple[str, str]], ground_truth: Iterable,
     return found, unmatched
 
 
-def score(findings: Sequence[tuple[str, str]], ground_truth: Iterable,
+def score(findings: Sequence[tuple], ground_truth: Iterable,
           class_keywords: dict[str, tuple[str, ...]]) -> dict:
     """Full scored result for one arm×benchmark: recall, missed ids, false-positive candidates."""
     ground_truth = list(ground_truth)

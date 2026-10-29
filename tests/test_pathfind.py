@@ -56,7 +56,7 @@ def test_emits_expected_candidate_flows():
     summary = pathfind.pathfind(b, profiles.EXPRESS)
     flows = _flows(b)
 
-    assert summary == {"sources": 2, "sinks": 3, "flows": 3}
+    assert summary == {"sources": 2, "sinks": 3, "flows": 3, "sink_rules": pathfind.SINK_RULES}
     assert len(flows) == 3
 
     by_sink = {f["sink_uid"]: f for f in flows}

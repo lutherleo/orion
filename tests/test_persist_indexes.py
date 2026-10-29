@@ -1,17 +1,30 @@
+import pytest
 from neo4j import GraphDatabase
 
 from orion import config
 from orion.graph import persist, schema
 
 
+@pytest.fixture(autouse=True)
+def _neo4j_or_skip():
+    drv = GraphDatabase.driver(config.NEO4J_URI, auth=config.NEO4J_AUTH)
+    try:
+        drv.verify_connectivity()
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip(f"Neo4j not reachable: {exc}")
+    finally:
+        drv.close()
+
+
 def _index_names(session) -> set:
     return {r["name"] for r in session.run("SHOW INDEXES YIELD name RETURN name")}
 
 
-def test_persist_ensures_node_key_indexes():
+def test_persist_ensures_node_key_indexes(live_neo4j_writes):
     """persist() must idempotently provision a RANGE index for every NODE_KEY label, so the per-label
     MERGE (and edge-endpoint MATCH) is index-backed rather than a quadratic label scan on large repos.
-    Hermetic: drop the indexes, persist a minimal batch, assert persist re-created all of them."""
+    Hermetic: drop the indexes, persist a minimal batch, assert persist re-created all of them.
+    Live: DROPS indexes on the shared database, so it needs Neo4j up AND ORION_LIVE_NEO4J=1 (tests/conftest.py)."""
     drv = GraphDatabase.driver(config.NEO4J_URI, auth=config.NEO4J_AUTH)
     try:
         # Start from a known-missing state so the test proves persist CREATES them (not that they linger).

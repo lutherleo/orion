@@ -15,13 +15,10 @@ from pathlib import Path
 from .trace import RuntimeTrace, TraceAccumulator, from_wire
 
 TRACE_SUBDIR = "py-trace"
-
-
-def _orion_parent() -> str:
-    """The directory containing the `orion` package, so `-m orion.runtime._boot_py` resolves in a
-    child whose cwd is the target (an editable install's finder may not expose it otherwise)."""
-    import orion
-    return os.path.dirname(os.path.dirname(os.path.abspath(orion.__file__)))
+# The bootstrap is run by FILE path: it imports only the standard library, so the child needs no
+# Orion install (a bare container image works) and never imports the orion package -- or neo4j --
+# just to start tracing.
+BOOT_PY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_boot_py.py")
 
 
 class PyTracer:
@@ -40,10 +37,8 @@ class PyTracer:
         out_dir = Path(work) / TRACE_SUBDIR
         out_dir.mkdir(parents=True, exist_ok=True)
         out = out_dir / f"{uuid.uuid4().hex}.json"
-        pythonpath = os.pathsep.join(filter(None, [_orion_parent(), os.environ.get("PYTHONPATH")]))
-        return ([self._python, "-m", "orion.runtime._boot_py",
-                 os.path.abspath(script), os.path.abspath(repo), str(out)],
-                {"PYTHONPATH": pythonpath})
+        return ([self._python, BOOT_PY, os.path.abspath(script), os.path.abspath(repo), str(out)],
+                {"PYTHONDONTWRITEBYTECODE": "1"})
 
     def reset(self, work: Path) -> None:
         d = Path(work) / TRACE_SUBDIR

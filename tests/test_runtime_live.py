@@ -51,7 +51,7 @@ def _ensure_nodegoat_mongo() -> None:
 
 
 @pytest.mark.slow
-def test_nodegoat_http_enrich():
+def test_nodegoat_http_enrich(needs_joern):
     """Boot NodeGoat, log in with the seeded creds, drive it, and assert the enrichment landed:
     at least one executed CpgCall AND (novel edge OR previously-unreachable code proven executed).
 

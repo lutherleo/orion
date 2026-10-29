@@ -27,7 +27,23 @@ def test_extract_usage_reads_the_result_event():
 def test_extract_usage_defensive_on_missing_fields():
     assert claude_cli.extract_usage(None) is None
     u = claude_cli.extract_usage({"type": "result"})     # no usage block
-    assert u["input_tokens"] == 0 and u["total_cost_usd"] is None
+    # missing is None, not 0 (2026-10-29): a call with no usage is not a call that spent nothing
+    assert u["input_tokens"] is None and u["total_cost_usd"] is None
+
+
+def test_extract_usage_keeps_the_cache_write_breakdown():
+    u = claude_cli.extract_usage(_result_event(
+        input_tokens=1, output_tokens=1, cache_creation_input_tokens=30, cache_read_input_tokens=0,
+        cache_creation={"ephemeral_5m_input_tokens": 10, "ephemeral_1h_input_tokens": 20}))
+    assert (u["cache_creation_5m_input_tokens"], u["cache_creation_1h_input_tokens"]) == (10, 20)
+
+
+def test_ledger_counts_missing_usage_instead_of_zero_tokens():
+    led = TokenLedger()
+    led.record({"phase": "verify", "shape": None, "event": "usage", "detail": json.dumps(
+        claude_cli.extract_usage({"type": "result"}))})
+    t = led.summary()["total"]
+    assert t["calls"] == 1 and t["n_missing_usage"] == 1 and t["total_tokens"] is None
 
 
 def test_emit_usage_fires_one_usage_event():
@@ -55,9 +71,28 @@ def test_price_known_models():
 
 
 def test_price_cache_multipliers():
-    # cache write = 1.25x input rate, cache read = 0.1x input rate (opus-5 input $5/1M)
-    assert price_usd("claude-opus-5", 0, 0, cache_creation_input_tokens=1_000_000) == 5.0 * 1.25
+    # cache write: 1.25x input for the 5-minute cache, 2x for the 1-hour one; read 0.1x (opus-5 $5/1M)
+    assert price_usd("claude-opus-5", 0, 0, cache_creation_input_tokens=1_000_000,
+                     cache_creation_5m_input_tokens=1_000_000) == 5.0 * 1.25
+    assert price_usd("claude-opus-5", 0, 0, cache_creation_input_tokens=1_000_000,
+                     cache_creation_1h_input_tokens=1_000_000) == 5.0 * 2.0
     assert round(price_usd("claude-opus-5", 0, 0, cache_read_input_tokens=1_000_000), 6) == 0.5
+    # without the breakdown (or with one that does not add up) the price is missing, not assumed
+    assert price_usd("claude-opus-5", 0, 0, cache_creation_input_tokens=1_000_000) is None
+    assert price_usd("claude-opus-5", 0, 0, cache_creation_input_tokens=10,
+                     cache_creation_5m_input_tokens=3, cache_creation_1h_input_tokens=3) is None
+
+
+def test_committed_opus_baseline_cost_is_the_1h_cache_rate():
+    """bench/research/*/C.json: re-pricing its tokens with 1-hour cache writes reproduces the CLI's own
+    total_cost_usd within $0.001 -- the reported $0.61 / $0.84 (flat 1.25x) were ~17% low."""
+    from pathlib import Path
+    for repo in ("nodegoat", "pygoat"):
+        t = json.loads(Path(f"bench/research/{repo}/C.json").read_text())["tokens"]["total"]
+        cw = t["cache_creation_input_tokens"]
+        p = price_usd("claude-opus-5", t["input_tokens"], t["output_tokens"], cw, t["cache_read_input_tokens"],
+                      cache_creation_1h_input_tokens=cw)
+        assert abs(p - t["cli_cost_usd"]) < 0.001, (repo, p, t["cli_cost_usd"])
 
 
 def test_local_model_prices_at_zero():

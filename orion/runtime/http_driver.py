@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from .base import Input, Response, RunningTarget
+from .base import Input, Response, RunningTarget, target_env
 
 _VERBS = ("get", "post", "put", "delete", "patch")
 _ROUTE_CYPHER = (
@@ -67,20 +67,26 @@ class HttpDriver:
         self._opener = None
 
     def start(self, repo: str, work: Path, build_flags: list[str]) -> RunningTarget:
-        env = {**os.environ, **self._tracer.launch_env(work)}
+        env = target_env(self._tracer.launch_env(work))     # no model credentials for the target
         # Own process group (POSIX) / group (Windows) so stop() reaches the `node` child of
         # `npm start` -- signalling only npm would leave node running, never flushing coverage.
         kw = ({"start_new_session": True} if os.name == "posix"
               else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP})
         proc = subprocess.Popen(self._boot_cmd, cwd=repo, env=env,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kw)
-        self._opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
-        if not self._wait_ready(proc):
-            self.stop(RunningTarget(kind="http", repo=repo, work=work, handle=proc))
-            raise RuntimeError(f"target did not answer at {self._base_url} within {self._boot_wait:.0f}s")
-        if self._login:
-            self._do_login()
+        booting = RunningTarget(kind="http", repo=repo, work=work, handle=proc)
+        try:
+            self._opener = urllib.request.build_opener(
+                urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+            if not self._wait_ready(proc):
+                raise RuntimeError(f"target did not answer at {self._base_url} within {self._boot_wait:.0f}s")
+            if self._login:
+                self._do_login()
+        except BaseException:
+            # Not started yet as far as the caller knows, so nobody else would stop it: a Ctrl-C (or the UI's
+            # Stop) during the boot wait must not leave the repo's own server running on the host.
+            self.stop(booting)
+            raise
         return RunningTarget(kind="http", repo=repo, work=work, base_url=self._base_url, handle=proc)
 
     def _wait_ready(self, proc) -> bool:

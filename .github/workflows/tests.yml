@@ -1,0 +1,46 @@
+# Token-free test suite. Never calls `claude` (no tokens) and never needs Joern: those paths are
+# marked `slow` or skip themselves when their prerequisite is absent.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]" numpy
+      - run: pytest -m "not slow" -q
+      - run: pytest eval/tests -q
+
+  # The same suite against a real Neo4j, so the graph-backed tests (server-enforced read-only,
+  # persist indexes, runtime writeback) run instead of skipping.
+  neo4j:
+    runs-on: ubuntu-latest
+    services:
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: neo4j/orion_dev_changeme
+          NEO4J_dbms_security_allow__csv__import__from__file__urls: "false"
+        ports:
+          - 7688:7687
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p orion_dev_changeme 'RETURN 1'"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    env:
+      NEO4J_URI: bolt://localhost:7688
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]" numpy
+      - run: pytest -m "not slow" -q

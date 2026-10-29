@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from dataclasses import replace
 from datetime import datetime, timezone
 
 from . import claude_cli, config, strategies
-from .contracts import Lead, OnEvent, ProgressEvent
+from .dedup import dedup
+from .contracts import Lead, OnEvent, ProgressEvent, clean_location
 
 SHAPES: tuple[str, ...] = ("A", "B", "C", "D")
 
@@ -62,44 +62,51 @@ def _to_leads(final_json: dict, shape: str) -> list[Lead]:
             item_shape = shape
         source_uid = item.get("source_uid") or None
         sink_uid = item.get("sink_uid") or None
+        loc = clean_location(item)
+        loc.pop("severity", None)           # a verdict field; leads carry confidence instead
         leads.append(Lead(index=i, shape=item_shape, text=text, evidence=evidence,
-                          confidence=confidence, source_uid=source_uid, sink_uid=sink_uid))
+                          confidence=confidence, source_uid=source_uid, sink_uid=sink_uid, **loc))
     return leads
 
 
-def _dedup(leads: list[Lead]) -> list[Lead]:
-    """Collapse duplicate leads, keeping the first occurrence and reassigning sequential indices.
+# Lead dedup lives in orion/dedup.py (shared with the Orion-LM engine); the name stays for callers.
+_dedup = dedup
 
-    STRUCTURAL first: a lead anchored on a :CandidateFlow carries `source_uid`+`sink_uid`; two leads
-    with the same (source_uid, sink_uid) are the SAME flow no matter how differently they are worded,
-    so they collapse on that endpoint pair alone -- this is what the lexical key silently missed
-    (agents describing one flow in different words double-counted). We key on the exact endpoint pair
-    rather than clustering on partial (source-only / sink-only) overlap on purpose: two genuinely
-    distinct bugs that merely share a source must NOT be merged in a precision-first tool.
 
-    LEXICAL fallback: leads with no structural anchor (shapes B/C/D, or a shape-A lead the model
-    didn't tag) keep the original `(shape, text[:80])` key. The two keyspaces are disjoint, so a
-    structural and a lexical lead never collide."""
-    seen_struct: set[tuple[str, str]] = set()
-    seen_lex: set[tuple[str, str]] = set()
-    kept: list[Lead] = []
-    for lead in leads:
-        if lead.source_uid and lead.sink_uid:
-            key = (lead.source_uid, lead.sink_uid)
-            if key in seen_struct:
-                continue
-            seen_struct.add(key)
-        else:
-            key = (lead.shape, lead.text[:80])
-            if key in seen_lex:
-                continue
-            seen_lex.add(key)
-        kept.append(lead)
-    return [replace(lead, index=i) for i, lead in enumerate(kept)]
+def _fetch_shortlist(scan_id: str, shape: str, limit: int) -> tuple[list[dict], int]:
+    """The top `limit` :CandidateFinding rows for one shape, best first, plus how many exist. A read
+    through GraphDB.run_cypher (read-only, timed out); raises if the graph is unreachable."""
+    from . import graphdb
+    db = graphdb.GraphDB()
+    try:
+        res = db.run_cypher(scan_id, (
+            "MATCH (c:CandidateFinding {scan_id:$scan_id, shape:'%s'}) "
+            "RETURN c.rank AS rank, c.kind AS kind, c.file_path AS file_path, c.line AS line, "
+            "c.cwe AS cwe, c.detail AS detail, c.code AS code ORDER BY c.rank" % shape), limit=limit)
+    finally:
+        db.close()
+    if "error" in res:
+        raise RuntimeError(res["error"])
+    return res["rows"], res["row_count"]
+
+
+def _shortlist_block(scan_id: str, shape: str, on_event: OnEvent) -> str | None:
+    """The inlined shortlist for a B/C/D shape, or None when it can't be fetched (the shape then runs
+    with the hint but no rows -- it can still query :CandidateFinding itself)."""
+    try:
+        rows, total = _fetch_shortlist(scan_id, shape, config.SHORTLIST_INLINE)
+    except Exception as exc:  # noqa: BLE001 -- an aid; the sweep still runs without it
+        on_event(_event(phase="discover", shape=shape, event="warn",
+                        detail=f"shortlist unavailable, sweeping without it: {exc}"))
+        return None
+    on_event(_event(phase="discover", shape=shape, event="tool",
+                    detail=f"shortlist: inlined {len(rows)} of {total} candidates"))
+    return strategies.shortlist_message(shape, rows, total)
 
 
 async def _run_shape(scan_id: str, shape: str, on_event: OnEvent, profile=None,
-                     timeout: int | None = None, dynamic_hint: bool = False) -> list[Lead]:
+                     timeout: int | None = None, dynamic_hint: bool = False,
+                     shortlists: bool = False) -> list[Lead]:
     on_event(_event(phase="discover", shape=shape, event="start", detail=f"shape {shape} sweep starting"))
 
     def shape_on_event(ev: dict) -> None:
@@ -108,12 +115,18 @@ async def _run_shape(scan_id: str, shape: str, on_event: OnEvent, profile=None,
             event=ev.get("event", "tool"), detail=ev.get("detail", ""),
         ))
 
-    system = strategies.system_for(shape, scan_id, profile=profile, dynamic_hint=dynamic_hint)
+    use_shortlist = shortlists and shape in strategies.SHORTLIST_SHAPES
+    extra = {"shortlist_hint": True} if use_shortlist else {}      # off: the exact baseline call
+    system = strategies.system_for(shape, scan_id, profile=profile, dynamic_hint=dynamic_hint, **extra)
     message = (
         f'scan_id = "{scan_id}". Begin your Shape {shape} sweep now. Every '
         f'mcp__orion__run_cypher call must pass scan_id="{scan_id}" and filter the query by '
         f"scan_id:$scan_id."
     )
+    if use_shortlist:
+        block = await asyncio.to_thread(_shortlist_block, scan_id, shape, on_event)
+        if block:
+            message += block
     session_id = str(uuid.uuid4())
 
     try:
@@ -140,15 +153,22 @@ async def _run_shape(scan_id: str, shape: str, on_event: OnEvent, profile=None,
 
 
 async def _discover_async(scan_id: str, on_event: OnEvent, profile=None,
-                          timeout: int | None = None, dynamic_hint: bool = False) -> list[Lead]:
-    results = await asyncio.gather(
-        *(_run_shape(scan_id, shape, on_event, profile, timeout, dynamic_hint) for shape in SHAPES))
+                          timeout: int | None = None, dynamic_hint: bool = False,
+                          shortlists: bool = False) -> list[Lead]:
+    try:
+        results = await asyncio.gather(
+            *(_run_shape(scan_id, shape, on_event, profile, timeout, dynamic_hint, shortlists)
+              for shape in SHAPES))
+    except asyncio.CancelledError:
+        # Ctrl-C / the UI's Stop: no shape's claude -p (killed by the same SIGINT) is retried.
+        claude_cli.interrupt()
+        raise
     all_leads = [lead for shape_leads in results for lead in shape_leads]
     return _dedup(all_leads)
 
 
 def discover(scan_id: str, on_event: OnEvent, profile=None, timeout: int | None = None,
-             dynamic_hint: bool = False) -> list[Lead]:
+             dynamic_hint: bool = False, shortlists: bool | None = None) -> list[Lead]:
     """Fan out the 4 discovery shapes CONCURRENTLY (each a blocking `run_agent` subprocess call
     run in a thread), dedup, and return `list[Lead]`.
 
@@ -165,5 +185,11 @@ def discover(scan_id: str, on_event: OnEvent, profile=None, timeout: int | None 
 
     `dynamic_hint` (default False) appends the runtime-facts block to every shape prompt so the fleet
     uses what the runtime stage (`--runtime` / `orion trace`) wrote. Off keeps the prompt
-    byte-identical to the eval baseline."""
-    return asyncio.run(_discover_async(scan_id, on_event, profile, timeout, dynamic_hint))
+    byte-identical to the eval baseline.
+
+    `shortlists` (None = config.SHORTLISTS, default off) gives shapes B/C/D the precomputed-shortlist
+    block and inlines each one's top :CandidateFinding rows into its first message. Off, every prompt
+    and message is byte-identical to the baseline. Shape A is unchanged either way."""
+    if shortlists is None:
+        shortlists = config.SHORTLISTS
+    return asyncio.run(_discover_async(scan_id, on_event, profile, timeout, dynamic_hint, shortlists))

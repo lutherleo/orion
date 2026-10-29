@@ -1,7 +1,8 @@
 """In-subprocess bootstrap: run a harness driver under a tracer, dump the trace wire JSON.
 
 Runs INSIDE the sandboxed child (never in Orion's own process) as
-``python -m orion.runtime._boot_py <driver> <root> <out_json>``. It executes the driver as
+``python <path>/_boot_py.py <driver> <root> <out_json>`` -- by file path and standard library only,
+so it runs in a bare container image with no Orion (or neo4j) installed. It executes the driver as
 ``__main__`` and -- in a ``finally``, so a raising driver never loses the partial trace -- writes
 ``trace.to_wire``-shaped JSON with REPO-RELATIVE paths.
 
@@ -167,6 +168,11 @@ def _install_settrace(rec: _Recorder):
 def main(argv: list[str]) -> int:
     driver, root, out_path = argv[1], argv[2], argv[3]
     rec = _Recorder(root)
+    # Run by FILE path, so sys.path[0] is this file's own directory (orion/runtime). Drop it: a target
+    # module named `report`, `trace` or `engine` must import the TARGET's file, not Orion's. The
+    # target root takes its place.
+    here = os.path.dirname(os.path.abspath(__file__))
+    sys.path[:] = [p for p in sys.path if os.path.abspath(p or ".") != here]
     sys.path.insert(0, os.path.abspath(root))
     # ORION_PY_TRACER=settrace forces the fallback engine (tests pin both engines agree).
     forced = os.environ.get("ORION_PY_TRACER") == "settrace"

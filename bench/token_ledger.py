@@ -17,8 +17,10 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-# Per-1M-token USD rates (Claude API skill, cached 2026-06-24). input/output; cache write ~1.25x input,
-# cache read ~0.1x input. Aliases map to the id the CLI resolves them to, so a usage.model of either
+# Per-1M-token USD rates (Anthropic's price list, cached 2026-06-24). input/output; cache read 0.1x input;
+# cache WRITE 1.25x input for the 5-minute cache and 2x for the 1-hour one, which is what `claude -p`
+# writes (2026-10-29: the old flat 1.25x put C.json at $0.61 / $0.84 where the CLI's own cost is
+# $0.73 / $1.01; at 2x the tokens reproduce the CLI's figure within $0.001). Aliases map to the id the CLI resolves them to, so a usage.model of either
 # "haiku" or "claude-haiku-4-5" prices identically. A local/proxied model matches nothing here -> $0.
 PRICES: dict[str, tuple[float, float]] = {
     "claude-opus-5": (5.0, 25.0),
@@ -28,7 +30,8 @@ PRICES: dict[str, tuple[float, float]] = {
 }
 _ALIASES = {"opus": "claude-opus-5", "sonnet": "claude-sonnet-5", "haiku": "claude-haiku-4-5",
             "fable": "claude-fable-5"}
-_CACHE_WRITE_MULT = 1.25
+_CACHE_WRITE_5M_MULT = 1.25
+_CACHE_WRITE_1H_MULT = 2.0
 _CACHE_READ_MULT = 0.10
 
 
@@ -51,16 +54,28 @@ def _resolve_price(model: str) -> tuple[float, float] | None:
 
 
 def price_usd(model: str, input_tokens: int, output_tokens: int,
-              cache_creation_input_tokens: int = 0, cache_read_input_tokens: int = 0) -> float:
-    """Token-priced USD for one call. Cache-write billed 1.25x input rate, cache-read 0.1x. A local/
-    unknown model returns 0.0 (no API price). Pure."""
+              cache_creation_input_tokens: int = 0, cache_read_input_tokens: int = 0, *,
+              cache_creation_5m_input_tokens: int | None = None,
+              cache_creation_1h_input_tokens: int | None = None) -> float | None:
+    """Token-priced USD for one call, or None when it cannot be priced without guessing: cache writes
+    need the 5-minute / 1-hour breakdown (1.25x / 2x the input rate), and without it -- or when the
+    breakdown does not add up to the total -- the price is missing, not assumed. Cache reads 0.1x. A
+    local/unknown model returns 0.0 (no API price). Pure."""
     rates = _resolve_price(model)
     if rates is None:
         return 0.0
     in_rate, out_rate = rates
+    writes = 0.0
+    if cache_creation_input_tokens:
+        w5, w1 = cache_creation_5m_input_tokens, cache_creation_1h_input_tokens
+        if w5 is None and w1 is None:
+            return None
+        if (w5 or 0) + (w1 or 0) != cache_creation_input_tokens:
+            return None
+        writes = (w5 or 0) * _CACHE_WRITE_5M_MULT + (w1 or 0) * _CACHE_WRITE_1H_MULT
     dollars = (
         input_tokens * in_rate
-        + cache_creation_input_tokens * in_rate * _CACHE_WRITE_MULT
+        + writes * in_rate
         + cache_read_input_tokens * in_rate * _CACHE_READ_MULT
         + output_tokens * out_rate
     ) / 1_000_000.0
@@ -75,32 +90,50 @@ class Bucket:
     cache_creation_input_tokens: int = 0
     cache_read_input_tokens: int = 0
     cli_cost_usd: float = 0.0
-    priced_cost_usd: float = 0.0
+    priced_cost_usd: float | None = 0.0
+    n_missing_usage: int = 0      # calls whose event carried no token counts at all (not zeros)
+    n_unpriced: int = 0           # calls priced_cost_usd could not price without guessing
 
     def add(self, u: dict) -> None:
         self.calls += 1
+        keys = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+        cost = u.get("total_cost_usd")
+        if isinstance(cost, (int, float)):
+            self.cli_cost_usd += float(cost)
+        if all(u.get(k) is None for k in keys):
+            self.n_missing_usage += 1           # missing, never counted as a call that spent 0 tokens
+            return
         self.input_tokens += int(u.get("input_tokens") or 0)
         self.output_tokens += int(u.get("output_tokens") or 0)
         self.cache_creation_input_tokens += int(u.get("cache_creation_input_tokens") or 0)
         self.cache_read_input_tokens += int(u.get("cache_read_input_tokens") or 0)
-        cost = u.get("total_cost_usd")
-        if isinstance(cost, (int, float)):
-            self.cli_cost_usd += float(cost)
-        self.priced_cost_usd += price_usd(
+        price = price_usd(
             u.get("model", ""), int(u.get("input_tokens") or 0), int(u.get("output_tokens") or 0),
-            int(u.get("cache_creation_input_tokens") or 0), int(u.get("cache_read_input_tokens") or 0))
+            int(u.get("cache_creation_input_tokens") or 0), int(u.get("cache_read_input_tokens") or 0),
+            cache_creation_5m_input_tokens=u.get("cache_creation_5m_input_tokens"),
+            cache_creation_1h_input_tokens=u.get("cache_creation_1h_input_tokens"))
+        if price is None:
+            self.n_unpriced += 1
+            self.priced_cost_usd = None       # one unpriceable call makes the total unknown
+        elif self.priced_cost_usd is not None:
+            self.priced_cost_usd += price
 
     def as_dict(self) -> dict:
+        measured = self.calls - self.n_missing_usage
+        total = (self.input_tokens + self.output_tokens + self.cache_creation_input_tokens
+                 + self.cache_read_input_tokens)
         return {
             "calls": self.calls,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "cache_creation_input_tokens": self.cache_creation_input_tokens,
             "cache_read_input_tokens": self.cache_read_input_tokens,
-            "total_tokens": self.input_tokens + self.output_tokens
-            + self.cache_creation_input_tokens + self.cache_read_input_tokens,
+            # None, not 0, when calls were made but none reported usage (B.json's "0 tokens")
+            "total_tokens": total if measured or not self.calls else None,
             "cli_cost_usd": round(self.cli_cost_usd, 6),
-            "priced_cost_usd": round(self.priced_cost_usd, 6),
+            "priced_cost_usd": None if self.priced_cost_usd is None else round(self.priced_cost_usd, 6),
+            "n_missing_usage": self.n_missing_usage,
+            "n_unpriced": self.n_unpriced,
         }
 
 

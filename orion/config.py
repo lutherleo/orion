@@ -34,6 +34,13 @@ JOERN_HEAP_GB = _env("ORION_JOERN_HEAP_GB", "").strip()   # "" -> derive from RA
 PERSIST_CHUNK_SIZE = int(_env("ORION_PERSIST_CHUNK_SIZE", "5000"))   # rows per write transaction
 PERSIST_CONCURRENCY = int(_env("ORION_PERSIST_CONCURRENCY", "4"))    # concurrent write sessions
 
+
+def persist_strict() -> bool:
+    """True when ORION_PERSIST_STRICT is set (and not "0"/"false"): persist then RAISES if Neo4j's
+    write counters disagree with the batch, instead of only reporting it. Read at call time, not
+    import time, so the test suite (tests/conftest.py) and a single test can switch it."""
+    return os.environ.get("ORION_PERSIST_STRICT", "").strip().lower() not in ("", "0", "false", "no")
+
 # --- Headless `claude -p` settings for discovery and verification ---
 MODEL = _env("ORION_MODEL", "sonnet")
 EFFORT = _env("ORION_EFFORT", "high")
@@ -74,6 +81,27 @@ DISCOVER_TIMEOUT_CAP = int(_env("ORION_DISCOVER_TIMEOUT_CAP", "1200"))   # secon
 # the call at 300s first, and the apex recovery run that CONFIRMed the RCE used 600s.
 VERIFY_TIMEOUT = int(_env("ORION_VERIFY_TIMEOUT", "600"))                # seconds per lead
 
+# Adaptive verification (opt-in, default OFF until bench/prove.py measures it). With routing on,
+# verify.route() sends clear-cut, single-location leads (ReDoS, hard-coded secrets, vulnerable deps,
+# misconfiguration) to a LIGHT pass -- the same model and fp-check on a smaller budget -- and a light
+# INCONCLUSIVE/ERROR escalates to the full pass, so the cheap path can only settle easy leads.
+VERIFY_ROUTING = _env("ORION_VERIFY_ROUTING", "0").strip().lower() in ("1", "true", "yes", "on")
+VERIFY_LIGHT_MAX_TURNS = int(_env("ORION_VERIFY_LIGHT_MAX_TURNS", "8"))
+VERIFY_LIGHT_TIMEOUT = int(_env("ORION_VERIFY_LIGHT_TIMEOUT", "240"))
+VERIFY_LIGHT_EFFORT = _env("ORION_VERIFY_LIGHT_EFFORT", "medium")
+
+# Code context for the verifier (opt-in, default OFF until measured; merge Phase 4): the lead's
+# enclosing function plus up to two callers/callees, cut from the repo by Orion-LM's tree-sitter code
+# index (the `lm` extra), go into the verifier's first message. Off keeps the message byte-identical.
+VERIFY_CONTEXT = _env("ORION_VERIFY_CONTEXT", "0").strip().lower() in ("1", "true", "yes", "on")
+
+# Precomputed shortlists for shapes B/C/D (opt-in, default OFF until measured). The build always
+# writes :CandidateFinding nodes; with this on, discovery inlines each shape's top rows into its first
+# message, so the agent judges a list instead of spending turns searching. Off keeps the prompts
+# byte-identical to the eval baseline.
+SHORTLISTS = _env("ORION_SHORTLISTS", "0").strip().lower() in ("1", "true", "yes", "on")
+SHORTLIST_INLINE = int(_env("ORION_SHORTLIST_INLINE", "25"))           # rows inlined per shape
+
 
 def discover_timeout(node_count: int | None) -> int:
     """Reality-based per-shape discovery timeout that scales with graph size.
@@ -89,8 +117,27 @@ def discover_timeout(node_count: int | None) -> int:
     return max(DISCOVER_TIMEOUT, min(scaled, DISCOVER_TIMEOUT_CAP))
 
 # --- MCP tool server the agents call (real tool-calling, not the old text protocol) ---
-MCP_CONFIG = _env("ORION_MCP_CONFIG", ".mcp/orion.json")
+# "" (the default) = claude_cli passes an INLINE server config launched with THIS interpreter
+# (sys.executable), so agents start on any OS/venv layout. Set a path to use a config file instead.
+MCP_CONFIG = _env("ORION_MCP_CONFIG", "")
+# Server-side timeout (seconds) on every agent graph query, so a runaway pattern (a cartesian
+# product, an unbounded variable-length path) cannot pin Neo4j or stall a discovery turn.
+CYPHER_TIMEOUT = float(_env("ORION_CYPHER_TIMEOUT", "30"))
 
 # --- Semantic index: "neo4j" (native vector index) or "lancedb" (standalone fallback) ---
 SEMANTIC_BACKEND = _env("ORION_SEMANTIC_BACKEND", "neo4j")
 EMBED_MODEL = _env("ORION_EMBED_MODEL", "jinaai/jina-embeddings-v2-base-code")
+# How `semantic_search` ranks (default "vector", unchanged until measured): "hybrid" fuses the vector
+# ranking with a BM25 keyword ranking over the same chunks (Reciprocal Rank Fusion), so an exact
+# identifier like `eval` or `$where` is found even when its meaning is not; "keyword" is BM25 alone.
+SEMANTIC_MODES = ("vector", "hybrid", "keyword")
+SEMANTIC_MODE = _env("ORION_SEMANTIC_MODE", "vector").strip().lower()
+
+
+def set_semantic_mode(mode: str) -> None:
+    """Set the search mode for this process AND the MCP server it launches (which reads the env)."""
+    global SEMANTIC_MODE
+    if mode not in SEMANTIC_MODES:
+        raise ValueError(f"unknown semantic mode {mode!r} (expected one of {SEMANTIC_MODES})")
+    SEMANTIC_MODE = mode
+    os.environ["ORION_SEMANTIC_MODE"] = mode

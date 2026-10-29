@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- Orion local UI (orion ui). The server's CSP allows no inline script or style, so this file is only the
+     page frame: all behaviour is in /static/app.js and all looks are in /static/app.css. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<title>Orion</title>
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#/"><span class="brand-mark" aria-hidden="true"></span>Orion</a>
+    <nav class="nav" aria-label="Main">
+      <a href="#/" data-nav="runs">Runs</a>
+      <a href="#/new" data-nav="new">New scan</a>
+      <a href="#/settings" data-nav="settings">Settings</a>
+    </nav>
+    <div class="topbar-side">
+      <a id="job-pill" class="pill pill-job" href="#/job" hidden></a>
+      <span id="conn-pill" class="pill pill-offline" hidden>Not connected</span>
+      <a id="access-summary" class="pill" href="#/settings" hidden></a>
+    </div>
+  </div>
+</header>
+<main id="main" class="wrap" tabindex="-1">
+  <div id="status" class="status" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="view">
+    <noscript><p>This page needs JavaScript.</p></noscript>
+  </div>
+</main>
+</body>
+</html>

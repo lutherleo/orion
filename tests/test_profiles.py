@@ -6,11 +6,15 @@ as before); anything else falls back to GENERIC (structural, framework-free) rat
 from __future__ import annotations
 
 import json
+from pathlib import Path
+
+import pytest
 
 from orion.graph import profiles
 from orion.graph.profiles import EXPRESS, GENERIC, select_profile
 
 
+@pytest.mark.skipif(not Path("fixtures/NodeGoat").exists(), reason="NodeGoat fixture not present")
 def test_express_repo_selects_express():
     assert select_profile("fixtures/NodeGoat") is EXPRESS
 

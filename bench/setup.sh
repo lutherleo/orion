@@ -17,14 +17,24 @@ cd "$REPO_ROOT"
 JDK_VER="21.0.5+11"        # Temurin build; any 17+ works. Pinned for reproducibility.
 JOERN_VER="v4.0.590"       # matches what this rig was validated against
 say() { printf '\n\033[1m== %s ==\033[0m\n' "$*"; }
+# Under WSL the Windows PATH (/mnt/c/...) is appended: a Windows docker/claude must not count as the
+# Linux install. Only a Linux-side binary does.
+have() { local p; p="$(command -v "$1" 2>/dev/null)" && [[ "$p" != /mnt/* ]]; }
 
 # ---------------------------------------------------------------- OS packages
-say "apt packages"
-sudo apt-get update -y
-sudo apt-get install -y curl unzip tar xz-utils git ca-certificates python3 python3-venv jq
+APT_PKGS="curl unzip tar xz-utils git ca-certificates python3 python3-venv jq"
+# shellcheck disable=SC2086
+if dpkg -s $APT_PKGS >/dev/null 2>&1; then
+  say "apt packages (already installed)"
+else
+  say "apt packages"
+  sudo apt-get update -y
+  # shellcheck disable=SC2086
+  sudo apt-get install -y $APT_PKGS
+fi
 
 # ---------------------------------------------------------------- Docker (for Neo4j)
-if ! command -v docker >/dev/null 2>&1; then
+if ! have docker; then
   say "Docker (for Neo4j)"
   curl -fsSL https://get.docker.com | sudo sh
   sudo usermod -aG docker "$USER" || true
@@ -60,7 +70,7 @@ export JOERN_HOME="$HOME/joern/joern-cli"
 "$JOERN_HOME/joern-parse" --version >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------- uv + venv + Orion install
-if ! command -v uv >/dev/null 2>&1; then
+if ! have uv; then
   say "uv"
   curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
@@ -80,7 +90,7 @@ print("torch", torch.__version__, "| CUDA available:", torch.cuda.is_available()
 PY
 
 # ---------------------------------------------------------------- Claude Code CLI
-if ! command -v claude >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/claude" ]; then
+if ! have claude && [ ! -x "$HOME/.local/bin/claude" ]; then
   say "Claude Code CLI"
   curl -fsSL https://claude.ai/install.sh | bash
 fi
@@ -89,7 +99,7 @@ fi
 # ---------------------------------------------------------------- Neo4j (docker-compose)
 say "Neo4j (docker compose up -d)"
 DC="docker compose"; docker compose version >/dev/null 2>&1 || DC="docker-compose"
-sudo $DC up -d 2>/dev/null || $DC up -d
+$DC up -d 2>/dev/null || sudo $DC up -d     # docker-group users need no sudo (and no password)
 echo -n "waiting for Neo4j on 7688 "
 for _ in $(seq 1 60); do
   (exec 3<>/dev/tcp/127.0.0.1/7688) 2>/dev/null && { exec 3>&- 3<&-; echo "up"; break; }

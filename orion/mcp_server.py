@@ -2,8 +2,10 @@
 semantic index. Four read-only tools (`exploit_search` is verifier-only, gated by the allowlist in
 claude_cli.py, not here).
 
-`run_cypher` delegates straight to GraphDB (write-keyword guard and scan_id binding live there,
-not here). `semantic_search` imports `orion.embed` lazily and tolerates it being unimplemented
+`run_cypher` delegates to GraphDB (read transaction, timeout and scan_id binding live there) after
+`cypher_guard.claude_problem` refuses what a read transaction still runs or what escapes the scan --
+LOAD CSV, SHOW / TERMINATE / USE, procedures outside the read-only allowlist, unscoped MATCHes.
+`semantic_search` imports `orion.embed` lazily and tolerates it being unimplemented
 or empty — Task E builds that module in parallel, and this server must not crash on startup or
 on a call just because the semantic index isn't ready yet. `get_schema` reflects Orion's own
 frozen CPG vocabulary (schema.py), so unlike the other two it is not scan_id-scoped.
@@ -15,6 +17,8 @@ from __future__ import annotations
 
 from fastmcp import FastMCP
 
+from . import config
+from .cypher_guard import claude_problem
 from .graphdb import GraphDB
 
 mcp = FastMCP("orion")
@@ -32,7 +36,11 @@ def _get_db() -> GraphDB:
 
 
 def run_cypher_impl(query: str, scan_id: str) -> dict:
-    """Delegates to GraphDB().run_cypher. Returns {"row_count","rows"} or {"error"}."""
+    """Refuses what `cypher_guard.claude_problem` names before Neo4j sees the query, else delegates
+    to GraphDB().run_cypher (read-only, server-enforced). Returns {"row_count","rows"} or {"error"}."""
+    problem = claude_problem(query, scan_id)
+    if problem:
+        return {"error": problem}
     return _get_db().run_cypher(scan_id, query)
 
 
@@ -74,7 +82,8 @@ def exploit_search_impl(query: str, k: int = 5) -> list[dict]:
 
 @mcp.tool()
 def run_cypher(query: str, scan_id: str) -> dict:
-    """Run a read-only Cypher query scoped to one scan_id. Write keywords are blocked."""
+    """Run a read-only Cypher query scoped to one scan_id. Write keywords, LOAD CSV, SHOW /
+    TERMINATE / USE and procedures other than db.schema.* / db.labels / index queries are blocked."""
     return run_cypher_impl(query, scan_id)
 
 
@@ -85,7 +94,22 @@ def exploit_search(query: str, k: int = 5) -> list[dict]:
     return exploit_search_impl(query, k)
 
 
-@mcp.tool()
+_SEMANTIC_DESCRIPTIONS = {
+    # "vector" is the docstring the tool always had, so the default tool list is unchanged.
+    "vector": "Nearest code chunks to `query` in the given scan, by meaning (not structure).",
+    "hybrid": "Code chunks in the given scan that match `query` by meaning OR by exact words: a vector "
+              "ranking and a keyword (BM25) ranking fused, so an exact identifier like `eval` or `$where` "
+              "is found too. Each result says which ranking matched it (`matched`).",
+    "keyword": "Code chunks in the given scan that contain the words of `query` (keyword/BM25 ranking; "
+               "exact identifiers like `eval` or `$where` match).",
+}
+
+
+def semantic_search_description(mode: str | None = None) -> str:
+    return _SEMANTIC_DESCRIPTIONS.get(mode or config.SEMANTIC_MODE, _SEMANTIC_DESCRIPTIONS["vector"])
+
+
+@mcp.tool(description=semantic_search_description())
 def semantic_search(query: str, scan_id: str, k: int = 5) -> list[dict]:
     """Nearest code chunks to `query` in the given scan, by meaning (not structure)."""
     return semantic_search_impl(query, scan_id, k)

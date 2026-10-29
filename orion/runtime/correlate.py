@@ -21,6 +21,7 @@ from __future__ import annotations
 import bisect
 import os
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from ..graph.schema import synthesize_uid
@@ -47,22 +48,25 @@ def relativize(path: str, root: str) -> str | None:
     return None if rel == ".." or rel.startswith(".." + os.sep) else norm(rel)
 
 
-# ─────────────────────────── byte offset -> line (V8) ───────────────────────────
+# ─────────────────────────── source offset -> line (V8) ───────────────────────────
 
 def build_line_starts(source: str) -> list[int]:
-    """Byte offsets at which each line begins (`starts[i]` = offset of line i+1). V8 keys ranges by
-    UTF-8 byte offset, so offsets are over the ENCODED bytes -- a multi-byte char must not shift it."""
-    data = source.encode("utf-8")
+    """Offsets at which each line begins (`starts[i]` = offset of line i+1), in the unit V8 coverage
+    uses: UTF-16 code units of the RAW script text, i.e. a JavaScript string index. Verified: after
+    "// café 😀 naïve" + newline the next line starts at 17 -- not 21 UTF-8 bytes, not 16 code points.
+    `source` must be the file exactly as Node read it: a CRLF translated to LF would shift every line
+    after it (see v8_tracer._fs_reader)."""
     starts = [0]
-    i = data.find(b"\n")
-    while i != -1:
-        starts.append(i + 1)
-        i = data.find(b"\n", i + 1)
+    unit = 0
+    for ch in source:
+        unit += 2 if ord(ch) > 0xFFFF else 1      # astral characters are a surrogate pair in UTF-16
+        if ch == "\n":
+            starts.append(unit)
     return starts
 
 
 def offset_to_line(line_starts: list[int], offset: int) -> int:
-    """1-based line containing byte `offset` (the count of line starts <= offset)."""
+    """1-based line containing `offset` (the count of line starts <= offset)."""
     if offset < 0:
         return 1
     return max(1, bisect.bisect_right(line_starts, offset))
@@ -135,6 +139,42 @@ class StaticIndex:
             alt = self.by_base.get(os.path.basename(rel))
             uids = self.calls.get((alt, line)) if alt is not None else None
         return uids or []
+
+
+class MethodResolver:
+    """Resolve a (file_path, line) to the full_name of the CpgMethod that contains it.
+
+    Krish's pre-unification resolver, kept verbatim because train/fixmap.py maps fix-diff lines to
+    methods with it: the frozen Stage 1/2 pair yields were computed this way, so they must stay
+    reproducible. The runtime's own correlation uses StaticIndex (exact definition line first, then
+    containing method, then a unique basename), which can answer differently on ties and basenames.
+
+    Built from the internal methods' declaration lines. A covered line L in file F resolves to the
+    method in F with the greatest declaration line <= L. Methods with no file_path or a non-int line
+    are simply absent from the index (they cannot anchor containment)."""
+
+    def __init__(self, methods: Iterable[tuple[str, str, int]]) -> None:
+        # methods: (full_name, file_path, line)
+        by_file: dict[str, list[tuple[int, str]]] = {}
+        for full_name, file_path, line in methods:
+            if not file_path or not isinstance(line, int):
+                continue
+            by_file.setdefault(file_path, []).append((line, full_name))
+        # Sort each file's methods by declaration line so bisect can find the closest preceding one.
+        # Ties (two methods declared on the same line, rare) resolve to the last-inserted after sort;
+        # deterministic given a stable input order.
+        self._by_file = {f: sorted(v, key=lambda t: t[0]) for f, v in by_file.items()}
+        self._lines = {f: [line for line, _ in v] for f, v in self._by_file.items()}
+
+    def resolve(self, file_path: str, line: int) -> str | None:
+        """The containing method's full_name, or None (line above the first method / unknown file)."""
+        rows = self._by_file.get(file_path)
+        if not rows:
+            return None
+        idx = bisect.bisect_right(self._lines[file_path], line) - 1
+        if idx < 0:
+            return None
+        return rows[idx][1]
 
 
 def index_from_rows(method_rows, call_rows) -> StaticIndex:

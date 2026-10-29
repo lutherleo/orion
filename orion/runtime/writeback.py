@@ -30,9 +30,14 @@ RUNTIME_RELS = ("OBSERVED_CALL", "OBSERVED_DISPATCH")
 # NODE_KEY node, never a full-partition scan.
 CLEAR_EDGES = "MATCH ()-[r:OBSERVED_CALL|OBSERVED_DISPATCH {scan_id:$scan_id}]->() DELETE r"
 CLEAR_NODES = "MATCH (n:ObservedMethod {scan_id:$scan_id}) DETACH DELETE n"
+# The only labels SET_CALLS / SET_METHODS stamp. Each clear is per label (a label-less {scan_id} match
+# is an AllNodesScan over every scan) and batched: `apply_plan` reruns it until it REMOVEs nothing.
+RUNTIME_LABELS = ("CpgMethod", "CpgCall")
 CLEAR_PROPS = tuple(
-    f"MATCH (n:{label} {{scan_id:$scan_id}}) WHERE n.executed IS NOT NULL REMOVE n.executed, n.hit_count"
-    for label in ("CpgMethod", "CpgCall"))
+    f"MATCH (n:{label} {{scan_id:$scan_id}}) WHERE n.executed IS NOT NULL "
+    "WITH n LIMIT $batch REMOVE n.executed, n.hit_count RETURN count(n) AS n"
+    for label in RUNTIME_LABELS)
+_CLEAR_BATCH = 10000
 
 SET_CALLS = ("UNWIND $rows AS row MATCH (c:CpgCall {scan_id:row.sid, uid:row.k}) "
              "SET c.executed = true, c.hit_count = row.n")
@@ -81,8 +86,12 @@ def apply_plan(scan_id: str, plan: WritePlan) -> dict:
     try:
         with driver.session(database=config.NEO4J_DATABASE) as s:
             persist._ensure_indexes(s, RUNTIME_NODE_KEY)
-            for q in (CLEAR_EDGES, CLEAR_NODES, *CLEAR_PROPS):
+            for q in (CLEAR_EDGES, CLEAR_NODES):
                 s.execute_write(lambda tx, q=q: tx.run(q, scan_id=scan_id).consume())
+            for q in CLEAR_PROPS:
+                while s.execute_write(lambda tx, q=q: tx.run(q, scan_id=scan_id,
+                                                             batch=_CLEAR_BATCH).single()["n"]):
+                    pass
         persist._run_jobs(driver, _prop_jobs(scan_id, plan), conc)
         persist._run_jobs(driver, persist._node_jobs(batch.nodes, RUNTIME_NODE_KEY), conc)
         persist._run_jobs(driver, persist._edge_jobs(batch.edges), conc)

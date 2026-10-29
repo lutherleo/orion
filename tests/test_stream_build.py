@@ -1,6 +1,5 @@
 import json
 import random
-import resource
 from collections import Counter, defaultdict
 from itertools import islice
 from pathlib import Path
@@ -178,6 +177,40 @@ def test_stream_flows_parity(tmp_path):
     assert env["entry_methods"] == legacy["entry_methods"]
 
 
+# PyGoat fixture pin (2026-10-18). The historical "1075 on PyGoat" (CLAUDE.md) was measured on a PyGoat
+# commit nobody recorded, so it could not be reproduced. The fixture is now pinned to PYGOAT_COMMIT of
+# https://github.com/adeyosemanputra/pygoat (cloned to fixtures/PyGoat; `cpg.bin` via
+# `joern-parse --language pythonsrc`). On that commit the pre-hardening code (eval/orion-lm @ d20173a)
+# measured 1075 FLOWS_TO by all four paths (collapse_flows oracle, summaries, legacy envelope, stream
+# envelope) -- the same number, but THIS is the baseline of record because its commit is known.
+PYGOAT = "fixtures/pygoat"
+PYGOAT_COMMIT = "19d17cc8874861142b330636d068bbde54e86b85"
+PYGOAT_FLOWS_TO = 1075
+
+
+def pygoat_cpg_or_skip() -> str:
+    """The pinned PyGoat cpg.bin, or skip if absent. A checkout at another commit FAILS: the
+    PYGOAT_FLOWS_TO baseline only holds for PYGOAT_COMMIT."""
+    import subprocess
+    cpg = f"{PYGOAT}/cpg.bin"
+    if not Path(cpg).exists():
+        pytest.skip("PyGoat cpg.bin not present")
+    head = subprocess.run(["git", "-C", PYGOAT, "rev-parse", "HEAD"],
+                          capture_output=True, text=True).stdout.strip()
+    assert head == PYGOAT_COMMIT, f"{PYGOAT} is at {head!r}; the baseline is pinned to {PYGOAT_COMMIT}"
+    return cpg
+
+
+@pytest.mark.slow
+def test_stream_flows_parity_pygoat(tmp_path):
+    cpg = pygoat_cpg_or_skip()
+    prof = profiles.select_profile(PYGOAT)
+    env = S.build_envelope(cpg, tmp_path, prof)
+    assert sum(e["label"] == "FLOWS_TO" for e in env["edges"]) == PYGOAT_FLOWS_TO
+    legacy = J.project_graphson(_export(cpg), profile=prof)
+    assert sum(e["label"] == "FLOWS_TO" for e in legacy["edges"]) == PYGOAT_FLOWS_TO
+
+
 # ─────────────────────────── Task 8: envelope + two-partition persist parity (delta D.3) ───────────────────────────
 def _nodeset(env):
     return {(n["label"], n["id"], frozenset(n["props"].items())) for n in env["nodes"]}
@@ -208,7 +241,7 @@ def test_stream_envelope_parity_nodegoat(tmp_path):
 
 
 @pytest.mark.slow
-def test_stream_two_partition_persist_parity():
+def test_stream_two_partition_persist_parity(needs_joern, live_neo4j_writes):   # writes two scans to the shared Neo4j
     cpg = "fixtures/NodeGoat/cpg.bin"
     if not Path(cpg).exists():
         pytest.skip("NodeGoat cpg.bin not present")
@@ -293,7 +326,7 @@ def test_stream_order_independence(tmp_path):
 
 # ─────────────────────────── Task 10: sharpemu scale smoke (peak-RSS bound + honest breakdown) ───────────────────────────
 @pytest.mark.slow
-def test_sharpemu_fits_memory(tmp_path):
+def test_sharpemu_fits_memory(tmp_path, needs_joern):
     repo = "fixtures/sharpemu"
     if not Path(repo).exists():
         pytest.skip("sharpemu not cloned")
@@ -301,6 +334,7 @@ def test_sharpemu_fits_memory(tmp_path):
     stats_path = tmp_path / "mem.json"
     graph_build.build(repo, "csharpsrc", None, stream=True, queue_size=64,
                       mem_stats_path=str(stats_path))
+    resource = pytest.importorskip("resource")   # POSIX-only
     peak_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024)  # bytes on macOS
     assert peak_mb < 6000, f"stream build peaked at {peak_mb:.0f} MB"
     br = json.loads(stats_path.read_text())

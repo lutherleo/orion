@@ -1,0 +1,739 @@
+{
+ "benchmark": "pygoat",
+ "fixture": "fixtures/pygoat",
+ "commit": "19d17cc8874861142b330636d068bbde54e86b85",
+ "ground_truth": "tests/ground_truth_pygoat.py",
+ "status": "proposed",
+ "signed_by": [],
+ "drafted": "2026-10-29: fix sites read from the fixture source (the vulnerable statements; each function is the innermost enclosing def). Includes instances in introduction/mitre.py and dockerized_labs/, which the ground-truth docstring does not name (see each key's notes). Every quote checked by eval.devbench.check_keys. Needs a labeler's sign-off before any score from it is quoted as more than draft dev evidence.",
+ "keys": [
+  {
+   "id": "SQLI",
+   "name": "SQL Injection via objects.raw()",
+   "cwe": "CWE-89",
+   "cwes": [
+    "CWE-89"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 158,
+     "end_line": 162,
+     "function": "sql_lab",
+     "quote": "sql_query = \"SELECT * FROM introduction_login WHERE user='\"+name+\"' AND password='\"+password+\"'\"",
+     "why": "POST 'name' and 'pass' are concatenated into a SQL string that login.objects.raw(sql_query) executes on line 162."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 864,
+     "end_line": 878,
+     "function": "injection_sql_lab",
+     "quote": "sql_query = \"SELECT * FROM introduction_sql_lab_table WHERE id='\"+name+\"'AND password='\"+password+\"'\"",
+     "why": "POST 'name' and 'pass' are concatenated into a SQL string that sql_lab_table.objects.raw(sql_query) executes on line 878."
+    }
+   ],
+   "notes": "Both SQLi labs are listed: 2017 sql_lab (routes sql_lab, sql_lab1) and 2021 injection_sql_lab (route injection_sql_lab). In sql_lab the raw query is only reached when login.objects.filter(user=name) finds the name (line 156), so 'name' must equal an existing user and the injectable input is effectively 'pass'. injection_sql_lab 864-878 also spans the seeding saves at 866-873 (kept so the site stays one statement range of 15 lines). No parameterised/secure variant of either lab exists in the repo. No +/-10 window overlaps another key."
+  },
+  {
+   "id": "CMDI",
+   "name": "OS Command Injection (subprocess shell=True)",
+   "cwe": "CWE-78",
+   "cwes": [
+    "CWE-78",
+    "CWE-77"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 424,
+     "end_line": 434,
+     "function": "cmd_lab",
+     "quote": "command=\"nslookup {}\".format(domain)",
+     "why": "POST 'domain' (only a leading protocol/www prefix is stripped at line 420) is formatted into a command string that subprocess.Popen(command, shell=True) runs at 430-434."
+    },
+    {
+     "file": "introduction/mitre.py",
+     "line": 241,
+     "end_line": 242,
+     "function": "mitre_lab_17_api",
+     "quote": "command = \"nmap \" + ip",
+     "why": "POST 'ip' is appended to 'nmap ' and handed to command_out, which runs it through a shell."
+    },
+    {
+     "file": "introduction/mitre.py",
+     "line": 233,
+     "end_line": 233,
+     "function": "command_out",
+     "quote": "process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)",
+     "why": "Runs the caller-built command string with shell=True."
+    }
+   ],
+   "notes": "mitre_lab_17_api (route mitre/17/lab/api, PyGoat's MITRE CWE-77 lab) has no authentication_decorator and is csrf_exempt. PyGoat's cmd_lab2 ('Command Injection Lab 2' in urls.py) is a Python eval(), not an OS command, so it is listed under CODEEXEC. Excluded: challenge/views.py DoItFast.post/delete (Popen(command.split(' ')) with no shell; the values come from Challenge/UserChallenge DB rows, not the request); introduction/lab_code/test.py lines 2-16 (inside a string literal, not executed code); uninstaller.py (argument lists, no request input). Window overlap: mitre.py command_out [223,243] overlaps CODEEXEC's mitre_lab_25_api site [208,228] on lines 223-228 (mitre_lab_25, a render-only view)."
+  },
+  {
+   "id": "XSS",
+   "name": "Cross-Site Scripting (reflected/stored)",
+   "cwe": "CWE-79",
+   "cwes": [
+    "CWE-79",
+    "CWE-80"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 95,
+     "end_line": 101,
+     "function": "xss_lab",
+     "quote": "q=request.GET.get('q','')",
+     "why": "GET 'q' is passed unmodified as 'query' to xss_lab.html, which prints it with |safe."
+    },
+    {
+     "file": "introduction/templates/Lab/XSS/xss_lab.html",
+     "line": 27,
+     "end_line": 27,
+     "function": null,
+     "quote": "<h3> The company '{{query|safe}}' You searched for is not Part of FAANG</h3>",
+     "why": "The |safe filter disables autoescaping of the reflected search term."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 109,
+     "end_line": 118,
+     "function": "xss_lab2",
+     "quote": "username = request.POST.get('username', '')",
+     "why": "Only the literal strings '<script>' and '</script>' are removed (line 112) before the value is rendered with |safe."
+    },
+    {
+     "file": "introduction/templates/Lab/XSS/xss_lab_2.html",
+     "line": 20,
+     "end_line": 20,
+     "function": null,
+     "quote": "<p>Hello, {{ username|safe }}</p>",
+     "why": "The |safe filter renders the blacklist-filtered username as raw HTML."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 125,
+     "end_line": 131,
+     "function": "xss_lab3",
+     "quote": "username = request.POST.get('username', '')",
+     "why": "Only [a-zA-Z0-9] are stripped (line 129) and the rest is rendered inside a <script> block, so non-alphanumeric JavaScript survives."
+    },
+    {
+     "file": "introduction/templates/Lab/XSS/xss_lab_3.html",
+     "line": 22,
+     "end_line": 22,
+     "function": null,
+     "quote": "{{code}}",
+     "why": "User-derived 'code' is inserted into a JavaScript context, where HTML autoescaping does not neutralise it."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 1223,
+     "end_line": 1224,
+     "function": "software_and_data_integrity_failure_lab2",
+     "quote": "username = request.GET[\"username\"]",
+     "why": "GET 'username' is passed unmodified to lab2.html, which prints it with |safe."
+    },
+    {
+     "file": "introduction/templates/Lab_2021/A8_software_and_data_integrity_failure/lab2.html",
+     "line": 11,
+     "end_line": 11,
+     "function": null,
+     "quote": "<h1>Hey {{username | safe}},</h1>",
+     "why": "The |safe filter renders the reflected username as raw HTML."
+    }
+   ],
+   "notes": "Each lab has a view site (where a finding names the function) and a template site (the |safe or script-context sink a fix changes). xss_lab: reflected via GET (routes xssL, xssL1). xss_lab2/xss_lab3 are POST forms protected by Django's CSRF middleware (not csrf_exempt), i.e. self-XSS on their own; kept because they are PyGoat's designated XSS labs. software_and_data_integrity_failure_lab2 (route 2021/A8/lab2) sits in PyGoat's A8 section but is a reflected XSS by design (desc.html line 46 links a <script> payload) -- judgement call to list it here. Excluded: templates/Lab/ssrf/ssrf_lab2.html:23 '{{response | safe}}' (renders the page fetched by the SSRF lab, reached only via a CSRF-protected POST; reviewer may add it); templates/Lab/XSS/xss.html:132 (lab description text inside <code>); challenge/templates/challenge.html:21 csrf_token|safe and the dockerized sensitive_data_exposure login.html form widgets |safe (server-generated values). GROUND_TRUTH's file substring 'xss' matches the template paths, not views.py."
+  },
+  {
+   "id": "SSRF",
+   "name": "Server-Side Request Forgery (requests.get on user URL)",
+   "cwe": "CWE-918",
+   "cwes": [
+    "CWE-918"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 961,
+     "end_line": 963,
+     "function": "ssrf_lab2",
+     "quote": "url = request.POST[\"url\"]",
+     "why": "POST 'url' is fetched server-side with requests.get(url) with no scheme/host restriction and the body is returned to the user."
+    }
+   ],
+   "notes": "The only server-side request on a user URL (route ssrf_lab2, wrapped by authentication_decorator). Excluded: ssrf_lab (views.py 918-933, PyGoat's SSRF lab 1) opens os.path.join(dirname, POST['blog']) and returns the file -- a path traversal / local file read (CWE-22/CWE-73), not a server-side request; no GROUND_TRUTH item covers CWE-22, so a correct finding there will score as unmatched. ssrf_target (942-953) trusts X-Forwarded-For for its 127.0.0.1 check (it is the lab's target, not listed). apis.py log_function_checker requests a fixed localhost URL; playground/A6/utility.py check_vuln requests pypi.org with names from a fixed test bench."
+  },
+  {
+   "id": "SSTI",
+   "name": "Server-Side Template Injection",
+   "cwe": "CWE-1336",
+   "cwes": [
+    "CWE-1336",
+    "CWE-94"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 984,
+     "end_line": 996,
+     "function": "ssti_lab",
+     "quote": "blog = filter_blog(blog)",
+     "why": "POST 'blog' passes through filter_blog (a no-op), is concatenated into Django template source (line 990) and written to templates/Lab_2021/A3_Injection/Blogs/<id>.html (994-996)."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 1006,
+     "end_line": 1006,
+     "function": "ssti_view_blog",
+     "quote": "return render(request,f\"Lab_2021/A3_Injection/Blogs/{blog_id}.html\")",
+     "why": "Renders the user-written file as a Django template; blog_id comes from the URL path."
+    }
+   ],
+   "notes": "filter_blog (introduction/utility.py 55-56, returns its argument unchanged) is the natural fix point but is NOT listed: its +/-10 window [45,66] would overlap CRYPTO's customHash site at utility.py:59. Routes ssti/lab and ssti/blog/<str:blog_id>. Three previously generated blog templates exist under templates/Lab_2021/A3_Injection/Blogs/ (artifacts, not listed). Window overlap: ssti_view_blog [996,1016] touches CRYPTO's crypto_failure_lab site [1016,1036] at line 1016 only (inside crypto_failure, a render-only view)."
+  },
+  {
+   "id": "XXE",
+   "name": "XML External Entity injection",
+   "cwe": "CWE-611",
+   "cwes": [
+    "CWE-611"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 259,
+     "end_line": 260,
+     "function": "xxe_parse",
+     "quote": "parser.setFeature(feature_external_ges, True)",
+     "why": "A SAX parser with external general entities explicitly enabled parses the raw request body via pulldom.parseString."
+    }
+   ],
+   "notes": "xxe_parse (route xxe_parse) is csrf_exempt and has no is_authenticated check. defusedxml==0.7.1 is pinned in requirements.txt but imported nowhere. The extracted text is written to comments id=1 (line 268) and displayed by xxe_see."
+  },
+  {
+   "id": "DESER-PICKLE",
+   "name": "Insecure Deserialization (pickle.loads of a cookie)",
+   "cwe": "CWE-502",
+   "cwes": [
+    "CWE-502"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 213,
+     "end_line": 214,
+     "function": "insec_des_lab",
+     "quote": "token = base64.b64decode(token)",
+     "why": "The client-supplied 'token' cookie is base64-decoded and passed to pickle.loads (line 214)."
+    },
+    {
+     "file": "dockerized_labs/insec_des_lab/main.py",
+     "line": 34,
+     "end_line": 36,
+     "function": "deserialize_data",
+     "quote": "decoded_data = base64.b64decode(serialized_data)",
+     "why": "The POST field 'serialized_data' is base64-decoded and passed to pickle.loads (line 36)."
+    }
+   ],
+   "notes": "views.py insec_des_lab is the cookie case the item names (route insec_des_lab). dockerized_labs/insec_des_lab/main.py is a separate Flask app (its Dockerfile runs 'flask run --debug'); its input is a form field, not a cookie -- same class, listed as a judgement call. Not a site: views.py 202-203 pickle.dumps of a server-made TestUser."
+  },
+  {
+   "id": "DESER-YAML",
+   "name": "Insecure Deserialization (yaml.load full Loader)",
+   "cwe": "CWE-502",
+   "cwes": [
+    "CWE-502"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 560,
+     "end_line": 560,
+     "function": "a9_lab",
+     "quote": "data = yaml.load(file,yaml.Loader)",
+     "why": "The uploaded file is parsed with yaml.load and the full yaml.Loader instead of safe_load."
+    }
+   ],
+   "notes": "a9_lab (route a9_lab) is PyGoat's 2017 A9 'Using Components with Known Vulnerabilities' lab 1; a9.html line 29 says the app uses pyyaml 5.1 and requirements.txt:27 pins PyYAML==5.1 (the dependency side is in COMPONENTS). Excluded: introduction/lab_code/test.py:23 yaml.load(stream) on the hard-coded path '/home/fox/test.yaml' (unrouted scratch script, no attacker input)."
+  },
+  {
+   "id": "IDOR",
+   "name": "Broken Access Control / IDOR",
+   "cwe": "CWE-639",
+   "cwes": [
+    "CWE-639",
+    "CWE-284",
+    "CWE-285",
+    "CWE-862",
+    "CWE-565",
+    "CWE-290"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 347,
+     "end_line": 347,
+     "function": "ba_lab",
+     "quote": "if request.COOKIES.get('admin') == \"1\":",
+     "why": "Admin data is shown whenever the client sets the cookie admin=1."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 758,
+     "end_line": 758,
+     "function": "a1_broken_access_lab_1",
+     "quote": "if request.COOKIES.get('admin') == \"1\":",
+     "why": "Admin data is shown whenever the client sets the cookie admin=1."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 791,
+     "end_line": 797,
+     "function": "a1_broken_access_lab_2",
+     "quote": "user_agent = request.META['HTTP_USER_AGENT']",
+     "why": "Admin data is shown when the client-controlled User-Agent header equals 'pygoat_admin'."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 841,
+     "end_line": 841,
+     "function": "a1_broken_access_lab3_secret",
+     "quote": "return render(request, 'Lab_2021/A1_BrokenAccessControl/secret.html')",
+     "why": "The admin secret page is returned to any logged-in user with no role check (comment at line 840)."
+    },
+    {
+     "file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+     "line": 120,
+     "end_line": 132,
+     "function": "all_users_data_view",
+     "quote": "for user_data in UserData.objects.all():",
+     "why": "Returns every user's card number, SSN and API key with no authentication or authorization check."
+    }
+   ],
+   "notes": "PyGoat has no numeric-ID IDOR; its access-control labs trust client-controlled values (cookie, User-Agent) or omit the check. Routes: ba_lab, broken_access_lab_1, broken_access_lab_2, broken_access_control/secret; the dockerized sensitive_data_exposure route api/all-users/ (separate Django app; judgement call). Placed in other keys so each function sits in one key: auth_lab_login's userid cookie (AUTHZ), crypto_failure_lab3's unsigned role cookie (CRYPTO), secret's X-Host check (MISCONFIG). Excluded: mitre.py CSRF lab (csrf_transfer_monei_api: state-changing GET, CWE-352) -- no GROUND_TRUTH item for CSRF."
+  },
+  {
+   "id": "CRYPTO",
+   "name": "Cryptographic Failure (MD5 password hashing)",
+   "cwe": "CWE-916",
+   "cwes": [
+    "CWE-916",
+    "CWE-328",
+    "CWE-327",
+    "CWE-759",
+    "CWE-319",
+    "CWE-565"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 1026,
+     "end_line": 1026,
+     "function": "crypto_failure_lab",
+     "quote": "password = md5(password.encode()).hexdigest()",
+     "why": "The login password is hashed with unsalted MD5 before comparison with the stored hash."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 1042,
+     "end_line": 1042,
+     "function": "crypto_failure_lab2",
+     "quote": "password = customHash(password)",
+     "why": "The login password is hashed with customHash (one unsalted SHA-256, reversed) before comparison."
+    },
+    {
+     "file": "introduction/utility.py",
+     "line": 59,
+     "end_line": 59,
+     "function": "customHash",
+     "quote": "return hashlib.sha256(password.encode()).hexdigest()[::-1]",
+     "why": "customHash is a single unsalted SHA-256 with the hex string reversed -- a fast hash, not a password KDF."
+    },
+    {
+     "file": "introduction/mitre.py",
+     "line": 161,
+     "end_line": 161,
+     "function": "csrf_lab_login",
+     "quote": "password = md5(password.encode()).hexdigest()",
+     "why": "The login password is hashed with unsalted MD5 before the CSRF_user_tbl lookup."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 1060,
+     "end_line": 1060,
+     "function": "crypto_failure_lab3",
+     "quote": "elif cookie.split('|')[0] == 'admin':",
+     "why": "The admin role is read from a plaintext 'username|expire' cookie that carries no signature or encryption."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 1074,
+     "end_line": 1076,
+     "function": "crypto_failure_lab3",
+     "quote": "cookie = f\"{username}|{expire}\"",
+     "why": "The auth cookie is issued as an unsigned, unencrypted 'username|expire' string."
+    }
+   ],
+   "notes": "Primary CWE-916 (password hash with insufficient computational effort) because every hash site hashes passwords with MD5 or one SHA-256 pass, unsalted; CWE-328/CWE-327/CWE-759 are listed as alternatives. crypto_failure_lab3 is PyGoat's Cryptographic Failure lab 3 (code comment 'based on CWE-319'); its flaw is an unsigned client cookie that sets the role, which could equally be filed under IDOR -- judgement call, kept in PyGoat's category. Excluded: auth_failure_lab3's sha256 at views.py:1194 (same weakness, but that function is an AUTHZ site); the dockerized broken_auth_lab md5 reset token (AUTHZ); auth_failure_lab2 uses argon2 PasswordHasher (not weak); the md5 hex literals at views.py 866-872 are seed data; challenge/models.py:28 hashes a flag, not a password. Window overlap: crypto_failure_lab3's 1074-1076 window [1064,1086] and MISCONFIG's sec_misconfig_lab3 window [1085,1117] share lines 1085-1086 (a comment and the SECRET_COOKIE_KEY import)."
+  },
+  {
+   "id": "MISCONFIG",
+   "name": "Security Misconfiguration (DEBUG=True, hardcoded SECRET_KEY)",
+   "cwe": "CWE-489",
+   "cwes": [
+    "CWE-489",
+    "CWE-215",
+    "CWE-209",
+    "CWE-798",
+    "CWE-321",
+    "CWE-547",
+    "CWE-290"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "pygoat/settings.py",
+     "line": 25,
+     "end_line": 25,
+     "function": null,
+     "quote": "SECRET_KEY = 'lr66%-a!$km5ed@n5ug!tya5bv!0(yqwa1tn!q%0%3m2nh%oml'",
+     "why": "Django's SECRET_KEY is hard-coded in source."
+    },
+    {
+     "file": "pygoat/settings.py",
+     "line": 30,
+     "end_line": 30,
+     "function": null,
+     "quote": "DEBUG = True",
+     "why": "Debug mode is on, so error pages dump settings (including SENSITIVE_DATA at line 27)."
+    },
+    {
+     "file": "pygoat/settings.py",
+     "line": 171,
+     "end_line": 171,
+     "function": null,
+     "quote": "SECRET_COOKIE_KEY = \"PYGOAT\"",
+     "why": "A short, hard-coded HS256 key signs the sec_misconfig_lab3 auth JWT."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 536,
+     "end_line": 537,
+     "function": "secret",
+     "quote": "XHost = request.headers.get('X-Host', 'None')",
+     "why": "The secret is released when the client-controlled X-Host header equals 'admin.localhost:8000'."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 1095,
+     "end_line": 1107,
+     "function": "sec_misconfig_lab3",
+     "quote": "payload = jwt.decode(cookie, SECRET_COOKIE_KEY, algorithms=['HS256'])",
+     "why": "The admin check trusts a JWT verified and issued with the hard-coded SECRET_COOKIE_KEY."
+    },
+    {
+     "file": "dockerized_labs/broken_auth_lab/app.py",
+     "line": 8,
+     "end_line": 8,
+     "function": null,
+     "quote": "app.secret_key = 'your-secret-key-here'  # Vulnerable: Hardcoded secret key",
+     "why": "The Flask secret key is hard-coded."
+    },
+    {
+     "file": "dockerized_labs/broken_auth_lab/app.py",
+     "line": 123,
+     "end_line": 123,
+     "function": null,
+     "quote": "app.run(host='0.0.0.0', port=5000, debug=True)  # Vulnerable: Debug mode enabled in production",
+     "why": "The Flask app runs with debug=True on all interfaces."
+    },
+    {
+     "file": "dockerized_labs/sensitive_data_exposure/sensitive_data_lab/settings.py",
+     "line": 8,
+     "end_line": 8,
+     "function": null,
+     "quote": "SECRET_KEY = 'django-insecure-key-for-demonstration-only'",
+     "why": "Django's SECRET_KEY is hard-coded in source."
+    },
+    {
+     "file": "dockerized_labs/sensitive_data_exposure/sensitive_data_lab/settings.py",
+     "line": 11,
+     "end_line": 11,
+     "function": null,
+     "quote": "DEBUG = True",
+     "why": "Debug mode is on (ALLOWED_HOSTS = ['*'] follows at line 13)."
+    }
+   ],
+   "notes": "Primary CWE-489 (active debug code) for DEBUG=True / debug=True; the hard-coded keys are CWE-798/CWE-321. PyGoat's Security Misconfiguration labs (sec_mis.html): lab 1 = secret (X-Host header trusted as admin, CWE-290; listed here because PyGoat files it as misconfiguration -- judgement call), lab 2 = DEBUG=True leaks settings incl. SENSITIVE_DATA on a 500 error (sec_mis.html line 42), lab 3 = sec_misconfig_lab3's JWT keyed with SECRET_COOKIE_KEY. The settings.py:25 window [15,35] also covers SENSITIVE_DATA (27), DEBUG (30) and ALLOWED_HOSTS (32). The dockerized labs' settings (broken_auth_lab, sensitive_data_exposure) are separate apps, listed as a judgement call. Window overlaps: broken_auth_lab/app.py:123 [113,133] overlaps AUTHZ's dashboard site [101,122] on 113-122; app.py:8 [-2,18] also covers the hard-coded user passwords at lines 13 and 18. Excluded: mitre.py's hard-coded JWT key 'csrf_vulneribility' (lines 169, 182, 194) -- csrf_lab_login is already a CRYPTO site."
+  },
+  {
+   "id": "AUTHZ",
+   "name": "Authentication Failure (weak/broken auth flow)",
+   "cwe": "CWE-287",
+   "cwes": [
+    "CWE-287",
+    "CWE-1390",
+    "CWE-565",
+    "CWE-613",
+    "CWE-645",
+    "CWE-640",
+    "CWE-256",
+    "CWE-384"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 287,
+     "end_line": 291,
+     "function": "auth_lab_signup",
+     "quote": "obj = authLogin.objects.create(name=name,username=user_name,password=passwd)",
+     "why": "Stores the password in plaintext and then sets the account's userid as the only authentication cookie (line 291)."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 302,
+     "end_line": 302,
+     "function": "auth_lab_login",
+     "quote": "obj = authLogin.objects.filter(userid=request.COOKIES['userid'])[0]",
+     "why": "A GET logs the caller in as whichever account the client-supplied 'userid' cookie names, with no secret or server-side session."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 1147,
+     "end_line": 1153,
+     "function": "auth_failure_lab2",
+     "quote": "fail_attempt = user.failattempt + 1",
+     "why": "Five wrong passwords lock the account for 1440 minutes, so anyone who knows the admin username can lock the real admin out."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 1195,
+     "end_line": 1198,
+     "function": "auth_failure_lab3",
+     "quote": "except:",
+     "why": "Logout (a POST without credentials) only overwrites the cookie; the AF_session_id row is never deleted, so the old session_id stays valid."
+    },
+    {
+     "file": "dockerized_labs/broken_auth_lab/app.py",
+     "line": 45,
+     "end_line": 51,
+     "function": "login",
+     "quote": "session_token = base64.b64encode(f\"{username}:{datetime.now()}\".encode()).decode()",
+     "why": "The session token is an unsigned base64 of 'username:timestamp', so it can be forged."
+    },
+    {
+     "file": "dockerized_labs/broken_auth_lab/app.py",
+     "line": 86,
+     "end_line": 91,
+     "function": "reset_password",
+     "quote": "token = hashlib.md5(f\"{email}:{datetime.now()}\".encode()).hexdigest()",
+     "why": "The reset token is md5 of the email and current time, and is echoed back in the response (line 91)."
+    },
+    {
+     "file": "dockerized_labs/broken_auth_lab/app.py",
+     "line": 111,
+     "end_line": 112,
+     "function": "dashboard",
+     "quote": "username = base64.b64decode(session_token).decode().split(':')[0]",
+     "why": "The dashboard authenticates by base64-decoding the 'session' cookie and trusting the username before ':'."
+    }
+   ],
+   "notes": "Covers PyGoat's 2017 Broken Authentication lab (auth_lab; auth_home.html hint: think about cookies), the 2021 A7 labs 2 and 3 (a7.html: lab 2 asks to make the real admin unable to access the panel; lab 3 asks to reach a user's account after logout; A7_disscussion_api's expected fix is 'AF_session_id.objects.get(sesssion_id = cookie).delete()'), and the dockerized Flask broken_auth_lab (separate app; judgement call). PyGoat's A7 lab 1 is the 3-digit OTP brute force (Otp view via /bau_lab); it is listed under DESIGN-OTP because that item names the OTP, so one Otp finding cannot credit both -- reviewer may move it. auth_failure_lab3 also hashes with unsalted sha256 (1194) and raises KeyError for an unknown username at 1200. Not listed: hard-coded credentials in a1_broken_access_lab_1/2/3 (766, 806, 831-833), crypto_failure_lab3 (1072) and playground/A9/api.py (admin/admin); print(user_name,passwd) at 314. Window overlap: dashboard [101,122] vs MISCONFIG app.py:123 [113,133]."
+  },
+  {
+   "id": "DESIGN-OTP",
+   "name": "Insecure Design (predictable OTP / ticket)",
+   "cwe": "CWE-330",
+   "cwes": [
+    "CWE-330",
+    "CWE-334",
+    "CWE-338",
+    "CWE-307",
+    "CWE-799",
+    "CWE-837",
+    "CWE-840"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 496,
+     "end_line": 496,
+     "function": "Otp",
+     "quote": "otpN=randint(100,999)",
+     "why": "The OTP is a 3-digit value (900 possibilities) from the non-cryptographic random.randint."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 512,
+     "end_line": 514,
+     "function": "Otp",
+     "quote": "otpR=request.POST.get(\"otp\")",
+     "why": "OTP verification has no attempt limit and also accepts a match on the admin OTP row (id=2) regardless of the email cookie."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 703,
+     "end_line": 708,
+     "function": "insec_desgine_lab",
+     "quote": "if (int(count)+len(tkts)) <=5:",
+     "why": "The 5-ticket cap is enforced per account only, so one person with several free accounts can take all 60 tickets."
+    }
+   ],
+   "notes": "Primary CWE-330 because the item is named for predictable/guessable values; the OTP flaw is a small value space plus no rate limiting (CWE-334/CWE-307) and the ticket flaw is business logic (CWE-799/CWE-837/CWE-840). Otp (route otp) is also PyGoat's 2021 A7 'Identification and Authentication Failures' lab 1 (a7.html: brute-force the 3-digit OTP, lack of rate limiting) -- judgement call to keep it here, not in AUTHZ. insec_desgine_lab (route insecure-design_lab) is PyGoat's Insecure Design lab (a11.html: get all the tickets; hint: logout and think). Not listed: gentckt (views.py 679-680) makes ticket codes with random.choices (CWE-338), but the lab text points at the per-account limit, and its window [670,690] would overlap LOGGING's a10_lab2 site [658,682]; reviewer may add it. Also not listed: the dockerized sensitive_data_exposure generate_api_key (random.choices) and broken_auth_lab's md5 reset token (in AUTHZ)."
+  },
+  {
+   "id": "LOGGING",
+   "name": "Security Logging & Monitoring Failure",
+   "cwe": "CWE-778",
+   "cwes": [
+    "CWE-778",
+    "CWE-117",
+    "CWE-532",
+    "CWE-538",
+    "CWE-223"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 637,
+     "end_line": 639,
+     "function": "debug",
+     "quote": "response = render(request,'Lab/A10/debug.log')",
+     "why": "Serves the application log to anyone at /debug, with no authentication."
+    },
+    {
+     "file": "introduction/templates/Lab/A10/debug.log",
+     "line": 22,
+     "end_line": 22,
+     "function": null,
+     "quote": "INFO \"GET /a10_lab?username=Hacker&password=Hacker HTTP/1.1\" 301 0",
+     "why": "The exposed log records a login URL carrying a username and password in its query string."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 654,
+     "end_line": 654,
+     "function": "a10_lab2",
+     "quote": "logging.info(f\"{now}:{ip}\")",
+     "why": "Logs the client-controlled X-Forwarded-For value without neutralisation."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 668,
+     "end_line": 672,
+     "function": "a10_lab2",
+     "quote": "logging.warning(f\"{now}:{ip}:{user}\")",
+     "why": "Logs the POST 'name' and X-Forwarded-For values via f-strings with no neutralisation, so a client can forge log lines."
+    },
+    {
+     "file": "introduction/playground/A9/main.py",
+     "line": 9,
+     "end_line": 10,
+     "function": "info",
+     "quote": "def info(self,msg):",
+     "why": "Log.info is a no-op, so log_function_target records nothing for GET/POST/PUT/PATCH requests."
+    },
+    {
+     "file": "introduction/playground/A9/main.py",
+     "line": 12,
+     "end_line": 13,
+     "function": "warning",
+     "quote": "def warning(self,msg):",
+     "why": "Log.warning is a no-op."
+    },
+    {
+     "file": "introduction/playground/A9/main.py",
+     "line": 15,
+     "end_line": 16,
+     "function": "error",
+     "quote": "def error(self,msg):",
+     "why": "Log.error is a no-op, so the unauthenticated DELETE in log_function_target goes unrecorded."
+    }
+   ],
+   "notes": "Primary CWE-778 names the item's class; the two PyGoat 2017 A10 labs are specifically CWE-532/CWE-538 (lab 1: credentials in a log exposed at /debug, a10.html) and CWE-117 (lab 2: 'inject some fake logs', route a10_lab_2). The playground/A9/main.py Log stubs back the routed 2021/discussion/A9/target (playground/A9/api.py log_function_target); the code discussion's intended fix is to implement them (comment at main.py line 4) -- judgement call. GROUND_TRUTH also names apis.py: its only logging-related code is log_function_checker (61-88), the A9 discussion checker; its flaw is writing request-supplied Python into playground/A9/main.py and api.py with authentication commented out (line 60), a code-write issue rather than a logging failure, so no apis.py site is listed (see CODEEXEC notes). Not listed: credential print() calls (views.py 314, 755-756); playground/A9/api.py:16 formats the password into a log message, but Log.info is a no-op at this commit; playground/A9/archive.py is an unrouted solution copy. logging.basicConfig at views.py:642 falls inside the debug site's window [627,649]."
+  },
+  {
+   "id": "CODEEXEC",
+   "name": "Code Injection via ImageMath.eval",
+   "cwe": "CWE-95",
+   "cwes": [
+    "CWE-95",
+    "CWE-94"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "introduction/views.py",
+     "line": 588,
+     "end_line": 588,
+     "function": "a9_lab2",
+     "quote": "output = ImageMath.eval(function_str,img = img, b=b, r=r, g=g)",
+     "why": "POST 'function' (line 583) is evaluated by PIL ImageMath.eval with no restriction on the expression."
+    },
+    {
+     "file": "introduction/views.py",
+     "line": 460,
+     "end_line": 460,
+     "function": "cmd_lab2",
+     "quote": "output = eval(val)",
+     "why": "POST 'val' is passed straight to Python eval()."
+    },
+    {
+     "file": "introduction/mitre.py",
+     "line": 218,
+     "end_line": 218,
+     "function": "mitre_lab_25_api",
+     "quote": "result = eval(expression)",
+     "why": "POST 'expression' is passed straight to Python eval(); the view is csrf_exempt and its authentication_decorator is commented out (line 213)."
+    }
+   ],
+   "notes": "Primary CWE-95 (eval injection); CWE-94 is added because eval/cwe.py's family table knows 94 but not 95. a9_lab2 (route a9_lab2) is the site the item names. cmd_lab2 is PyGoat's 'Command Injection Lab 2' (urls.py name) but its sink is Python eval, and mitre_lab_25_api is PyGoat's MITRE CWE-94 'Code Injection' lab (route mitre/25/lab/api); both broaden the item beyond its name -- judgement call. Not listed (reviewer decision): apis.py log_function_checker (61-88, unauthenticated, csrf_exempt), A6_disscussion_api_2 (126-138, no auth check, csrf_exempt) and ssrf_code_checker -> utility.ssrf_code_converter write request-supplied Python into modules the app imports (playground/A9/main.py+api.py, playground/A6/utility.py, playground/ssrf/main.py); the written code only runs after a module reload, and the shipped Dockerfile, docker-compose.yml and Procfile run gunicorn without --reload. The Pillow pin (requirements.txt:19) is under COMPONENTS."
+  },
+  {
+   "id": "COMPONENTS",
+   "name": "Vulnerable & Outdated Components",
+   "cwe": "CWE-1395",
+   "cwes": [
+    "CWE-1395",
+    "CWE-1104",
+    "CWE-1035",
+    "CWE-937"
+   ],
+   "known_gap": true,
+   "fix_sites": [
+    {
+     "file": "requirements.txt",
+     "line": 27,
+     "end_line": 27,
+     "function": null,
+     "quote": "PyYAML==5.1",
+     "why": "The pinned PyYAML is the component the repo's own A9 lab names as vulnerable (a9.html:29 'pyyaml 5.1 ... vulnerable to code execution'; get_version at views.py:571 reports 'pyyaml v5.1')."
+    },
+    {
+     "file": "requirements.txt",
+     "line": 19,
+     "end_line": 19,
+     "function": null,
+     "quote": "Pillow==9.4.0",
+     "why": "The pinned Pillow backs the A9 lab 2 ImageMath.eval sink (views.py:588); upgrading is the dependency-side fix."
+    }
+   ],
+   "notes": "Not identifiable from requirements.txt alone: no line is marked, and confirming a version is known-vulnerable needs an advisory feed (pip-audit/OSV), which was not consulted. Both sites come from the repo's own A9 'Using Components with Known Vulnerabilities' lab material. Pillow is the weaker one: the lab text says 'Pillow 8.0.0' (a9.html:59, a9_lab2.html:38) while requirements.txt pins 9.4.0, so the repo does not establish that 9.4.0 is vulnerable -- reviewer should confirm or drop it. The A6 discussion test bench (apis.py:114) checks 'Pillow==8.0.0', 'PyJWT==2.4.0', 'requests==2.28.0', 'Django==4.0.4' against PyPI's vulnerability field; only PyJWT==2.4.0 equals a pin (requirements.txt:24) and the repo does not say which of them are vulnerable. The file has 34 lines, so the two windows ([9,29] and [17,37]) cover every line: any requirements.txt finding L1-matches. The dockerized labs' own requirements.txt files (e.g. sensitive_data_exposure django==3.2.18, requests==2.28.1; broken_auth_lab Flask==2.3.3, Werkzeug==2.3.7) were not assessed. A reviewer with an advisory feed should extend or trim the list."
+  }
+ ]
+}

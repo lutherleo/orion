@@ -16,6 +16,16 @@ from .contracts import Verdict
 _ORDER = {"CONFIRM": 0, "INCONCLUSIVE": 1, "REJECT": 2, "ERROR": 3}
 
 
+def _location_text(v: Verdict) -> str:
+    """`file:start-end (function) CWE-n SEVERITY` from the verifier-corrected location; "" if none."""
+    loc = v.location()
+    where = loc["file"] or ""
+    if where and loc["line_start"]:
+        where += f":{loc['line_start']}" + (f"-{loc['line_end']}" if loc["line_end"] else "")
+    bits = [where, f"({loc['function']})" if loc["function"] else "", loc["cwe"] or "", v.severity or ""]
+    return " ".join(b for b in bits if b)
+
+
 def render(verdicts: list[Verdict]) -> str:
     """A ranked, evidence-cited text report. Confirmed leads sort first; within a decision, a bug on
     a higher-centrality (larger blast-radius) sink ranks above one in a backwater, and ties fall back
@@ -38,7 +48,12 @@ def render(verdicts: list[Verdict]) -> str:
 
     for v in ranked:
         lead = v.lead
-        lines.append(f"[{v.decision}] lead {lead.index} - shape {lead.shape} - confidence {lead.confidence}")
+        route = "" if getattr(v, "route", "full") == "full" else f" - verified {v.route}"
+        lines.append(f"[{v.decision}] lead {lead.index} - shape {lead.shape} - confidence {lead.confidence}"
+                     f"{route}")
+        where = _location_text(v)
+        if where:
+            lines.append(f"  location:          {where}")
         lines.append(f"  claim:             {lead.text}")
         lines.append(f"  lead evidence:     {lead.evidence}")
         lines.append(f"  verdict reason:    {v.reason}")

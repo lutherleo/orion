@@ -22,7 +22,12 @@ Hard-won rules baked in (see orion-shared-context.md):
 from __future__ import annotations
 
 import json
+import os
+import re
 import subprocess
+import sys
+import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -35,9 +40,44 @@ from . import config
 # Base seconds; attempt k waits base * 2**k. Kept here (config.py is frozen) not as magic numbers.
 _RETRY_BACKOFF_BASE = 3.0
 
-# cwd for the subprocess: the repo root (contains .mcp/orion.json and any --add-dir targets are
-# resolved relative to it too, e.g. "fixtures/NodeGoat").
+# Set once the scan is interrupted (Ctrl-C, or the UI's Stop: SIGINT to the scan's whole process group,
+# so the sessions already running were killed by it too). From then on run_agent starts no `claude -p`
+# session and retries none: a killed session is not a transient failure, and retrying it on a fresh
+# session would keep the scan running -- and spending -- after it was told to stop. Never cleared: an
+# interrupted process is on its way out.
+_STOP = threading.Event()
+
+
+def interrupt() -> None:
+    """The scan is stopping: no `claude -p` session is started or retried after this."""
+    _STOP.set()
+
+
+def interrupted() -> bool:
+    return _STOP.is_set()
+
+# Orion's checkout. A relative --add-dir target (e.g. "fixtures/NodeGoat") resolves against it, and the
+# inline MCP config puts it on the server's PYTHONPATH so `-m orion.mcp_server` imports this `orion`.
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _agent_cwd() -> Path:
+    """Where `claude -p` runs: an empty folder of Orion's own, NOT Orion's checkout (2026-10-29). From
+    the checkout, an agent's Read/Grep/Glob could reach tests/ground_truth_*.py (the benchmark answer
+    keys), bench/research results and eval/ -- nothing a scan needs: discovery has only the graph tools
+    and the verifier reads the target through --add-dir. With ORION_MCP_CONFIG set, that file's
+    relative paths may assume the checkout, so the checkout stays the cwd."""
+    if config.MCP_CONFIG:
+        return _REPO_ROOT
+    d = Path(tempfile.gettempdir()) / "orion-agent-cwd"
+    d.mkdir(exist_ok=True)
+    return d
+
+
+def _abs_add_dir(add_dir: str) -> str:
+    """`--add-dir` as an absolute path (relative ones resolve against the checkout, as they used to)."""
+    p = Path(add_dir)
+    return str(p if p.is_absolute() else (_REPO_ROOT / p).resolve())
 
 _ALLOWED_BASE = ("mcp__orion__run_cypher", "mcp__orion__semantic_search")
 # Everything a discovery agent must NOT have (extra_allowed subtracts from this — the verifier adds
@@ -49,6 +89,21 @@ _BASE_DISALLOWED = (
 )
 
 
+def mcp_config() -> str:
+    """The `--mcp-config` argument: config.MCP_CONFIG when set (a file path), else an INLINE JSON
+    config that launches the Orion MCP server with the interpreter running Orion right now. The old
+    default pointed at `.mcp/orion.json`, which hardcodes `./.venv/bin/python` -- absent on Windows
+    (`.venv\\Scripts\\python.exe`) and in any install without that exact venv, so the agents' tool
+    server silently failed to start."""
+    if config.MCP_CONFIG:
+        return config.MCP_CONFIG
+    pythonpath = os.pathsep.join([str(_REPO_ROOT)] + ([os.environ["PYTHONPATH"]]
+                                                      if os.environ.get("PYTHONPATH") else []))
+    return json.dumps({"mcpServers": {"orion": {
+        "command": sys.executable, "args": ["-m", "orion.mcp_server"],
+        "env": {"PYTHONPATH": pythonpath}}}})
+
+
 def _build_cmd(
     *,
     session_id: str,
@@ -58,6 +113,7 @@ def _build_cmd(
     extra_allowed: tuple[str, ...],
     max_turns: int | None,
     use_mcp: bool = True,
+    effort: str | None = None,
 ) -> list[str]:
     # use_mcp=False is the UNGROUNDED-review path (PLAN2 arms B/C): no Orion MCP graph tools at all,
     # so the agent works only from what the caller allows (Read/Grep/Glob on the source). The mcp
@@ -68,10 +124,10 @@ def _build_cmd(
     cmd = [
         "claude", "-p",
         "--model", config.MODEL,
-        "--effort", config.EFFORT,
+        "--effort", effort or config.EFFORT,
     ]
     if use_mcp:
-        cmd += ["--mcp-config", config.MCP_CONFIG, "--strict-mcp-config"]
+        cmd += ["--mcp-config", mcp_config(), "--strict-mcp-config"]
     cmd += [
         "--output-format", "stream-json",
         "--verbose",
@@ -86,7 +142,7 @@ def _build_cmd(
         schema_str = json.dumps(json_schema) if isinstance(json_schema, dict) else json_schema
         cmd += ["--json-schema", schema_str]
     if add_dir:
-        cmd += ["--add-dir", add_dir]
+        cmd += ["--add-dir", _abs_add_dir(add_dir)]
     if max_turns is not None:
         cmd += ["--max-turns", str(max_turns)]
     return cmd
@@ -140,19 +196,29 @@ def extract_usage(final: dict | None) -> dict | None:
     `claude -p --output-format stream-json` puts a `usage` block and `total_cost_usd` on the final
     `{"type":"result"}` line. run_agent otherwise discards this (it only keeps the structured output),
     so the research token ledger (bench/token_ledger.py) would have nothing to aggregate. Kept defensive:
-    a missing/oddly-shaped usage yields zeros, never raises. `total_cost_usd` is the CLI's own cost
-    figure (may be null through a non-Anthropic proxy — the ledger then prices from tokens itself)."""
+    never raises. A field the event does not carry is None, never 0 (2026-10-29: a call with no usage
+    used to read as a call that spent nothing). `cache_creation_{5m,1h}_input_tokens` are the CLI's
+    cache-write breakdown (`usage.cache_creation.ephemeral_*`), which the ledger needs to price writes:
+    a 5-minute and a 1-hour write cost different multiples. `total_cost_usd` is the CLI's own cost
+    figure (may be null through a non-Anthropic proxy)."""
     if not isinstance(final, dict):
         return None
     usage = final.get("usage")
     if not isinstance(usage, dict):
         usage = {}
+    cc = usage.get("cache_creation") if isinstance(usage.get("cache_creation"), dict) else {}
+
+    def _n(v):
+        return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
     return {
         "model": final.get("model") or "",
-        "input_tokens": int(usage.get("input_tokens") or 0),
-        "output_tokens": int(usage.get("output_tokens") or 0),
-        "cache_creation_input_tokens": int(usage.get("cache_creation_input_tokens") or 0),
-        "cache_read_input_tokens": int(usage.get("cache_read_input_tokens") or 0),
+        "input_tokens": _n(usage.get("input_tokens")),
+        "output_tokens": _n(usage.get("output_tokens")),
+        "cache_creation_input_tokens": _n(usage.get("cache_creation_input_tokens")),
+        "cache_read_input_tokens": _n(usage.get("cache_read_input_tokens")),
+        "cache_creation_5m_input_tokens": _n(cc.get("ephemeral_5m_input_tokens")),
+        "cache_creation_1h_input_tokens": _n(cc.get("ephemeral_1h_input_tokens")),
         "total_cost_usd": final.get("total_cost_usd"),
         "num_turns": final.get("num_turns"),
     }
@@ -171,6 +237,20 @@ def _emit_usage(final: dict | None, on_event: Callable[[dict], None] | None) -> 
     on_event({"event": "usage", "detail": json.dumps(usage)})
 
 
+# The WHOLE reply is one fenced block: optional "json" tag, nothing before or after it.
+_FENCE = re.compile(r"\A\s*```(?:json)?[ \t]*\r?\n(.*?)\r?\n?[ \t]*```\s*\Z", re.DOTALL | re.IGNORECASE)
+
+
+def _unfence(text: str) -> str:
+    """Strip a markdown fence when the reply is EXACTLY one fenced block. Local models served through
+    Ollama answer the --json-schema request in a ```json fence instead of Claude Code's
+    structured-output channel (found by the eval's Phase 0 gate). Only the wrapper is removed: prose
+    around a fence, or several fences, are left as-is and still fail json.loads -- nothing is guessed
+    out of free text."""
+    m = _FENCE.match(text)
+    return m.group(1) if m and "```" not in m.group(1) else text
+
+
 def _final_to_result(final: dict | None) -> dict:
     """Robust final-event -> structured-object extraction. NEVER fabricates output: any
     ambiguity (missing result line, is_error, unparseable result) becomes `{"_error": "..."}`."""
@@ -186,7 +266,7 @@ def _final_to_result(final: dict | None) -> dict:
     result_str = final.get("result")
     if isinstance(result_str, str):
         try:
-            parsed = json.loads(result_str)
+            parsed = json.loads(_unfence(result_str))
         except json.JSONDecodeError:
             return {"_error": "result field was not valid JSON"}
         if isinstance(parsed, dict):
@@ -204,7 +284,7 @@ def _run_once(cmd: list[str], *, timeout: int, on_event: Callable[[dict], None] 
     try:
         r = subprocess.run(
             cmd, text=True, capture_output=True, timeout=timeout,
-            stdin=subprocess.DEVNULL, cwd=str(_REPO_ROOT),
+            stdin=subprocess.DEVNULL, cwd=str(_agent_cwd()),
         )
     except subprocess.TimeoutExpired:
         return {"_error": f"claude -p timed out after {timeout}s"}
@@ -243,6 +323,7 @@ def run_agent(
     retries: int = 0,
     retry_backoff: float | None = None,
     use_mcp: bool = True,
+    effort: str | None = None,
 ) -> dict:
     """Run one `claude -p` session with real MCP tool-calling and return its structured result.
 
@@ -256,6 +337,7 @@ def run_agent(
     failure (intermittent API overload), not benchmark-fitting: verification is idempotent (a fresh
     session re-derives from the graph + source), so a clean retry is a faithful re-attempt. Each
     retry is surfaced as an "error" progress event so the recovery is visible in the run log.
+    After `interrupt()` no session is started and no failed one is retried (an `_error` comes back).
     """
     call_timeout = config.CALL_TIMEOUT if timeout is None else timeout
     backoff = _RETRY_BACKOFF_BASE if retry_backoff is None else retry_backoff
@@ -263,19 +345,22 @@ def run_agent(
 
     result: dict = {"_error": "no attempt made"}
     for attempt in range(attempts):
+        if _STOP.is_set():           # interrupted: see `interrupt`
+            return ({"_error": f"{result['_error']} (not retried: the scan is stopping)"} if attempt
+                    else {"_error": "interrupted: the scan is stopping, so no claude -p session was started"})
         # A retried attempt needs its own session id -- claude -p requires a unique --session-id.
         sid = session_id if attempt == 0 else str(uuid.uuid4())
         cmd = _build_cmd(
             session_id=sid, system=system, json_schema=json_schema,
             add_dir=add_dir, extra_allowed=extra_allowed, max_turns=max_turns,
-            use_mcp=use_mcp,
+            use_mcp=use_mcp, effort=effort,
         ) + [message]
 
         result = _run_once(cmd, timeout=call_timeout, on_event=on_event)
         if "_error" not in result:
             return result
 
-        if attempt < attempts - 1:
+        if attempt < attempts - 1 and not _STOP.is_set():
             if on_event is not None:
                 on_event({
                     "event": "error",

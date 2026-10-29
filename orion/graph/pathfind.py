@@ -26,7 +26,7 @@ from . import schema
 # pick the category when a call matches several, and to rank flows. Unknown categories default to 3.
 _SINK_SEVERITY = {
     "code_exec": 5, "deserialize": 5,
-    "sql": 4, "nosql": 4, "ssrf": 4, "template": 4,
+    "sql": 4, "nosql": 4, "ssrf": 4, "template": 4, "xxe": 4, "prototype_pollution": 4,
     "path": 3,
     "redirect": 2, "render": 2,
     "log": 1,
@@ -43,20 +43,39 @@ def _severity(category: str) -> int:
     return _SINK_SEVERITY.get(category, _DEFAULT_SEVERITY)
 
 
+# Version of the sink-matching rules, recorded in every build's pathfind summary (so in the scan
+# record) to tell which rules ranked a scan's flows. "2026-10-28": Joern's `<operator>.*` names are
+# never name-matched (`assign` hit every `<operator>.assignment`, `log` every `<operator>.logicalAnd`),
+# and a profiles.SinkPattern hint matches by regex. Orion-LM's code-only sink lines (orion/lm/sinks.py)
+# match code only (name ""), so they are unchanged -- C1's training rows still match what it sees.
+SINK_RULES = "2026-10-28"
+_OPERATOR = "<operator>"
+
+
 def _classify_sink(props: dict, profile) -> str | None:
-    """The highest-severity sink category whose hint name appears in this call's name or code, else
-    None. Matching is substring + case-insensitive on `name`/`code` -- deliberately generous (this is
-    a candidate list a verifier re-checks), but ranked so `eval` outranks `log`."""
+    """The highest-severity sink category whose hint appears in this call's name or code, else None.
+    Matching is substring + case-insensitive on `name`/`code` -- deliberately generous (this is a
+    candidate list a verifier re-checks), but ranked so `eval` outranks `log`. Two exceptions: a
+    Joern operator call (`<operator>.assignment`, `.logicalAnd`, ...) is never matched on its NAME,
+    which is Joern's, not the code's; and a `profiles.SinkPattern` hint matches by its regex."""
     if profile is None:
         return None
-    name = str(props.get("name") or "").lower()
-    code = str(props.get("code") or "").lower()
+    raw_name = str(props.get("name") or "")
+    raw_code = str(props.get("code") or "")
+    if raw_name.startswith(_OPERATOR):
+        raw_name = ""
+    name, code = raw_name.lower(), raw_code.lower()
     best: str | None = None
     best_sev = -1
     for category, hints in profile.sink_hints.items():
         for hint in hints:
-            h = hint.lower()
-            if h and (h in name or h in code):
+            rx = getattr(hint, "rx", None)
+            if rx is not None:
+                hit = bool(rx.search(raw_name) or rx.search(raw_code))
+            else:
+                h = hint.lower()
+                hit = bool(h) and (h in name or h in code)
+            if hit:
                 sev = _severity(category)
                 if sev > best_sev:
                     best, best_sev = category, sev
@@ -96,7 +115,22 @@ def _index_and_edges(batch: schema.Batch):
             m, c = from_key.get("full_name"), to_key.get("uid")
             if m is not None and c is not None:
                 contains.setdefault(m, []).append(c)
+    # Sorted neighbours: the BFS parent of a node is its first-visited predecessor, so the path picked
+    # among equally short ones must not depend on the order FLOWS_TO edges were listed in (a build
+    # lists them in Joern order, `orion reanalyze` in Neo4j storage order).
+    for dsts in flows.values():
+        dsts.sort(key=lambda uid: location_key(call_props, uid))
     return call_props, flows, self_loops, entry_methods, contains
+
+
+def location_key(call_props: dict[str, dict], uid: str) -> tuple:
+    """Order calls by where they are in the source, not by uid: a uid hashes the scan_id in, so
+    sorting by it would break ties differently in every scan of the same code. (file, line, column,
+    code) is what the uid is made of minus the scan_id; the uid itself only settles an exact tie."""
+    p = call_props.get(uid, {})
+    line, col = p.get("line"), p.get("column")
+    return (str(p.get("file_path") or ""), line if isinstance(line, int) else -1,
+            col if isinstance(col, int) else -1, str(p.get("code") or ""), uid)
 
 
 def _sources(self_loops: set[str], entry_methods: set[str], contains: dict[str, list[str]]) -> set[str]:
@@ -117,7 +151,7 @@ def pathfind(batch: schema.Batch, profile) -> dict:
     (appends nodes; reads edges + call props stamped by reachability/centrality). Idempotent given the
     same batch content: deterministic uids + a stable sort.
 
-    Returns a summary {sources, sinks, flows}."""
+    Returns a summary {sources, sinks, flows, sink_rules}."""
     call_props, flows, self_loops, entry_methods, contains = _index_and_edges(batch)
     sources = _sources(self_loops, entry_methods, contains)
 
@@ -127,7 +161,10 @@ def pathfind(batch: schema.Batch, profile) -> dict:
     origin: dict[str, str] = {}
     dist: dict[str, int] = {}
     queue: deque[str] = deque()
-    for s in sources:
+    # Sorted, not set order: when two sources reach a sink at the same depth, the one enqueued first
+    # wins, and str set order changes with PYTHONHASHSEED. Sorted by location, so the winner is the
+    # same in every scan_id (see location_key).
+    for s in sorted(sources, key=lambda uid: location_key(call_props, uid)):
         if s not in dist:
             dist[s], parent[s], origin[s] = 0, None, s
             queue.append(s)
@@ -159,8 +196,9 @@ def pathfind(batch: schema.Batch, profile) -> dict:
         path = _path(uid)
         raw.append((_severity(category), centrality, len(path), category, origin[uid], uid, path))
 
-    # Rank: severity desc, centrality desc, shorter path first, then uid for a stable tie-break.
-    raw.sort(key=lambda r: (-r[0], -r[1], r[2], r[5]))
+    # Rank: severity desc, centrality desc, shorter path first, then the sink's location (not its uid,
+    # which differs per scan_id) for a stable tie-break.
+    raw.sort(key=lambda r: (-r[0], -r[1], r[2], location_key(call_props, r[5])))
 
     n_sinks = len(raw)
     for rank, (_sev, _cent, _plen, category, source_uid, sink_uid, path) in enumerate(raw[:_MAX_FLOWS]):
@@ -173,4 +211,5 @@ def pathfind(batch: schema.Batch, profile) -> dict:
             "rank": rank,
         })
 
-    return {"sources": len(sources), "sinks": n_sinks, "flows": min(n_sinks, _MAX_FLOWS)}
+    return {"sources": len(sources), "sinks": n_sinks, "flows": min(n_sinks, _MAX_FLOWS),
+            "sink_rules": SINK_RULES}

@@ -20,7 +20,6 @@
 - **Dataset headline rule:** advisory date AND fix-commit date both after 2026-05-31; localized fix (≤10 non-test files, one bug); vulnerable code in JS/TS, Python, or Java. (spec §3.1)
 - **No exploits.** `candidates.tsv`/`manifest.json` are the vulnerability catalog only. (spec §8a)
 - **Nothing here scores.** Matching, cost-per-bug, intervals and labeling are a separate session. (spec §8)
-- **Commit attribution:** NONE. Never add `Co-Authored-By: Claude` or a "Generated with Claude Code" line to commits or PRs (repo rule, CLAUDE.md top).
 - Work on branch `eval/open-weight-study`. Run Python via `./.venv/bin/python`; run tests with `./.venv/bin/pytest`.
 
 ---

@@ -20,7 +20,7 @@ def _run(tmp_path, driver_name, tracer, language, timeout=60):
     work = tmp_path / "work"
     work.mkdir()
     drv = HarnessDriver(str(tmp_path), language, tracer, harness_file=str(tmp_path / driver_name),
-                        timeout=timeout)
+                        timeout=timeout, isolation="host")   # unit tests: never pull images
     target = drv.start(str(tmp_path), work, [])
     seeds = drv.seeds(None, "s")
     trace = engine.run(drv, tracer, target, seeds, budget=10)

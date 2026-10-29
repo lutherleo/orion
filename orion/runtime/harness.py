@@ -18,7 +18,7 @@ from pathlib import Path
 from .. import claude_cli, config
 from ..contracts import OnEvent
 from .base import Input, Response, RunningTarget
-from .sandbox import Sandbox, SubprocessSandbox
+from .sandbox import DockerSandbox, Sandbox, SubprocessSandbox, default_image, docker_available
 
 # Structured-output contract for the agent. `driver` is the whole script; `notes` is a short
 # rationale surfaced in the run log.
@@ -120,16 +120,33 @@ class HarnessDriver:
 
     def __init__(self, repo: str, language: str, tracer, *, harness_file: str | None = None,
                  timeout: float = 120.0, on_event: OnEvent | None = None,
-                 sandbox: Sandbox | None = None) -> None:
+                 sandbox: Sandbox | None = None, isolation: str = "auto",
+                 image: str | None = None) -> None:
+        """`isolation` is "docker" | "host" | "auto" (Docker when its daemon answers, else host with a
+        warning). An explicit `sandbox` instance overrides it (tests). `image` overrides the
+        per-language default (ORION_SANDBOX_PY_IMAGE / ORION_SANDBOX_NODE_IMAGE)."""
         self._repo = repo
         self.language = language
         self._tracer = tracer
         self._harness_file = harness_file
         self._timeout = timeout
         self._on_event = on_event
-        self._sandbox = sandbox or SubprocessSandbox()
+        self._sandbox = sandbox
+        self._isolation = isolation
+        self._image = image or default_image(language)
+        self.use_docker = False
+
+    def _warn(self, detail: str) -> None:
+        if self._on_event is not None:
+            self._on_event(_ev("warn", detail))
 
     def start(self, repo: str, work: Path, build_flags: list[str]) -> RunningTarget:
+        if self._sandbox is None:
+            self.use_docker = self._isolation == "docker" or (
+                self._isolation == "auto" and docker_available())
+            if self._isolation == "auto" and not self.use_docker:
+                self._warn("Docker unavailable: running the harness ON THIS HOST (no isolation). An "
+                           "agent-written harness is untrusted code -- start Docker to contain it.")
         return RunningTarget(kind="script", repo=repo, work=Path(work))
 
     def seeds(self, db, scan_id: str) -> list[Input]:
@@ -139,12 +156,19 @@ class HarnessDriver:
                             timeout=int(self._timeout) + 180)
         return [Input(kind="script", label=f"harness {os.path.basename(path)}", argv=(path,))] if path else []
 
+    def _sandbox_for(self, target: RunningTarget, script: str) -> Sandbox:
+        if self._sandbox is not None:
+            return self._sandbox
+        if self.use_docker:
+            return DockerSandbox.for_harness(self._image, repo=os.path.abspath(target.repo),
+                                             work=str(target.work), script=script)
+        return SubprocessSandbox()
+
     def send(self, target: RunningTarget, inp: Input) -> Response:
-        try:
-            cmd, env = self._tracer.script_command(inp.argv[0], target.repo, target.work)
-        except FileNotFoundError as exc:
-            return Response(ok=False, status=127, detail=str(exc))
-        r = self._sandbox.run(cmd, cwd=os.path.abspath(target.repo), timeout=self._timeout, env=env)
+        script = inp.argv[0]
+        cmd, env = self._tracer.script_command(script, target.repo, target.work)
+        sandbox = self._sandbox_for(target, script)
+        r = sandbox.run(cmd, cwd=os.path.abspath(target.repo), timeout=self._timeout, env=env)
         return Response(ok=r.exit_code == 0, status=r.exit_code if r.exit_code is not None else -1,
                         detail=(r.stderr or "")[-300:], timed_out=r.timed_out)
 

@@ -77,7 +77,7 @@ def parse_v8_coverage(blobs: list[dict], repo: str, read_source) -> tuple[Runtim
     """V8 coverage blobs -> (trace of line hits + executed functions, malformed_count).
 
     Blob shape: `{result: [{url, functions: [{functionName, ranges: [{startOffset, endOffset,
-    count}]}]}]}`. `read_source(relpath)` supplies file text so byte offsets become lines. A
+    count}]}]}]}`. `read_source(relpath)` supplies the raw file text so offsets become lines. A
     function's FIRST range is the function itself, so its count is the exact invocation count.
     Malformed entries are counted and skipped, never raised."""
     acc = TraceAccumulator()
@@ -159,7 +159,10 @@ def parse_cpu_profile(profile: dict, repo: str) -> tuple[RuntimeTrace, int]:
 def _fs_reader(repo: str):
     def read(rel: str) -> str | None:
         try:
-            return (Path(repo) / rel).read_text(encoding="utf-8", errors="replace")
+            # newline="": keep CRLF as-is. V8's offsets index the raw script, so translating CRLF
+            # to LF here would shift every line after the first CRLF.
+            with open(Path(repo) / rel, encoding="utf-8", errors="replace", newline="") as f:
+                return f.read()
         except OSError:
             return None
     return read
@@ -198,10 +201,10 @@ class V8Tracer:
                 "NODE_OPTIONS": f'--cpu-prof --cpu-prof-dir="{prof}" --require "{preload}"'}
 
     def script_command(self, script: str, repo: str, work: Path) -> tuple[list[str], dict[str, str]]:
-        """argv + env to run a harness SCRIPT under `_boot_js`, dumping into the same dirs."""
-        node = resolve_node(self._node)
-        if node is None:
-            raise FileNotFoundError("node executable not found (install Node or set ORION_NODE)")
+        """argv + env to run a harness SCRIPT under `_boot_js`, dumping into the same dirs. With no
+        Node on this host the bare `node` is used: a container sandbox supplies its own, and on the
+        host the launch fails as a reported exit 127, never an exception."""
+        node = resolve_node(self._node) or "node"
         cov, prof = self._dirs(work)
         return ([node, _BOOT_JS, os.path.abspath(script), os.path.abspath(repo), str(cov), str(prof)],
                 {"ORION_JS_SETTLE_MS": str(self._settle_ms)})
