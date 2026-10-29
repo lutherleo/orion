@@ -374,7 +374,8 @@ def _run_scan(args: argparse.Namespace) -> int:
                         + (f" ({len(done)} already verified)" if done else "")))
         fresh = verify.verify_all(scan_id, todo, repo_for_verify, on_event,
                                   on_verdict=lambda v: _append_verdict(run_dir, v),
-                                  routing=getattr(args, "verify_routing", None) or None)
+                                  routing=getattr(args, "verify_routing", None) or None,
+                                  context=getattr(args, "verify_context", None) or None)
         by_index = {**done, **{v.lead.index: v for v in fresh}}
         verdicts = [by_index[lead.index] for lead in leads if lead.index in by_index]
         on_event(_event("verify", "done", detail=f"{len(verdicts)} verdicts"))
@@ -394,8 +395,10 @@ def _run_scan(args: argparse.Namespace) -> int:
                                f"loading model {args.lm_model}, temperature {args.lm_temperature})"))
         model = _load_lm_model(args.lm_model, temperature=args.lm_temperature)
         # args.repo, never the "." fallback: it is the read_code sandbox (guarded in pre-flight).
-        leads = lm_engine_mod.discover_lm(scan_id, args.repo, on_event, profile=profile, model=model,
-                                          stop=lm_stop, failures=lm_failures)
+        leads = lm_engine_mod.discover_lm(
+            scan_id, args.repo, on_event, profile=profile, model=model, stop=lm_stop, failures=lm_failures,
+            shortlists=getattr(args, "shortlists", None) or None,          # opt-in: B/C/D rows as cases
+            runtime=bool(getattr(args, "use_dynamic", False) or getattr(args, "runtime", False)))
         on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"
                         + (f", {len(lm_failures)} batches not judged" if lm_failures else "")))
         errors = lm_failure_verdicts(lm_failures, start=len(leads))
@@ -503,6 +506,10 @@ def _build_parser() -> argparse.ArgumentParser:
                       help="adaptive verification: clear-cut single-location leads get a light pass "
                            "(same model, smaller budget); anything it can't settle escalates to the "
                            "full pass. Off by default (ORION_VERIFY_ROUTING)")
+    scan.add_argument("--verify-context", dest="verify_context", action="store_true",
+                      help="give the verifier the code around each lead's claimed location (its enclosing "
+                           "function, callers and callees, cut by the tree-sitter code index; needs the "
+                           "`lm` extra). Off by default (ORION_VERIFY_CONTEXT)")
     scan.add_argument("--shortlists", dest="shortlists", action="store_true",
                       help="give discovery shapes B/C/D the build's precomputed candidate lists "
                            "(missing controls, hedge comments, ReDoS regexes, deps) inlined in their "

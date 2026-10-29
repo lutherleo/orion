@@ -41,6 +41,22 @@ def candidate_flows(db, scan_id: str, *, max_flows: int = 50) -> list[dict]:
     return out
 
 
+def candidate_findings(db, scan_id: str, *, max_findings: int = 30) -> list[dict]:
+    """The best-ranked :CandidateFinding shortlist rows (shapes B/C/D) that name a file and a line,
+    interleaved by rank across shapes: {shape, kind, file, line, cwe, rank}. For `--shortlists`."""
+    n = int(max_findings)
+    q = ("MATCH (c:CandidateFinding {scan_id:$scan_id}) WHERE c.file_path IS NOT NULL AND c.line IS NOT NULL "
+         "RETURN c.shape AS shape, c.kind AS kind, c.file_path AS file, c.line AS line, c.cwe AS cwe, "
+         f"c.rank AS rank ORDER BY c.rank, c.shape LIMIT {n}")
+    return list(_rows(tools.run_cypher(db, scan_id, q, limit=n, cap=False)))
+
+
+def executed_uids(db, scan_id: str, *, limit: int = 50000) -> set[str]:
+    """uids of the CpgCalls the runtime stage marked `executed` (empty without runtime data)."""
+    q = "MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.executed = true RETURN c.uid AS uid"
+    return {r.get("uid") for r in _rows(tools.run_cypher(db, scan_id, q, limit=limit, cap=False))}
+
+
 def flow_slice(db, scan_id: str, flow: dict) -> dict:
     uids = list(flow.get("path_uids") or [])
     found: dict[str, dict] = {}

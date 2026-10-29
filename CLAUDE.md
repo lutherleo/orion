@@ -45,6 +45,14 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
 - **D7** opt-in ports: CodeCase snippets for the Claude verifier, shortlists to lm cases, safer repo
   text in Claude prompts, runtime re-ranking of lm flows.
 - Lm run dirs record `"engine"`/`"model"` in `leads.json`; `--resume` refuses another engine.
+- **Phase 4 ports (2026-10-29), all opt-in, defaults byte-identical:** `--verify-context` /
+  `ORION_VERIFY_CONTEXT` puts the code around each lead (enclosing function + 2 callers/callees, cut by
+  Orion-LM's tree-sitter index; needs the `lm` extra, else a `warn`) into the Claude verifier's first
+  message and fills a missing `Lead.function`; `--shortlists` now also (a) wraps the inlined repo code /
+  comments in textsafe CODE markers with a data-not-instruction line, and (b) on `--engine lm` judges the
+  top 30 :CandidateFinding rows as code-only cases (`engine._finding_cases`, the Stage 1 shape);
+  `--runtime` / `--use-runtime` on lm re-ranks the worked flows from pathfind's 300 (sink executed ->
+  path coverage -> rank; unchanged without runtime data). All unmeasured.
 - **Phase 7** (added by Love Kush 2026-10-28): a localhost web UI to start / watch / stop scans and
   read reports from a browser, plus a bring-your-own LLM API key (never logged or committed).
   Designed and approved before it is built.

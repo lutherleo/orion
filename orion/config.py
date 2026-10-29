@@ -90,6 +90,11 @@ VERIFY_LIGHT_MAX_TURNS = int(_env("ORION_VERIFY_LIGHT_MAX_TURNS", "8"))
 VERIFY_LIGHT_TIMEOUT = int(_env("ORION_VERIFY_LIGHT_TIMEOUT", "240"))
 VERIFY_LIGHT_EFFORT = _env("ORION_VERIFY_LIGHT_EFFORT", "medium")
 
+# Code context for the verifier (opt-in, default OFF until measured; merge Phase 4): the lead's
+# enclosing function plus up to two callers/callees, cut from the repo by Orion-LM's tree-sitter code
+# index (the `lm` extra), go into the verifier's first message. Off keeps the message byte-identical.
+VERIFY_CONTEXT = _env("ORION_VERIFY_CONTEXT", "0").strip().lower() in ("1", "true", "yes", "on")
+
 # Precomputed shortlists for shapes B/C/D (opt-in, default OFF until measured). The build always
 # writes :CandidateFinding nodes; with this on, discovery inlines each shape's top rows into its first
 # message, so the agent judges a list instead of spending turns searching. Off keeps the prompts

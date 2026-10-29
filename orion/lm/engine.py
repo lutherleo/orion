@@ -30,6 +30,7 @@ import time
 
 from orion.contracts import Confidence, Lead, OnEvent, ProgressEvent, clean_location
 from orion.dedup import dedup_keep
+from orion import config
 from orion.lm import cases, prompter
 from orion.lm import slice as lm_slice
 from orion.lm.cases import CaseBudget
@@ -38,6 +39,8 @@ from orion.lm.codeindex import RepoIndex
 SHAPE = "LM"
 DEFAULT_K = 1  # one enriched case per session
 DEFAULT_MAX_FLOWS = 50  # top-ranked flows worked per scan (train/stage2.py samples its negatives from this range)
+DEFAULT_MAX_FINDINGS = 30  # shortlist rows judged as code-only cases per scan (--shortlists)
+RUNTIME_POOL = 300  # with runtime data, the flows worked are re-ranked from this many (pathfind's cap)
 MIN_CONTEXT_CAP = 512  # floor for the prompter's budget cap; below this no session can do useful work
 _CONFIDENCES: tuple[Confidence, ...] = ("LOW", "MEDIUM", "HIGH")
 # Step kinds -> progress-event names. run_cypher is a `query`; the rest of a session is `tool`, except
@@ -70,11 +73,64 @@ def prompter_cap(model) -> int:
 
 # ---- seams (monkeypatched by the token-free test) ------------------------------------------------
 
-def _load_flows(db, scan_id: str, max_flows: int) -> list[dict]:
+def _load_flows(db, scan_id: str, max_flows: int, *, runtime: bool = False) -> list[dict]:
     """Top `max_flows` CandidateFlows of the scan, each as a `flow_slice` dict (raises RuntimeError on a
-    query error -- the caller turns that into an `error` event)."""
-    flows = lm_slice.candidate_flows(db, scan_id, max_flows=max_flows)
+    query error -- the caller turns that into an `error` event).
+
+    `runtime` (merge Phase 4, opt-in: `--runtime` / `--use-runtime`): the top `max_flows` are taken from
+    pathfind's whole list (up to RUNTIME_POOL) after `_runtime_order` -- flows whose sink ran first. With
+    no executed call in the graph the result is exactly the plain top `max_flows`."""
+    if not runtime:
+        flows = lm_slice.candidate_flows(db, scan_id, max_flows=max_flows)
+    else:
+        pool = lm_slice.candidate_flows(db, scan_id, max_flows=RUNTIME_POOL)
+        ran = lm_slice.executed_uids(db, scan_id)
+        flows = (_runtime_order(pool, ran) if ran else pool)[:max_flows]
     return [lm_slice.flow_slice(db, scan_id, f) for f in flows]
+
+
+def _runtime_order(flows: list[dict], ran: set[str]) -> list[dict]:
+    """Flows whose sink call EXECUTED first, then by the share of their path calls that executed, then
+    pathfind's own rank. Deterministic; the flow ids (F<rank>) keep pathfind's rank."""
+    def key(f: dict):
+        path = f.get("path_uids") or []
+        covered = sum(1 for u in path if u in ran) / len(path) if path else 0.0
+        rank = f.get("rank") if isinstance(f.get("rank"), int) else 1 << 30
+        return (f.get("sink_uid") not in ran, -covered, rank)
+    return sorted(flows, key=key)
+
+
+def _load_findings(db, scan_id: str, max_findings: int) -> list[dict]:
+    """The top shortlist rows (`--shortlists`), a seam like `_load_flows`."""
+    return lm_slice.candidate_findings(db, scan_id, max_findings=max_findings)
+
+
+def _finding_cases(rows: list[dict], index: RepoIndex, budget: CaseBudget, flows: list[dict],
+                   on_event: OnEvent) -> list[dict]:
+    """Shortlist rows as code-only CodeCases (`cases.case_from_function`, the Stage 1 shape C1 was
+    trained on): the function enclosing each row's file:line, with its callers/callees and Orion's sink
+    line. A function a flow already targets, or one an earlier row already gave, is skipped."""
+    covered = {(sn.get("file"), sn.get("function")) for f in flows for sn in (f.get("snippets") or [])
+               if sn.get("role") == "target"}
+    out, seen = [], set()
+    for r in rows:
+        file, line = r.get("file"), r.get("line")
+        if not isinstance(file, str) or not isinstance(line, int) or isinstance(line, bool):
+            continue
+        span = index.enclosing(file, line)
+        if span is None or (span.file, span.start, span.end) in seen or (span.file, span.name) in covered:
+            continue
+        seen.add((span.file, span.start, span.end))
+        try:
+            case = cases.case_from_function(index, file, span, anchor=line,
+                                            case_id=f"S{r.get('shape')}{r.get('rank')}", budget=budget)
+        except Exception as exc:
+            on_event(_event(event="warn", detail=f"shortlist case for {file}:{line} failed: "
+                                                 f"{exc.__class__.__name__}: {exc}"))
+            continue
+        if case.get("snippets"):
+            out.append(case)
+    return out
 
 
 def _session(generate, db, repo_path: str, scan_id: str, batch: list[dict], **kw) -> tuple[list[dict], list[dict]]:
@@ -181,21 +237,29 @@ def _step_hook(on_event: OnEvent, on_step, turn: int, phase: str = "discover"):
     return hook
 
 
+def _build_index(repo_path: str, on_event: OnEvent) -> RepoIndex | None:
+    """The scan's one RepoIndex (an `index: ...` tool event), or None with a `warn` when it fails."""
+    t0 = time.perf_counter()
+    try:
+        index = RepoIndex(repo_path)
+    except Exception as exc:
+        on_event(_event(event="warn", detail=f"code index failed: {exc.__class__.__name__}: {exc}; "
+                                             f"judging path-only cases"))
+        return None
+    on_event(_event(event="tool", detail=f"index: {len(index.files)} files, {len(index.skipped)} skipped, "
+                                         f"{time.perf_counter() - t0:.2f}s"))
+    return index
+
+
 def _enrich(flows: list[dict], repo_path: str, on_event: OnEvent, budget: CaseBudget,
             index: RepoIndex | None) -> list[dict]:
     """Flows -> CodeCases. The index is built once; any failure degrades to the bare flow, never drops it."""
     if not flows:
         return flows
     if index is None:
-        t0 = time.perf_counter()
-        try:
-            index = RepoIndex(repo_path)
-        except Exception as exc:
-            on_event(_event(event="warn", detail=f"code index failed: {exc.__class__.__name__}: {exc}; "
-                                                 f"judging path-only cases"))
+        index = _build_index(repo_path, on_event)
+        if index is None:
             return flows
-        on_event(_event(event="tool", detail=f"index: {len(index.files)} files, {len(index.skipped)} skipped, "
-                                             f"{time.perf_counter() - t0:.2f}s"))
     out = []
     for flow in flows:
         try:
@@ -230,7 +294,8 @@ def _session_failure(steps: list[dict]) -> str | None:
 def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None, model=None, k: int = DEFAULT_K,
                 max_flows: int = DEFAULT_MAX_FLOWS, on_step=None, stop=None, flows=None, db=None,
                 case_budget: CaseBudget | None = None, index: RepoIndex | None = None,
-                failures: list | None = None) -> list[Lead]:
+                failures: list | None = None, shortlists: bool | None = None,
+                max_findings: int = DEFAULT_MAX_FINDINGS, runtime: bool = False) -> list[Lead]:
     """Run the Orion-LM discovery stage and return deduped `list[Lead]` (shape "LM").
 
     `model` is an already-loaded wrapper (`orion.lm.model.load(...)`): only its `.generate(messages)` is
@@ -255,6 +320,10 @@ def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None
     as an ERROR verdict. An empty `final` is a real answer and records nothing. Before each session
     the model's RNG is re-seeded (`seed_session`, when the wrapper has one), so a batch's answer does
     not depend on how much sampling the batches before it did.
+
+    Opt-in (merge Phase 4): `shortlists` (default config.SHORTLISTS) also judges the top `max_findings`
+    :CandidateFinding rows (shapes B/C/D) as code-only cases after the flows (`_finding_cases`);
+    `runtime` re-ranks the flows by what executed (`_load_flows`). Off, the stage is unchanged.
     """
     if model is None:
         raise ValueError("discover_lm needs a loaded model (orion.lm.model.load(path)); got None")
@@ -281,7 +350,7 @@ def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None
     try:
         if flows is None:
             try:
-                flows = _load_flows(db, scan_id, max_flows)
+                flows = _load_flows(db, scan_id, max_flows, **({"runtime": True} if runtime else {}))
             except Exception as exc:  # a graph/query failure is an error event, not a crash
                 on_event(_event(event="error", detail=f"loading CandidateFlows failed: {exc.__class__.__name__}: {exc}"))
                 if failures is not None:
@@ -289,7 +358,31 @@ def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None
                                                     f"{exc.__class__.__name__}: {exc}"))
                 flows = []
         flows = list(flows)[:max_flows]
-        flows = _enrich(flows, repo_path, on_event, case_budget or CaseBudget(), index)
+        budget = case_budget or CaseBudget()
+        tried_index = False
+        if flows:
+            if index is None:
+                index, tried_index = _build_index(repo_path, on_event), True
+            if index is not None:
+                flows = _enrich(flows, repo_path, on_event, budget, index)
+        if shortlists is None:
+            shortlists = config.SHORTLISTS
+        if shortlists:
+            # --shortlists (opt-in): the shapes B/C/D candidates the build stored, judged as code-only
+            # cases after the flows. An extra, never a reason to fail the scan.
+            try:
+                rows = _load_findings(db, scan_id, max_findings)
+            except Exception as exc:
+                on_event(_event(event="warn", detail=f"shortlist rows unavailable: {exc.__class__.__name__}: {exc}"))
+                rows = []
+            if rows and index is None and not tried_index:
+                index = _build_index(repo_path, on_event)
+            if rows and index is not None:
+                extra = _finding_cases(rows, index, budget, flows, on_event)
+                on_event(_event(event="tool", detail=f"shortlists: {len(extra)} code-only cases from {len(rows)} rows"))
+                flows = flows + extra
+            elif rows:
+                on_event(_event(event="warn", detail="shortlist rows need the code index; skipped"))
 
         for turn, start in enumerate(range(0, len(flows), k), start=1):
             if stop is not None and stop.is_set():
