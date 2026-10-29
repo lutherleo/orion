@@ -54,8 +54,12 @@ def _leads_of(action: dict) -> tuple[list[dict], str | None]:
 
 def run_session(generate, db, repo_path: str, scan_id: str, flows: list[dict], *,
                 max_actions: int = 40, context_cap: int = 8000, row_limit: int = 25,
-                stop=None, on_step=None) -> tuple[list[dict], list[dict]]:
+                stop=None, on_step=None, task: dict | None = None) -> tuple[list[dict], list[dict]]:
     """Run one session; return `(leads, steps)`.
+
+    `task` replaces the TASK turn (default `fmt.task_message(flows)`, exactly what discovery and the
+    training rows use); the verifier (orion/lm/verify.py) passes its own. Everything else -- the system
+    turn, the tools, the action format the model was trained on -- is the same either way.
 
     Forced final when the last call's prompt+completion tokens reach `context_cap`, when `max_actions`
     model calls have been made, or when `stop` (a threading.Event) is set: one more call after a
@@ -69,7 +73,7 @@ def run_session(generate, db, repo_path: str, scan_id: str, flows: list[dict], *
     sees the steps already taken if a later `generate` or tool call raises (the returned `steps` only
     exist on a normal return). A failing callback is swallowed; it never ends the session.
     """
-    messages: list[dict] = [fmt.system_message(), fmt.task_message(flows)]
+    messages: list[dict] = [fmt.system_message(), task if task is not None else fmt.task_message(flows)]
     steps: list[dict] = []
 
     def record(step: dict) -> None:

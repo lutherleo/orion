@@ -86,7 +86,7 @@ def _scan_rc(monkeypatch, argv, *, refused: bool) -> int:
 
     monkeypatch.setattr(discover, "discover", found)
     monkeypatch.setattr(engine, "discover_lm", found)
-    monkeypatch.setattr(cli, "_load_lm_model", lambda path: object())
+    monkeypatch.setattr(cli, "_load_lm_model", lambda path, **kw: object())
     monkeypatch.setattr(verify, "verify_all", lambda *a, **k: [])
     monkeypatch.setattr(embed, "index", lambda *a, **k: None)
     monkeypatch.setattr(embed, "ensure_exploit_index", lambda *a, **k: False)

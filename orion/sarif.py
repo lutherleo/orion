@@ -43,6 +43,23 @@ def fingerprint(v: Verdict) -> str:
     return hashlib.sha1(key.encode("utf-8")).hexdigest()
 
 
+def _code_flow(path: list[dict] | None) -> dict | None:
+    """A SARIF codeFlow from a lead's source->sink slice (`Lead.path`, set by the Orion-LM engine):
+    one threadFlow location per path node that names a file, in order, with its role as the message.
+    None when the lead carries no path (the Claude shapes), so their results are unchanged."""
+    steps = []
+    for node in path or []:
+        if not isinstance(node, dict) or not node.get("file"):
+            continue
+        physical: dict = {"artifactLocation": {"uri": str(node["file"]), "uriBaseId": "%SRCROOT%"}}
+        line = node.get("line")
+        if isinstance(line, int) and not isinstance(line, bool) and line >= 1:
+            physical["region"] = {"startLine": line}
+        text = str(node.get("role") or "step") + (f": {node['code']}" if node.get("code") else "")
+        steps.append({"location": {"physicalLocation": physical, "message": {"text": text[:300]}}})
+    return {"threadFlows": [{"locations": steps}]} if steps else None
+
+
 def to_sarif(verdicts: list[Verdict]) -> dict:
     rules: dict[str, dict] = {}
     results: list[dict] = []
@@ -80,6 +97,9 @@ def to_sarif(verdicts: list[Verdict]) -> dict:
         }
         if loc["function"]:
             result["locations"][0]["logicalLocations"] = [{"name": loc["function"], "kind": "function"}]
+        flow = _code_flow(v.lead.path)
+        if flow is not None:
+            result["codeFlows"] = [flow]
         results.append(result)
     return {
         "$schema": SCHEMA_URI,

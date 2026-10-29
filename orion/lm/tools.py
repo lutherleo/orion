@@ -29,6 +29,7 @@ message naming the offending part (as written) so the model can correct itself.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 
@@ -44,6 +45,10 @@ MAX_WINDOW = 200  # max lines returned by read_code
 QUERY_TIMEOUT_S = 10  # per-query server-side transaction timeout (EXPLAIN and the real query)
 MAX_VAR_LENGTH = 12  # upper bound for -[*..n]-; = graph/pathfind._MAX_DEPTH (a test pins this)
 MAX_QUERY_CHARS = 8000  # keeps the static check itself cheap; real queries are far shorter
+FIELD_CAP = 1000  # chars of one row value a tool result shows (2026-10-28)
+RESULT_CAP = 4000  # chars of all rows a tool result shows; rows past it are dropped
+LINE_CAP = 500  # chars of one source line read_code returns (a minified file is one huge line)
+READ_CAP = 12000  # chars read_code returns in total; the window is cut short past it
 
 _SHOW_MAX = 120  # longest snippet quoted back in an error
 
@@ -264,10 +269,33 @@ def run_cypher(db, scan_id: str, query: str, *, limit: int = ROW_LIMIT) -> dict:
             return {"error": f"query timed out after {QUERY_TIMEOUT_S} s: narrow it (fewer hops, "
                              "a LIMIT, a more specific label or property)"}
         return {"error": res["error"]}
-    out = {"rows": res["rows"], "row_count": res["row_count"]}
-    if res.get("truncated"):
-        out["truncated"] = True  # more rows existed than `limit`; only the first `limit` are shown
+    rows, capped = _cap_rows(res["rows"])
+    out = {"rows": rows, "row_count": res["row_count"]}
+    if res.get("truncated") or capped:
+        out["truncated"] = True  # more rows existed than shown, or values were cut to fit the caps
     return out
+
+
+def _cap_rows(rows: list[dict]) -> tuple[list[dict], bool]:
+    """`rows` cut to fit a turn: a value whose JSON text is over FIELD_CAP becomes that text, cut, with
+    "...[truncated]"; then whole rows are dropped from the end until all of them fit RESULT_CAP (at
+    least the first row is kept). 25 rows of `CpgCall.code` (an assignment's code holds a whole
+    function body) would otherwise blow the context. Returns (rows, whether anything was cut)."""
+    capped = False
+    out = []
+    for row in rows:
+        new = {}
+        for k, v in row.items():
+            text = v if isinstance(v, str) else json.dumps(v, default=str)
+            if len(text) > FIELD_CAP:
+                new[k], capped = text[:FIELD_CAP] + "...[truncated]", True
+            else:
+                new[k] = v
+        out.append(new)
+    while len(out) > 1 and len(json.dumps(out, default=str)) > RESULT_CAP:
+        out.pop()
+        capped = True
+    return out, capped
 
 
 def read_code(repo_path: str, file: str, start: int, end: int) -> dict:
@@ -290,11 +318,36 @@ def read_code(repo_path: str, file: str, start: int, end: int) -> dict:
     start = max(1, start)
     end = max(start, end)
     end = min(end, start + MAX_WINDOW - 1)
+    # Streamed: only lines up to `end` are read, so a huge file costs no more than its window. Line
+    # iteration splits on "\n" only (after the same newline translation `_split_lines(f.read())` saw),
+    # so the numbering is the code index's and the graph's. A line over LINE_CAP is cut, and the
+    # window ends early once READ_CAP characters are reached; either sets `truncated`.
+    chunk: list[str] = []
+    size = 0
+    truncated = cut_short = False
+    seen = 0                       # the last line number reached (the file's length at EOF)
     try:
         with open(full, encoding="utf-8", errors="replace") as f:
-            lines = _split_lines(f.read())   # "\n" only, as the code index and the graph number lines
+            for n, line in enumerate(f, start=1):
+                seen = n
+                if n > end:
+                    break
+                if n < start:
+                    continue
+                line = line[:-1] if line.endswith("\n") else line
+                if len(line) > LINE_CAP:
+                    line, truncated = line[:LINE_CAP] + "...[line truncated]", True
+                if chunk and size + len(line) + 1 > READ_CAP:
+                    truncated = cut_short = True
+                    break
+                chunk.append(line)
+                size += len(line) + 1
     except OSError as e:
         return {"error": str(e)}
-    end = min(end, len(lines))
-    chunk = lines[start - 1:end]
-    return {"file": file, "start": start, "end": end, "lines": "\n".join(chunk)}
+    # `end` as before: the requested end, or the file's last line when the file is shorter; the last
+    # line returned when READ_CAP cut the window short.
+    out = {"file": file, "start": start, "end": start + len(chunk) - 1 if cut_short else min(end, seen),
+           "lines": "\n".join(chunk)}
+    if truncated:
+        out["truncated"] = True
+    return out

@@ -179,6 +179,23 @@ CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
   seed 3407). `start_c1.sh` now uses a 9 GB cap (7 GB killed attempt 1 at step 19), saves every 10
   steps, and resumes from the newest complete checkpoint by itself. Next: freeze sampling (temperature
   0 or low, same for both arms), then rerun step 3's bakeoff on `models/orion-lm` vs `orion-lm-base`.
+- **Orion-LM as a full engine (merge Phase 3, 2026-10-29).** `orion scan --engine lm`:
+  - samples at `--lm-temperature` (default **0**, greedy) and re-seeds before every session, so a batch's
+    answer does not depend on the batches before it (the eval arm still loads with the model's own
+    defaults -- freezing its sampling is Krish's pre-registration call);
+  - a batch it could not judge (flow read failed, session raised, context overflow, invalid forced
+    final) is recorded in `discover_lm(failures=...)`, reported as an ERROR verdict and makes the scan
+    exit **3** ("incomplete") -- zero leads from it is never a clean negative;
+  - `--lm-verify` (opt-in, D2): `orion/lm/verify.py` re-judges each lead ALONE on the same model with the
+    trained action format (same system turn, tools and `final {leads}` schema; only the TASK turn
+    differs, via `prompter.run_session(task=...)`): lead named + MEDIUM/HIGH -> CONFIRM, LOW ->
+    INCONCLUSIVE, empty -> REJECT, any failure -> ERROR; `route="lm-verify"`. Unmeasured: gate 2;
+  - leads go through `contracts.clean_location`; dedup is the shared `orion/dedup.py` (the Claude
+    fleet's rules); SARIF results carry `codeFlows` from `Lead.path`; tool rows are capped
+    (`tools.FIELD_CAP` 1000 / `RESULT_CAP` 4000 chars) and `read_code` streams (`LINE_CAP` / `READ_CAP`;
+    byte-identical on ordinary files, `tests/test_lm_hardening.py`); path nodes name the CALLING method
+    (CONTAINS_CALL), not the callee -- resolves that item on Krish's list; no semantic index or exploit
+    corpus is built for lm; Ctrl-C stops after the current session (with or without `--watch`).
 - **C1 setup (2026-10-24).** Base Qwen3.5-4B (`models/orion-lm-base`, 4-bit
   MLX, text only); Unsloth's MLX trainer driven by `train/mlx_train.py` under `train/guard.py` (9 GB cap),
   started with `bash train/start_c1.sh` (LoRA r16/alpha16, top 8 layers, 1 epoch, dev eval loss every 100

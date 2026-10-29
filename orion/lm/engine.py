@@ -9,8 +9,9 @@ model's final `leads` onto `contracts.Lead` (shape "LM") with `file/function/lin
 dedup (same key as `discover._dedup`) collapses two leads on one flow.
 
 Rules this module is built around:
-  * Never imports `claude_cli` (nor `orion.discover`, which imports it at module top -- `_dedup` is a
-    copy of discover.py's with the same key, kept here so the lm package stays Claude-free).
+  * Never imports `claude_cli` (nor `orion.discover`, which imports it at module top); dedup is the
+    Claude-free shared `orion.dedup` (structural, then fingerprint, then lexical -- the same rules as
+    the Claude fleet's).
   * A failure is an `error` event + zero leads for THAT batch; other batches still run, the scan never
     crashes and no lead is ever fabricated.
   * A lead whose `flow_id` is missing or not in its batch is attached to the batch's first flow and tagged
@@ -27,7 +28,8 @@ from dataclasses import replace
 from datetime import datetime, timezone
 import time
 
-from orion.contracts import Confidence, Lead, OnEvent, ProgressEvent
+from orion.contracts import Confidence, Lead, OnEvent, ProgressEvent, clean_location
+from orion.dedup import dedup_keep
 from orion.lm import cases, prompter
 from orion.lm import slice as lm_slice
 from orion.lm.cases import CaseBudget
@@ -48,9 +50,11 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _event(*, event: str, detail: str = "", lead: int | None = None, turn: int | None = None) -> ProgressEvent:
-    """Same dict shape as `discover._event` / `cli._event`; phase and shape are fixed for this engine."""
-    return {"ts": _now(), "phase": "discover", "shape": SHAPE, "lead": lead,
+def _event(*, event: str, detail: str = "", lead: int | None = None, turn: int | None = None,
+           phase: str = "discover") -> ProgressEvent:
+    """Same dict shape as `discover._event` / `cli._event`; shape is fixed for this engine, phase is
+    "discover" except for the lm verifier's ("verify")."""
+    return {"ts": _now(), "phase": phase, "shape": SHAPE, "lead": lead,
             "turn": turn, "event": event, "detail": detail}
 
 
@@ -126,9 +130,14 @@ def _to_lead(raw: dict, flow: dict, index: int, *, unresolved: bool) -> Lead:
     if unresolved:
         summary = (f"flow_id unresolved (model gave {raw.get('flow_id')!r}; attached to the batch's first flow "
                    f"{flow_id}). " + summary)
+    # The structured fields go through the same validation as the Claude agents' (a negative line, a
+    # bare "89" CWE or a "./" path is dropped or normalised, never guessed); `evidence` keeps the
+    # model's own words.
+    loc = clean_location({"file": file, "line_start": line, "function": function, "cwe": cwe})
     return Lead(index=index, shape=SHAPE, text=text, evidence=summary, confidence=confidence,
                 source_uid=flow.get("source_uid") or None, sink_uid=flow.get("sink_uid") or None,
-                file=file, function=function, line_start=line, cwe=cwe, path=path)
+                file=loc.get("file"), function=loc.get("function"), line_start=loc.get("line_start"),
+                cwe=loc.get("cwe"), path=path)
 
 
 def _map_batch(raw_leads: list, batch: list[dict], start_index: int) -> list[Lead]:
@@ -152,33 +161,7 @@ def _map_batch(raw_leads: list, batch: list[dict], start_index: int) -> list[Lea
     return leads
 
 
-def _dedup(leads: list[Lead]) -> list[Lead]:
-    """Copy of `discover._dedup` (same keys, same first-wins rule): structural on (source_uid, sink_uid),
-    lexical (shape, text[:80]) fallback for leads with no graph anchor; reindexes sequentially."""
-    return [replace(lead, index=i) for i, lead in enumerate(_dedup_keep(leads))]
-
-
-def _dedup_keep(leads: list[Lead]) -> list[Lead]:
-    """The leads `_dedup` keeps, as the ORIGINAL objects (so the caller can still map them to their batch)."""
-    seen_struct: set[tuple[str, str]] = set()
-    seen_lex: set[tuple[str, str]] = set()
-    kept: list[Lead] = []
-    for lead in leads:
-        if lead.source_uid and lead.sink_uid:
-            key = (lead.source_uid, lead.sink_uid)
-            if key in seen_struct:
-                continue
-            seen_struct.add(key)
-        else:
-            key = (lead.shape, lead.text[:80])
-            if key in seen_lex:
-                continue
-            seen_lex.add(key)
-        kept.append(lead)
-    return kept
-
-
-def _step_hook(on_event: OnEvent, on_step, turn: int):
+def _step_hook(on_event: OnEvent, on_step, turn: int, phase: str = "discover"):
     """Per-batch callback handed to the session: one progress event per step, then the caller's `on_step`
     (a failing logger is a `warn`, never a crash). Called by the prompter the moment a step is recorded."""
     def hook(step) -> None:
@@ -188,12 +171,13 @@ def _step_hook(on_event: OnEvent, on_step, turn: int):
             detail += f" {step['query']}"
         if isinstance(step, dict) and step.get("error"):
             detail += f" [error: {step['error']}]"
-        on_event(_event(event=_STEP_EVENTS.get(kind, "tool"), turn=turn, detail=detail))
+        on_event(_event(event=_STEP_EVENTS.get(kind, "tool"), turn=turn, detail=detail, phase=phase))
         if on_step is not None:
             try:
                 on_step(step)
             except Exception as exc:
-                on_event(_event(event="warn", turn=turn, detail=f"on_step failed: {exc.__class__.__name__}: {exc}"))
+                on_event(_event(event="warn", turn=turn, detail=f"on_step failed: {exc.__class__.__name__}: {exc}",
+                                phase=phase))
     return hook
 
 
@@ -225,9 +209,28 @@ def _enrich(flows: list[dict], repo_path: str, on_event: OnEvent, budget: CaseBu
 
 # ---- the stage ----------------------------------------------------------------------------------
 
+def _failure(turn: int, batch: list[dict], reason: str) -> dict:
+    """One batch the engine could not judge: which flows, where the first one's sink is, and why."""
+    sink = next((n for n in reversed((batch[0].get("nodes") or []) if batch else []) if isinstance(n, dict)), {})
+    return {"turn": turn, "flow_ids": [str(f.get("flow_id")) for f in batch], "reason": reason,
+            "file": sink.get("file"), "line": sink.get("line")}
+
+
+def _session_failure(steps: list[dict]) -> str | None:
+    """Why a session that RETURNED still judged nothing: the context overflowed, or the forced final was
+    not a valid final. None when the session ended with a real answer (an empty `leads` list included)."""
+    for step in steps or []:
+        if step.get("kind") == "context_overflow":
+            return f"context overflow: {step.get('error')}"
+        if step.get("kind") == "forced_final" and step.get("error"):
+            return f"forced final failed: {step.get('error')}"
+    return None
+
+
 def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None, model=None, k: int = DEFAULT_K,
                 max_flows: int = DEFAULT_MAX_FLOWS, on_step=None, stop=None, flows=None, db=None,
-                case_budget: CaseBudget | None = None, index: RepoIndex | None = None) -> list[Lead]:
+                case_budget: CaseBudget | None = None, index: RepoIndex | None = None,
+                failures: list | None = None) -> list[Lead]:
     """Run the Orion-LM discovery stage and return deduped `list[Lead]` (shape "LM").
 
     `model` is an already-loaded wrapper (`orion.lm.model.load(...)`): only its `.generate(messages)` is
@@ -244,6 +247,14 @@ def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None
 
     Any exception in loading flows or in one batch's session becomes an `error` event and zero leads
     for that batch; the remaining batches still run and the function always returns.
+
+    `failures`, when given, receives one record per batch the model could NOT judge -- the flow read
+    failed, the session raised, its context overflowed, or its forced final was invalid -- as
+    {turn, flow_ids, reason, file, line} (a `warn` event too, for the two kinds that end a session
+    without raising). Zero leads from such a batch is not a clean negative; the CLI reports each one
+    as an ERROR verdict. An empty `final` is a real answer and records nothing. Before each session
+    the model's RNG is re-seeded (`seed_session`, when the wrapper has one), so a batch's answer does
+    not depend on how much sampling the batches before it did.
     """
     if model is None:
         raise ValueError("discover_lm needs a loaded model (orion.lm.model.load(path)); got None")
@@ -273,6 +284,9 @@ def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None
                 flows = _load_flows(db, scan_id, max_flows)
             except Exception as exc:  # a graph/query failure is an error event, not a crash
                 on_event(_event(event="error", detail=f"loading CandidateFlows failed: {exc.__class__.__name__}: {exc}"))
+                if failures is not None:
+                    failures.append(_failure(0, [], f"loading CandidateFlows failed: "
+                                                    f"{exc.__class__.__name__}: {exc}"))
                 flows = []
         flows = list(flows)[:max_flows]
         flows = _enrich(flows, repo_path, on_event, case_budget or CaseBudget(), index)
@@ -285,15 +299,25 @@ def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None
             batch = flows[start:start + k]
             ids = ", ".join(str(f.get("flow_id")) for f in batch)
             step_hook = _step_hook(on_event, on_step, turn)
+            seed = getattr(model, "seed_session", None)
+            if callable(seed):
+                seed()
             try:
                 # Steps reach `step_hook` as they happen, so a batch that fails mid-session still reports
                 # the steps it took; the returned `steps` are the same records and are NOT replayed.
-                raw_leads, _steps = _session(generate, db, repo_path, scan_id, batch,
-                                             context_cap=context_cap, stop=stop, on_step=step_hook)
+                raw_leads, steps = _session(generate, db, repo_path, scan_id, batch,
+                                            context_cap=context_cap, stop=stop, on_step=step_hook)
             except Exception as exc:
                 on_event(_event(event="error", turn=turn,
                                 detail=f"batch {turn} ({ids}) failed: {exc.__class__.__name__}: {exc}"))
+                if failures is not None:
+                    failures.append(_failure(turn, batch, f"{exc.__class__.__name__}: {exc}"))
                 continue
+            why = _session_failure(steps)
+            if why is not None:
+                on_event(_event(event="warn", turn=turn, detail=f"batch {turn} ({ids}) not judged: {why}"))
+                if failures is not None:
+                    failures.append(_failure(turn, batch, why))
             batch_leads = _map_batch(list(raw_leads or []), batch, len(leads))
             for lead in batch_leads:
                 turn_of[id(lead)] = turn
@@ -302,7 +326,7 @@ def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None
         if own_db:
             db.close()
 
-    kept = _dedup_keep(leads)
+    kept = dedup_keep(leads)
     deduped = [replace(lead, index=i) for i, lead in enumerate(kept)]
     for original, lead in zip(kept, deduped):  # indices match the returned list
         on_event(_event(event="lead", lead=lead.index, turn=turn_of.get(id(original)), detail=lead.text))

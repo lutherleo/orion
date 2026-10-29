@@ -113,7 +113,7 @@ def test_lm_run_dir_records_its_engine_and_model(tmp_path, monkeypatch):
     monkeypatch.setattr(embed, "ensure_exploit_index", lambda: False)
     monkeypatch.setattr(graphdb, "GraphDB", _NoGraph)
     monkeypatch.setattr(scans, "check_usable", lambda *a, **k: None)
-    monkeypatch.setattr(cli, "_load_lm_model", lambda path: object())
+    monkeypatch.setattr(cli, "_load_lm_model", lambda path, **kw: object())
     lead = Lead(index=0, shape="LM", text="t", evidence="e", confidence="HIGH", file="a.js", line_start=1)
     monkeypatch.setattr(lm_engine, "discover_lm", lambda *a, **k: [lead])
     assert cli.main(["scan", str(repo), "--scan-id", "sid", "--engine", "lm", "--model", "m", "--quiet"]) == 0

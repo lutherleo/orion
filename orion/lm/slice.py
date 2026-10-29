@@ -46,9 +46,14 @@ def flow_slice(db, scan_id: str, flow: dict) -> dict:
     found: dict[str, dict] = {}
     if uids:
         uniq = list(dict.fromkeys(uids))
+        # `function` is the method that CONTAINS the call (CONTAINS_CALL), not `c.method_full_name`,
+        # which is the call's TARGET (the model saw "in <operator>.assignment"). min() keeps it
+        # deterministic; a call with no CONTAINS_CALL edge (the arrow-function gap) gets None, never
+        # the callee's name. Fixed 2026-10-28 (merge plan Phase 3; was on Krish's open list).
         q = ("MATCH (c:CpgCall {scan_id:$scan_id}) "
              f"WHERE c.uid IN [{', '.join(_lit(u) for u in uniq)}] "
-             "RETURN c.uid AS uid, c.file_path AS file, c.method_full_name AS function, "
+             "OPTIONAL MATCH (m:CpgMethod {scan_id:$scan_id})-[:CONTAINS_CALL]->(c) "
+             "RETURN c.uid AS uid, c.file_path AS file, min(m.full_name) AS function, "
              "c.line AS line, c.code AS code")
         for r in _rows(tools.run_cypher(db, scan_id, q, limit=len(uniq))):
             found[r.get("uid")] = r

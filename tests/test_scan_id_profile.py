@@ -41,7 +41,7 @@ def _scan_id_printed(monkeypatch, capsys, argv) -> str:
     monkeypatch.setattr(discover, "discover", lambda *a, **k: [])
     monkeypatch.setattr(verify, "verify_all", lambda *a, **k: [])
     monkeypatch.setattr(engine, "discover_lm", lambda *a, **k: [])
-    monkeypatch.setattr(cli, "_load_lm_model", lambda path: object())
+    monkeypatch.setattr(cli, "_load_lm_model", lambda path, **kw: object())
     _stub_env(monkeypatch)
     assert cli.main(argv) == 0
     return next(line.split(": ", 1)[1] for line in capsys.readouterr().out.splitlines()

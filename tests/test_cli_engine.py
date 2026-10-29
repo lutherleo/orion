@@ -112,7 +112,7 @@ def test_lm_engine_skips_verify_and_wraps_inconclusive(monkeypatch, tmp_path, ca
         return [_fake_lead()]
 
     monkeypatch.setattr(engine, "discover_lm", _fake_discover_lm)
-    monkeypatch.setattr(cli, "_load_lm_model", lambda path: calls["load"].append(path) or sentinel_model)  # no MLX in tests
+    monkeypatch.setattr(cli, "_load_lm_model", lambda path, **kw: calls["load"].append(path) or sentinel_model)  # no MLX in tests
     events = _stub_env(monkeypatch)
     rc = cli.main(["scan", str(repo), "--scan-id", "prebuilt", "--engine", "lm", "--model", "/m/orion-lm",
                    "--quiet", "--json", str(tmp_path / "o.json")])
@@ -142,7 +142,7 @@ def test_lm_engine_never_imports_claude_cli(monkeypatch, tmp_path):
     monkeypatch.setattr(verify, "verify_all", lambda *a, **k: pytest.fail("verify_all called"))
     monkeypatch.setattr(discover, "discover", lambda *a, **k: pytest.fail("discover called"))
     monkeypatch.setattr(engine, "discover_lm", lambda *a, **k: [])
-    monkeypatch.setattr(cli, "_load_lm_model", lambda path: object())
+    monkeypatch.setattr(cli, "_load_lm_model", lambda path, **kw: object())
     _stub_env(monkeypatch)
     monkeypatch.delitem(sys.modules, "orion.claude_cli", raising=False)
     monkeypatch.setitem(sys.modules, "orion.claude_cli", None)   # any import attempt -> ImportError
@@ -178,7 +178,7 @@ def test_lm_engine_builds_with_lm_sink_profile(monkeypatch, tmp_path):
         return []
 
     monkeypatch.setattr(engine, "discover_lm", _fake_discover_lm)
-    monkeypatch.setattr(cli, "_load_lm_model", lambda path: object())
+    monkeypatch.setattr(cli, "_load_lm_model", lambda path, **kw: object())
     _stub_env(monkeypatch)
     captured = _stub_build(monkeypatch)
     rc = cli.main(["scan", str(repo), "--engine", "lm", "--model", "/m/x", "--quiet"])
@@ -216,7 +216,7 @@ def test_claude_engine_path_is_unchanged(monkeypatch, tmp_path):
                         lambda *a, **k: (order.append("verify"), calls.__setitem__("verify", calls["verify"] + 1))
                         and [])
     monkeypatch.setattr(engine, "discover_lm", lambda *a, **k: pytest.fail("discover_lm called on the claude path"))
-    monkeypatch.setattr(cli, "_load_lm_model", lambda path: pytest.fail("model loaded on the claude path"))
+    monkeypatch.setattr(cli, "_load_lm_model", lambda path, **kw: pytest.fail("model loaded on the claude path"))
     events = _stub_env(monkeypatch)
     rc = cli.main(["scan", "--scan-id", "prebuilt", "--quiet"])
     assert rc == 0

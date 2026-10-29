@@ -147,11 +147,27 @@ def write_verdicts_json(path, verdicts: list) -> int:
     return len(payload)
 
 
-def _load_lm_model(path: str):
-    """Load the Orion-LM model wrapper for `path` (MLX-LM, llama-cpp fallback). A seam: tests replace
-    it, and the MLX import stays inside the lm branch -- `orion.lm.model`'s top level is stdlib-only."""
+def lm_failure_verdicts(failures: list[dict], *, start: int) -> list:
+    """One ERROR verdict per batch the lm engine could not judge (discover_lm's `failures`), on a
+    placeholder lead numbered from `start` and placed at the batch's sink when known. Zero leads from
+    such a batch is not a clean negative, so it is never reported as one."""
+    from .contracts import Lead, Verdict
+    out = []
+    for i, f in enumerate(failures):
+        ids = ", ".join(f.get("flow_ids") or []) or "the candidate flows"
+        line = f.get("line") if isinstance(f.get("line"), int) and f.get("line") >= 1 else None
+        lead = Lead(index=start + i, shape="LM", text=f"not judged: {ids}", evidence=str(f.get("reason")),
+                    confidence="LOW", file=f.get("file") or None, line_start=line)
+        out.append(Verdict(lead, "ERROR", f"engine=lm could not judge {ids}: {f.get('reason')}"))
+    return out
+
+
+def _load_lm_model(path: str, **sampling):
+    """Load the Orion-LM model wrapper for `path` (MLX-LM, llama-cpp fallback) with `sampling`
+    (`temperature`, ...). A seam: tests replace it, and the MLX import stays inside the lm branch --
+    `orion.lm.model`'s top level is stdlib-only."""
     from .lm import model as lm_model
-    return lm_model.load(path)
+    return lm_model.load(path, **sampling)
 
 
 def _run_scan(args: argparse.Namespace) -> int:
@@ -268,20 +284,24 @@ def _run_scan(args: argparse.Namespace) -> int:
         build_kwargs = {"profile": lm_profile} if lm_profile is not None else {}
         if lm_profile is not None:
             on_event(_event("build", "start", detail=f"lm sink profile {lm_profile.name} applied to the build"))
+        # The lm engine never queries the semantic index, so it is not built for it (and the embedding
+        # model is never loaded next to MLX on a 16 GB machine).
         graph_build.build(args.repo, args.language, on_event,
                           stream=args.stream, queue_size=args.queue_size,
-                          on_batch=_index_semantic, **build_kwargs)
+                          on_batch=None if lm_engine else _index_semantic, **build_kwargs)
         on_event(_event("build", "done", detail="graph build complete"))
     else:
         on_event(_event("build", "done", detail=f"using existing scan_id {scan_id}"))
-        if args.repo:
+        if args.repo and not lm_engine:
             _index_semantic()   # --scan-id path: read spans from the already-persisted graph
 
     # Best-effort: ensure the GLOBAL exploit-reference corpus is indexed (once) so the verifier's
     # exploit_search tool works. Builds ONLY if the metadata file is present locally -- never
     # downloads mid-scan, never fatal. Run `orion index-exploits` to fetch + build it explicitly.
     try:
-        if embed.ensure_exploit_index():
+        if lm_engine:
+            pass                # the exploit corpus serves the Claude verifier's exploit_search only
+        elif embed.ensure_exploit_index():
             on_event(_event("build", "done", detail="exploit-reference corpus ready"))
         else:
             on_event(_event("build", "done",
@@ -360,31 +380,49 @@ def _run_scan(args: argparse.Namespace) -> int:
         on_event(_event("verify", "done", detail=f"{len(verdicts)} verdicts"))
         return verdicts
 
+    lm_stop = threading.Event()      # Ctrl-C: the lm engine finishes its current session, then stops
+    lm_failures: list[dict] = []     # batches the lm engine could not judge (-> ERROR verdicts)
+
     def _pipeline_lm(node_count: int):
-        # The in-process Orion-LM engine: one local model, no `claude -p`, no verifier. The model is
-        # loaded HERE -- after the build -- so Joern and the model are never resident together
-        # (16 GB machine). MLX is imported lazily by _load_lm_model; `orion.lm.engine` itself is
-        # stdlib + graphdb only.
+        # The in-process Orion-LM engine: one local model, no `claude -p`. The model is loaded HERE --
+        # after the build -- so Joern and the model are never resident together (16 GB machine). MLX is
+        # imported lazily by _load_lm_model; `orion.lm.engine` itself is stdlib + graphdb only.
         from .lm import engine as lm_engine_mod
 
         on_event(_event("discover", "start",
                         detail=f"Orion-LM discovery starting ({node_count} nodes, engine=lm, "
-                               f"loading model {args.lm_model})"))
-        model = _load_lm_model(args.lm_model)
+                               f"loading model {args.lm_model}, temperature {args.lm_temperature})"))
+        model = _load_lm_model(args.lm_model, temperature=args.lm_temperature)
         # args.repo, never the "." fallback: it is the read_code sandbox (guarded in pre-flight).
-        leads = lm_engine_mod.discover_lm(scan_id, args.repo, on_event, profile=profile, model=model)
-        on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"))
-        _save_leads(run_dir, scan_id, args.repo, leads, engine="lm", model=args.lm_model)
+        leads = lm_engine_mod.discover_lm(scan_id, args.repo, on_event, profile=profile, model=model,
+                                          stop=lm_stop, failures=lm_failures)
+        on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"
+                        + (f", {len(lm_failures)} batches not judged" if lm_failures else "")))
+        errors = lm_failure_verdicts(lm_failures, start=len(leads))
+        _save_leads(run_dir, scan_id, args.repo, leads + [v.lead for v in errors],
+                    engine="lm", model=args.lm_model)
 
-        # No independent verifier on this engine (yet): say so loudly and report every lead as
-        # INCONCLUSIVE rather than inventing a CONFIRM (lm_verdicts).
-        on_event(_event("verify", "done", detail="skipped (engine=lm)"))
-        verdicts = lm_verdicts(leads)
-        for v in verdicts:
+        if getattr(args, "lm_verify", False):
+            # The opt-in second pass, on the SAME model (one model per scan).
+            from .lm import verify as lm_verify
+            on_event(_event("verify", "start", detail=f"lm-verify: re-judging {len(leads)} leads"))
+            verdicts = lm_verify.verify_lm(scan_id, leads, args.repo, on_event, model=model, stop=lm_stop,
+                                           on_verdict=lambda v: _append_verdict(run_dir, v))
+            on_event(_event("verify", "done", detail=f"{len(verdicts)} verdicts"))
+        else:
+            # No verifier asked for: say so loudly and report every lead as INCONCLUSIVE rather than
+            # inventing a CONFIRM (lm_verdicts).
+            on_event(_event("verify", "done", detail="skipped (engine=lm; --lm-verify not given)"))
+            verdicts = lm_verdicts(leads)
+            for v in verdicts:
+                _append_verdict(run_dir, v)
+        for v in errors:
             _append_verdict(run_dir, v)
-        return verdicts
+        return verdicts + errors
 
-    if args.watch:
+    if args.watch or lm_engine:
+        # A worker thread runs the pipeline; the foreground follows the log (--watch) or just waits.
+        # Ctrl-C asks the lm engine to stop after its current session (a second Ctrl-C leaves at once).
         stop = threading.Event()
         result: dict = {}
 
@@ -399,8 +437,16 @@ def _run_scan(args: argparse.Namespace) -> int:
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
         try:
-            tail(run_dir, stop)
+            if args.watch:
+                tail(run_dir, stop)
+            else:
+                while not stop.wait(0.5):
+                    pass
         except KeyboardInterrupt:
+            lm_stop.set()
+            if lm_engine:
+                print("\nstopping: finishing the current Orion-LM session (Ctrl-C again to quit now)",
+                      file=sys.stderr)
             stop.set()
         thread.join()
         if "error" in result:
@@ -429,7 +475,12 @@ def _run_scan(args: argparse.Namespace) -> int:
         Path(args.sarif).write_text(sarif, encoding="utf-8")
         print(f"wrote SARIF to {args.sarif}")
 
-    return _exit_code(verdicts, getattr(args, "fail_on", "none"))
+    code = _exit_code(verdicts, getattr(args, "fail_on", "none"))
+    if code == 0 and lm_failures:
+        print(f"\norion scan: incomplete -- {len(lm_failures)} Orion-LM batch(es) not judged "
+              "(ERROR verdicts above)", file=sys.stderr)
+        return 3
+    return code
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -490,6 +541,12 @@ def _build_parser() -> argparse.ArgumentParser:
                            "INCONCLUSIVE)")
     scan.add_argument("--model", dest="lm_model", metavar="PATH",
                       help="path to the Orion-LM model (engine=lm)")
+    scan.add_argument("--lm-temperature", dest="lm_temperature", type=float, default=0.0,
+                      help="engine=lm sampling temperature (default 0: greedy, the same answer every run)")
+    scan.add_argument("--lm-verify", dest="lm_verify", action="store_true",
+                      help="engine=lm: re-judge every lead in a second pass on the SAME model, giving "
+                           "CONFIRM/REJECT/INCONCLUSIVE/ERROR verdicts (off by default until measured; "
+                           "without it lm leads are INCONCLUSIVE \"unverified\")")
 
     re_ = sub.add_parser("reanalyze",
                          help="recompute a scan's CandidateFlows from the graph in Neo4j (no Joern)")
