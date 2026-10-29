@@ -3,6 +3,7 @@ and the OS drops it however the process ends -- finished or killed. Token-free; 
 tiny Python child."""
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import textwrap
@@ -53,3 +54,37 @@ def test_a_killed_scan_releases_its_lock(tmp_path):
 
 def test_held_survives_an_unreadable_dir(tmp_path):
     assert runlock.held(tmp_path / "missing") is False
+
+
+def test_held_needs_no_write_access(tmp_path):
+    """The UI may read a run dir it cannot write: a live scan must still show as running."""
+    child = subprocess.Popen([sys.executable, "-c", HOLDER, str(tmp_path)], stdout=subprocess.PIPE, text=True)
+    try:
+        assert child.stdout.readline().strip() == "held"
+        os.chmod(tmp_path / runlock.LOCK_NAME, 0o444)
+        assert runlock.held(tmp_path) is True
+    finally:
+        child.kill()
+        child.wait(30)
+        os.chmod(tmp_path / runlock.LOCK_NAME, 0o644)
+
+
+def test_a_dir_without_room_for_the_lock_file_never_blocks_a_scan(tmp_path):
+    handle = runlock.acquire(tmp_path / "no-such-dir")       # cannot create the file: no crash, no refusal
+    assert handle is not None
+    handle.close()
+
+
+def test_a_lock_file_this_user_cannot_write_still_locks(tmp_path):
+    """A scan must not run unguarded beside a live one just because the lock file is not writable here:
+    a read handle locks too."""
+    lock = tmp_path / runlock.LOCK_NAME
+    lock.write_bytes(b"")
+    os.chmod(lock, 0o444)
+    try:
+        handle = runlock.acquire(tmp_path)
+        assert handle is not None and not isinstance(handle, runlock._NoLock)
+        assert runlock.acquire(tmp_path) is None                   # a second writer is still refused
+        handle.close()
+    finally:
+        os.chmod(lock, 0o644)

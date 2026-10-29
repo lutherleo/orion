@@ -184,3 +184,54 @@ def test_target_processes_get_no_model_credentials(monkeypatch, tmp_path):
     shown = SubprocessSandbox().run([sys.executable, "-c", "import os; print(os.environ.get('ANTHROPIC_API_KEY'))"],
                                     cwd=str(tmp_path), timeout=60)
     assert shown.stdout.strip() == "None"
+
+
+def test_a_pinned_harness_file_beats_the_repos_descriptor(tmp_path):
+    """--harness-file is the user's own script: the repo's descriptor must not swap it for its boot command,
+    its own script, or the image it runs in."""
+    (tmp_path / "requirements.txt").write_text("")
+    (tmp_path / ".orion").mkdir()
+    desc = tmp_path / ".orion" / "runtime.json"
+    mine = str(tmp_path / "mine.py")
+    desc.write_text('{"kind":"http","boot":["sh","-c","echo from-the-repo"]}')
+    events: list[dict] = []
+    drv, _ = targets.select(str(tmp_path), harness_file=mine, sandbox="docker", on_event=events.append)
+    assert type(drv).__name__ == "HarnessDriver" and drv._isolation == "docker"
+    assert [e["event"] for e in events] == ["warn"] and "harness file was pinned" in events[0]["detail"]
+    desc.write_text('{"kind":"harness","language":"py","file":"theirs.py","image":"their-image:1"}')
+    drv, _ = targets.select(str(tmp_path), driver="harness", harness_file=mine, sandbox="docker")
+    assert drv._harness_file == mine and drv._image != "their-image:1"   # the default image, not the repo's
+
+
+def test_an_interrupt_during_the_boot_wait_stops_the_booted_server(tmp_path, monkeypatch):
+    """Nobody else would stop it: the caller only learns of a target once start() returns."""
+    from orion.runtime import http_driver
+
+    class _NoTracer:
+        def launch_env(self, work):
+            return {}
+
+    drv = http_driver.HttpDriver([sys.executable, "-c", "import time; time.sleep(60)"], "http://127.0.0.1:9",
+                                 _NoTracer())
+    booted = []
+
+    def ctrl_c(proc):
+        booted.append(proc)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(drv, "_wait_ready", ctrl_c)
+    try:
+        drv.start(str(tmp_path), tmp_path, [])
+    except KeyboardInterrupt:
+        pass
+    [proc] = booted
+    assert proc.poll() is not None                               # stopped, not left running
+
+
+def test_an_explicit_http_driver_keeps_its_descriptor_even_with_a_pinned_harness_file(tmp_path):
+    """The pinned file only wins when the harness driver will run it."""
+    (tmp_path / ".orion").mkdir()
+    (tmp_path / ".orion" / "runtime.json").write_text(
+        '{"kind":"http","boot":["npm","start"],"base_url":"http://localhost:4000"}')
+    drv, _ = targets.select(str(tmp_path), driver="http", harness_file=str(tmp_path / "mine.py"))
+    assert type(drv).__name__ == "HttpDriver" and drv._base_url == "http://localhost:4000"

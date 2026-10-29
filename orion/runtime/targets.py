@@ -9,9 +9,10 @@ questions). Precedence:
         "login":{"path":"/login","fields":{"userName":"user1","password":"User1_123"}}}
        {"kind":"process","build":["go","build","./..."],"out":"target.bin"}
        {"kind":"harness","language":"py","file":"scripts/drive.py","image":"myapp-deps:latest"}
-     EXCEPT that an explicit `driver` of another kind wins over it (with a `warn` event): the
-     descriptor is the scanned repo's own file, so it must not turn the harness run the user asked
-     for (the only driver a Docker sandbox can hold) into its own commands run on the host;
+     EXCEPT that a pinned `harness_file`, or an explicit `driver` of another kind, wins over it (with
+     a `warn` event): the descriptor is the scanned repo's own file, so it must not turn the harness
+     run the user asked for (the only driver a Docker sandbox can hold) into its own commands run on
+     the host, nor swap the user's script or pick the image it runs in;
   2. an explicit `driver` ("harness" | "http" | "process") or a pinned `harness_file`;
   3. manifest sniff: npm `start` script -> http; go.mod -> process; Python markers -> py harness;
      any other package.json -> js harness.
@@ -103,15 +104,19 @@ def _harness(repo: str, language: str | None, harness_file: str | None, timeout:
 def select(repo: str, *, driver: str = "auto", language: str | None = None,
            harness_file: str | None = None, timeout: float = 120.0, on_event=None,
            sandbox: str = "auto"):
-    """Return (Driver, Tracer) or None. Descriptor wins, unless an explicit driver of another kind was
-    asked for; then the explicit choice; then a sniff."""
+    """Return (Driver, Tracer) or None. Descriptor wins, unless a harness file was pinned or an explicit
+    driver of another kind was asked for; then the explicit choice; then a sniff."""
     desc = load_descriptor(repo)
-    if desc and driver in ("harness", "http", "process") and desc.get("kind") != driver:
+    # A pinned harness file is the user's own script: when the harness driver will run it, it beats the
+    # descriptor outright (its kind, its file, its Docker image). An explicit driver of another kind does too.
+    pinned = "a harness file was pinned" if harness_file and driver in ("auto", "harness") else None
+    if desc and not pinned and driver in ("harness", "http", "process") and desc.get("kind") != driver:
+        pinned = f"the {driver} driver was asked for"
+    if desc and pinned:
         if on_event is not None:
             on_event({"ts": _dt.datetime.now(_dt.timezone.utc).isoformat(), "phase": "runtime", "shape": None,
                       "lead": None, "turn": None, "event": "warn",
-                      "detail": f"the {driver} driver was asked for, so the repo's {DESCRIPTOR} "
-                                f"(kind {desc.get('kind')!r}) is not used"})
+                      "detail": f"{pinned}, so the repo's {DESCRIPTOR} (kind {desc.get('kind')!r}) is not used"})
         desc = None
     if desc:
         kind = desc.get("kind")

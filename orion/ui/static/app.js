@@ -34,7 +34,7 @@
   const RUN_STATES = { running: "Running", stopping: "Stopping", done: "Done", stopped: "Stopped", incomplete: "Incomplete" };
   const RUN_STATE_HELP = {
     running: "The scan is running, in this orion ui or in another process (a terminal) that holds the run folder.",
-    stopping: "Asked to stop: the scan is finishing its current step.",
+    stopping: "Asked to stop: the scan is winding down.",
     done: "Finished: the verdicts, report and SARIF are saved.",
     stopped: "Stopped after discovery: its leads and the verdicts so far are saved.",
     incomplete: "Stopped or crashed before discovery finished.",
@@ -1413,11 +1413,17 @@
       nVerdicts: null,
     };
     if (app.state && app.state.job && app.state.job.run_id === id) L.job = app.state.job;
-    // Until discovery writes leads.json the run dir names no repo or model: the job that writes it does.
+    // Until discovery writes leads.json the run dir names no repo or model, and reads as engine "claude": the
+    // job that writes it knows all three.
     const detail = Object.assign({}, run, {
       repo: run.repo || (L.job && L.job.repo) || null,
       model: run.model || (L.job && L.job.model) || null,
+      engine: (L.job && L.job.engine) || run.engine,
     });
+    // The engine at the moment of a Stop: L.job is always known once Stop is enabled.
+    function jobEngine() { return (L.job && L.job.engine) || detail.engine; }
+    // On Windows the first Stop's Ctrl-Break ends the scan's python at once: no engine finishes anything first.
+    const stopsAtOnce = !!(app.state && app.state.platform === "win32");
     setTitle("Scanning " + runName(detail));
 
     const badge = h("span", { class: "badge s-running" }, "Running");
@@ -1554,7 +1560,11 @@
       const force = !!(L.job && L.job.stop_count >= 1);
       confirmText.textContent = force
         ? "End the scan now? It is killed at once, and the step in progress is lost."
-        : "Stop this scan? It finishes its current step, then exits. A Claude scan stopped after discovery can be resumed later.";
+        : jobEngine() === "lm" && !stopsAtOnce
+          ? "Stop this scan? Orion-LM finishes the case it is judging, then stops."
+          : jobEngine() === "lm"
+          ? "Stop this scan? It ends now, and the case Orion-LM is judging is lost."
+          : "Stop this scan? Its running agent sessions end now and are not retried; the verdicts already saved are kept, and a scan stopped after discovery can be resumed later.";
       confirmYes.textContent = force ? "Force stop" : "Stop scan";
       confirmBox.hidden = false;
       stopBtn.hidden = true;
@@ -1574,7 +1584,9 @@
         if (!isLive(seq)) return;
         if (r && r.job) { L.job = r.job; if (app.state) { app.state.job = r.job; renderHeader(); } }
         say(r && r.signal === "kill" ? "Force-stopped the scan."
-          : "Asked the scan to stop. It finishes its current step first; Force stop ends it at once.");
+          : jobEngine() === "lm" && !stopsAtOnce ? "Asked the scan to stop after the case it is judging; Force stop ends it at once."
+            : jobEngine() === "lm" ? "Stopped the scan."
+            : "Asked the scan to stop: its agent sessions end now. Force stop ends it at once if it hangs.");
       } catch (err) {
         if (isLive(seq)) say(err.message, "error");
       } finally {

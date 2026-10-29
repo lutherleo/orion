@@ -12,9 +12,10 @@ One mode at a time (one model per scan: discovery and the verifier share it):
                  default models (the open-weight study's wiring); experimental beta headers are turned off for
                  gateways that only speak the stable API. Unproven until a NodeGoat scan passes through one.
 `child_env` first removes every ACCESS_VARS name from the inherited environment (in the key and endpoint modes the
-login's CLAUDE_CODE_OAUTH_TOKEN too), case-insensitively (a Windows env block is), so a variable the server happened
-to start with can never override, or ride along with, the mode picked on the page. A secret goes only into that
-env, never into argv (visible to `ps`).
+login's CLAUDE_CODE_OAUTH_TOKEN too, and the CLAUDE_CODE_USE_BEDROCK / _VERTEX / _FOUNDRY switches, which would send
+the scan to that provider whatever key or URL is set), case-insensitively (a Windows env block is), so a variable
+the server happened to start with can never override, or ride along with, the mode picked on the page. A secret
+goes only into that env, never into argv (visible to `ps`).
 
 Kept in the OS keychain through `keyring` (service "orion-ui": Windows Credential Manager, macOS Keychain, Linux
 Secret Service), never in a file: keyring's fail/null backends (all WSL has), any `keyrings.alt` backend (plaintext
@@ -56,6 +57,9 @@ ACCESS_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL"
                "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS")
 # The claude login's own credential, dropped from the env in the key and endpoint modes (it is the login).
 LOGIN_VARS = ("CLAUDE_CODE_OAUTH_TOKEN",)
+# Switches that send claude to another provider (Amazon Bedrock, Google Vertex, Microsoft Foundry) whatever key or
+# URL is set: dropped in the key and endpoint modes. In login mode they are the claude CLI's own setup and stay.
+PROVIDER_VARS = ("CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY")
 # Sent as the endpoint's credential when it needs no token. With none set at all, claude falls back to its
 # own login -- and would send that login's token to the endpoint.
 NO_TOKEN = "none"
@@ -323,8 +327,10 @@ def _check_token(token: Any) -> str:
 
 
 def _check_model(model: Any) -> str:
-    if not isinstance(model, str) or not _MODEL_RE.fullmatch(model.strip()):
-        raise AccessError("the model name must be 1-120 letters, digits or . _ : / @ - characters")
+    # Not starting with "-": the name reaches `claude --model` (through ORION_MODEL), where it would read as a flag.
+    if not isinstance(model, str) or not _MODEL_RE.fullmatch(model.strip()) or model.strip().startswith("-"):
+        raise AccessError("the model name must be 1-120 letters, digits or . _ : / @ - characters, not starting "
+                          "with -")
     return model.strip()
 
 
@@ -436,6 +442,14 @@ def _scrub_tree(value: Any, scrub: Callable[[str], str]) -> Any:
     if isinstance(value, list):
         return [_scrub_tree(v, scrub) for v in value]
     return value
+
+
+def _on(environ: Mapping[str, str], name: str) -> bool:
+    """A switch variable set to something other than an off value (any letter case of the name)."""
+    for key, value in environ.items():
+        if key.upper() == name and isinstance(value, str):
+            return value.strip().lower() not in ("", "0", "false", "no", "off")
+    return False
 
 
 def _names(names: list[str]) -> tuple[str, str, str]:
@@ -586,8 +600,13 @@ class Access:
         notes = list(st.notes)
         present = {name.upper() for name, value in self._environ.items() if isinstance(value, str) and value.strip()}
         watched = (ACCESS_VARS + (("ORION_MODEL",) if st.mode == "endpoint" else ())
-                   + (LOGIN_VARS if st.mode in ("anthropic_key", "endpoint") else ()))
+                   + (LOGIN_VARS + PROVIDER_VARS if st.mode in ("anthropic_key", "endpoint") else ()))
         sets = _child_vars(st)
+        provider = [v for v in PROVIDER_VARS if v in present and _on(self._environ, v)]
+        if st.mode == "login" and provider:
+            names, verb, _ = _names(provider)
+            notes.append(f"{names} {verb} set in the server's environment: scans with the claude login go to that "
+                         "provider, as the claude CLI itself does")
         inherited = [v for v in watched if v in present and not (st.source == "env" and v == "ANTHROPIC_API_KEY")]
         dropped = [v for v in inherited if v not in sets]
         if dropped:
@@ -611,14 +630,15 @@ class Access:
 
     def child_env(self, base: Mapping[str, str]) -> dict[str, str]:
         """A copy of `base` without any ACCESS_VARS name (or a name this mode sets; in the key and endpoint modes
-        also the login's LOGIN_VARS), in any letter case, plus what the mode adds: login nothing; anthropic_key
+        also the login's LOGIN_VARS and the PROVIDER_VARS switches), in any letter case, plus what the mode adds:
+        login nothing; anthropic_key
         ANTHROPIC_API_KEY; endpoint the base URL, the token (NO_TOKEN when it needs none) as ANTHROPIC_AUTH_TOKEN
         ("bearer") or ANTHROPIC_API_KEY ("x-api-key"), ORION_MODEL and every alias = the model,
         CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1."""
         st = self._setting
         add = _child_vars(st)
-        login = LOGIN_VARS if st.mode in ("anthropic_key", "endpoint") else ()
-        drop = {name.upper() for name in (*ACCESS_VARS, *login, *add)}
+        own = (*LOGIN_VARS, *PROVIDER_VARS) if st.mode in ("anthropic_key", "endpoint") else ()
+        drop = {name.upper() for name in (*ACCESS_VARS, *own, *add)}
         env = {k: v for k, v in base.items() if k.upper() not in drop}
         env.update(add)
         return env

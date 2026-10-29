@@ -48,10 +48,11 @@ def _mutate(rng: random.Random, inp: Input) -> Input:
 
 
 def run(driver: Driver, tracer: Tracer, target, seeds: list[Input], *,
-        budget: int = 200, seed: int = 1337, on_step=None) -> RuntimeTrace:
+        budget: int = 200, seed: int = 1337, on_step=None, stop=None) -> RuntimeTrace:
     """Drive `target` with up to `budget` inputs and return the accumulated per-input traces
     (empty for a no-feedback driver -- its trace is collected after stop). `on_step(i, input,
-    new_lines)` is an optional progress hook."""
+    new_lines)` is an optional progress hook. `stop` (threading.Event) ends the drive early (Ctrl-C):
+    what was sent so far is kept."""
     feedback = getattr(driver, "feedback", True)
     mutable = getattr(driver, "mutable", True)
     rng = random.Random(seed)
@@ -73,13 +74,16 @@ def run(driver: Driver, tracer: Tracer, target, seeds: list[Input], *,
             on_step(sent, inp, new)
         return new > 0
 
+    def stopped() -> bool:
+        return stop is not None and stop.is_set()
+
     for inp in seeds:
-        if sent >= budget:
+        if sent >= budget or stopped():
             break
         if drive(inp):
             corpus.append(inp)          # a fruitful seed gets extra weight as a parent
 
-    while mutable and corpus and sent < budget:
+    while mutable and corpus and sent < budget and not stopped():
         child = _mutate(rng, corpus[rng.randrange(len(corpus))])
         if drive(child):
             corpus.append(child)

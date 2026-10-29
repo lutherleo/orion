@@ -388,6 +388,9 @@ def discover_lm(scan_id: str, repo_path: str, on_event: OnEvent, *, profile=None
             if stop is not None and stop.is_set():
                 on_event(_event(event="warn", turn=turn, detail="stop requested; remaining batches skipped"))
                 stopped = True
+                if failures is not None:    # unjudged, like any batch the model could not judge: never a clean negative
+                    for t, rest in enumerate(range(start, len(flows), k), start=turn):
+                        failures.append(_failure(t, flows[rest:rest + k], "not judged: the scan was stopped"))
                 break
             batch = flows[start:start + k]
             ids = ", ".join(str(f.get("flow_id")) for f in batch)

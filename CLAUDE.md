@@ -89,16 +89,33 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
     because with no credential claude falls back to its own login and sends THAT to the endpoint; the key and
     endpoint modes also drop `CLAUDE_CODE_OAUTH_TOKEN`. A key never reaches argv, a run dir, a log or the page.
   - CLI changes it needed (all scans): (1) `claude_cli.interrupt()` -- on Ctrl-C / Stop (asyncio cancels
-    discovery's or verify's fan-out) no `claude -p` session is started or retried, since a session killed by
-    the group SIGINT is not a transient failure (before, Stop restarted every running session on a fresh one);
-    (2) `orion/runlock.py`: a scan holds an OS lock on `<run_dir>/.lock` (flock / msvcrt), `--resume` refuses a
-    held dir, and the UI shows it as running "outside this UI" (replaces a 60 s file-time guard, shorter than one
+    discovery's or verify's fan-out; under `--watch`, `monitor.tail` swallows the Ctrl-C, so an early return
+    from it counts as one) no `claude -p` session is started or retried, since a session killed by the group
+    SIGINT is not a transient failure (before, Stop restarted every running session on a fresh one); the
+    pipeline then raises KeyboardInterrupt, so an interrupted run writes no partial `leads.json` and no
+    finished-looking `verdicts.json`, and an ERROR after the stop is not logged (the lead stays for
+    `--resume`); `tests/conftest.py` resets the flag per test; (2) `orion/runlock.py`: a scan holds an OS lock
+    on `<run_dir>/.lock` (flock / msvcrt), `--resume` takes it BEFORE reading the run and refuses a held dir,
+    and the UI shows it as running "outside this UI" (replaces a 60 s file-time guard, shorter than one
     verifier call); (3) a claude run's `leads.json` records `model` (ORION_MODEL) and `settings`
     (`cli._verify_settings`: verify options, `--fail-on`, `endpoint` = ANTHROPIC_BASE_URL set, not the URL),
-    and the UI resumes with exactly those, refusing a change of route (endpoint <-> Anthropic); a terminal
-    resume on another model gets a `warn`; (4) the runtime stage: an explicit `--runtime-driver` beats the
-    scanned repo's `.orion/runtime.json` kind (`warn`), and target processes get no model credentials
-    (`runtime.base.target_env`; defence in depth -- host-run code still runs as the user).
+    and the UI resumes with exactly those, refusing a change of route (endpoint <-> Anthropic) or a recorded
+    model that is not a valid name; a terminal resume on another model gets a `warn`; (4) the runtime stage:
+    a pinned `--harness-file`, or an explicit `--runtime-driver` of another kind, beats the scanned repo's
+    `.orion/runtime.json` (`warn`), and target processes get no model credentials (`runtime.base.target_env`;
+    defence in depth -- host-run code still runs as the user).
+  - The UI pins each option's ORION_* twin in the scan's env (`jobs.env_pins`: an inherited
+    ORION_VERIFY_ROUTING=1 cannot turn on what the page shows off, on a scan or a resume), drops
+    CLAUDE_CODE_USE_BEDROCK/_VERTEX/_FOUNDRY in the key and endpoint modes, and ends the whole scan tree: on
+    Windows a job object (the runtime target sits in a process group of its own, and the first Stop's
+    Ctrl-Break ends the scan's python with no cleanup) that the scan joins while SUSPENDED (a venv's
+    python.exe is a launcher whose real interpreter would otherwise start outside it), a force stop running
+    taskkill /T before ending the job; on POSIX a force stop also kills descendants that left the group
+    (read with `ps` before the kill).
+  - Also from that review, for all scans: a Stop or Ctrl-C during the runtime target's boot wait stops the
+    booted server (`HttpDriver.start`); `--resume` refuses a run dir it cannot write; the lock probe takes a
+    shared lock (NFSv4 refuses an exclusive one through a read handle); Orion-LM batches a stop skipped are
+    failures (exit 3), never a clean finish; `orion trace --watch` stops its drive loop on Ctrl-C.
   - In WSL a `claude` on a Windows drive (or a .exe) is reported unusable: start the UI from a login shell
     (`bash -l`) so `~/.local/bin` comes first. `--open` hands the browser a private 0600 redirect page, never
     the tokened URL (argv is readable by every local user). Settings' default model lives in the browser.

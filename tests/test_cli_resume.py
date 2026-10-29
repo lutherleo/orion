@@ -5,10 +5,13 @@ with discovery, the graph and the `claude -p` call stubbed."""
 from __future__ import annotations
 
 import json
+import os
+import threading
+import time
 
 import pytest
 
-from orion import claude_cli, cli, config, discover, embed, graphdb, runlock
+from orion import claude_cli, cli, config, discover, embed, graphdb, monitor, runlock
 from orion.graph import scans
 from orion.contracts import Lead
 
@@ -164,3 +167,76 @@ def test_resume_says_so_when_the_model_changed(run_dir, monkeypatch):
     cli.main(["scan", "--resume", str(run_dir), "--quiet"])
     events = [json.loads(line) for line in (run_dir / "progress.jsonl").read_text().splitlines() if line.strip()]
     assert any(e.get("event") == "warn" and "ORION_MODEL=opus" in e.get("detail", "") for e in events)
+
+
+def _until_stopped(seconds: float = 10.0) -> None:
+    deadline = time.monotonic() + seconds
+    while not claude_cli.interrupted() and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+
+def test_ctrl_c_under_watch_stops_and_keeps_the_run_resumable(run_dir, monkeypatch):
+    """`monitor.tail` swallows a Ctrl-C and returns: the scan must still stop. No session the Ctrl-C killed is
+    retried, no ERROR is logged for the leads it cut short, and no verdicts.json makes the run look finished."""
+    started, launched = threading.Event(), []
+
+    def run_once(cmd, *, timeout, on_event):           # a claude -p that runs until the Ctrl-C kills it
+        launched.append(cmd[-1].split("lead-")[1].split()[0])
+        started.set()
+        _until_stopped()
+        return {"_error": "claude -p exited 130"}
+
+    monkeypatch.setattr(discover, "discover", lambda *a, **k: list(LEADS))
+    monkeypatch.setattr(claude_cli, "_run_once", run_once)
+    monkeypatch.setattr(monitor, "tail", lambda d, stop: started.wait(10))   # returns early, stop unset
+    with pytest.raises(KeyboardInterrupt):
+        cli.main(["scan", "--scan-id", "sid", "--watch"])
+    assert claude_cli.interrupted() and launched and len(launched) == len(set(launched))   # none retried
+    assert (run_dir / "leads.json").exists() and not (run_dir / "verdicts.json").exists()
+    log = run_dir / "verdicts.jsonl"
+    assert not log.exists() or log.read_text().strip() == ""
+
+
+def test_ctrl_c_under_watch_during_discovery_saves_no_leads(run_dir, monkeypatch):
+    """An unfinished discovery must not be saved as final: --resume never re-discovers."""
+    started = threading.Event()
+
+    def discovering(*a, **k):
+        started.set()
+        _until_stopped()
+        return LEADS[:1]                                # what the shapes had when the Ctrl-C came
+
+    monkeypatch.setattr(discover, "discover", discovering)
+    monkeypatch.setattr(claude_cli, "_run_once", lambda *a, **k: pytest.fail("a session started after the stop"))
+    monkeypatch.setattr(monitor, "tail", lambda d, stop: started.wait(10))
+    with pytest.raises(KeyboardInterrupt):
+        cli.main(["scan", "--scan-id", "sid", "--watch"])
+    assert not (run_dir / "leads.json").exists()
+
+
+def test_resume_takes_the_lock_before_it_reads_the_run(run_dir, monkeypatch, capsys):
+    """A scan still finishing the run could log verdicts between a read and a later lock."""
+    (run_dir / "leads.json").write_text(json.dumps({"scan_id": "sid", "repo": None, "leads": []}))
+    held = runlock.acquire(run_dir)
+    monkeypatch.setattr(cli, "_load_run", lambda d: pytest.fail("read while another scan holds the run"))
+    try:
+        assert cli.main(["scan", "--resume", str(run_dir), "--quiet"]) == 2
+    finally:
+        held.close()
+    assert "being written by another scan" in capsys.readouterr().err
+
+
+@pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root may write a read-only file")
+def test_resume_refuses_a_run_dir_it_cannot_write(run_dir, monkeypatch, capsys):
+    """It would pay for verifier sessions, then fail to keep their verdicts."""
+    monkeypatch.setattr(discover, "discover", lambda *a, **k: list(LEADS))
+    monkeypatch.setattr(claude_cli, "run_agent", _agent({0: "CONFIRM", 1: "ERROR", 2: "REJECT"}, []))
+    cli.main(["scan", "--scan-id", "sid", "--quiet"])
+    log = run_dir / "verdicts.jsonl"
+    os.chmod(log, 0o444)
+    try:
+        monkeypatch.setattr(claude_cli, "run_agent", lambda *a, **k: pytest.fail("paid for a verdict it cannot keep"))
+        assert cli.main(["scan", "--resume", str(run_dir), "--quiet"]) == 2
+        assert "cannot write" in capsys.readouterr().err
+    finally:
+        os.chmod(log, 0o644)

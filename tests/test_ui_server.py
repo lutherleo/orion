@@ -62,7 +62,8 @@ from orion.ui import keys
 HERE = Path(__file__).resolve().parent
 DECISIONS = ("CONFIRM", "REJECT", "INCONCLUSIVE", "ERROR")
 WATCHED = ("ANTHROPIC_BASE_URL", "ORION_MODEL", *keys.ALIASES, "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS",
-           "PYTHONUNBUFFERED", "PYTHONIOENCODING")
+           "PYTHONUNBUFFERED", "PYTHONIOENCODING", "ORION_VERIFY_ROUTING", "ORION_VERIFY_CONTEXT",
+           "ORION_SHORTLISTS", "ORION_SEMANTIC_MODE")
 
 
 def sha(value):
@@ -1056,7 +1057,7 @@ def test_resume_refuses_runs_that_cannot_be_resumed(make):
 
 def test_resume_refuses_a_run_another_process_is_writing(make, tmp_path):
     """Not a guess from file times (a verifier session keeps a run quiet for minutes): the run dir's lock."""
-    c = make()
+    c = make(environ=_base_env(ORION_MODEL="gemma4:12b"))       # left over in the shell orion ui started from
     repo = _repo(c, {"leads": 2})
     run_dir = _write_run(c.ui.cwd, repo=repo, final=False, logged=1)
     rid = f"t~{TS}"
@@ -1073,10 +1074,12 @@ def test_resume_refuses_a_run_another_process_is_writing(make, tmp_path):
     assert (row["state"], row["elsewhere"], row["resumable"]) == ("stopped", False, True)
     reply = c.post(f"/api/runs/{rid}/resume")
     assert reply.status == 202 and "recorded no model" in reply.json()["note"]    # a run from before 2026-10-29
+    assert "with sonnet" in reply.json()["note"]
     _wait_exit(c)
     assert c.get(f"/api/runs/{rid}").json()["state"] == "done"
     record = _records(tmp_path)[-1]
-    assert record["env"]["ORION_MODEL"] is None and record["argv"][2:] == ["--quiet"]   # the CLI's own defaults
+    # The default the note names, as a new scan from the page gets -- not the inherited gemma4:12b.
+    assert record["env"]["ORION_MODEL"] == "sonnet" and record["argv"][2:] == ["--quiet"]
 
 
 def test_resume_repeats_the_runs_recorded_verify_settings(make, tmp_path):
@@ -1469,3 +1472,34 @@ def test_the_browser_page_is_private_and_carries_the_link(tmp_path):
     finally:
         import shutil
         shutil.rmtree(page.parent)
+
+
+def test_a_recorded_off_stays_off_whatever_the_ui_inherited(make, tmp_path):
+    """The page showed adaptive verification and code context off; the UI was started with both on in its
+    environment. The scan and its resume both run with them off."""
+    c = make(environ=_base_env(ORION_VERIFY_ROUTING="1", ORION_VERIFY_CONTEXT="1", ORION_SEMANTIC_MODE="hybrid"))
+    _scan(c, {"leads": 2, "pause_after": 1})
+    rid = _wait_run_id(c)
+    wait_until(lambda: c.get(f"/api/runs/{rid}").json()["n_verdicts"] == 1, what="the first verdict")
+    c.post("/api/job/stop")
+    _wait_exit(c)
+    settings = c.get(f"/api/runs/{rid}").json()["settings"]
+    assert (settings["verify_routing"], settings["verify_context"], settings["semantic_mode"]) == (False, False, "vector")
+    assert c.post(f"/api/runs/{rid}/resume").status == 202
+    _wait_exit(c)
+    for record in _records(tmp_path):
+        env = record["env"]
+        assert (env["ORION_VERIFY_ROUTING"], env["ORION_VERIFY_CONTEXT"], env["ORION_SEMANTIC_MODE"]) == (
+            "0", "0", "vector")
+
+
+def test_resume_refuses_a_recorded_model_that_reads_as_a_flag(make):
+    """leads.json is just a file: its model reaches `claude --model` through ORION_MODEL."""
+    c = make()
+    run_dir = _write_run(c.ui.cwd, repo=_repo(c), final=False, logged=1)
+    meta = json.loads((run_dir / "leads.json").read_text(encoding="utf-8"))
+    meta.update(model="--dangerously-skip-permissions", settings={"endpoint": False})
+    (run_dir / "leads.json").write_text(json.dumps(meta), encoding="utf-8")
+    refused = c.post(f"/api/runs/t~{TS}/resume")
+    assert refused.status == 400 and "will not pass on" in refused.json()["error"]
+    assert c.ui.jobs.current() is None                                       # nothing was started

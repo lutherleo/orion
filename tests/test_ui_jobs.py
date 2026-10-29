@@ -15,6 +15,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -177,10 +178,15 @@ def _start(js: Jobs, argv=("orion", "scan"), env=None, **kwargs):
 
 
 # ── build_argv: happy paths ───────────────────────────────────────────────────────────────────────────
+# Each option's ORION_* twin, pinned to the CLI default: what an untouched form sends.
+PINS = {"ORION_VERIFY_ROUTING": "0", "ORION_VERIFY_CONTEXT": "0", "ORION_SHORTLISTS": "0",
+        "ORION_SEMANTIC_MODE": "vector"}
+
+
 def test_claude_defaults(repo):
     argv, env = build_argv({"repo": str(repo)})
     assert argv == [*SCAN, str(repo.resolve()), "--quiet"]
-    assert env == {"ORION_MODEL": "sonnet"}
+    assert env == {"ORION_MODEL": "sonnet", **PINS}
     args = _cli(argv)
     assert (args.repo, args.quiet, args.engine) == (str(repo.resolve()), True, "claude")
 
@@ -194,7 +200,8 @@ def test_claude_every_option_reaches_its_flag(repo):
         str(repo.resolve()), "--quiet", "--verify-routing", "--verify-context", "--shortlists",
         "--semantic-mode", "hybrid", "--fail-on", "inconclusive", "--language", "pythonsrc", "--runtime",
         "--runtime-sandbox", "docker", "--runtime-driver", "harness", "--runtime-budget", "7"]
-    assert env == {"ORION_MODEL": "opus"}
+    assert env == {"ORION_MODEL": "opus", "ORION_VERIFY_ROUTING": "1", "ORION_VERIFY_CONTEXT": "1",
+                   "ORION_SHORTLISTS": "1", "ORION_SEMANTIC_MODE": "hybrid"}
     args = _cli(argv)
     assert (args.verify_routing, args.verify_context, args.shortlists) == (True, True, True)
     assert (args.semantic_mode, args.fail_on, args.language) == ("hybrid", "inconclusive", "pythonsrc")
@@ -202,7 +209,7 @@ def test_claude_every_option_reaches_its_flag(repo):
         (True, "docker", "harness", 7)
 
 
-def test_lm_engine_passes_the_model_dir_and_no_env(repo, model_dir):
+def test_lm_engine_passes_the_model_dir_and_only_its_option_pins(repo, model_dir):
     options = {"shortlists": True, "fail_on": "confirm", "language": "jssrc", "lm_temperature": 0.7,
                "lm_verify": True, "runtime": True, "runtime_budget": 3}
     argv, env = build_argv({"repo": str(repo), "engine": "lm", "model": str(model_dir), "options": options},
@@ -211,7 +218,7 @@ def test_lm_engine_passes_the_model_dir_and_no_env(repo, model_dir):
         str(repo.resolve()), "--quiet", "--engine", "lm", "--model", str(model_dir.resolve()), "--shortlists",
         "--fail-on", "confirm", "--language", "jssrc", "--lm-temperature", "0.7", "--lm-verify", "--runtime",
         "--runtime-budget", "3"]
-    assert env == {}
+    assert env == {"ORION_SHORTLISTS": "1"}            # no model env: the lm model is a dir in argv
     args = _cli(argv)
     assert (args.engine, args.lm_model, args.lm_temperature, args.lm_verify) == \
         ("lm", str(model_dir.resolve()), 0.7, True)
@@ -246,13 +253,13 @@ def test_false_empty_and_null_add_nothing(repo):
                                    "us.anthropic.claude-5:0@v2/x"])
 def test_claude_model_goes_to_env_never_argv(repo, model):
     argv, env = build_argv({"repo": str(repo), "model": model})
-    assert env == {"ORION_MODEL": model}
+    assert env == {"ORION_MODEL": model, **PINS}
     assert model not in argv and "--model" not in argv
 
 
 @pytest.mark.parametrize("model", [None, ""])
 def test_claude_model_defaults_to_sonnet(repo, model):
-    assert build_argv({"repo": str(repo), "model": model})[1] == {"ORION_MODEL": "sonnet"}
+    assert build_argv({"repo": str(repo), "model": model})[1] == {"ORION_MODEL": "sonnet", **PINS}
 
 
 def test_scan_cmd_is_used_and_never_mutated(repo):
@@ -1049,6 +1056,103 @@ def test_a_windows_kill_ends_the_whole_process_tree(fake_os, monkeypatch):
         assert trees == [child.pid] and kills == []
         monkeypatch.setattr(jobs, "_taskkill_tree", lambda pid: False)      # taskkill failed: TerminateProcess
         assert jobs._send_stop(child, graceful=False) == "kill" and kills == ["kill"]
+    finally:
+        subprocess.Popen.kill(child)
+        child.wait(30)
+
+
+def test_env_pins_follow_the_page_not_the_inherited_environment(repo):
+    """An ORION_* default the UI inherited must not turn on what the page shows off, nor the reverse."""
+    assert jobs.env_pins({}, "claude") == PINS
+    assert jobs.env_pins({"verify_routing": True, "semantic_mode": "keyword", "verify_context": None}, "claude") == {
+        **PINS, "ORION_VERIFY_ROUTING": "1", "ORION_SEMANTIC_MODE": "keyword"}
+    assert jobs.env_pins({"shortlists": True}, "lm") == {"ORION_SHORTLISTS": "1"}   # only the lm engine's options
+    _, env = build_argv({"repo": str(repo), "engine": "lm", "model": str(repo), "options": {}}, lm_available=True)
+    assert env == {"ORION_SHORTLISTS": "0"}
+
+
+def _gone_or_zombie(pid: int) -> bool:
+    """POSIX, portably (Linux and macOS): the process has exited, killed but not yet reaped counting as exited."""
+    out = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+    return out == "" or out.startswith("Z")
+
+
+@pytest.mark.skipif(os.name != "posix" or shutil.which("ps") is None, reason="POSIX process sessions, and ps")
+def test_a_force_stop_also_ends_what_left_the_group(fake_os):
+    """The runtime target runs in a session of its own (so its stop() reaches npm's node child): a kill to the
+    scan's group misses it, so the tree is read first and every stray ends too."""
+    script = ("import subprocess, sys, time\n"
+              "g = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'], start_new_session=True)\n"
+              "print(g.pid, flush=True)\n"
+              "time.sleep(60)\n")
+    child = subprocess.Popen([sys.executable, "-c", script], stdout=subprocess.PIPE, text=True,
+                             start_new_session=True)
+    try:
+        grandchild = int(child.stdout.readline())
+        assert grandchild in jobs._descendants(child.pid)
+        assert jobs._send_stop(child, graceful=False) == "kill"
+        assert ("killpg", fake_os.pgid, jobs._SIGKILL) in fake_os.calls        # the group (faked here)
+        deadline = time.monotonic() + 10
+        while not _gone_or_zombie(grandchild):                                 # ...and the stray, for real
+            if time.monotonic() > deadline:
+                pytest.fail("the grandchild outside the group is still running")
+            time.sleep(0.05)
+    finally:
+        child.kill()
+        child.wait(30)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows job objects")
+def test_a_windows_job_ends_a_grandchild_in_its_own_process_group():
+    """The first Stop's Ctrl-Break ends the scan's python at once, and the runtime target sits in a process
+    group of its own: only the job (every descendant joins it) still reaches the target."""
+    import ctypes
+    script = ("import subprocess, sys, time\n"
+              "g = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'],"
+              " creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)\n"
+              "print(g.pid, flush=True)\n"
+              "time.sleep(60)\n")
+    # As Jobs.start does: suspended until it is in the job. The tests' python is a venv launcher whose real
+    # interpreter (its child) would otherwise often start outside the job.
+    child = subprocess.Popen([sys.executable, "-c", script], stdout=subprocess.PIPE, text=True,
+                             creationflags=jobs._SUSPENDED)
+    tree = jobs._job_for(child, resume=True)
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.OpenProcess.restype = ctypes.c_void_p
+    try:
+        assert tree is not None
+        grandchild = int(child.stdout.readline())
+        handle = k32.OpenProcess(0x00100000, False, grandchild)               # SYNCHRONIZE
+        assert handle
+        assert tree.end()
+        assert k32.WaitForSingleObject(ctypes.c_void_p(handle), 10_000) == 0  # it ended
+        k32.CloseHandle(ctypes.c_void_p(handle))
+        child.wait(30)
+    finally:
+        if tree is not None:
+            tree.close()
+        if child.poll() is None:
+            child.kill()
+            child.wait(30)
+
+
+def test_a_windows_force_stop_walks_the_live_tree_before_ending_the_job(fake_os, monkeypatch):
+    """The job may have missed what started before it existed: taskkill /T (the live tree) always runs, and the
+    job's end only adds to it -- it never replaces it."""
+    fake_os.name = "nt"
+    calls: list[str] = []
+
+    class Tree:
+        def end(self):
+            calls.append("job")
+            return True
+
+    monkeypatch.setattr(jobs, "_taskkill_tree", lambda pid: calls.append("taskkill") or True)
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        monkeypatch.setattr(child, "kill", lambda: calls.append("kill"))
+        assert jobs._send_stop(child, graceful=False, tree=Tree()) == "kill"
+        assert calls == ["taskkill", "job"]
     finally:
         subprocess.Popen.kill(child)
         child.wait(30)

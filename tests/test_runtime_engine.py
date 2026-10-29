@@ -90,3 +90,18 @@ def test_http_seeds_from_graph():
     ]
     assert [(s.verb, s.path) for s in routes_from_rows(rows)] == [
         ("GET", "/login"), ("POST", "/login"), ("GET", "/users/1/profile")]
+
+
+def test_a_stop_ends_the_drive_and_keeps_what_was_sent():
+    import threading
+    stop = threading.Event()
+    d = _FakeDriver()
+    sent = []
+
+    def on_step(i, inp, new):
+        sent.append(i)
+        if i == 3:
+            stop.set()                                   # Ctrl-C after the third input
+
+    engine.run(d, _FakeTracer(), _target(), _seeds(), budget=25, on_step=on_step, stop=stop)
+    assert len(d.sent) == 3 and sent == [1, 2, 3]

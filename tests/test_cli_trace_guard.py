@@ -44,3 +44,22 @@ def test_unknown_driver_is_rejected(tmp_path):
     import pytest
     with pytest.raises(SystemExit):
         cli.main(["trace", str(tmp_path), "--driver", "docker"])
+
+
+def test_ctrl_c_under_watch_stops_the_drive_and_the_harness_agent(tmp_path, monkeypatch):
+    """`monitor.tail` swallows the Ctrl-C and returns: the drive loop must still end (the target is then
+    stopped and what ran is written back), and the harness agent's killed session is not retried."""
+    import orion.runtime as runtime
+    from orion import claude_cli, monitor
+
+    seen = {}
+
+    def enrich(*a, stop=None, **k):
+        seen["stopped"] = stop.wait(10)                  # the drive loop, until it is told to stop
+        return {}
+
+    monkeypatch.setattr(runtime, "enrich", enrich)
+    monkeypatch.setattr(monitor, "tail", lambda run_dir, stop: None)     # a Ctrl-C: back early, stop unset
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["trace", str(tmp_path), "--scan-id", "s1", "--driver", "harness", "--watch"]) == 0
+    assert seen["stopped"] is True and claude_cli.interrupted()

@@ -736,3 +736,23 @@ def test_a_forget_the_keychain_refuses_is_said_not_hidden():
     assert pub["keychain"]["reason"].startswith("could not delete the saved access setting")
     assert pub["notes"][-1].startswith("keychain problem: could not delete")
     assert KEY not in json.dumps(pub)
+
+
+def test_provider_switches_go_in_the_key_and_endpoint_modes_only():
+    """CLAUDE_CODE_USE_BEDROCK & co. send claude to that provider whatever key or URL is set."""
+    base = {**INHERITED, "CLAUDE_CODE_USE_BEDROCK": "1", "claude_code_use_vertex": "1"}
+    acc = fresh(CLAUDE_CODE_USE_BEDROCK="1")
+    assert acc.child_env(base)["CLAUDE_CODE_USE_BEDROCK"] == "1"              # login: the CLI's own setup
+    assert any("CLAUDE_CODE_USE_BEDROCK" in n and "provider" in n for n in acc.public()["notes"])
+    for set_mode in (lambda a: a.set_anthropic_key(KEY), lambda a: a.set_endpoint(GW, TOKEN, "m1")):
+        set_mode(acc)
+        env = acc.child_env(base)
+        assert not {k.upper() for k in env} & set(keys.PROVIDER_VARS)
+        assert any("CLAUDE_CODE_USE_BEDROCK" in n and "drop" in n for n in acc.public()["notes"])
+    assert not any("provider" in n for n in fresh(CLAUDE_CODE_USE_BEDROCK="0").public()["notes"])
+
+
+def test_an_endpoint_model_cannot_start_with_a_dash():
+    """It reaches `claude --model` through ORION_MODEL, where "-x" would read as a flag."""
+    with pytest.raises(AccessError):
+        fresh().set_endpoint(GW, TOKEN, "-model")

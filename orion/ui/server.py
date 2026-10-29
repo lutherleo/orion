@@ -428,6 +428,9 @@ class UIServer:
         if not summary["resumable"]:
             raise ValueError(_why_not_resumable(rid, summary))
         model, settings = summary["model"], summary["settings"]
+        # The model reaches `claude --model` through ORION_MODEL, and leads.json is just a file: never trust it.
+        if model is not None and (not jobs.MODEL_RE.fullmatch(model) or model.startswith("-")):
+            raise ValueError(f"run {rid} recorded a model name this UI will not pass on: {model[:80]!r}")
         via_endpoint = settings.get("endpoint") if settings else None
         endpoint = self.access.endpoint_model
         extra: dict[str, str] = {}
@@ -444,16 +447,20 @@ class UIServer:
         elif via_endpoint:
             raise ValueError(f"run {rid} was scanned through a compatible endpoint with {model}: a scan keeps one "
                              "model, so set Settings to that endpoint again to resume it")
-        elif model is not None:
+        else:
+            # No record (a run from before 2026-10-29): the CLI's default, the same one a new scan from this page
+            # gets -- never an ORION_MODEL the UI happened to inherit, which the note below could not name.
+            model = model or jobs.MODELS[0]
             extra["ORION_MODEL"] = model
         options = {k: v for k, v in (settings or {}).items() if k in jobs.RESUME_OPTIONS}
         argv = jobs.resume_argv(run_dir, scan_cmd=self.scan_cmd, options=options)
+        extra.update(jobs.env_pins(options, "claude"))  # a recorded "off" stays off whatever the UI inherited
         job = self.jobs.start(argv, self.child_env(extra), kind="resume", repo=summary["repo"],
                               engine=summary["engine"], model=model)
         note = None
         if settings is None:
             note = (f"run {rid} recorded no model or verify settings (it predates 2026-10-29), so it is resumed "
-                    f"with {model or 'the default model'} and the default verify settings")
+                    f"with {model} and the default verify settings")
         return job, note
 
     def set_access(self, body: Any) -> dict:

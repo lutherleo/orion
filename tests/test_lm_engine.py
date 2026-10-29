@@ -323,3 +323,18 @@ def test_case_budget_is_forwarded(monkeypatch):
     monkeypatch.setattr(engine, "_session", lambda *a, **k: ([], []))
     engine.discover_lm("s", ".", lambda e: None, model=object(), db=object(), flows=FLOWS[:1], case_budget=budget)
     assert got == [budget]
+
+
+def test_a_stop_leaves_the_batches_it_skipped_as_failures(monkeypatch):
+    """Unjudged is never a clean negative: the batches a stop skips become ERROR verdicts (the scan exits 3)."""
+    stop = threading.Event()
+
+    def session(generate, db, repo_path, scan_id, batch, **kw):
+        stop.set()                                   # the stop comes while the first batch is judged
+        return [], [{"step_no": 0, "kind": "final"}]
+
+    monkeypatch.setattr(engine, "_load_flows", lambda db, sid, max_flows: FLOWS)
+    monkeypatch.setattr(engine, "_session", session)
+    failures: list[dict] = []
+    engine.discover_lm("s", ".", lambda e: None, model=object(), k=1, stop=stop, failures=failures)
+    assert [(f["flow_ids"], f["reason"]) for f in failures] == [(["F1"], "not judged: the scan was stopped")]

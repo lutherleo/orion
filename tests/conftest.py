@@ -27,6 +27,17 @@ from orion.graph import joern_adapter
 os.environ.setdefault("ORION_PERSIST_STRICT", "1")
 
 
+@pytest.fixture(autouse=True)
+def _scan_not_interrupted(monkeypatch):
+    """Every test starts with a scan nobody has stopped: `claude_cli.interrupt()` sets a process-wide flag
+    that is never cleared (an interrupted scan is on its way out), so one test's stop must not leak into
+    the next test's scan."""
+    import threading
+
+    from orion import claude_cli
+    monkeypatch.setattr(claude_cli, "_STOP", threading.Event())
+
+
 @functools.lru_cache(maxsize=1)
 def joern_problem() -> str | None:
     """Why Joern can't run here, or None. Probed ONCE per session with `joern-parse --help` (v4 has

@@ -99,6 +99,12 @@ def _verify_settings(args: argparse.Namespace, config) -> dict:
             "endpoint": bool((os.environ.get("ANTHROPIC_BASE_URL") or "").strip())}
 
 
+def _writable(run_dir: str) -> bool:
+    """Whether this user can add to a run dir: the dir itself and its verdicts log, when there is one."""
+    log = Path(run_dir, _VERDICTS_LOG)
+    return os.access(run_dir, os.W_OK) and (not log.exists() or os.access(log, os.W_OK))
+
+
 def _run_meta(run_dir: str) -> dict:
     return json.loads(Path(run_dir, _LEADS_FILE).read_text(encoding="utf-8"))
 
@@ -196,7 +202,21 @@ def _run_scan(args: argparse.Namespace) -> int:
         from . import config as _config               # light; also reaches the agents' MCP server via env
         _config.set_semantic_mode(args.semantic_mode)
     resume = getattr(args, "resume", None)
+    run_lock = None
     if resume:
+        # Lock first, then read: a scan still finishing this run dir could otherwise log verdicts between
+        # the read and the lock, and those leads would be verified twice.
+        from . import runlock
+        if Path(resume, _LEADS_FILE).is_file():
+            if not _writable(resume):
+                print(f"orion scan: cannot write to {resume}: a resume appends to its {_VERDICTS_LOG}, so it "
+                      "would pay for verdicts it cannot keep", file=sys.stderr)
+                return 2
+            run_lock = runlock.acquire(resume)
+            if run_lock is None:
+                print(f"orion scan: {resume} is being written by another scan right now; resume it once that "
+                      "scan has stopped", file=sys.stderr)
+                return 2
         try:
             scan_id, saved_repo, saved_leads, finished = _load_run(resume)
         except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -237,7 +257,7 @@ def _run_scan(args: argparse.Namespace) -> int:
         return 2
 
     # Deferred on purpose -- see module docstring.
-    from . import config, discover, embed, graph_build, graphdb, report, verify
+    from . import claude_cli, config, discover, embed, graph_build, graphdb, report, verify
     from . import sarif as sarif_mod
     from .monitor import run_logger, tail
 
@@ -268,13 +288,14 @@ def _run_scan(args: argparse.Namespace) -> int:
     run_dir = resume or _run_dir(scan_id)   # a resumed run keeps appending to its own dir
     # One scan per run dir: two writers would verify the same leads twice and interleave their logs. The
     # handle stays open (so the lock stays held) until this function returns; the OS releases it however
-    # the process ends.
-    from . import runlock
-    run_lock = runlock.acquire(run_dir)
+    # the process ends. A resume took it above, before reading the run.
     if run_lock is None:
-        print(f"orion scan: {run_dir} is being written by another scan right now; resume it once that scan "
-              "has stopped", file=sys.stderr)
-        return 2
+        from . import runlock
+        run_lock = runlock.acquire(run_dir)
+        if run_lock is None:
+            print(f"orion scan: {run_dir} is being written by another scan right now; resume it once that "
+                  "scan has stopped", file=sys.stderr)
+            return 2
 
     # In --watch mode the foreground `tail` is the one rendering progress (reading the same
     # JSONL), so the background pipeline's own logger stays quiet to avoid printing every event
@@ -395,6 +416,10 @@ def _run_scan(args: argparse.Namespace) -> int:
         leads = discover.discover(scan_id, on_event, profile, timeout=d_timeout,
                                   dynamic_hint=dynamic_hint,
                                   shortlists=getattr(args, "shortlists", None) or None)
+        if claude_cli.interrupted():
+            # Stopped mid-discovery (--watch: the shapes return what they had): saving these leads would
+            # make an unfinished discovery look final, and --resume never re-discovers.
+            raise KeyboardInterrupt
         on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"))
         _save_leads(run_dir, scan_id, args.repo, leads, model=config.MODEL,
                     settings=_verify_settings(args, config))
@@ -411,6 +436,9 @@ def _run_scan(args: argparse.Namespace) -> int:
                                   on_verdict=lambda v: _append_verdict(run_dir, v),
                                   routing=getattr(args, "verify_routing", None) or None,
                                   context=getattr(args, "verify_context", None) or None)
+        if claude_cli.interrupted():
+            # Stopped mid-verify (--watch): the run stays resumable instead of reading as finished.
+            raise KeyboardInterrupt
         by_index = {**done, **{v.lead.index: v for v in fresh}}
         verdicts = [by_index[lead.index] for lead in leads if lead.index in by_index]
         on_event(_event("verify", "done", detail=f"{len(verdicts)} verdicts"))
@@ -467,29 +495,31 @@ def _run_scan(args: argparse.Namespace) -> int:
         def _worker() -> None:
             try:
                 result["verdicts"] = _pipeline()
-            except Exception as exc:  # noqa: BLE001 -- surface, don't swallow
-                result["error"] = exc
+            except BaseException as exc:  # noqa: BLE001 -- surface, don't swallow (an interrupt too:
+                result["error"] = exc     # the main thread re-raises it, so the run never reads as finished)
             finally:
                 stop.set()
 
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
+        interrupted = False
         try:
             if args.watch:
                 tail(run_dir, stop)
+                interrupted = not stop.is_set()     # tail swallows a Ctrl-C and returns before the worker ends
             else:
                 while not stop.wait(0.5):
                     pass
         except KeyboardInterrupt:
+            interrupted = True
+        if interrupted:
             lm_stop.set()
             if lm_engine:
                 print("\nstopping: finishing the current Orion-LM session (Ctrl-C again to quit now)",
                       file=sys.stderr)
             else:
                 # The worker's claude -p sessions got the same Ctrl-C: none is retried, none started.
-                from . import claude_cli
                 claude_cli.interrupt()
-            stop.set()
         thread.join()
         if "error" in result:
             raise result["error"]
@@ -703,11 +733,13 @@ def _run_trace(args: argparse.Namespace) -> int:
           "container when available (--sandbox); a web app or binary started by --driver http/process "
           "runs on this host -- only drive repos you trust.")
 
+    drive_stop = threading.Event()    # Ctrl-C: the drive loop ends; the target is still stopped, what ran is kept
+
     def _do() -> dict:
         return runtime.enrich(scan_id, repo, on_event, budget=args.budget, driver=args.driver,
                               language=args.language, harness_file=args.harness_file,
                               sandbox=args.sandbox,
-                              timeout=args.timeout) or {}
+                              timeout=args.timeout, stop=drive_stop) or {}
 
     if args.watch:
         stop = threading.Event()
@@ -723,10 +755,16 @@ def _run_trace(args: argparse.Namespace) -> int:
 
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
+        interrupted = False
         try:
             tail(run_dir, stop)
+            interrupted = not stop.is_set()     # tail swallows a Ctrl-C and returns before the worker ends
         except KeyboardInterrupt:
-            stop.set()
+            interrupted = True
+        if interrupted:
+            drive_stop.set()
+            from . import claude_cli
+            claude_cli.interrupt()              # the harness agent's killed claude -p is not retried
         thread.join()
         if "error" in result:
             raise result["error"]
@@ -878,8 +916,10 @@ def _run_ui(args: argparse.Namespace) -> int:
                     opened = webbrowser.open(page.as_uri())
                 except Exception:  # noqa: BLE001 -- no browser is not a reason to stop serving
                     opened = False
-                if not opened:
-                    _say("orion ui: could not open a browser; open the URL above")
+                # A browser can start and still not read the page (a snap Firefox cannot see /tmp; a Windows
+                # browser cannot open a WSL path), and that is never reported back: say what to do either way.
+                _say("orion ui: could not open a browser; open the URL above" if not opened else
+                     "orion ui: opened a browser; if it shows no page, open the URL above")
 
             threading.Thread(target=_open_browser, name="orion-ui-open", daemon=True).start()
         ui.serve_forever()

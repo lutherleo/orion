@@ -434,13 +434,16 @@ async def _verify_all_async(scan_id: str, leads: list[Lead], repo_path: str, on_
     flight. asyncio.gather preserves input (lead) order in the returned list. `on_verdict` fires on
     the event-loop thread as each verdict lands (one at a time -- no locking needed)."""
     sem = asyncio.Semaphore(max(1, concurrency))
+    from .claude_cli import interrupted
 
     async def _one(lead: Lead) -> Verdict:
         async with sem:
             verdict = await asyncio.to_thread(
                 verify_lead, scan_id, lead, repo_path, on_event, run_agent, fetch_subgraph, routing,
                 **({"code_context": code_context} if code_context is not None else {}))
-        if on_verdict is not None:
+        # An ERROR once the scan is stopping is the stop itself (its session was killed, or never started):
+        # it is not logged, so the lead stays without a verdict and --resume verifies it.
+        if on_verdict is not None and not (verdict.decision == "ERROR" and interrupted()):
             on_verdict(verdict)
         return verdict
 

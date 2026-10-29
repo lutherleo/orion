@@ -62,28 +62,32 @@ class Busy(RuntimeError):
 # The public option spec: the page renders it and build_argv enforces it. Each entry maps to exactly one
 # `orion scan` flag (tests/test_ui_jobs.py checks every flag and choice against the CLI's own parser).
 # "default" is the CLI's own default, for the page to preselect; sending it explicitly is still allowed.
+# "env" names the ORION_* variable that sets the same default from the environment: `env_pins` pins it.
 OPTIONS: dict[str, dict] = {
     "verify_routing": {
         "kind": "bool", "flag": "--verify-routing", "engines": ["claude"], "default": False,
+        "env": "ORION_VERIFY_ROUTING",
         "label": "Adaptive verification",
         "help": "Clear-cut single-location leads get a light verifier pass (same model, smaller budget); "
                 "anything it cannot settle gets the full pass.",
     },
     "verify_context": {
         "kind": "bool", "flag": "--verify-context", "engines": ["claude"], "default": False,
+        "env": "ORION_VERIFY_CONTEXT",
         "label": "Code context for the verifier",
         "help": "Put the code around each lead (its function, callers and callees) in the verifier's first "
                 "message. Needs the lm extra installed.",
     },
     "shortlists": {
         "kind": "bool", "flag": "--shortlists", "engines": ["claude", "lm"], "default": False,
+        "env": "ORION_SHORTLISTS",
         "label": "Shortlists",
         "help": "Give discovery the build's candidate lists: missing controls, hedge comments, risky regexes "
                 "and dependencies.",
     },
     "semantic_mode": {
         "kind": "choice", "flag": "--semantic-mode", "engines": ["claude"],
-        "choices": ["vector", "hybrid", "keyword"], "default": "vector",
+        "choices": ["vector", "hybrid", "keyword"], "default": "vector", "env": "ORION_SEMANTIC_MODE",
         "label": "Semantic search",
         "help": "How the agents' semantic search ranks: vector (meaning), hybrid (meaning and exact "
                 "keywords) or keyword.",
@@ -219,6 +223,21 @@ def _option_args(options: dict, engine: str) -> list[str]:
     return out
 
 
+def env_pins(options: dict, engine: str) -> dict[str, str]:
+    """The ORION_* twin of every option this engine takes, pinned to the value chosen (or the CLI's default):
+    a variable the UI happened to inherit (ORION_VERIFY_ROUTING=1, say) must not turn on what the page shows
+    off, or the reverse. `options` must already have passed the allowlist (build_argv / resume_argv)."""
+    pins: dict[str, str] = {}
+    for name, spec in OPTIONS.items():
+        env = spec.get("env")
+        if env is None or engine not in spec["engines"]:
+            continue
+        value = options.get(name)
+        value = spec["default"] if value is None else value
+        pins[env] = ("1" if value else "0") if spec["kind"] == "bool" else str(value)
+    return pins
+
+
 def build_argv(req: dict, *, scan_cmd: list[str] = SCAN_CMD, lm_available: bool = False,
                cwd: Path | None = None) -> tuple[list[str], dict[str, str]]:
     """(argv, extra_env) for a page request {"repo", "engine", "model", "options"}, or OptionError.
@@ -227,7 +246,8 @@ def build_argv(req: dict, *, scan_cmd: list[str] = SCAN_CMD, lm_available: bool 
     Orion-LM model dir) must be an existing directory and is passed resolved and absolute; a relative path
     resolves against `cwd` (default: this process's cwd). engine "claude" (the default) takes a model
     name (default "sonnet") that goes into extra_env as ORION_MODEL and never into argv; engine "lm"
-    needs `lm_available` and passes `--engine lm --model <abs dir>`. Secrets never pass through here."""
+    needs `lm_available` and passes `--engine lm --model <abs dir>`. extra_env also pins each option's
+    ORION_* twin (`env_pins`). Secrets never pass through here."""
     if not isinstance(req, dict):
         raise OptionError("a scan request must be a JSON object")
     for key in req:
@@ -260,6 +280,7 @@ def build_argv(req: dict, *, scan_cmd: list[str] = SCAN_CMD, lm_available: bool 
     if not isinstance(options, dict):
         raise OptionError("options must be a JSON object")
     argv = [*scan_cmd, str(repo), "--quiet", *engine_args, *_option_args(options, engine)]
+    extra_env.update(env_pins(options, engine))
     return argv, extra_env
 
 
@@ -295,6 +316,7 @@ _KILL_WAIT = 5.0                       # seconds shutdown waits for a killed chi
 _SIGKILL = getattr(signal, "SIGKILL", 9)                    # POSIX only; the fallback keeps Windows importing
 _CTRL_BREAK = getattr(signal, "CTRL_BREAK_EVENT", 1)        # Windows only
 _NEW_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200)   # Windows only
+_SUSPENDED = 0x00000004                                     # Windows CREATE_SUSPENDED: see _job_for
 # 128 + SIGINT (through a shell), and Windows' STATUS_CONTROL_C_EXIT (Ctrl-C / Ctrl-Break) unsigned and signed.
 _INTERRUPTED = {130, 0xC000013A, 0xC000013A - (1 << 32)}
 
@@ -396,6 +418,7 @@ class Job:
         self._lines: collections.deque[str] = collections.deque(maxlen=OUTPUT_LINES)
         self._next = 0                          # absolute index of the next line
         self._proc = None
+        self._tree: _WinJob | None = None       # Windows: the job holding the scan's process tree
         self._drained = threading.Event()       # the reader hit EOF
         self._exited = threading.Event()        # state became "exited"
 
@@ -492,7 +515,145 @@ def _taskkill_tree(pid: int) -> bool:
     return r.returncode == 0
 
 
-def _send_stop(proc, *, graceful: bool) -> str:
+# ── the scan's whole process tree ────────────────────────────────────────────────────────────────────────
+# The runtime stage starts its target in a process group (POSIX: a session) of its own, so its stop() reaches
+# the node child of `npm start`. A signal to the scan's group therefore misses the target: on Windows the first
+# Stop's Ctrl-Break ends the scan's python at once, with no cleanup, and on POSIX a kill only reaches the group.
+
+def _descendants(pid: int) -> list[int]:
+    """POSIX: every process below `pid`, from one `ps -A -o pid=,ppid=` listing (Linux and macOS alike); [] when
+    ps cannot run. Taken while `pid` is alive: once it dies its children are re-parented and the tree is gone."""
+    try:
+        listing = subprocess.run(["ps", "-A", "-o", "pid=,ppid="], capture_output=True, text=True, timeout=10,
+                                 check=False).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    children: dict[int, list[int]] = {}
+    for row in listing.splitlines():
+        parts = row.split()
+        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+            children.setdefault(int(parts[1]), []).append(int(parts[0]))
+    found: list[int] = []
+    todo = [pid]
+    while todo:
+        for child in children.get(todo.pop(), ()):
+            if child != pid and child not in found:
+                found.append(child)
+                todo.append(child)
+    return found
+
+
+class _WinJob:
+    """Windows: the scan's process tree in one job object. Every process the scan starts joins the job whatever its
+    process group (the runtime stage's target too), so ending the job ends them all: after the first Stop's
+    Ctrl-Break, which ends the scan's python with no cleanup, and on a force stop. With KILL_ON_JOB_CLOSE they end
+    as well should this UI itself go away."""
+
+    def __init__(self, process_handle: int) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        class _Basic(ctypes.Structure):
+            _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                        ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                        ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                        ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD),
+                        ("SchedulingClass", wintypes.DWORD)]
+
+        class _Extended(ctypes.Structure):          # JOBOBJECT_EXTENDED_LIMIT_INFORMATION; IoInfo = 6 ULONGLONGs
+            _fields_ = [("BasicLimitInformation", _Basic), ("IoInfo", ctypes.c_ulonglong * 6),
+                        ("ProcessMemoryLimit", ctypes.c_size_t), ("JobMemoryLimit", ctypes.c_size_t),
+                        ("PeakProcessMemoryUsed", ctypes.c_size_t), ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.CreateJobObjectW.restype = wintypes.HANDLE
+        k32.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+        k32.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+        k32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        k32.TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        job = k32.CreateJobObjectW(None, None)
+        if not job:
+            raise ctypes.WinError(ctypes.get_last_error())
+        info = _Extended()
+        info.BasicLimitInformation.LimitFlags = 0x2000                 # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        if not (k32.SetInformationJobObject(job, 9, ctypes.byref(info), ctypes.sizeof(info))   # extended limits
+                and k32.AssignProcessToJobObject(job, process_handle)):
+            err = ctypes.get_last_error()
+            k32.CloseHandle(job)
+            raise ctypes.WinError(err)
+        self._k32, self._job = k32, job
+
+    def end(self) -> bool:
+        """End every process still in the job; True when Windows did."""
+        return bool(self._k32.TerminateJobObject(self._job, 1))
+
+    def close(self) -> None:
+        self._k32.CloseHandle(self._job)
+
+
+def _resume_threads(pid: int) -> bool:
+    """Windows: resume every thread of `pid` (a process created suspended has exactly one). True when one was."""
+    import ctypes
+    from ctypes import wintypes
+
+    class _Thread(ctypes.Structure):                            # THREADENTRY32
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD), ("th32ThreadID", wintypes.DWORD),
+                    ("th32OwnerProcessID", wintypes.DWORD), ("tpBasePri", wintypes.LONG),
+                    ("tpDeltaPri", wintypes.LONG), ("dwFlags", wintypes.DWORD)]
+
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    k32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    k32.Thread32First.argtypes = k32.Thread32Next.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
+    k32.OpenThread.restype = wintypes.HANDLE
+    k32.OpenThread.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    k32.ResumeThread.restype = wintypes.DWORD
+    k32.ResumeThread.argtypes = [wintypes.HANDLE]
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
+    snap = k32.CreateToolhelp32Snapshot(0x00000004, 0)          # TH32CS_SNAPTHREAD
+    if not snap or snap == ctypes.c_void_p(-1).value:           # INVALID_HANDLE_VALUE
+        return False
+    resumed = False
+    try:
+        entry = _Thread()
+        entry.dwSize = ctypes.sizeof(entry)
+        more = k32.Thread32First(snap, ctypes.byref(entry))
+        while more:
+            if entry.th32OwnerProcessID == pid:
+                thread = k32.OpenThread(0x0002, False, entry.th32ThreadID)     # THREAD_SUSPEND_RESUME
+                if thread:
+                    resumed = k32.ResumeThread(thread) != 0xFFFFFFFF or resumed
+                    k32.CloseHandle(thread)
+            more = k32.Thread32Next(snap, ctypes.byref(entry))
+    finally:
+        k32.CloseHandle(snap)
+    return resumed
+
+
+def _job_for(proc, *, resume: bool = False) -> _WinJob | None:
+    """A _WinJob holding a real child on Windows; None elsewhere, for a stand-in process, or when Windows refuses
+    (the scan then runs as before, ended by taskkill /T on a force stop). sys.platform, not the module's `os`:
+    the tests swap `os` to play Windows on any machine.
+
+    `resume`: the child was started suspended (CREATE_SUSPENDED) and is resumed here, whatever happens. It must
+    be in the job before it runs: a venv's python.exe is a launcher that starts the real interpreter as a child
+    of its own within milliseconds, and a child started before the job exists is outside it for good."""
+    tree = None
+    try:
+        if sys.platform == "win32" and isinstance(proc, subprocess.Popen):
+            try:
+                tree = _WinJob(int(proc._handle))
+            except (OSError, AttributeError, ValueError):
+                tree = None
+    finally:
+        if resume and not _resume_threads(proc.pid):
+            proc.kill()                                         # never leave a scan frozen
+            raise OSError("the scan was started suspended and could not be resumed")
+    return tree
+
+
+def _send_stop(proc, *, graceful: bool, tree: _WinJob | None = None) -> str:
     """Interrupt (graceful) or kill the child's process group; returns "interrupt" or "kill" -- what was
     sent, or asked for when the child turned out to be gone already (the waiter records its exit). Polling
     first, as Popen.send_signal does, keeps a reaped child's recycled pid from being signalled."""
@@ -506,11 +667,19 @@ def _send_stop(proc, *, graceful: bool) -> str:
             except OSError:
                 pass    # no console shared with the child to carry Ctrl-Break: ending it is the only stop left
         # TerminateProcess (Popen.kill) ends the scan's python alone: its claude.exe, node and MCP server
-        # children would run on. taskkill /T ends the whole tree; kill() is the fallback.
-        if not (isinstance(proc, subprocess.Popen) and _taskkill_tree(proc.pid)):
+        # children would run on. taskkill /T walks the live tree from the scan; the job then ends what left that
+        # tree (the runtime target, in a process group of its own); kill() is the last resort.
+        killed = isinstance(proc, subprocess.Popen) and _taskkill_tree(proc.pid)
+        if tree is not None:
+            killed = tree.end() or killed
+        if not killed:
             proc.kill()
         return "kill"
     sig = signal.SIGINT if graceful else _SIGKILL
+    # A kill is the last word, so it also ends what left the group (the runtime target's own session). The tree
+    # is read first: once the scan dies, its children are re-parented and can no longer be found from it. An
+    # interrupt needs none of this: the scan stops its target itself as it unwinds.
+    strays = _descendants(proc.pid) if not graceful and isinstance(proc, subprocess.Popen) else []
     try:
         pgid = os.getpgid(proc.pid)
         if pgid == _own_pgrp():
@@ -519,6 +688,11 @@ def _send_stop(proc, *, graceful: bool) -> str:
             os.killpg(pgid, sig)
     except ProcessLookupError:
         pass                        # already gone
+    for pid in strays:
+        try:
+            os.kill(pid, _SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass                    # gone with the group, or never ours to end
     return "interrupt" if graceful else "kill"
 
 
@@ -559,10 +733,17 @@ class Jobs:
                            "stop it or wait for it to finish")
             job = Job(argv=argv, kind=kind, repo=repo, engine=engine, cwd=self.cwd, env=child_env,
                       lock=self._lock, scrub=self._scrub, model=model)
+            spawn = _group_kwargs()
+            # Windows: started suspended, put in its job, then resumed (_job_for). Only for the real Popen: a
+            # stand-in could not be resumed.
+            suspend = sys.platform == "win32" and self._popen is subprocess.Popen
+            if suspend:
+                spawn["creationflags"] = spawn.get("creationflags", 0) | _SUSPENDED
             job._proc = self._popen(
                 list(argv), cwd=str(self.cwd), env=child_env, stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-                errors="replace", bufsize=1, **_group_kwargs())
+                errors="replace", bufsize=1, **spawn)
+            job._tree = _job_for(job._proc, resume=suspend)
             self._current = job
             threading.Thread(target=self._pump, args=(job,), name=f"orion-ui-job-{job.id}-out",
                              daemon=True).start()
@@ -598,6 +779,13 @@ class Jobs:
             code = proc.wait()
         except OSError:
             code = getattr(proc, "returncode", None)
+        if job._tree is not None:
+            # Whatever outlived the scan (a runtime target the first Stop's Ctrl-Break left running) ends with it.
+            try:
+                job._tree.end()
+            except OSError:
+                pass
+            job._tree.close()
         job._drained.wait(_DRAIN_GRACE)
         with self._lock:
             job.returncode = code
@@ -624,7 +812,7 @@ class Jobs:
             job = self._active()
             if job is None:
                 raise RuntimeError("no scan is running")
-            sent = _send_stop(job._proc, graceful=job.stop_count == 0)
+            sent = _send_stop(job._proc, graceful=job.stop_count == 0, tree=job._tree)
             job.stop_count += 1
             job.state = "stopping"
             if sent == "kill":
