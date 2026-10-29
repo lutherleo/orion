@@ -485,6 +485,9 @@ def test_case_with_zero_flows_is_judged_code_only_at_its_entry(tmp_path, monkeyp
     """Fix round 1: no CandidateFlow touches the case -> ONE entry-only case through the REAL
     discover_lm (enrichment by cases.case_from_flow, stub model): its target snippet is the handler,
     the model judges it, and case_meta.json says mode entry_only."""
+    # The [target] snippet is cut by Orion-LM's tree-sitter index (the `lm` extra); without it the
+    # case falls back to the source line only, so skip like tests/'s `needs_tree_sitter` fixture.
+    pytest.importorskip("tree_sitter")
     import orion.graphdb
     monkeypatch.setattr(lm, "_case_flows", lambda scan_id, case: [])
     tree = tmp_path / "tree"
