@@ -109,7 +109,7 @@ def test_node_count_counts_graph_and_chunks_not_the_record(neo4j_driver, scan_id
 def test_runtime_writeback_clear_and_count_stay_inside_the_scan(neo4j_driver, scan_ids):
     """Guard for the per-label CLEAR_PROPS / UNREACHABLE_EXECUTED rewrite: a re-run clears only this
     scan's runtime props, counts its executed-but-'unreachable' nodes, and leaves a neighbour alone."""
-    from orion.runtime.base import WritePlan
+    from orion.runtime.correlate import WritePlan
     a, b = scan_ids("a"), scan_ids("b")
     with neo4j_driver.session(database=config.NEO4J_DATABASE) as s:
         for sid in (a, b):
