@@ -18,6 +18,7 @@ from eval import cwe as _cwe
 from eval.names import function_name
 
 _WINDOW = 10
+_MAX_RANGE = 50  # longest reported line range credited as a range (pre-registration parameter, 2026-10-29)
 
 
 def _norm_file(p):
@@ -65,7 +66,14 @@ def _loc(finding, key_file, key_fn, lo, hi) -> bool:
     # Degenerate keys only: a missing bound falls back to the other; inverted bounds are swapped.
     lo, hi = (hi if lo is None else lo), (lo if hi is None else hi)
     lo, hi = min(lo, hi), max(lo, hi)
-    return lo - _WINDOW <= line <= hi + _WINDOW
+    # RANGE OVERLAP (2026-10-29, eval/CHANGELOG.md): a finding that reports a range [line, line_end]
+    # matches when the range overlaps the window [lo - 10, hi + 10]; before, only its first line was
+    # tested, so a range starting more than 10 lines above the fix missed. A range longer than
+    # _MAX_RANGE lines counts as its first line only, so a whole-file range cannot match everything.
+    end = finding.get("line_end")
+    if not isinstance(end, int) or isinstance(end, bool) or end < line or end - line > _MAX_RANGE:
+        end = line
+    return line <= hi + _WINDOW and end >= lo - _WINDOW
 
 
 def l1(finding: dict, answer_key: dict) -> bool:

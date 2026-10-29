@@ -158,7 +158,8 @@ def run_one(conn, *, arm, repo_meta, run_no, model_tags, base_env,
                               input_tokens=block.get("uncached_in"), output_tokens=block.get("out"),
                               cache_read=block.get("cache_read"), cache_write=block.get("cache_write"),
                               turns_used=None, turn_limit=None, peak_context=None,
-                              exit_reason=None, error_head=None)
+                              # "per_message_sum" marks a lower-bound block (arms/plain.read_usage)
+                              exit_reason=block.get("exit_reason"), error_head=None)
         for step in res.steps or []:
             db.log_step(conn, rid, **step)
         if res.findings_path is None:

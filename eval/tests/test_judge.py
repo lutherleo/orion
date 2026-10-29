@@ -36,7 +36,8 @@ def test_prompt_is_blinded_to_arm():
 
 def test_prompt_hash_and_model_recorded():
     assert len(judge.prompt_sha256()) == 64
-    assert judge.judge_record() == {"model": None, "prompt_sha256": judge.prompt_sha256()}
+    assert judge.judge_record() == {"model": None, "prompt_sha256": judge.prompt_sha256(),
+                                    "match_prompt_sha256": judge.match_prompt_sha256()}
 
 
 def test_calibrate_reports_kappa_and_ac1():

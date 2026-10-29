@@ -88,6 +88,7 @@ def read_usage(usage_log: str, *, source: str, on_line=None) -> list[dict]:
     want = _USAGE_EVENT[source]
     marker = f'"type":"{want}"'
     blocks, nonempty = [], False
+    per_message: dict[str, dict] = {}     # claude: message id -> its usage, for a run with no result
     with open(usage_log) as fh:
         for n, line in enumerate(fh, 1):
             line = line.strip()
@@ -105,9 +106,39 @@ def read_usage(usage_log: str, *, source: str, on_line=None) -> list[dict]:
                 continue
             if isinstance(ev, dict) and ev.get("type") == want:
                 blocks.append(normalize_usage(ev, source=source))
-    if nonempty and not blocks:
+            elif source == "claude" and isinstance(ev, dict) and ev.get("type") == "assistant":
+                _keep_message_usage(per_message, ev)
+    if not blocks and per_message:
+        # No `result` event (a hung run killed by the watchdog, a crash): the session's usage is the
+        # sum of what the CLI reported per assistant message -- measured, not estimated, but the
+        # message in flight when it died may be short, so it is a LOWER BOUND and labelled as one.
+        usage = {k: sum(m.get(k) or 0 for m in per_message.values())
+                 for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens",
+                           "output_tokens")}
+        block = normalize_usage({"usage": usage}, source="claude")
+        block["exit_reason"] = PER_MESSAGE
+        blocks.append(block)
+        warn(f"warning: usage.jsonl has no {want} event; tokens summed from {len(per_message)} "
+             "assistant messages (a lower bound: the last message may be cut off)")
+    elif nonempty and not blocks:
         warn(f"warning: usage.jsonl has no usage ({want}) event; tokens for this run are missing")
     return blocks
+
+
+PER_MESSAGE = "per_message_sum"   # agent_calls.exit_reason of a usage block summed per message
+
+
+def _keep_message_usage(per_message: dict, ev: dict) -> None:
+    """Record one stream-json `assistant` event's usage under its message id. The CLI repeats a
+    message once per content block, so each field keeps its highest value for that id (counts only
+    grow while a message is written); a message with no id or no usage is skipped, never guessed."""
+    msg = ev.get("message")
+    if not isinstance(msg, dict) or not isinstance(msg.get("usage"), dict) or not msg.get("id"):
+        return
+    seen = per_message.setdefault(str(msg["id"]), {})
+    for k, v in msg["usage"].items():
+        if isinstance(v, int) and not isinstance(v, bool):
+            seen[k] = max(seen.get(k) or 0, v)
 
 
 def _capture_findings(repo_dir: str, json_out: str, on_line) -> "str | None":
@@ -125,11 +156,29 @@ def _capture_findings(repo_dir: str, json_out: str, on_line) -> "str | None":
     if not isinstance(obj, dict):
         on_line("warning: findings.json is not a JSON object; scored as a miss")
         return None
-    problems = validate_findings(obj)
-    if problems:
-        on_line(f"warning: findings.json failed schema check ({'; '.join(problems[:5])}); "
-                "scored as a miss")
+    items = obj.get("findings")
+    if not isinstance(items, list):
+        on_line("warning: findings.json has no 'findings' list; scored as a miss")
         return None
+    # Each finding is checked ON ITS OWN (2026-10-29, eval/CHANGELOG.md): before, one bad finding
+    # (say "function": null) voided the whole run -- a miss on the vulnerable commit and a "clean"
+    # patched one. A finding that fails is dropped and counted; the valid ones are scored. The raw
+    # file is kept verbatim next to the cleaned one (findings.raw.json).
+    bad = [(i, p) for i, it in enumerate(items) if (p := validate_findings({"findings": [it]}))]
+    if bad and len(bad) == len(items):
+        detail = "; ".join(f"finding {i}: {p[0].split(' ', 2)[-1]}" for i, p in bad[:5])
+        on_line(f"warning: findings.json: none of its {len(items)} findings passed the schema check "
+                f"({detail}); scored as a miss")
+        return None
+    if bad:
+        raw_out = os.path.join(os.path.dirname(json_out), "findings.raw.json")
+        shutil.copy2(json_out, raw_out)
+        dropped = {i for i, _ in bad}
+        keep = [it for i, it in enumerate(items) if i not in dropped]
+        Path(json_out).write_text(json.dumps({**obj, "findings": keep}, indent=2))
+        detail = "; ".join(f"finding {i}: {p[0].split(' ', 2)[-1]}" for i, p in bad[:5])
+        on_line(f"warning: findings.json: dropped {len(bad)} of {len(items)} findings that failed the "
+                f"schema check ({detail}); the {len(keep)} valid ones are scored (raw kept in {raw_out})")
     return json_out
 
 

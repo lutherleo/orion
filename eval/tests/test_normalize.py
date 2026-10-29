@@ -26,8 +26,9 @@ def test_plain_finding_shape_and_raw_text():
                            "cwe": "CWE-89", "title": "SQLi", "explanation": "concat",
                            "path": [{"file": "a.py", "function": "g", "line": 1, "role": "source"}]},
                           arm="plain-gpt")
-    assert set(f) == {"arm", "file", "function", "line", "cwe", "confidence", "path", "raw_text"}
+    assert set(f) == {"arm", "file", "function", "line", "line_end", "cwe", "confidence", "path", "raw_text"}
     assert f["arm"] == "plain-gpt" and f["confidence"] is None
+    assert (f["line"], f["line_end"]) == (5, 7)          # the range is kept for the overlap rule
     assert "SQLi" in f["raw_text"] and "concat" in f["raw_text"]
     assert f["path"][0]["role"] == "source"
 

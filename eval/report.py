@@ -24,12 +24,15 @@ The manifest decides two things (spec 5.4 / 6), per row id (= runs.repo):
   own cluster; that is NOT the pre-registered analysis (render() says so).
 
 Which runs count (never changes anywhere in this module):
-  * status in ('ok','crashed','hung','error') is terminal and SCORED; 'aborted' (a usage limit, or a
-    machine failure under an orion-lm run) and 'running' rows are excluded from every sum.
-    Every n is reported with the per-status counts of its run slots (`status_counts`: the latest
-    attempt of each slot, ok / hung / crashed / error / aborted), so what a failure does to a rate
-    is visible. Which statuses count toward FAR is a pre-registration decision (KRISH CHECK), not
-    changed here: a crashed/hung/error patched run is scored with no false alarm.
+  * Only status 'ok' is COUNTED in a rate. A run that failed -- 'crashed', 'hung', 'error' -- is
+    MISSING, exactly like 'aborted' (a usage limit, or a machine failure under an orion-lm run) and
+    'running': it is in no sum, numerator or denominator (changed 2026-10-29, eval/CHANGELOG.md;
+    before, a failed patched run counted as a clean "no false alarm" and a failed vulnerable run as
+    a miss, so an arm that crashed more looked safer). Every n is reported with the per-status counts
+    of its run slots (`status_counts`: the latest attempt of each slot, ok / hung / crashed / error /
+    aborted), and efficiency / FAR also carry a `sensitivity` with the failures put back: FAR with
+    every failed patched run a false alarm (worst case) and with every one clean (the old rule), and
+    E with failed vulnerable runs scored as before. Krish signs this off before the prereg tag.
   * case_id == '' only: OWASP Benchmark rows (case_id != '') feed Youden J (`youden_detail`, from
     each run's findings.json via eval.owasp.score / youden) and are NOT part of efficiency / FAR /
     recall.
@@ -68,6 +71,9 @@ from eval import usage as _usage
 
 SCORED = ("ok", "crashed", "hung", "error")
 _SCORED_SQL = "status IN ('ok','crashed','hung','error')"
+FAILED = ("crashed", "hung", "error")              # terminal but MISSING from every rate (see doc)
+_COUNTED_SQL = "status = 'ok'"
+_FAILED_SQL = "status IN ('crashed','hung','error')"
 STATUSES = ("ok", "hung", "crashed", "error", "aborted")   # always present in status_counts
 PRIMARY = "headline"                                     # the partition of the decision rule
 PARTITIONS = ("headline", "access_control", "scale")      # reported separately (spec 5.4)
@@ -131,9 +137,10 @@ _LATEST_ATTEMPT_SQL = ("attempt_no = (SELECT MAX(r2.attempt_no) FROM runs r2 WHE
                        " AND r2.case_id IS runs.case_id AND r2.run_no = runs.run_no)")
 
 
-def _runs(conn, arm, commit_kind, *, manifest=None, partition=PRIMARY):
-    """Scored CVE runs (case_id == '') of one arm and commit kind in scope, oldest first; each with
-    its row id ("repo") and cluster ("cluster").
+def _runs(conn, arm, commit_kind, *, manifest=None, partition=PRIMARY, failed=False):
+    """Counted CVE runs (case_id == '', status 'ok') of one arm and commit kind in scope, oldest first;
+    each with its row id ("repo") and cluster ("cluster"). `failed=True`: the FAILED runs instead
+    (crashed / hung / error), for the sensitivity bounds only.
 
     Attempts: a run slot (arm, repo, commit_sha, case_id, run_no) is scored at most once, by its
     HIGHEST attempt_no. Invariant from the harness (eval/queue.py): only an `aborted` run (usage
@@ -144,7 +151,8 @@ def _runs(conn, arm, commit_kind, *, manifest=None, partition=PRIMARY):
     cluster, rows = _scope(manifest, partition)
     cur = conn.execute(
         f"SELECT id, repo, run_no, commit_sha FROM runs WHERE arm=? AND commit_kind=? AND case_id=''"
-        f" AND {_SCORED_SQL} AND {_LATEST_ATTEMPT_SQL} ORDER BY id", (arm, commit_kind))
+        f" AND {_FAILED_SQL if failed else _COUNTED_SQL} AND {_LATEST_ATTEMPT_SQL} ORDER BY id",
+        (arm, commit_kind))
     return [{"id": i, "repo": r, "cluster": cluster(r), "run_no": n, "sha": s} for i, r, n, s in cur.fetchall()
             if rows is None or r in rows]
 
@@ -216,16 +224,25 @@ def _cells(conn, arm, **scope):
 
 
 def efficiency_detail(conn, arm, *, manifest=None, partition=PRIMARY):
-    """{E, caught, tokens, n_runs, n_no_token_data, n_repos (clusters), n_rows, status_counts}."""
+    """{E, caught, tokens, n_runs, n_no_token_data, n_repos (clusters), n_rows, status_counts,
+    sensitivity}: over the counted ('ok') vulnerable runs. `sensitivity` = {n_failed, E_with_failures}:
+    E with the failed vulnerable runs scored as before 2026-10-29 (their catches and their tokens,
+    when they logged any)."""
     scope = dict(manifest=manifest, partition=partition)
     runs = _runs(conn, arm, "vulnerable", **scope)
     cells = [(r["cluster"], len(_caught(conn, r["id"])["l1"]), _tokens(conn, r["id"])) for r in runs]
     with_t = [(c, t) for _, c, t in cells if t is not None]
     caught, tokens = sum(c for c, _ in with_t), sum(t for _, t in with_t)
+    failed = _runs(conn, arm, "vulnerable", failed=True, **scope)
+    f_cells = [(len(_caught(conn, r["id"])["l1"]), _tokens(conn, r["id"])) for r in failed]
+    f_cells = [(c, t) for c, t in f_cells if t is not None]
+    all_c, all_t = caught + sum(c for c, _ in f_cells), tokens + sum(t for _, t in f_cells)
     return {"E": (1e6 * caught / tokens) if tokens else None, "caught": caught, "tokens": tokens,
             "n_runs": len(cells), "n_no_token_data": len(cells) - len(with_t),
             "n_repos": len({cl for cl, _, _ in cells}), "n_rows": len({r["repo"] for r in runs}),
-            "status_counts": status_counts(conn, arm, "vulnerable", **scope)}
+            "status_counts": status_counts(conn, arm, "vulnerable", **scope),
+            "sensitivity": {"n_failed": len(failed),
+                            "E_with_failures": (1e6 * all_c / all_t) if all_t else None}}
 
 
 def efficiency(conn, arm, *, manifest=None, partition=PRIMARY):
@@ -234,20 +251,25 @@ def efficiency(conn, arm, *, manifest=None, partition=PRIMARY):
 
 
 def far_detail(conn, arm, *, manifest=None, partition=PRIMARY):
-    """{FAR, false_alarms, n_runs, status_counts}: n_runs = scored patched-commit runs (the spec's N*R
-    when every slot was run). A crashed/hung/error patched run is scored and, having no matches,
-    counts as NO false alarm, so failures lower FAR; status_counts discloses how many there are
-    (whether they should count is the pre-registration's KRISH CHECK, not decided here)."""
+    """{FAR, false_alarms, n_runs, status_counts, sensitivity}: over the counted ('ok') patched-commit
+    runs; a failed patched run is MISSING (it used to count as "no false alarm", so an arm that
+    crashed more looked safer). `sensitivity` puts the failures back both ways --
+    {n_failed, FAR_failures_as_alarm (worst case), FAR_failures_as_clean (the pre-2026-10-29 rule)}."""
     scope = dict(manifest=manifest, partition=partition)
     runs = _runs(conn, arm, "patched", **scope)
     fa = sum(1 for r in runs if _caught(conn, r["id"])["l1"])
+    n_failed = len(_runs(conn, arm, "patched", failed=True, **scope))
+    n_all = len(runs) + n_failed
     return {"FAR": (fa / len(runs)) if runs else None, "false_alarms": fa, "n_runs": len(runs),
-            "status_counts": status_counts(conn, arm, "patched", **scope)}
+            "status_counts": status_counts(conn, arm, "patched", **scope),
+            "sensitivity": {"n_failed": n_failed,
+                            "FAR_failures_as_alarm": ((fa + n_failed) / n_all) if n_all else None,
+                            "FAR_failures_as_clean": (fa / n_all) if n_all else None}}
 
 
 def far(conn, arm, *, manifest=None, partition=PRIMARY):
-    """FAR_a = sum 1[any L1 match on patched_v] / n over the n scored patched-commit runs
-    (spec: N*R; a non-ok patched run counts as no false alarm, see far_detail)."""
+    """FAR_a = sum 1[any L1 match on patched_v] / n over the n counted ('ok') patched-commit runs
+    (a failed patched run is missing, see far_detail)."""
     return far_detail(conn, arm, manifest=manifest, partition=partition)["FAR"]
 
 
@@ -546,13 +568,14 @@ def pair_correct(conn, arm, pairs, *, manifest=None, partition=PRIMARY):
 def youden_detail(conn, arm, owasp_sample, *, runs_root=os.path.join("eval", "runs")):
     """Youden J = TPR - FPR on the OWASP Benchmark runs (case_id != '') of `arm`.
 
-    For each scored run (latest attempt per slot, status in SCORED), its case is looked up in
+    For each counted run (latest attempt per slot, status 'ok'; a failed OWASP run is missing like a
+    failed CVE run, never a clean "no finding" on a trap case), its case is looked up in
     `owasp_sample` (eval/dataset/owasp_sample.json: benchmark id = runs.repo, case_id), its
     findings.json is read from the run dir (eval.run.run_dir_for under `runs_root`) through
     eval.normalize, and eval.owasp.score gives the confusion row; J via eval.owasp.youden, which is
     None when J is undefined (no real or no trap case) -- never a made-up 0. A run with no findings
-    file (crashed, or an invalid file was never copied) is scored with no findings, like a CVE miss,
-    and counted in n_no_findings_file; a run whose case is not in the sample is left out and counted
+    file (an invalid file was never copied) is scored with no findings, like a CVE miss, and counted
+    in n_no_findings_file; a run whose case is not in the sample is left out and counted
     in n_unknown_case. Returns {youden_j, tpr, fpr, tp, fp, tn, fn, n_cases, n_runs, by_benchmark:
     {id: {youden_j, tp, fp, tn, fn, n_cases}}, n_no_findings_file, n_unknown_case, status_counts}."""
     from eval import normalize, owasp
@@ -565,7 +588,7 @@ def youden_detail(conn, arm, owasp_sample, *, runs_root=os.path.join("eval", "ru
     statuses = {**{k: 0 for k in STATUSES}, **dict(Counter(st for *_, st in slots))}
     rows, by_bench, no_file, unknown = [], {}, 0, 0
     for bench, sha, case_id, run_no, attempt_no, st in slots:
-        if st not in SCORED:
+        if st != "ok":
             continue
         case = cases.get((bench, case_id))
         if case is None:
@@ -797,6 +820,13 @@ def _partition_tables(sec, title) -> list:
         e, f = s["efficiency"], s["far"]
         out.append(f"| {arm} | {_fmt(e['E'])} | {e['caught']} | {e['tokens']} | {e['n_runs']} | {e['n_repos']} | "
                    f"{_statuses(e['status_counts'])} | {_fmt(f['FAR'])} | {f['n_runs']} | {_statuses(f['status_counts'])} |")
+    out += ["", "Failed runs (crashed / hung / error) are missing from the rates above; with them put back:", "",
+            "| arm | failed vulnerable | E with failures | failed patched | FAR if failures = alarms "
+            "| FAR if failures = clean |", "|---|---|---|---|---|---|"]
+    for arm, s in sec["arms"].items():
+        es, fs = s["efficiency"]["sensitivity"], s["far"]["sensitivity"]
+        out.append(f"| {arm} | {es['n_failed']} | {_fmt(es['E_with_failures'])} | {fs['n_failed']} | "
+                   f"{_fmt(fs['FAR_failures_as_alarm'])} | {_fmt(fs['FAR_failures_as_clean'])} |")
     out += ["", "| arm | recall L1 | recall L2 | pair-correct (pairs) | pass@3 | pass^3 | no token data | "
             "wall s (mean) | peak RSS MB (max) | MLX peak MB (max) | graph builds (wall s total) | dollars |",
             "|---|---|---|---|---|---|---|---|---|---|---|---|"]

@@ -126,7 +126,9 @@ def test_running_runs_are_excluded(tmp_path):
     assert report.efficiency_detail(conn, "orion-lm")["n_runs"] == 1
 
 
-def test_crashed_and_hung_runs_are_scored(tmp_path):
+def test_failed_runs_are_missing_with_the_old_rule_as_a_bound(tmp_path):
+    """2026-10-29 (eval/CHANGELOG.md): a crashed / hung / error run is in no rate; the sensitivity
+    puts it back as the 2026-10-22 rule scored it."""
     conn = db.connect(str(tmp_path / "t.db"))
     seed(conn, "orion-lm", "r1", "v1", caught=True, tokens=500_000)
     for i, st in enumerate(("crashed", "hung", "error")):
@@ -134,7 +136,23 @@ def test_crashed_and_hung_runs_are_scored(tmp_path):
         db.log_agent_call(conn, rid, session_id="s", stage="run", input_tokens=500_000, output_tokens=0,
                           cache_read=0, cache_write=0, turns_used=1, turn_limit=None, peak_context=None,
                           exit_reason=st, error_head=None)
-    assert abs(report.efficiency(conn, "orion-lm") - 0.5) < 1e-6         # 1 caught / 2M tokens
+    d = report.efficiency_detail(conn, "orion-lm")
+    assert abs(d["E"] - 2.0) < 1e-6 and d["n_runs"] == 1                  # 1 caught / 0.5M counted tokens
+    assert d["sensitivity"]["n_failed"] == 3
+    assert abs(d["sensitivity"]["E_with_failures"] - 0.5) < 1e-6         # the old rule: 1 caught / 2M
+    assert d["status_counts"] == {"ok": 1, "hung": 1, "crashed": 1, "error": 1, "aborted": 0}
+
+
+def test_a_failed_patched_run_is_missing_from_far_and_bounded_both_ways(tmp_path):
+    conn = db.connect(str(tmp_path / "t.db"))
+    _match(conn, _run(conn, "orion-lm", "r1", "p1", kind="patched"), "r1")    # a false alarm
+    _run(conn, "orion-lm", "r2", "p2", kind="patched")                        # clean
+    _run(conn, "orion-lm", "r3", "p3", kind="patched", status="crashed")
+    _run(conn, "orion-lm", "r4", "p4", kind="patched", status="hung")
+    d = report.far_detail(conn, "orion-lm")
+    assert (d["FAR"], d["n_runs"]) == (0.5, 2)                               # 1 of the 2 ok runs
+    s = d["sensitivity"]
+    assert s["n_failed"] == 2 and s["FAR_failures_as_alarm"] == 0.75 and s["FAR_failures_as_clean"] == 0.25
 
 
 def test_far_excludes_owasp_case_rows_and_aborted(tmp_path):
@@ -261,7 +279,9 @@ def test_only_highest_attempt_is_scored(tmp_path):
     a3 = db.start_run(conn, arm="orion-lm", repo="r1", tier="headline", run_no=1, model_tag="m",
                       cli_versions="", orion_commit="c", commit_kind="vulnerable", commit_sha="v1", attempt_no=3)
     db.finish_run(conn, a3, "crashed")
-    assert [r["id"] for r in report._runs(conn, "orion-lm", "vulnerable")] == [a3]
+    # ... and when that latest attempt failed, the slot is MISSING (2026-10-29), not a scored miss
+    assert report._runs(conn, "orion-lm", "vulnerable") == []
+    assert [r["id"] for r in report._runs(conn, "orion-lm", "vulnerable", failed=True)] == [a3]
 
 
 def test_pair_correct_scores_each_cve_against_its_own_patched_commit(tmp_path):
@@ -473,11 +493,13 @@ def test_partitions_split_headline_access_control_and_scale(tmp_path):
     ac = report.far_detail(conn, "orion-lm", manifest=man, partition="access_control")
     assert (ac["FAR"], ac["n_runs"]) == (1.0, 1)
     sc = report.far_detail(conn, "orion-lm", manifest=man, partition="scale")
-    assert sc["n_runs"] == 1 and sc["status_counts"] == {"ok": 0, "hung": 0, "crashed": 1, "error": 0, "aborted": 1}
+    # the crashed patched run is missing (2026-10-29): no counted run, FAR undefined, bounds from 1 failure
+    assert sc["n_runs"] == 0 and sc["FAR"] is None and sc["sensitivity"]["n_failed"] == 1
+    assert sc["status_counts"] == {"ok": 0, "hung": 0, "crashed": 1, "error": 0, "aborted": 1}
     sv = report.efficiency_detail(conn, "orion-lm", manifest=man, partition="scale")
-    assert sv["status_counts"]["error"] == 1 and sv["status_counts"]["ok"] == 1 and sv["n_runs"] == 2
+    assert sv["status_counts"]["error"] == 1 and sv["status_counts"]["ok"] == 1 and sv["n_runs"] == 1
     allr = report.efficiency_detail(conn, "orion-lm", manifest=man, partition=None)
-    assert allr["n_runs"] == 4
+    assert allr["n_runs"] == 3 and allr["sensitivity"]["n_failed"] == 1
     sec = report.secondary(conn, manifest=man)["arms"]["orion-lm"]
     assert sec["status_counts"]["patched"]["ok"] == 1 and sec["n_vulns"] == 1
     assert sec["pair_correct_detail"] is not None                             # pairs from the manifest
@@ -524,8 +546,10 @@ def test_youden_j_is_wired_from_the_owasp_runs(tmp_path):
     _owasp_run(conn, tmp_path, "plain-opus5", "owasp-python", "BenchmarkTest00002", [])         # FN
     _owasp_run(conn, tmp_path, "plain-opus5", "owasp-python", "BenchmarkTest00003", hit(3))     # FP
     _owasp_run(conn, tmp_path, "plain-opus5", "owasp-python", "BenchmarkTest00004", [], status="crashed",
-               write=False)                                                                     # TN, no file
+               write=False)                       # MISSING (2026-10-29), not a TN on a trap case
+    _owasp_run(conn, tmp_path, "plain-opus5", "owasp-python", "BenchmarkTest00005", [], write=False)  # ok, no file
     _owasp_run(conn, tmp_path, "plain-opus5", "owasp-python", "BenchmarkTest00009", hit(9))     # not in sample
+    sample["benchmarks"][0]["cases"].append(case(5, False))                                      # TN, no file
     y = report.youden_detail(conn, "plain-opus5", sample, runs_root=str(tmp_path / "runs"))
     assert (y["tp"], y["fn"], y["fp"], y["tn"]) == (1, 1, 1, 1) and y["youden_j"] == 0.0
     assert (y["tpr"], y["fpr"], y["n_cases"]) == (0.5, 0.5, 4)

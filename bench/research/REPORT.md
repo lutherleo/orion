@@ -1,5 +1,13 @@
 # Orion research eval — does GraphRAG grounding lift a local LLM to frontier vuln-finding?
 
+> **LEGACY (2026-10-29).** These numbers come from `bench/scoring.py`: a basename + keyword matcher
+> with no line or function check, many-to-many, one run per arm (N=1). They are dev evidence only and
+> never sit in an `eval/` table -- `eval/` (Krish's pre-registered, CVE-based harness) is the one
+> measurement path. **Costs corrected:** the token ledger priced every cache write at 1.25x the input
+> rate, but `claude -p` writes the 1-hour cache, billed at 2x; re-priced that way the tokens reproduce
+> the CLI's own `cli_cost_usd` within $0.001 (`tests/test_token_ledger.py`). Arm C costs **$0.73**
+> (NodeGoat) and **$1.01** (PyGoat), not $0.61 / $0.84 (about 17% low). The figures below are corrected.
+
 **Status:** partial (2026-08-31). Infrastructure and scoring complete; Semgrep baseline run on both
 benchmarks; the LLM arms are gated on a working local-model tool-calling stack (Phase 0) and a valid
 Claude login. This report is committed as living evidence — it states exactly what is measured and
@@ -34,7 +42,7 @@ Benchmarks: **NodeGoat** (15 vulns, `tests/ground_truth_nodegoat.py`) and **PyGo
 
 | Arm | NodeGoat recall | NG FP-cand | NG tokens / cost | PyGoat recall | PG FP-cand | PG tokens / cost | Status |
 |-----|-----------------|-----------|------------------|---------------|-----------|------------------|--------|
-| **C. Opus-5, no Orion** | **15 / 15** | 5 | 326k / **$0.61** | **14 / 16** | 10 | 446k / **$0.84** | ✅ measured |
+| **C. Opus-5, no Orion** | **15 / 15** | 5 | 326k / **$0.73** | **14 / 16** | 10 | 446k / **$1.01** | ✅ measured (legacy matcher, N=1) |
 | **D. Semgrep** | **4 / 15** | 26 | 0 / $0 | **7 / 16** | 85 | 0 / $0 | ✅ measured |
 | **B. Local, no Orion** (llama3.2:3b) | — | — | — | **0 / 16** | 0 | 0¹ | 🟡 ran, no valid findings |
 | A. Local + Orion | — | — | — | — | — | — | ⛔ CPU latency (see Phase 0) |
@@ -51,7 +59,7 @@ usable findings here," not a clean model-capability score.
 **What the two measured arms show.**
 
 - *Frontier LLM alone (arm C, Opus-5, no graph)* is strong: **15/15 on NodeGoat** and **14/16 on
-  PyGoat**, at **$0.61 / $0.84** per repo and ~2–3 min. Notably it catches classes the *graph* cannot
+  PyGoat**, at **$0.73 / $1.01** per repo and ~2–3 min. Notably it catches classes the *graph* cannot
   — it scored the NodeGoat A9 "components with known vulnerabilities" (a known graph data-gap) by
   simply reading `package.json`, and found PyGoat's outdated-components + insecure-design items. Its
   weakness is precision: 5 and 10 false-positive candidates respectively. So a frontier model reading
@@ -64,7 +72,7 @@ usable findings here," not a clean model-capability score.
   LLM and Orion's committed 14/15 @ 0 true FP — claim (2), with data on both stacks.
 
 The efficiency axis (claim 1) needs the local arms to land: **cost-per-confirmed-vuln** for arm C is
-$0.61/15 ≈ **$0.041** (NodeGoat) and $0.84/14 ≈ **$0.060** (PyGoat) — the numbers a local+Orion arm
+$0.73/15 ≈ **$0.049** (NodeGoat) and $1.01/14 ≈ **$0.072** (PyGoat) — the numbers a local+Orion arm
 would be compared against once it runs on adequate hardware.
 
 ## Phase 0 — local-model feasibility (go/no-go)

@@ -53,6 +53,13 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
   top 30 :CandidateFinding rows as code-only cases (`engine._finding_cases`, the Stage 1 shape);
   `--runtime` / `--use-runtime` on lm re-ranks the worked flows from pathfind's 300 (sink executed ->
   path coverage -> rank; unchanged without runtime data). All unmeasured.
+- **Phase 5 scoring fixes (2026-10-29, `eval/CHANGELOG.md`; Krish signs off before the tag):** failed
+  runs (crashed/hung/error) are MISSING from every rate, with worst/old-rule bounds printed; hung
+  Claude runs keep per-message tokens (a labelled lower bound); plain findings validated one by one;
+  range-overlap line rule (`match._MAX_RANGE` 50); only CONFIRM / unverified Orion verdicts are
+  findings, located by `Verdict.location()` (`eval/convert.py` folded into `normalize`); the judge
+  can credit location-less findings (`judge.credit_locationless`, refuses until frozen + calibrated
+  on >=100). `claude -p` agents run from an empty folder, not Orion's checkout.
 - **Phase 7** (added by Love Kush 2026-10-28): a localhost web UI to start / watch / stop scans and
   read reports from a browser, plus a bring-your-own LLM API key (never logged or committed).
   Designed and approved before it is built.
@@ -73,7 +80,7 @@ so `eval/` does not interfere. Built: run log (`eval/db.py`: runs/events/agent_c
 usage-shim (`eval/shim/claude` + `eval/shim_setup.py` — tees stream-json to per-run `usage.jsonl`,
 since Orion's `--json` carries no token usage), dataset tier checker + fix-commit enricher
 (`eval/dataset/`), frozen plain-agent prompt/schema (`eval/arms/prompt.py`), Orion verdict capture on
-the REAL contract (`eval/convert.py`: `decision`/`reason`/`lead.text`, NOT the fictional
+the REAL contract (`eval/convert.py`, folded into `eval/normalize.py` 2026-10-29: `decision`/`reason`/`lead.text`, NOT the fictional
 `verdict`/`lead.file`), env wiring + arm drivers (`eval/arms/{env,launch,plain}.py`), queue/preflight/
 runner (`eval/{queue,preflight,run}.py`). **Not yet done (needs models/dataset):** Phase 0 smoke test,
 the frozen `eval/dataset/manifest.json` with answer keys, the `eval-prereg-v1` tag, and the runs.
@@ -120,7 +127,8 @@ Rules for working on it:
 - `bench/` (PLAN2) is LEGACY dev evidence since 2026-10-27: its numbers (Opus-5 no-Orion 15/15
   NodeGoat, 14/16 PyGoat; Semgrep 4/15, 7/16) come from a basename+keyword matcher with no line or
   function check and N=1, so they never sit in an `eval/` table. Its cost figures are being corrected
-  (cache writes were priced at 1.25x; the CLI's own cost for the NodeGoat Opus run is $0.73, not $0.61).
+  (corrected 2026-10-29: cache writes were priced at 1.25x, but `claude -p` writes the 1-hour cache at
+  2x; the NodeGoat / PyGoat Opus runs cost $0.73 / $1.01, not $0.61 / $0.84; REPORT.md is corrected).
 
 ## Runtime stage (one layer, unified 2026-09-25)
 
@@ -533,7 +541,7 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
 - **Measuring Orion itself:** `python bench/prove.py` (on a box with Neo4j + Joern + fixtures + a
   Claude login; `--dry-run` = token-free preflight) runs arm **O** (Orion + Claude, `research_eval
   --arm O --label O-<model>`) for sonnet and opus on NodeGoat and PyGoat through the same matcher and
-  token ledger as the committed Opus-alone (C: 15/15 NodeGoat, $0.61) and Semgrep (D) rows, and prints
+  token ledger as the committed Opus-alone (C: 15/15 NodeGoat, $0.73 -- legacy matcher, N=1) and Semgrep (D) rows, and prints
   the REPORT.md table. Orion result JSONs keep EVERY decision (`verdicts`, `decisions`) and the
   unmatched CONFIRMs (`false_positive_candidates_detail`) for hand-labelling true FPs.
 

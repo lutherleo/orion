@@ -100,6 +100,7 @@ def calibrate(judge_labels, human_labels, arms=None, categories=LABELS) -> dict:
         raise ValueError(f"label length mismatch: {len(j)} judge vs {len(h)} human")
     out = _agreement(j, h, categories)
     out["min_n_met"] = out["n"] >= 100
+    out["categories"] = list(categories)        # which task this calibrates (credit_locationless checks)
     if arms is not None:
         arms = list(arms)
         if len(arms) != len(j):
@@ -172,5 +173,104 @@ def ppi_precision(matched, judged, human, z: float = 1.96) -> dict:
 
 
 def judge_record() -> dict:
-    """What the report must print about the judge: model id (None if unfrozen) and prompt hash."""
-    return {"model": JUDGE_MODEL, "prompt_sha256": prompt_sha256()}
+    """What the report must print about the judge: model id (None if unfrozen) and prompt hashes."""
+    return {"model": JUDGE_MODEL, "prompt_sha256": prompt_sha256(),
+            "match_prompt_sha256": match_prompt_sha256()}
+
+
+# ---- location-less findings (the frozen matching rule, 2026-09-17; built 2026-10-29) --------------
+# "Deterministic matcher first, LLM judge only for location-less findings (validated vs Krish's labels
+# on >=100)". A finding that names no file cannot meet the L1 location rule, so -- and only then -- the
+# judge is asked whether it describes the answer key's vulnerability. A "same_vulnerability" answer is
+# credited as a match at level "J1" (counted like L1, never as L2), and ONLY after the judge was
+# calibrated on this task (`credit_locationless` refuses otherwise). Nothing here runs by itself.
+
+MATCH_LABELS = ("same_vulnerability", "different", "unsure")
+JUDGE_LEVEL = "J1"
+
+MATCH_PROMPT = """You are checking one security finding against one known vulnerability.
+The finding names no file, so it could not be matched by location. Decide whether it describes
+the SAME vulnerability as the known one.
+
+Known vulnerability:
+{vuln}
+
+Finding:
+{finding}
+
+Answer with exactly one label and nothing else:
+- same_vulnerability: the finding describes this vulnerability (the same flaw in the same code)
+- different: it describes something else
+- unsure: the finding gives too little to decide
+"""
+
+
+def match_prompt_sha256() -> str:
+    return hashlib.sha256(MATCH_PROMPT.encode("utf-8")).hexdigest()
+
+
+def _render_vuln(answer_key: dict) -> str:
+    """The answer key as the judge sees it: its CWE(s) and fix sites (never the arm or the run)."""
+    cwes = [c for c in [answer_key.get("cwe"), *(answer_key.get("cwes") or [])] if c]
+    lines = [f"cwe: {', '.join(dict.fromkeys(cwes))}"] if cwes else []
+    for s in answer_key.get("fix_sites") or []:
+        where = f"{s.get('file')}" + (f" in {s.get('function')}" if s.get("function") else "")
+        if s.get("line") is not None:
+            where += f" (lines {s.get('line')}-{s.get('end_line', s.get('line'))})"
+        lines.append(f"fixed at: {where}")
+    return "\n".join(lines) or "(no description)"
+
+
+def _parse_match(reply):
+    if not isinstance(reply, str):
+        return None
+    for cand in (reply, reply.strip().splitlines()[0] if reply.strip() else ""):
+        c = re.sub(r"[\s\-]+", "_", cand.strip().strip("`'\".*").lower())
+        if c in MATCH_LABELS:
+            return c
+    return None
+
+
+def classify_match(finding: dict, answer_key: dict, *, ask) -> dict:
+    """Is location-less `finding` the answer key's vulnerability? Via the injected `ask(prompt) -> str`;
+    an unparseable reply is `unsure`, the raw reply is kept. Exceptions from `ask` propagate."""
+    reply = ask(MATCH_PROMPT.format(vuln=_render_vuln(answer_key), finding=_render(finding)))
+    label = _parse_match(reply)
+    return {"label": label or "unsure", "raw_reply": reply, "parsed": label is not None}
+
+
+def credit_locationless(conn, run_id, findings: list, answer_keys: list, *, ask, calibration: dict) -> list:
+    """Judge every location-less finding (file is None) of one run against each answer key the
+    deterministic matcher left uncaught in that run, and write a "J1" matches row per
+    "same_vulnerability" -- one-to-one: a finding credits one vuln, a vuln is credited once. Returns
+    every decision {finding_idx, vuln_id, label, raw_reply, parsed} for the audit trail.
+
+    Refuses (ValueError) unless the judge model is frozen (JUDGE_MODEL) and `calibration` is a
+    `calibrate(..., categories=MATCH_LABELS)` result with `min_n_met` -- the frozen rule's >=100 labels.
+    Whether its agreement is good enough to use is Krish's call, recorded with the tag."""
+    from eval import match as _match
+    if JUDGE_MODEL is None:
+        raise ValueError("the judge model is not frozen (judge.JUDGE_MODEL is None)")
+    if not (isinstance(calibration, dict) and calibration.get("min_n_met")
+            and calibration.get("categories") == list(MATCH_LABELS)):
+        raise ValueError("credit_locationless needs a calibration on the match task with >=100 labels "
+                         "(judge.calibrate(..., categories=judge.MATCH_LABELS))")
+    caught = {r["vuln_id"] for r in _match.read_matches(conn, run_id)}
+    decisions, rows, used = [], [], set()
+    for fi, f in enumerate(findings):
+        if f.get("file") is not None:
+            continue                                       # the location rule decides it, never the judge
+        for key in answer_keys:
+            vid = key.get("id")
+            if vid in caught or vid in used:
+                continue
+            d = classify_match(f, key, ask=ask)
+            decisions.append({"finding_idx": fi, "vuln_id": vid, **d})
+            if d["label"] == "same_vulnerability":
+                used.add(vid)
+                rows.append({"finding_idx": fi, "vuln_id": vid, "level": JUDGE_LEVEL, "cwe_family": False,
+                             "path_level": None})
+                break
+    if rows:
+        _match.write_matches(conn, run_id, rows)
+    return decisions
