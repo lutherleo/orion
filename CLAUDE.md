@@ -45,6 +45,9 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
 - **D7** opt-in ports: CodeCase snippets for the Claude verifier, shortlists to lm cases, safer repo
   text in Claude prompts, runtime re-ranking of lm flows.
 - Lm run dirs record `"engine"`/`"model"` in `leads.json`; `--resume` refuses another engine.
+- **Phase 7** (added by Love Kush 2026-10-28): a localhost web UI to start / watch / stop scans and
+  read reports from a browser, plus a bring-your-own LLM API key (never logged or committed).
+  Designed and approved before it is built.
 - Open for Krish: the Orion-LM design excludes Qwen (no published cutoff), but C1's base is Qwen3.5-4B
   with no recorded decision -- needs one before `orion-lm-prereg-v1`.
 
@@ -184,8 +187,8 @@ CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
   negative, repo/CWE/family caps, label conflicts dropped) = train 6,999 / dev 2,502 rows. Rows carry
   `[sink]` lines from Orion's sink rules (`orion/lm/sinks.py`); the system message is Krish's prompt +
   `orion/lm/schema_card.txt` + ACTION_RULES (609 tokens), identical at runtime. Before the eval: set
-  sampling (runtime falls back to temperature 1.0), fix the EXPRESS `Function` sink hint (matches every
-  JS `function`), and align the OWASP flow-less case rendering. Stage 2 (graph rows) comes after C1.
+  sampling (runtime falls back to temperature 1.0) and align the OWASP flow-less case rendering. (The
+  EXPRESS `Function` hint is fixed: sink rules 2026-10-28 below.) Stage 2 (graph rows) comes after C1.
 - **Design change (2026-10-18):** training is now hybrid (Stage 1 code+context on all pairs, Stage 2
   graph pairs); see `docs/superpowers/plans/2026-10-18-orion-lm-hybrid.md`.
 - **Hybrid status (2026-10-20):** code only — nothing trained, no model runs, no Stage 1/2 data
@@ -296,6 +299,17 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
   CandidateFlows from Neo4j without Joern (`--engine` must match the recorded profile).
 - MCP `run_cypher` (the Claude path) also refuses LOAD CSV, SHOW, TERMINATE, USE and procedures
   outside the read-only allowlist (merge decision D3; see the read-only gotcha below).
+- **Sink rules 2026-10-28** (`pathfind.SINK_RULES`, in every pathfind summary / scan record): a Joern
+  operator call (`<operator>.assignment`, `.logicalAnd`, ...) is never matched on its NAME (the lm
+  hint `assign` hit every assignment, `log` every `&&`), and EXPRESS `Function` is a
+  `profiles.SinkPattern` (the constructor, case-sensitive) that still renders as "Function" in the
+  prompt. Measured in WSL: NodeGoat default 116 -> 111 flows (user-dao.js:57 no longer code_exec #1),
+  NodeGoat lm 201 -> 111 (prototype_pollution 115 -> 0; redirects from rank 120 -> 20), PyGoat lm
+  300 -> 170 (prototype_pollution 283 -> 1; SQL in the top 50 0 -> 26), PyGoat default unchanged,
+  FLOWS_TO unchanged. Orion-LM's code-only sink lines (C1's training format) are unchanged -- pinned
+  by `tests/test_sink_rules.py`. The plain `log` hint still matches "login"/"dialog" (lowest
+  severity; not changed). GOTCHA: the PyGoat goldens depend on the Joern build; `pygoat_lm` needs
+  re-recording on the Mac: `python -m tests.test_graph_snapshot pygoat lm`.
 - PyGoat fixture pinned: `fixtures/pygoat` at `19d17cc8874861142b330636d068bbde54e86b85`
   (`tests/test_stream_build.py::test_stream_flows_parity_pygoat`, slow; fails on another commit).
   Golden outputs live in `tests/golden/`.

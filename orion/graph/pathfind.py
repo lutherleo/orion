@@ -43,20 +43,39 @@ def _severity(category: str) -> int:
     return _SINK_SEVERITY.get(category, _DEFAULT_SEVERITY)
 
 
+# Version of the sink-matching rules, recorded in every build's pathfind summary (so in the scan
+# record) to tell which rules ranked a scan's flows. "2026-10-28": Joern's `<operator>.*` names are
+# never name-matched (`assign` hit every `<operator>.assignment`, `log` every `<operator>.logicalAnd`),
+# and a profiles.SinkPattern hint matches by regex. Orion-LM's code-only sink lines (orion/lm/sinks.py)
+# match code only (name ""), so they are unchanged -- C1's training rows still match what it sees.
+SINK_RULES = "2026-10-28"
+_OPERATOR = "<operator>"
+
+
 def _classify_sink(props: dict, profile) -> str | None:
-    """The highest-severity sink category whose hint name appears in this call's name or code, else
-    None. Matching is substring + case-insensitive on `name`/`code` -- deliberately generous (this is
-    a candidate list a verifier re-checks), but ranked so `eval` outranks `log`."""
+    """The highest-severity sink category whose hint appears in this call's name or code, else None.
+    Matching is substring + case-insensitive on `name`/`code` -- deliberately generous (this is a
+    candidate list a verifier re-checks), but ranked so `eval` outranks `log`. Two exceptions: a
+    Joern operator call (`<operator>.assignment`, `.logicalAnd`, ...) is never matched on its NAME,
+    which is Joern's, not the code's; and a `profiles.SinkPattern` hint matches by its regex."""
     if profile is None:
         return None
-    name = str(props.get("name") or "").lower()
-    code = str(props.get("code") or "").lower()
+    raw_name = str(props.get("name") or "")
+    raw_code = str(props.get("code") or "")
+    if raw_name.startswith(_OPERATOR):
+        raw_name = ""
+    name, code = raw_name.lower(), raw_code.lower()
     best: str | None = None
     best_sev = -1
     for category, hints in profile.sink_hints.items():
         for hint in hints:
-            h = hint.lower()
-            if h and (h in name or h in code):
+            rx = getattr(hint, "rx", None)
+            if rx is not None:
+                hit = bool(rx.search(raw_name) or rx.search(raw_code))
+            else:
+                h = hint.lower()
+                hit = bool(h) and (h in name or h in code)
+            if hit:
                 sev = _severity(category)
                 if sev > best_sev:
                     best, best_sev = category, sev
@@ -132,7 +151,7 @@ def pathfind(batch: schema.Batch, profile) -> dict:
     (appends nodes; reads edges + call props stamped by reachability/centrality). Idempotent given the
     same batch content: deterministic uids + a stable sort.
 
-    Returns a summary {sources, sinks, flows}."""
+    Returns a summary {sources, sinks, flows, sink_rules}."""
     call_props, flows, self_loops, entry_methods, contains = _index_and_edges(batch)
     sources = _sources(self_loops, entry_methods, contains)
 
@@ -192,4 +211,5 @@ def pathfind(batch: schema.Batch, profile) -> dict:
             "rank": rank,
         })
 
-    return {"sources": len(sources), "sinks": n_sinks, "flows": min(n_sinks, _MAX_FLOWS)}
+    return {"sources": len(sources), "sinks": n_sinks, "flows": min(n_sinks, _MAX_FLOWS),
+            "sink_rules": SINK_RULES}

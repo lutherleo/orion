@@ -24,8 +24,23 @@ no change anywhere else in the builder.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+
+
+class SinkPattern(str):
+    """A sink hint matched by a regular expression (case-sensitive, on the raw text) instead of the
+    default case-insensitive substring -- for a hint whose plain word is everywhere (`Function` is
+    every JS `function`). It IS its display text, so the prompt's "Dangerous sinks to watch" line
+    (strategies._profile_block) renders exactly as the plain string did."""
+
+    rx: re.Pattern
+
+    def __new__(cls, text: str, pattern: str) -> "SinkPattern":
+        obj = super().__new__(cls, text)
+        obj.rx = re.compile(pattern)
+        return obj
 
 
 @dataclass(frozen=True)
@@ -83,7 +98,11 @@ EXPRESS = Profile(
     request_source_names=frozenset({"req", "request"}),
     source_examples=("req.body.*", "req.query.*", "req.params.*", "req.headers.*", "req.cookies.*"),
     sink_hints={
-        "code_exec": ("eval", "Function", "exec", "execSync"),
+        # `Function` = the constructor (`new Function(...)` / `Function(...)`), case-sensitive, so the
+        # `function` keyword and a "// Helper function" comment no longer rank a call as code_exec
+        # (2026-10-28; before, user-dao.js:57 `this.validateLogin = function(...)` was NodeGoat's #1).
+        "code_exec": ("eval", SinkPattern("Function", r"(?<![\w.$])(?:new\s+)?Function\s*\("), "exec",
+                      "execSync"),
         "nosql": ("find", "findOne", "$where"),
         "redirect": ("redirect",),
         "render": ("render", "send"),
