@@ -35,7 +35,12 @@ Load-bearing decisions:
 - `compare` matches verdicts by `Lead.fingerprint()` taken on the effective location
   (`Verdict.location()`, mirrored on dicts here): the same bug however it is worded or whichever
   shape found it -- the dedup identity of `orion/dedup.py`. A verdict without that identity falls
-  back to its lowercased, whitespace-collapsed lead text.
+  back to its lowercased, whitespace-collapsed lead text. A second pass then pairs what is left on
+  both sides when the two cite the same file (a leading folder aside) and CWE with overlapping line
+  ranges, one to one, the largest overlap first: two runs' agents often name the same finding's
+  function or lines differently ("getByUserIdAndThreshold" at 78 vs ".searchCriteria" at 77-86), and
+  the exact fingerprint keeps those apart. Such pairs are reported as such (`relocated`, or a
+  `changed` row with match "location"), never folded in silently.
 """
 from __future__ import annotations
 
@@ -65,6 +70,7 @@ _CODE_TRIES = 8
 _BINARY_SNIFF = 8192
 _CACHE_MAX = 1024
 _INT = re.compile(r"\s*-?[0-9]{1,18}\s*")
+_CWE_ID = re.compile(r"CWE-0*([0-9]{1,9})", re.IGNORECASE)     # compare: "cwe-079" and "CWE-79" are one CWE
 # What Path.resolve() raises on a broken or looping link: OSError, or RuntimeError for a symlink loop on
 # Python 3.12 -- even with strict=False, where it stats the result. Both must be caught where a bad
 # link has to degrade to "absent" instead of escaping as an exception.
@@ -263,14 +269,16 @@ class Runs:
     # ── compare ────────────────────────────────────────────────────────────────────────────────
     def compare(self, rid_a: str, rid_b: str) -> dict:
         """What changed from run a to run b: {"a", "b" (summaries), "same_repo", "appeared" (rows in b
-        only), "vanished" (rows in a only), "changed" ([{"key", "a": row, "b": row}] whose decision
-        differs), "unchanged" (a count)}; row = {"key", "file", "line", "function", "cwe", "decision",
-        "severity", "text"}. Matching: see the module docstring; two verdicts of one run with the same
-        key keep the most severe decision (CONFIRM > INCONCLUSIVE > ERROR > REJECT)."""
+        only), "vanished" (rows in a only), "changed" ([{"key", "match", "a": row, "b": row}] whose
+        decision differs), "unchanged" (a count), "relocated" ([{"a": row, "b": row}]: the unchanged pairs
+        the second pass made)}; row = {"key", "file", "line", "line_end", "function", "cwe", "decision",
+        "severity", "text"}; "match" is "fingerprint" or "location". Matching: see the module docstring;
+        two verdicts of one run with the same key keep the most severe decision (CONFIRM > INCONCLUSIVE
+        > ERROR > REJECT)."""
         da, db = self.run_dir(rid_a), self.run_dir(rid_b)
         a, b = self._summary(da, None), self._summary(db, None)
         rows_a, rows_b = _by_key(_verdicts_of(da)[0]), _by_key(_verdicts_of(db)[0])
-        changed, unchanged = [], 0
+        changed, relocated, unchanged = [], [], 0
         for key, row in rows_b.items():
             old = rows_a.get(key)
             if old is None:
@@ -278,11 +286,22 @@ class Runs:
             if old["decision"] == row["decision"]:
                 unchanged += 1
             else:
-                changed.append({"key": row["key"], "a": old, "b": row})
+                changed.append({"key": row["key"], "match": "fingerprint", "a": old, "b": row})
+        vanished = [row for key, row in rows_a.items() if key not in rows_b]
+        appeared = [row for key, row in rows_b.items() if key not in rows_a]
+        pairs = _by_location(vanished, appeared)
+        for i, j in pairs:
+            old, row = vanished[i], appeared[j]
+            if old["decision"] == row["decision"]:
+                unchanged += 1
+                relocated.append({"a": old, "b": row})
+            else:
+                changed.append({"key": row["key"], "match": "location", "a": old, "b": row})
+        paired_a, paired_b = {i for i, _ in pairs}, {j for _, j in pairs}
         return {"a": a, "b": b, "same_repo": self._same_repo(a, b),
-                "appeared": [row for key, row in rows_b.items() if key not in rows_a],
-                "vanished": [row for key, row in rows_a.items() if key not in rows_b],
-                "changed": changed, "unchanged": unchanged}
+                "appeared": [row for j, row in enumerate(appeared) if j not in paired_b],
+                "vanished": [row for i, row in enumerate(vanished) if i not in paired_a],
+                "changed": changed, "unchanged": unchanged, "relocated": relocated}
 
     # ── internals ──────────────────────────────────────────────────────────────────────────────
     def _root(self) -> Path:
@@ -678,9 +697,9 @@ def _row(v: dict) -> tuple[tuple, dict]:
     else:
         norm = " ".join(text.lower().split())
         key, label = ("text", norm), f"text | {norm}"
-    return key, {"key": label, "file": loc["file"], "line": loc["line_start"], "function": loc["function"],
-                 "cwe": loc["cwe"], "decision": _decision(v), "severity": _text(v.get("severity")),
-                 "text": text}
+    return key, {"key": label, "file": loc["file"], "line": loc["line_start"], "line_end": loc["line_end"],
+                 "function": loc["function"], "cwe": loc["cwe"], "decision": _decision(v),
+                 "severity": _text(v.get("severity")), "text": text}
 
 
 def _by_key(verdicts: list[dict]) -> dict[tuple, dict]:
@@ -692,6 +711,54 @@ def _by_key(verdicts: list[dict]) -> dict[tuple, dict]:
         if kept is None or _RANK[row["decision"]] > _RANK[kept["decision"]]:
             rows[key] = row
     return rows
+
+
+def _cited(path: str) -> str:
+    return path.replace("\\", "/").removeprefix("./")
+
+
+def _same_file(a: str, b: str) -> bool:
+    """One file however it is cited: equal, or one with a leading folder the other lacks (agents cite from
+    whichever folder they were in: "server.js" vs "fixtures/NodeGoat/server.js")."""
+    a, b = _cited(a), _cited(b)
+    return a == b or a.endswith("/" + b) or b.endswith("/" + a)
+
+
+def _cwe_id(cwe: str) -> str:
+    m = _CWE_ID.fullmatch(cwe.strip())
+    return f"CWE-{int(m.group(1))}" if m else cwe.strip().upper()
+
+
+def _span(row: dict) -> tuple[int, int] | None:
+    start = row["line"]
+    return (start, max(start, row["line_end"] or start)) if start is not None else None
+
+
+def _by_location(vanished: list[dict], appeared: list[dict]) -> list[tuple[int, int]]:
+    """compare's second pass: (i, j) pairs of leftover rows -- vanished[i] from run a, appeared[j] from run b
+    -- that cite the same file and CWE with overlapping line ranges. One to one, the largest overlap first,
+    then the nearest start, then first-seen order, so the result never depends on dict or set order."""
+    candidates = []
+    for i, ra in enumerate(vanished):
+        sa = _span(ra)
+        if not (ra["file"] and ra["cwe"] and sa):
+            continue
+        for j, rb in enumerate(appeared):
+            sb = _span(rb)
+            if not (rb["file"] and rb["cwe"] and sb):
+                continue
+            shared = min(sa[1], sb[1]) - max(sa[0], sb[0]) + 1
+            if shared >= 1 and _cwe_id(ra["cwe"]) == _cwe_id(rb["cwe"]) and _same_file(ra["file"], rb["file"]):
+                candidates.append((-shared, abs(sa[0] - sb[0]), i, j))
+    pairs: list[tuple[int, int]] = []
+    taken_a: set[int] = set()
+    taken_b: set[int] = set()
+    for _, _, i, j in sorted(candidates):
+        if i not in taken_a and j not in taken_b:
+            taken_a.add(i)
+            taken_b.add(j)
+            pairs.append((i, j))
+    return pairs
 
 
 # ── small helpers ───────────────────────────────────────────────────────────────────────────────

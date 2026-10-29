@@ -643,14 +643,15 @@ def test_compare_appeared_vanished_changed_unchanged(view, root, tmp_path):
     assert out["same_repo"] is True                         # one relative, one absolute: the same dir
     assert out["unchanged"] == 2                             # the helmet text + the corrected location
     [appeared] = out["appeared"]
-    assert appeared == {"key": "app/new.js | CWE-78 | run", "file": "app/new.js", "line": None,
+    assert appeared == {"key": "app/new.js | CWE-78 | run", "file": "app/new.js", "line": None, "line_end": None,
                         "function": "run", "cwe": "CWE-78", "decision": "CONFIRM", "severity": "HIGH",
                         "text": "cmd injection again"}                     # the most severe duplicate
     [vanished] = out["vanished"]
     assert vanished["key"] == "app/x.js | CWE-79 | 5"
     assert (vanished["decision"], vanished["line"]) == ("INCONCLUSIVE", 5)
     [changed] = out["changed"]
-    assert changed["key"] == "app/dao.js | CWE-89 | getUser"
+    assert changed["key"] == "app/dao.js | CWE-89 | getUser" and changed["match"] == "fingerprint"
+    assert out["relocated"] == []                            # nothing left for the second pass to pair
     assert (changed["a"]["decision"], changed["b"]["decision"]) == ("CONFIRM", "INCONCLUSIVE")
     assert changed["b"]["text"] == "getUser builds SQL from req.body"
     json.dumps(out)
@@ -703,3 +704,58 @@ def test_a_run_another_process_holds_is_running_elsewhere(view, root):
     finally:
         held.close()
     assert view.summary(rid)["state"] == "stopped"
+
+
+def _cmp(view, root, a_verdicts, b_verdicts):
+    _run(root, "sa", TS1, leads=[v.lead for v in a_verdicts], repo="r", final=a_verdicts)
+    _run(root, "sb", TS2, leads=[v.lead for v in b_verdicts], repo="r", final=b_verdicts)
+    return view.compare(f"sa~{TS1}", f"sb~{TS2}")
+
+
+def test_compare_pairs_the_same_finding_cited_differently(view, root):
+    """The real NodeGoat pair (2026-10-29): two runs named one $where injection's function and lines differently,
+    so the exact fingerprint kept them apart. Same file, CWE and overlapping lines: one finding."""
+    a = [Verdict(_lead(0, "where injection", file="app/data/allocations-dao.js", cwe="CWE-943",
+                       function="getByUserIdAndThreshold.searchCriteria", line_start=77, line_end=86), "CONFIRM", "r"),
+         Verdict(_lead(1, "redirect", file="./app\\routes\\index.js", cwe="cwe-0601", function="index",
+                       line_start=70, line_end=73), "CONFIRM", "r"),
+         Verdict(_lead(2, "csrf", file="server.js", cwe="CWE-352", line_start=104, line_end=113), "REJECT", "r")]
+    b = [Verdict(_lead(0, "where injection again", file="fixtures/NodeGoat/app/data/allocations-dao.js",
+                       cwe="CWE-943", function="getByUserIdAndThreshold", line_start=78), "CONFIRM", "r"),
+         Verdict(_lead(1, "open redirect", file="app/routes/index.js", cwe="CWE-601", function="app.get /learn",
+                       line_start=70, line_end=73), "CONFIRM", "r"),
+         Verdict(_lead(2, "csrf", file="server.js", cwe="CWE-352", function="bootstrap", line_start=104,
+                       line_end=113), "CONFIRM", "r")]
+    out = _cmp(view, root, a, b)
+    assert out["appeared"] == [] and out["vanished"] == [] and out["unchanged"] == 2
+    assert [(p["a"]["line"], p["a"]["line_end"], p["b"]["line"]) for p in out["relocated"]] == [(70, 73, 70), (77, 86, 78)]
+    [changed] = out["changed"]                                  # paired by location, and its decision changed
+    assert changed["match"] == "location" and (changed["a"]["decision"], changed["b"]["decision"]) == ("REJECT", "CONFIRM")
+    json.dumps(out)
+
+
+def test_compare_second_pass_needs_file_cwe_and_overlapping_lines(view, root):
+    base = dict(file="app/x.js", cwe="CWE-79", line_start=10, line_end=20)
+    a = [Verdict(_lead(0, "xss", **base), "CONFIRM", "r")]
+    for other in (dict(base, file="app/y.js"),                           # another file
+                  dict(base, file="lib/app/x.js2"),                      # not a folder prefix of the same name
+                  dict(base, cwe="CWE-80"),                              # another CWE
+                  dict(base, line_start=21, line_end=30),                # lines next to, not overlapping
+                  dict(base, line_start=None, line_end=None, function="render")):   # no lines to compare
+        for d in (root / "sa", root / "sb"):
+            if d.exists():
+                import shutil
+                shutil.rmtree(d)
+        out = _cmp(view, root, a, [Verdict(_lead(0, "xss", **other), "CONFIRM", "r")])
+        assert (len(out["appeared"]), len(out["vanished"]), out["relocated"]) == (1, 1, []), other
+
+
+def test_compare_second_pass_is_one_to_one_largest_overlap_first(view, root):
+    a = [Verdict(_lead(0, "one", file="f.js", cwe="CWE-89", function="a", line_start=10, line_end=12), "CONFIRM", "r"),
+         Verdict(_lead(1, "two", file="f.js", cwe="CWE-89", function="b", line_start=11, line_end=30), "CONFIRM", "r")]
+    b = [Verdict(_lead(0, "wide", file="f.js", cwe="CWE-89", function="c", line_start=12, line_end=28), "CONFIRM", "r")]
+    out = _cmp(view, root, a, b)
+    [pair] = out["relocated"]
+    assert pair["a"]["function"] == "b"                         # 17 shared lines beat 1
+    assert [r["function"] for r in out["vanished"]] == ["a"] and out["appeared"] == []
+

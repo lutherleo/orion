@@ -40,7 +40,7 @@ browser (Windows)  --http://127.0.0.1:8770-->  orion ui  (in WSL, next to Neo4j 
 | **New scan** | A form: repo path (checked to exist), engine (Claude / Orion-LM), model, and the scan options as checkboxes (below) | Start |
 | **Live run** | Phase strip (build graph -> index -> discover A/B/C/D -> verify n of m -> report), the event log as it streams, elapsed time, tokens and the CLI's own reported cost so far (from the `usage` events the run already logs) | Stop (asks the scan to stop; a second press ends it at once); Resume later |
 | **Report** | The verdict table: decision, severity, CWE, file:line, function, route; filter by decision; each row expands to reason + evidence + a read-only code view of the lines it cites | Download SARIF / report.txt / verdicts.json |
-| **Compare** | Two runs of the same repo side by side: verdicts that appeared, vanished, or changed decision, matched by the dedup fingerprint (`orion/dedup.py`: file, CWE, function or line) | Open either run |
+| **Compare** | Two runs of the same repo side by side: verdicts that appeared, vanished, or changed decision, matched by the dedup fingerprint (`orion/dedup.py`: file, CWE, function or line); then what is left on both sides is paired when the two cite the same file and CWE with overlapping lines, and shown as "same finding, cited differently" (added after the proof, §8) | Open either run |
 | **Settings** | Model access: Anthropic API key, or a compatible endpoint (base URL + token + model); where the key is kept (keychain / memory); default model | Set / forget the key |
 
 Scan options offered (each maps to exactly one existing flag; anything else is not sendable):
@@ -125,11 +125,13 @@ Done 2026-10-29 in WSL through the built-in browser (claude login, sonnet, defau
 |---|---|
 | 1 | Live log, phase strip, tokens and cost as it ran. 21 leads -> 18 CONFIRM, 3 REJECT, 0 ERROR in about 4 minutes; $2.08 as reported by the CLI. Report, code view at file:line (`contributions.js` 32-34 highlighted) and the SARIF download (2.1.0, 18 results) checked. |
 | 2 | Stopped from the page during verification. 11 s later no `orion scan`, `claude -p` or MCP server process was left, no session had been retried, the run lock was free and 5 verdicts were saved. Resume finished it: 23 leads -> 21 CONFIRM, 2 REJECT, 0 ERROR; $1.56 for both parts. |
-| Compare | 11 unchanged, 11 appeared, 10 vanished, 0 changed. Several appeared/vanished pairs are the same bug named differently by the two runs' agents (a function name or a line one apart), which the exact fingerprint keeps apart; a looser second pass (same file and CWE, overlapping lines) is a follow-up. |
+| Compare | Exact fingerprint only: 11 unchanged, 11 appeared, 10 vanished, 0 changed. Six appeared/vanished pairs were the same bug named differently by the two runs' agents (e.g. `getByUserIdAndThreshold` at line 78 vs `getByUserIdAndThreshold.searchCriteria` at 77-86). With the second pass added the same day: 17 unchanged (6 matched by overlapping lines), 5 appeared, 4 vanished, 0 changed. What is left are real differences between the runs, e.g. CWE-614 vs CWE-1004 for the same cookie settings stay apart (same lines, different CWE). |
 
-Two page fixes came out of the proof: the live view names the repo and model before discovery writes
-leads.json, and "Verified n of m" counts saved verdicts (a session the Stop killed logs a verdict event
-that is never saved).
+Three changes came out of the proof: the live view names the repo and model before discovery writes
+leads.json; "Verified n of m" counts saved verdicts (a session the Stop killed logs a verdict event that
+is never saved); and Compare's second pass (Love Kush's go-ahead 2026-10-29): leftovers on both sides are
+paired one to one, largest line overlap first, when they cite the same file (a leading folder aside) and
+the same CWE with overlapping line ranges, and every such pair is listed, never folded in silently.
 
 ## 9. Decisions (Love Kush, 2026-10-29)
 

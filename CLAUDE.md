@@ -106,9 +106,12 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
   - Proof (2026-10-29, WSL, built-in browser, sonnet, default options): run 1 = 21 leads -> 18 CONFIRM / 3
     REJECT / 0 ERROR in ~4 min, $2.08 reported by the CLI; code view, SARIF (18 results) checked. Run 2 stopped
     mid-verify from the page: 11 s later no scan / `claude -p` / MCP process was left, 0 sessions retried, 5
-    verdicts kept; Resume finished it (23 leads -> 21 / 2 / 0, $1.56 for both parts). Compare: 11 unchanged,
-    11 appeared, 10 vanished -- the exact fingerprint splits the same bug when the agents name its function
-    or line differently (e.g. `getByUserIdAndThreshold` vs `.searchCriteria`); a looser match is a follow-up.
+    verdicts kept; Resume finished it (23 leads -> 21 / 2 / 0, $1.56 for both parts). Compare's exact
+    fingerprint split the same bug when the agents named its function or lines differently (11 unchanged, 11
+    appeared, 10 vanished), so `runs.compare` now has a second pass: leftovers with the same file (a leading
+    folder aside) and CWE and overlapping line ranges pair one to one, largest overlap first, listed as
+    "same finding, cited differently" (`relocated`) or a `changed` row with `match: "location"`. The same two
+    runs: 17 unchanged (6 by location), 5 appeared, 4 vanished.
 - Open for Krish: the Orion-LM design excludes Qwen (no published cutoff), but C1's base is Qwen3.5-4B
   with no recorded decision -- needs one before `orion-lm-prereg-v1`.
 

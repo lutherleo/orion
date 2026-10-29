@@ -2053,7 +2053,39 @@
       h("p", { class: "run-card-link" }, h("a", { href: runHref(rid) }, "Open " + title.charAt(0).toLowerCase() + title.slice(1))));
   }
 
-  function rowWhere(r) { return whereText({ file: r.file, line_start: r.line }); }
+  function rowWhere(r) { return whereText({ file: r.file, line_start: r.line, line_end: r.line_end }); }
+
+  // A location cell: one row's file:lines, or for a pair the second pass matched, both runs' citations.
+  function whereCell(a, b) {
+    const wa = rowWhere(a || {}), wb = b ? rowWhere(b) : null;
+    if (wb === null || wa === wb) return wa ? pathText(wa) : dash();
+    return [h("span", { class: "muted" }, "A "), wa ? pathText(wa) : dash(), h("br"),
+      h("span", { class: "muted" }, "B "), wb ? pathText(wb) : dash()];
+  }
+
+  // The same pair's functions, when the two runs named them differently.
+  function fnCell(a, b) {
+    const fa = (a && a["function"]) || "", fb = b ? (b["function"] || "") : null;
+    if (fb === null || fa === fb) return fa || dash();
+    return [h("span", { class: "muted" }, "A "), fa || dash(), h("br"), h("span", { class: "muted" }, "B "), fb || dash()];
+  }
+
+  function relocatedTable(pairs) {
+    return h("div", { class: "table-wrap" }, h("table", null,
+      h("caption", { class: "sr-only" }, "Verdicts matched by file, CWE and overlapping lines"),
+      h("thead", null, h("tr", null, ["Decision", "CWE", "Location", "Function", "Lead (run B)"].map(function (t) {
+        return h("th", { scope: "col" }, t);
+      }))),
+      h("tbody", null, pairs.map(function (p) {
+        const a = p.a || {}, b = p.b || {};
+        return h("tr", null,
+          h("td", null, decisionBadge(b.decision)),
+          h("td", { class: "mono nowrap" }, b.cwe || a.cwe || dash()),
+          h("td", { class: "mono c-loc" }, whereCell(a, b)),
+          h("td", { class: "mono c-fn" }, fnCell(a, b)),
+          h("td", { class: "c-lead" }, h("span", { class: "clamp" }, b.text || a.text || "")));
+      }))));
+  }
 
   function compareTable(rows, caption) {
     return h("div", { class: "table-wrap" }, h("table", null,
@@ -2066,7 +2098,7 @@
           h("td", null, decisionBadge(r.decision)),
           h("td", null, r.severity ? String(r.severity) : dash()),
           h("td", { class: "mono nowrap" }, r.cwe || dash()),
-          h("td", { class: "mono c-loc" }, rowWhere(r) ? pathText(rowWhere(r)) : dash()),
+          h("td", { class: "mono c-loc" }, whereCell(r)),
           h("td", { class: "mono c-fn" }, r["function"] || dash()),
           h("td", { class: "c-lead" }, h("span", { class: "clamp" }, r.text || "")));
       }))));
@@ -2081,12 +2113,13 @@
       h("tbody", null, rows.map(function (c) {
         const a = c.a || {}, b = c.b || {};
         const r = b.file || b.text ? b : a;
+        const byLocation = c.match === "location";     // the second pass paired them: show both citations
         return h("tr", null,
           h("td", { class: "nowrap" }, decisionBadge(a.decision), h("span", { class: "arrow", "aria-hidden": "true" }, " → "),
             h("span", { class: "sr-only" }, " changed to "), decisionBadge(b.decision)),
           h("td", { class: "mono nowrap" }, r.cwe || dash()),
-          h("td", { class: "mono c-loc" }, rowWhere(r) ? pathText(rowWhere(r)) : dash()),
-          h("td", { class: "mono c-fn" }, r["function"] || dash()),
+          h("td", { class: "mono c-loc" }, byLocation ? whereCell(a, b) : whereCell(r)),
+          h("td", { class: "mono c-fn" }, byLocation ? fnCell(a, b) : (r["function"] || dash())),
           h("td", { class: "c-lead" }, h("span", { class: "clamp" }, r.text || "")));
       }))));
   }
@@ -2107,23 +2140,30 @@
     const vanished = Array.isArray(d.vanished) ? d.vanished : [];
     const changed = Array.isArray(d.changed) ? d.changed : [];
     const unchanged = isNum(d.unchanged) ? d.unchanged : 0;
+    const relocated = Array.isArray(d.relocated) ? d.relocated : [];
+    const byLocation = relocated.length + changed.filter(function (c) { return c && c.match === "location"; }).length;
     const section = function (title, n, body) {
       return h("section", { class: "report-section" }, h("h2", null, title + " (" + fmtInt(n) + ")"), body);
     };
     show(h("section", { class: "compare" },
-      pageHead("Compare runs", "Verdicts are matched by file, CWE and function or line; one with no file or CWE is matched by its lead text.",
+      pageHead("Compare runs", "Verdicts are matched by file, CWE and function or line; one with no file or CWE is matched by its lead text. " +
+        "What is left on both sides is then paired when the two cite the same file and CWE with overlapping lines: the same finding, named differently by the two runs.",
         [h("a", { class: "btn", href: compareHref(p.b, p.a) }, "Swap A and B")]),
       h("div", { class: "compare-cards" }, runCard("Run A", d.a || {}, p.a), runCard("Run B", d.b || {}, p.b)),
       d.same_repo === false ? notice("warn", "These runs scanned different repos, so few of their verdicts can match.") : null,
       h("p", { class: "compare-summary" },
         [fmtInt(appeared.length) + " appeared", fmtInt(vanished.length) + " vanished", fmtInt(changed.length) + " changed",
-          fmtInt(unchanged) + " unchanged"].join(DOT)),
+          fmtInt(unchanged) + " unchanged"].join(DOT) +
+        (byLocation ? " (" + fmtInt(byLocation) + " matched by overlapping lines)" : "")),
       section("Only in run B (appeared)", appeared.length, appeared.length ? compareTable(appeared, "Verdicts only in run B")
         : h("p", { class: "muted" }, "Nothing appeared: every verdict in run B is also in run A.")),
       section("Only in run A (vanished)", vanished.length, vanished.length ? compareTable(vanished, "Verdicts only in run A")
         : h("p", { class: "muted" }, "Nothing vanished: every verdict in run A is also in run B.")),
       section("Changed decision", changed.length, changed.length ? changedTable(changed)
         : h("p", { class: "muted" }, "No verdict changed its decision.")),
+      relocated.length ? section("Same finding, cited differently", relocated.length,
+        [h("p", { class: "muted" }, "Same file and CWE with overlapping lines, and the same decision; counted as unchanged."),
+          relocatedTable(relocated)]) : null,
       h("p", { class: "muted" }, fmtInt(unchanged) + " unchanged")));
   }
 
