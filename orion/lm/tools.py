@@ -250,7 +250,11 @@ def _timed_out(err: str) -> bool:
     return "TransactionTimedOut" in err
 
 
-def run_cypher(db, scan_id: str, query: str, *, limit: int = ROW_LIMIT) -> dict:
+def run_cypher(db, scan_id: str, query: str, *, limit: int = ROW_LIMIT, cap: bool = True) -> dict:
+    """The checked, read-only query. `cap` (default on) cuts the rows to fit a model turn
+    (`_cap_rows`): every result the MODEL sees -- the prompter, and the training rows built from the
+    same tool -- is capped; Orion-LM's own reads (orion/lm/slice.py) pass cap=False so a long
+    `path_uids` or a path's code is never cut out of the flows the model is given."""
     if _has_write_keyword(query):
         return {"error": "write clauses are not allowed; this tool is read-only"}
     bad = check_query(query)
@@ -269,7 +273,7 @@ def run_cypher(db, scan_id: str, query: str, *, limit: int = ROW_LIMIT) -> dict:
             return {"error": f"query timed out after {QUERY_TIMEOUT_S} s: narrow it (fewer hops, "
                              "a LIMIT, a more specific label or property)"}
         return {"error": res["error"]}
-    rows, capped = _cap_rows(res["rows"])
+    rows, capped = _cap_rows(res["rows"]) if cap else (res["rows"], False)
     out = {"rows": rows, "row_count": res["row_count"]}
     if res.get("truncated") or capped:
         out["truncated"] = True  # more rows existed than shown, or values were cut to fit the caps

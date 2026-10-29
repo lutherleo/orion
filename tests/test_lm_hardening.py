@@ -89,3 +89,18 @@ def test_path_nodes_name_the_calling_method_not_the_callee():
     q = db.queries[-1]
     assert "CONTAINS_CALL" in q and "min(m.full_name) AS function" in q
     assert tools.check_query(q) is None            # the lm checker accepts its own query
+
+
+def test_the_engines_own_slice_reads_are_never_capped():
+    """The caps are for what the MODEL reads. slice.py's reads build the flows the model is given; a
+    long path (path_uids, path code) must arrive whole."""
+    from orion.lm import slice as lm_slice
+    uids = [f"uid-{i:04d}-" + "x" * 40 for i in range(60)]           # ~3.3 KB of path_uids
+    db = _FakeDB([{"rank": 0, "source_uid": uids[0], "sink_uid": uids[-1], "sink_category": "sql",
+                   "path_uids": json.dumps(uids)}])
+    [flow] = lm_slice.candidate_flows(db, "s", max_flows=5)
+    assert flow["path_uids"] == uids
+    rows = [{"uid": u, "file": "a.py", "function": "f", "line": i + 1, "code": "c" * 900}
+            for i, u in enumerate(uids)]
+    out = lm_slice.flow_slice(_FakeDB(rows), "s", flow)
+    assert len(out["nodes"]) == 60 and all(len(n["code"]) == 900 for n in out["nodes"])

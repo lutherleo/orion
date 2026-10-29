@@ -28,7 +28,7 @@ def candidate_flows(db, scan_id: str, *, max_flows: int = 50) -> list[dict]:
          "f.sink_category AS sink_category, f.path_uids AS path_uids "
          f"ORDER BY f.rank LIMIT {n}")
     out = []
-    for r in _rows(tools.run_cypher(db, scan_id, q, limit=n)):
+    for r in _rows(tools.run_cypher(db, scan_id, q, limit=n, cap=False)):
         raw = r.get("path_uids")
         if isinstance(raw, str):
             try:
@@ -55,7 +55,7 @@ def flow_slice(db, scan_id: str, flow: dict) -> dict:
              "OPTIONAL MATCH (m:CpgMethod {scan_id:$scan_id})-[:CONTAINS_CALL]->(c) "
              "RETURN c.uid AS uid, c.file_path AS file, min(m.full_name) AS function, "
              "c.line AS line, c.code AS code")
-        for r in _rows(tools.run_cypher(db, scan_id, q, limit=len(uniq))):
+        for r in _rows(tools.run_cypher(db, scan_id, q, limit=len(uniq), cap=False)):
             found[r.get("uid")] = r
     nodes = []
     for u in uids:  # path order; uids absent from the graph are skipped
