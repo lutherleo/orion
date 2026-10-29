@@ -7,11 +7,10 @@ It seeds one empty-argv run and lets the mutator derive argv/stdin variants from
 """
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
-from .base import Input, Response, RunningTarget
+from .base import Input, Response, RunningTarget, target_env
 
 
 class ProcessDriver:
@@ -30,7 +29,7 @@ class ProcessDriver:
         self._env: dict[str, str] = {}
 
     def start(self, repo: str, work: Path, build_flags: list[str]) -> RunningTarget:
-        self._env = {**os.environ, **self._tracer.launch_env(work)}
+        self._env = target_env(self._tracer.launch_env(work))     # no model credentials for the target
         out = str(Path(work) / self._out_bin)
         cmd = self._inject_flags(self._build_cmd, build_flags + self._extra_flags, out)
         r = subprocess.run(cmd, cwd=repo, env=self._env, capture_output=True, text=True,

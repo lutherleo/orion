@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Protocol, Sequence
 
+from .base import target_env
+
 
 @dataclass(frozen=True)
 class RunResult:
@@ -52,7 +54,7 @@ class SubprocessSandbox:
     def run(self, cmd: Sequence[str], *, cwd: str | None = None,
             timeout: float | None = None, env: dict[str, str] | None = None) -> RunResult:
         run_cwd = cwd or tempfile.mkdtemp(prefix="orion_trace_")
-        run_env = {**os.environ, **(env or {})}
+        run_env = target_env(env)          # no model credentials for the target
         try:
             proc = subprocess.run(
                 list(cmd), cwd=run_cwd, env=run_env,

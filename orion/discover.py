@@ -155,9 +155,14 @@ async def _run_shape(scan_id: str, shape: str, on_event: OnEvent, profile=None,
 async def _discover_async(scan_id: str, on_event: OnEvent, profile=None,
                           timeout: int | None = None, dynamic_hint: bool = False,
                           shortlists: bool = False) -> list[Lead]:
-    results = await asyncio.gather(
-        *(_run_shape(scan_id, shape, on_event, profile, timeout, dynamic_hint, shortlists)
-          for shape in SHAPES))
+    try:
+        results = await asyncio.gather(
+            *(_run_shape(scan_id, shape, on_event, profile, timeout, dynamic_hint, shortlists)
+              for shape in SHAPES))
+    except asyncio.CancelledError:
+        # Ctrl-C / the UI's Stop: no shape's claude -p (killed by the same SIGINT) is retried.
+        claude_cli.interrupt()
+        raise
     all_leads = [lead for shape_leads in results for lead in shape_leads]
     return _dedup(all_leads)
 

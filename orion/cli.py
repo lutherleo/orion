@@ -34,6 +34,7 @@ import argparse
 import dataclasses
 import datetime
 import json
+import os
 import sys
 import threading
 import time
@@ -65,9 +66,11 @@ def _run_dir(scan_id: str) -> str:
 
 
 # ── run-dir artifacts: a scan's leads and verdicts are on disk as soon as they exist ─────────────
-# <run_dir>/leads.json      {"scan_id", "repo", "leads": [...]}  -- written right after discovery
+# <run_dir>/leads.json      {"scan_id", "repo", "engine", "model", ["settings",] "leads": [...]}
+#                           -- written right after discovery
 # <run_dir>/verdicts.jsonl  one verdict per line, appended as EACH lead finishes verifying
 # <run_dir>/verdicts.json + report.txt + results.sarif           -- written at the end
+# <run_dir>/.lock           locked while a scan writes the dir (orion/runlock.py): one scan per run dir
 # A crash mid-verify therefore loses nothing already verified, and `--resume <run_dir>` finishes the
 # run without re-running discovery or re-paying for verdicts already in hand.
 _LEADS_FILE, _VERDICTS_LOG = "leads.json", "verdicts.jsonl"
@@ -75,18 +78,34 @@ _FAIL_LEVELS = {"none": set(), "confirm": {"CONFIRM"}, "inconclusive": {"CONFIRM
 
 
 def _save_leads(run_dir: str, scan_id: str, repo: str | None, leads: list, *,
-                engine: str = "claude", model: str | None = None) -> None:
-    """`engine` (and the lm `model` path) are recorded so `--resume` never finishes a run on a
-    different engine than the one that discovered its leads (one model per scan)."""
+                engine: str = "claude", model: str | None = None, settings: dict | None = None) -> None:
+    """`engine` and `model` (the claude model name, or the lm model path) are recorded so `--resume`
+    never finishes a run on a different engine than the one that discovered its leads (one model per
+    scan); `settings` (`_verify_settings`) is what a resume must repeat to finish the run as it began."""
     payload = {"scan_id": scan_id, "repo": repo, "engine": engine, "model": model,
+               **({"settings": settings} if settings is not None else {}),
                "leads": [dataclasses.asdict(lead) for lead in leads]}
     Path(run_dir, _LEADS_FILE).write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
 
 
+def _verify_settings(args: argparse.Namespace, config) -> dict:
+    """A claude run's verify-time settings, recorded in leads.json: the verifier options in effect (flag or
+    env), the --fail-on level, and whether the model was reached through a compatible endpoint
+    (ANTHROPIC_BASE_URL set; the URL itself is not recorded). `orion ui` resumes a run with exactly these."""
+    return {"verify_routing": bool(getattr(args, "verify_routing", False) or config.VERIFY_ROUTING),
+            "verify_context": bool(getattr(args, "verify_context", False) or config.VERIFY_CONTEXT),
+            "semantic_mode": config.SEMANTIC_MODE,
+            "fail_on": getattr(args, "fail_on", None) or "none",
+            "endpoint": bool((os.environ.get("ANTHROPIC_BASE_URL") or "").strip())}
+
+
+def _run_meta(run_dir: str) -> dict:
+    return json.loads(Path(run_dir, _LEADS_FILE).read_text(encoding="utf-8"))
+
+
 def _run_engine(run_dir: str) -> str:
     """The engine a run dir's leads came from; runs recorded before engines were logged are claude."""
-    meta = json.loads(Path(run_dir, _LEADS_FILE).read_text(encoding="utf-8"))
-    return meta.get("engine") or "claude"
+    return _run_meta(run_dir).get("engine") or "claude"
 
 
 def _append_verdict(run_dir: str, verdict) -> None:
@@ -247,6 +266,15 @@ def _run_scan(args: argparse.Namespace) -> int:
     scan_id_kwargs = {"profile": lm_profile} if lm_profile is not None else {}
     scan_id = args.scan_id or graph_build.scan_id_for(args.repo, **scan_id_kwargs)
     run_dir = resume or _run_dir(scan_id)   # a resumed run keeps appending to its own dir
+    # One scan per run dir: two writers would verify the same leads twice and interleave their logs. The
+    # handle stays open (so the lock stays held) until this function returns; the OS releases it however
+    # the process ends.
+    from . import runlock
+    run_lock = runlock.acquire(run_dir)
+    if run_lock is None:
+        print(f"orion scan: {run_dir} is being written by another scan right now; resume it once that scan "
+              "has stopped", file=sys.stderr)
+        return 2
 
     # In --watch mode the foreground `tail` is the one rendering progress (reading the same
     # JSONL), so the background pipeline's own logger stays quiet to avoid printing every event
@@ -275,6 +303,12 @@ def _run_scan(args: argparse.Namespace) -> int:
     if resume:
         on_event(_event("build", "done", detail=f"resuming {resume}: {len(saved_leads)} leads, "
                                                  f"{len(finished)} already verified"))
+        recorded = _run_meta(resume).get("model")      # None for runs recorded before 2026-10-29
+        if recorded and recorded != config.MODEL:
+            on_event(_event("verify", "warn",
+                            detail=f"this run's leads were found with model {recorded}, and it is being "
+                                   f"resumed with {config.MODEL} (one model per scan: set "
+                                   f"ORION_MODEL={recorded} to keep it)"))
     elif needs_build:
         on_event(_event("build", "start", detail=f"building graph for {args.repo}"))
         # Overlap the semantic index with persist: build runs _index_semantic(batch) concurrently
@@ -362,7 +396,8 @@ def _run_scan(args: argparse.Namespace) -> int:
                                   dynamic_hint=dynamic_hint,
                                   shortlists=getattr(args, "shortlists", None) or None)
         on_event(_event("discover", "done", detail=f"{len(leads)} candidate leads"))
-        _save_leads(run_dir, scan_id, args.repo, leads)
+        _save_leads(run_dir, scan_id, args.repo, leads, model=config.MODEL,
+                    settings=_verify_settings(args, config))
         return leads
 
     def _pipeline():
@@ -450,6 +485,10 @@ def _run_scan(args: argparse.Namespace) -> int:
             if lm_engine:
                 print("\nstopping: finishing the current Orion-LM session (Ctrl-C again to quit now)",
                       file=sys.stderr)
+            else:
+                # The worker's claude -p sessions got the same Ctrl-C: none is retried, none started.
+                from . import claude_cli
+                claude_cli.interrupt()
             stop.set()
         thread.join()
         if "error" in result:
@@ -599,6 +638,15 @@ def _build_parser() -> argparse.ArgumentParser:
                          help="build/refresh the global Metasploit exploit-reference corpus (one-time)")
     idx.add_argument("--refresh", action="store_true",
                      help="re-download the Metasploit metadata index before building")
+
+    ui_ = sub.add_parser("ui", help="local web UI on 127.0.0.1: start, watch and stop scans and read their "
+                                    "reports in a browser")
+    ui_.add_argument("--port", type=int, default=8770,       # == orion.ui.server.DEFAULT_PORT (imported lazily)
+                     help="port on 127.0.0.1 (default 8770; 0 = any free port)")
+    ui_.add_argument("--open", action="store_true", help="also open the page in the default browser")
+    ui_.add_argument("--verbose", action="store_true",
+                     help="log each request's method, path and status (never its query, which holds the "
+                          "launch token, nor its body)")
     return parser
 
 
@@ -615,6 +663,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run_gc(args)
     if args.cmd == "reanalyze":
         return _run_reanalyze(args)
+    if args.cmd == "ui":
+        return _run_ui(args)
     return 0
 
 
@@ -745,6 +795,115 @@ def _run_index_exploits(args: argparse.Namespace) -> int:
     print("indexing exploit-reference corpus (embedding a few thousand modules, one-time)...")
     n = embed.index_exploits(path)
     print(f"indexed {n} exploit-reference documents into the '{embed.EXPLOIT_LABEL}' corpus")
+    return 0
+
+
+def _browser_page(url: str) -> Path:
+    """A private page (0600, in a 0700 temp dir) that sends the browser on to `url`. `--open` hands the browser
+    this file instead of `url`, so the launch token never sits on the browser's command line, which every local
+    user can read (/proc/<pid>/cmdline). Removed when orion ui stops."""
+    import html
+    import tempfile
+
+    folder = Path(tempfile.mkdtemp(prefix="orion-ui-"))
+    page = folder / "open.html"
+    target = html.escape(url, quote=True)
+    fd = os.open(page, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(f'<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url={target}">'
+                f'<title>Orion</title><p><a href="{target}">Open Orion</a></p>\n')
+    return page
+
+
+def _run_ui(args: argparse.Namespace) -> int:
+    """`orion ui`: serve the local web UI (orion/ui/) on 127.0.0.1 until Ctrl-C. Every scan it starts is this
+    CLI's own `orion scan` in a child process, run from the current directory. Quitting stops a running scan
+    first -- the scan runs in its own process group, so nothing else would -- and says so; SIGTERM, SIGHUP and
+    Ctrl-Break take the same path as Ctrl-C, and a second Ctrl-C while the scan winds down kills it."""
+    import shutil
+    import signal
+    import webbrowser
+
+    from .ui import server as ui_server      # deferred: only this command loads the UI
+
+    def _say(message: str) -> None:
+        try:
+            print(message, file=sys.stderr, flush=True)
+        except (OSError, ValueError):        # the terminal may be gone (SIGHUP); quitting goes on regardless
+            pass
+
+    if not 0 <= args.port <= 65535:
+        _say(f"orion ui: --port must be 0-65535 (0 = any free port), not {args.port}")
+        return 2
+    try:
+        ui = ui_server.make_server(port=args.port, verbose=args.verbose)
+    except OSError as exc:
+        _say(f"orion ui: cannot listen on 127.0.0.1:{args.port} ({exc.strerror or exc}); choose another port "
+             "with --port N (0 = any free port)")
+        return 2
+    print(f"Orion UI: {ui.url}", flush=True)
+    print(f"runs: {ui.runs.root} (scans run from {ui.cwd}); Ctrl-C quits", flush=True)
+
+    def _quit(signum, frame):
+        raise KeyboardInterrupt
+
+    previous = {}
+    for name in ("SIGTERM", "SIGHUP", "SIGBREAK"):
+        sig = getattr(signal, name, None)
+        if sig is not None:
+            try:
+                previous[sig] = signal.signal(sig, _quit)
+            except (OSError, ValueError):    # not the main thread, or not settable on this platform
+                pass
+    # Started with SIGINT ignored (a background job of a script, say), the UI would pass that on: an ignored
+    # signal stays ignored across exec, so every scan child would ignore Stop's SIGINT too. A handler is reset
+    # to the default on exec instead, so a do-nothing one keeps this process ignoring Ctrl-C as it was started
+    # to while its scans can still be interrupted.
+    if os.name == "posix" and signal.getsignal(signal.SIGINT) == signal.SIG_IGN:
+        previous[signal.SIGINT] = signal.signal(signal.SIGINT, lambda signum, frame: None)
+
+    page = None
+    if args.open:
+        try:
+            page = _browser_page(ui.url)
+        except OSError as exc:
+            _say(f"orion ui: could not write the page that opens the browser ({exc}); open the URL above")
+    try:
+        if page is not None:
+
+            def _open_browser() -> None:
+                # Off the main thread: a console browser (lynx, w3m) blocks until it quits, and the server
+                # must already be serving the page it asks for.
+                try:
+                    opened = webbrowser.open(page.as_uri())
+                except Exception:  # noqa: BLE001 -- no browser is not a reason to stop serving
+                    opened = False
+                if not opened:
+                    _say("orion ui: could not open a browser; open the URL above")
+
+            threading.Thread(target=_open_browser, name="orion-ui-open", daemon=True).start()
+        ui.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            if ui.jobs.running():
+                _say("orion ui: stopping the running scan first (Ctrl-C again kills it)")
+            try:
+                ui.shutdown()
+            except KeyboardInterrupt:
+                _say("orion ui: killing the scan")
+                try:
+                    ui.jobs.stop()           # any stop after the first kills
+                except (RuntimeError, OSError):
+                    pass
+                ui.shutdown(timeout=5.0)
+        finally:
+            for sig, handler in previous.items():   # None = a handler not set from Python: the default
+                signal.signal(sig, handler if handler is not None else signal.SIG_DFL)
+            if page is not None:
+                shutil.rmtree(page.parent, ignore_errors=True)
+    _say("orion ui: stopped")
     return 0
 
 

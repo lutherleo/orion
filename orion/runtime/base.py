@@ -12,11 +12,26 @@ Everything here is pure data or a `Protocol`, so a fake satisfies either seam in
 """
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
 from .trace import RuntimeTrace
+
+# The model credentials a scan holds for its own `claude -p` sessions (a key or token from `orion ui`'s
+# Settings among them). The target is untrusted code and needs none of them.
+_CREDENTIALS = re.compile(r"ANTHROPIC_.*|CLAUDE_CODE_OAUTH_TOKEN", re.IGNORECASE)
+
+
+def target_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """os.environ without the model credentials (ANTHROPIC_*, CLAUDE_CODE_OAUTH_TOKEN), plus `extra`: the
+    environment a target's own processes get on the host. Defence in depth only -- code run on the host runs as
+    this user and can still read their files -- which is why the runtime stage's warning stands."""
+    env = {k: v for k, v in os.environ.items() if not _CREDENTIALS.fullmatch(k)}
+    env.update(extra or {})
+    return env
 
 
 @dataclass

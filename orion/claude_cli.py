@@ -27,6 +27,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -38,6 +39,22 @@ from . import config
 # subagent-spawning verifications) are retried with exponential backoff on a FRESH session id.
 # Base seconds; attempt k waits base * 2**k. Kept here (config.py is frozen) not as magic numbers.
 _RETRY_BACKOFF_BASE = 3.0
+
+# Set once the scan is interrupted (Ctrl-C, or the UI's Stop: SIGINT to the scan's whole process group,
+# so the sessions already running were killed by it too). From then on run_agent starts no `claude -p`
+# session and retries none: a killed session is not a transient failure, and retrying it on a fresh
+# session would keep the scan running -- and spending -- after it was told to stop. Never cleared: an
+# interrupted process is on its way out.
+_STOP = threading.Event()
+
+
+def interrupt() -> None:
+    """The scan is stopping: no `claude -p` session is started or retried after this."""
+    _STOP.set()
+
+
+def interrupted() -> bool:
+    return _STOP.is_set()
 
 # Orion's checkout. A relative --add-dir target (e.g. "fixtures/NodeGoat") resolves against it, and the
 # inline MCP config puts it on the server's PYTHONPATH so `-m orion.mcp_server` imports this `orion`.
@@ -320,6 +337,7 @@ def run_agent(
     failure (intermittent API overload), not benchmark-fitting: verification is idempotent (a fresh
     session re-derives from the graph + source), so a clean retry is a faithful re-attempt. Each
     retry is surfaced as an "error" progress event so the recovery is visible in the run log.
+    After `interrupt()` no session is started and no failed one is retried (an `_error` comes back).
     """
     call_timeout = config.CALL_TIMEOUT if timeout is None else timeout
     backoff = _RETRY_BACKOFF_BASE if retry_backoff is None else retry_backoff
@@ -327,6 +345,9 @@ def run_agent(
 
     result: dict = {"_error": "no attempt made"}
     for attempt in range(attempts):
+        if _STOP.is_set():           # interrupted: see `interrupt`
+            return ({"_error": f"{result['_error']} (not retried: the scan is stopping)"} if attempt
+                    else {"_error": "interrupted: the scan is stopping, so no claude -p session was started"})
         # A retried attempt needs its own session id -- claude -p requires a unique --session-id.
         sid = session_id if attempt == 0 else str(uuid.uuid4())
         cmd = _build_cmd(
@@ -339,7 +360,7 @@ def run_agent(
         if "_error" not in result:
             return result
 
-        if attempt < attempts - 1:
+        if attempt < attempts - 1 and not _STOP.is_set():
             if on_event is not None:
                 on_event({
                     "event": "error",

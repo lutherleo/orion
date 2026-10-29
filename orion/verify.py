@@ -444,7 +444,14 @@ async def _verify_all_async(scan_id: str, leads: list[Lead], repo_path: str, on_
             on_verdict(verdict)
         return verdict
 
-    return list(await asyncio.gather(*(_one(lead) for lead in leads)))
+    try:
+        return list(await asyncio.gather(*(_one(lead) for lead in leads)))
+    except asyncio.CancelledError:
+        # Ctrl-C / the UI's Stop: asyncio.run cancels this task, but the worker threads run on until their
+        # `claude -p` returns -- killed by the same SIGINT, which must not read as a failure to retry.
+        from .claude_cli import interrupt
+        interrupt()
+        raise
 
 
 def verify_all(scan_id: str, leads: list[Lead], repo_path: str, on_event: OnEvent,

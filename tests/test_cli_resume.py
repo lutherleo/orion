@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from orion import claude_cli, cli, discover, embed, graphdb
+from orion import claude_cli, cli, config, discover, embed, graphdb, runlock
 from orion.graph import scans
 from orion.contracts import Lead
 
@@ -121,3 +121,46 @@ def test_lm_run_dir_records_its_engine_and_model(tmp_path, monkeypatch):
     assert (meta["engine"], meta["model"], len(meta["leads"])) == ("lm", "m", 1)
     logged = [json.loads(line) for line in (d / "verdicts.jsonl").read_text().splitlines()]
     assert [v["decision"] for v in logged] == ["INCONCLUSIVE"]
+
+
+def test_a_claude_run_records_its_model_and_verify_settings(run_dir, monkeypatch):
+    """What `orion ui` needs to resume the run as it began (one model per scan): leads.json says so."""
+    monkeypatch.setattr(discover, "discover", lambda *a, **k: list(LEADS))
+    monkeypatch.setattr(claude_cli, "run_agent", _agent({0: "CONFIRM", 1: "REJECT", 2: "REJECT"}, []))
+    monkeypatch.setattr(config, "MODEL", "opus")
+    monkeypatch.setattr(config, "SEMANTIC_MODE", config.SEMANTIC_MODE)    # --semantic-mode sets both; restored
+    monkeypatch.setenv("ORION_SEMANTIC_MODE", "vector")
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "http://127.0.0.1:11434")
+    cli.main(["scan", "--scan-id", "sid", "--quiet", "--verify-routing", "--semantic-mode", "hybrid",
+              "--fail-on", "confirm"])
+    meta = json.loads((run_dir / "leads.json").read_text())
+    assert (meta["engine"], meta["model"]) == ("claude", "opus")
+    assert meta["settings"] == {"verify_routing": True, "verify_context": False, "semantic_mode": "hybrid",
+                                "fail_on": "confirm", "endpoint": True}             # the URL itself is not kept
+    assert "127.0.0.1" not in (run_dir / "leads.json").read_text()
+
+
+def test_resume_is_refused_while_another_scan_writes_the_run(run_dir, monkeypatch, capsys):
+    monkeypatch.setattr(discover, "discover", lambda *a, **k: list(LEADS))
+    monkeypatch.setattr(claude_cli, "run_agent", _agent({0: "CONFIRM", 1: "ERROR", 2: "REJECT"}, []))
+    cli.main(["scan", "--scan-id", "sid", "--quiet"])
+    held = runlock.acquire(run_dir)                  # a scan still running in another terminal
+    try:
+        monkeypatch.setattr(claude_cli, "run_agent", lambda *a, **k: pytest.fail("a held run dir is not verified"))
+        assert cli.main(["scan", "--resume", str(run_dir), "--quiet"]) == 2
+        assert "being written by another scan" in capsys.readouterr().err
+    finally:
+        held.close()
+    assert runlock.held(run_dir) is False            # and the first scan released it when it returned
+
+
+def test_resume_says_so_when_the_model_changed(run_dir, monkeypatch):
+    monkeypatch.setattr(discover, "discover", lambda *a, **k: list(LEADS))
+    monkeypatch.setattr(claude_cli, "run_agent", _agent({0: "CONFIRM", 1: "ERROR", 2: "REJECT"}, []))
+    monkeypatch.setattr(config, "MODEL", "opus")
+    cli.main(["scan", "--scan-id", "sid", "--quiet"])
+    monkeypatch.setattr(config, "MODEL", "haiku")
+    monkeypatch.setattr(claude_cli, "run_agent", _agent({1: "REJECT"}, []))
+    cli.main(["scan", "--resume", str(run_dir), "--quiet"])
+    events = [json.loads(line) for line in (run_dir / "progress.jsonl").read_text().splitlines() if line.strip()]
+    assert any(e.get("event") == "warn" and "ORION_MODEL=opus" in e.get("detail", "") for e in events)

@@ -76,9 +76,39 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
   `@csrf_exempt` lines). So Gate 3 compares at L2: prove.py's arm **P** runs eval's own `plain-opus5` arm
   (structured findings with a CWE) on a .git-free fixture export, and the Semgrep adapter now keeps rule
   CWEs. WSL's `claude` is not logged in and eval's clean home has no login copy, so Gate 3 can't run yet.
-- **Phase 7** (added by Love Kush 2026-10-28): a localhost web UI to start / watch / stop scans and
-  read reports from a browser, plus a bring-your-own LLM API key (never logged or committed).
-  Designed and approved before it is built.
+- **Phase 7 (built 2026-10-29): `orion ui [--port 8770] [--open] [--verbose]`**, a localhost web UI to
+  start / watch / stop / resume scans, read reports (code view at file:line, SARIF download) and compare two
+  runs, plus a bring-your-own key. Design: `docs/superpowers/specs/2026-10-29-local-ui-design.md`.
+  - `orion/ui/`: `server.py` (stdlib ThreadingHTTPServer, 127.0.0.1 only; launch token on every API call,
+    Host + Origin checks, no CORS, CSP `default-src 'self'`), `jobs.py` (argv from a fixed allowlist; each
+    scan is the ordinary `python -m orion scan` child in its own process group; Stop = SIGINT to the group,
+    then SIGKILL / Windows CTRL_BREAK, then `taskkill /T`), `runs.py` (reads run dirs only), `keys.py`
+    (keyring; plaintext/fail backends refused -> memory only, as in WSL), `static/` (plain JS, textContent only).
+  - Access modes: claude login, `ANTHROPIC_API_KEY`, or an experimental compatible endpoint (base URL +
+    token + model; every model alias pinned to it). An endpoint with no token gets the placeholder `none`,
+    because with no credential claude falls back to its own login and sends THAT to the endpoint; the key and
+    endpoint modes also drop `CLAUDE_CODE_OAUTH_TOKEN`. A key never reaches argv, a run dir, a log or the page.
+  - CLI changes it needed (all scans): (1) `claude_cli.interrupt()` -- on Ctrl-C / Stop (asyncio cancels
+    discovery's or verify's fan-out) no `claude -p` session is started or retried, since a session killed by
+    the group SIGINT is not a transient failure (before, Stop restarted every running session on a fresh one);
+    (2) `orion/runlock.py`: a scan holds an OS lock on `<run_dir>/.lock` (flock / msvcrt), `--resume` refuses a
+    held dir, and the UI shows it as running "outside this UI" (replaces a 60 s file-time guard, shorter than one
+    verifier call); (3) a claude run's `leads.json` records `model` (ORION_MODEL) and `settings`
+    (`cli._verify_settings`: verify options, `--fail-on`, `endpoint` = ANTHROPIC_BASE_URL set, not the URL),
+    and the UI resumes with exactly those, refusing a change of route (endpoint <-> Anthropic); a terminal
+    resume on another model gets a `warn`; (4) the runtime stage: an explicit `--runtime-driver` beats the
+    scanned repo's `.orion/runtime.json` kind (`warn`), and target processes get no model credentials
+    (`runtime.base.target_env`; defence in depth -- host-run code still runs as the user).
+  - In WSL a `claude` on a Windows drive (or a .exe) is reported unusable: start the UI from a login shell
+    (`bash -l`) so `~/.local/bin` comes first. `--open` hands the browser a private 0600 redirect page, never
+    the tokened URL (argv is readable by every local user). Settings' default model lives in the browser.
+  - Token-free tests: `tests/test_ui_*.py`, `test_scan_stop.py`, `test_runlock.py`.
+  - Proof (2026-10-29, WSL, built-in browser, sonnet, default options): run 1 = 21 leads -> 18 CONFIRM / 3
+    REJECT / 0 ERROR in ~4 min, $2.08 reported by the CLI; code view, SARIF (18 results) checked. Run 2 stopped
+    mid-verify from the page: 11 s later no scan / `claude -p` / MCP process was left, 0 sessions retried, 5
+    verdicts kept; Resume finished it (23 leads -> 21 / 2 / 0, $1.56 for both parts). Compare: 11 unchanged,
+    11 appeared, 10 vanished -- the exact fingerprint splits the same bug when the agents name its function
+    or line differently (e.g. `getByUserIdAndThreshold` vs `.searchCriteria`); a looser match is a follow-up.
 - Open for Krish: the Orion-LM design excludes Qwen (no published cutoff), but C1's base is Qwen3.5-4B
   with no recorded decision -- needs one before `orion-lm-prereg-v1`.
 

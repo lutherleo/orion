@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from .base import Input, Response, RunningTarget
+from .base import Input, Response, RunningTarget, target_env
 
 _VERBS = ("get", "post", "put", "delete", "patch")
 _ROUTE_CYPHER = (
@@ -67,7 +67,7 @@ class HttpDriver:
         self._opener = None
 
     def start(self, repo: str, work: Path, build_flags: list[str]) -> RunningTarget:
-        env = {**os.environ, **self._tracer.launch_env(work)}
+        env = target_env(self._tracer.launch_env(work))     # no model credentials for the target
         # Own process group (POSIX) / group (Windows) so stop() reaches the `node` child of
         # `npm start` -- signalling only npm would leave node running, never flushing coverage.
         kw = ({"start_new_session": True} if os.name == "posix"
