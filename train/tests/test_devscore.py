@@ -128,3 +128,39 @@ def test_train_split_trace_is_never_scored_and_a_missing_split_raises():
         devscore.judge(gen, [no_split], schema_text="S")
     with pytest.raises(ValueError, match="split"):
         devscore.judge(gen, [{"pair_id": "P", "label": "vulnerable", "case": CASE, "lead": LEAD}], schema_text="S")
+
+
+# --- 2026-10-29 (merge plan Phase 6, Gate 1): the dev judge asks in the trained format ---------------
+
+SINK_CASE = {"flow_id": "F0", "rank": 0, "sink_category": None, "source_uid": None, "sink_uid": None, "nodes": [],
+             "snippets": [{"role": "target", "file": "a.py", "function": "f", "start": 10, "end": 12,
+                           "code": "def f(q):\n    cur.execute(q)\n    return 1"}]}
+
+
+def test_dev_messages_are_the_training_rows_messages():
+    """A row built before the sink line existed (no nodes) is asked WITH it, exactly as to_sft trains it."""
+    from train import examples
+    row = {"pair_id": "P", "label": "vulnerable", "case": SINK_CASE, "lead": LEAD, "split": "dev"}
+    assert devscore.messages_for(row, "S") == examples.to_sft(row, schema_text="S")["messages"]
+    assert devscore.messages_for(row) == examples.to_sft(row)["messages"]
+    assert "[sink] a.py:11 in f" in devscore.messages_for(row)[1]["content"]
+    seen = []
+    devscore.judge(lambda m: seen.append(m) or GenResult(text=json.dumps({"action": "final", "leads": []}),
+                                                         prompt_tokens=1, completion_tokens=1, cached_tokens=0),
+                   [row], schema_text="S")
+    assert seen[0] == examples.to_sft(row, schema_text="S")["messages"]
+
+
+def test_on_row_reports_each_scored_row_in_order():
+    flag = json.dumps({"action": "final", "leads": [LEAD]})
+    replies = iter([flag, "garbage", "garbage"])
+    rows = [{"pair_id": "P", "label": "vulnerable", "case": CASE, "lead": LEAD, "split": "dev"},
+            {"pair_id": "T", "label": "vulnerable", "case": CASE, "lead": LEAD, "split": "train"},
+            {"pair_id": "P", "label": "patched", "case": CASE, "lead": None, "split": "dev"}]
+    got = []
+    devscore.judge(lambda m: GenResult(text=next(replies), prompt_tokens=1, completion_tokens=1, cached_tokens=0),
+                   rows, schema_text="S", on_row=got.append)
+    assert got == [{"i": 0, "pair_id": "P", "label": "vulnerable", "flagged": True, "parse_failed": False,
+                    "overflow": False},
+                   {"i": 1, "pair_id": "P", "label": "patched", "flagged": False, "parse_failed": True,
+                    "overflow": False}]

@@ -3,12 +3,18 @@
 If the first action is not `final`, the assistant turn plus `forced_final_message()` is appended and the
 model is called once more. Output that does not parse as an action counts as no lead plus a parse failure.
 All counts are measured; a rate with an empty denominator is None, never 0 or 1.
+
+The task turn is built exactly as `train.examples.to_sft` builds a training row: the case goes through
+`orion.lm.sinks.annotate` (pure, idempotent) first. Before 2026-10-29 the judge skipped that step, so a dev
+row built before the sink line existed (it landed 2026-10-24, with C1) was asked WITHOUT the `[sink]` line
+the model was trained on (`train/tests/test_devscore.py` pins the parity).
 """
 from __future__ import annotations
 
 import time
 
 from orion.lm import format as fmt
+from orion.lm import sinks
 from orion.lm.model import ContextOverflow
 
 
@@ -40,9 +46,21 @@ def normalise_row(row: dict) -> dict:
             "label": _field(row, "label"), "lead": lead}
 
 
+def messages_for(example: dict, schema_text: str | None = None) -> list[dict]:
+    """The `[system, task]` turns for one dev row: `train.examples.to_sft`'s messages for the same row."""
+    return [fmt.system_message(schema_text), fmt.task_message([sinks.annotate(example["case"])])]
+
+
 def _judge_one(generate, example: dict, schema_text: str | None, acc: dict) -> tuple[bool, bool, bool]:
     """-> (flagged, parse_failed, overflowed). Adds token and time counts into `acc`."""
-    messages = [fmt.system_message(schema_text), fmt.task_message([example["case"]])]
+    leads, parse_failed, overflowed = final_leads(generate, messages_for(example, schema_text), acc)
+    return bool(leads), parse_failed, overflowed
+
+
+def final_leads(generate, messages: list[dict], acc: dict) -> tuple[list | None, bool, bool]:
+    """Run one tool-less session from `messages` (one forced final if the first action is not `final`).
+    -> (the final action's leads, or None when no final parsed; parse_failed; overflowed). Adds token and
+    time counts into `acc` (`tokens`, `completion`, `seconds`)."""
     parse_failed = False
     action = None
     for step in range(2):
@@ -50,7 +68,7 @@ def _judge_one(generate, example: dict, schema_text: str | None, acc: dict) -> t
         try:
             res = generate(messages)
         except ContextOverflow:
-            return False, parse_failed, True
+            return None, parse_failed, True
         acc["seconds"] += time.perf_counter() - t0
         acc["tokens"] += res.prompt_tokens + res.completion_tokens
         acc["completion"] += res.completion_tokens
@@ -62,24 +80,30 @@ def _judge_one(generate, example: dict, schema_text: str | None, acc: dict) -> t
         if step == 0:
             messages = messages + [{"role": "assistant", "content": res.text}, fmt.forced_final_message()]
     if action is None or action.get("action") != "final":
-        return False, parse_failed, False
+        return None, parse_failed, False
     leads = action.get("leads")
-    return bool(leads), parse_failed, False
+    # A non-list `leads` keeps the old truthiness (flagged iff non-empty), so no score moves.
+    return (list(leads) if isinstance(leads, list) else [leads] if leads else []), parse_failed, False
 
 
-def judge(generate, dev_examples, *, schema_text=None) -> dict:
+def judge(generate, dev_examples, *, schema_text=None, on_row=None) -> dict:
     """Score `generate(messages) -> GenResult` on the dev rows (example rows or Stage 2 traces, read by
     `normalise_row`). Only `split == "dev"` is scored; a row with no split raises ValueError. `schema_text`
-    defaults to None, the runtime's compact system message (no graph schema)."""
+    defaults to None, the runtime's compact system message (no graph schema). `on_row(d)` gets each scored
+    row's outcome, in order: {i, pair_id, label, flagged, parse_failed, overflow}, so two candidates scored
+    on the same sample can be compared pair by pair (`eval.bakeoff.compare`)."""
     rows = [r for r in map(normalise_row, dev_examples) if r["split"] == "dev"]
     acc = {"tokens": 0, "completion": 0, "seconds": 0.0}
     flagged_by: dict[str, dict[str, list[bool]]] = {}
     by_label: dict[str, list[bool]] = {"vulnerable": [], "patched": [], "negative": []}
     parse_fail = overflow = 0
-    for r in rows:
+    for i, r in enumerate(rows):
         flagged, pf, ov = _judge_one(generate, r, schema_text, acc)
         parse_fail += pf
         overflow += ov
+        if on_row is not None:
+            on_row({"i": i, "pair_id": r["pair_id"], "label": r["label"], "flagged": flagged,
+                    "parse_failed": pf, "overflow": ov})
         by_label.setdefault(r["label"], []).append(flagged)
         flagged_by.setdefault(r["pair_id"], {}).setdefault(r["label"], []).append(flagged)
     # A pair is scored only when it has both sides; it is correct iff every vulnerable row is flagged

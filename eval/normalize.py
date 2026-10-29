@@ -74,25 +74,38 @@ def _cwe(*blobs: str):
     return None
 
 
+def _same_cite(a: str, b: str) -> bool:
+    """One file cited two ways: equal, or one is a path ending in "/" + the other ("server.js" and
+    "fixtures/NodeGoat/server.js")."""
+    return a == b or a.endswith("/" + b) or b.endswith("/" + a)
+
+
 def _extract_file_line(text: str, evidence: str):
     """File may be cited in text or evidence (cf. run_nodegoat_eval._file_blob). Rank candidates:
     present in both text and evidence, then containing a '/', then bare name.ext; first-seen
-    within a tier."""
+    within a tier. A file counts as present in both when it is cited there in either form
+    (`_same_cite`, 2026-10-29, eval/CHANGELOG.md); the longest form cited is returned."""
     in_text, in_ev = _files(text), _files(evidence)
     cands = list(dict.fromkeys(in_text + in_ev))
     if not cands:
         return None, None
 
-    def tier(f):
-        return 0 if (f in in_text and f in in_ev) else 1 if "/" in f else 2
+    def cited(f, where):
+        return any(_same_cite(f, w) for w in where)
 
-    file = min(cands, key=tier)  # min is stable: first-seen wins ties
-    for blob in ((text, evidence) if file in in_text else (evidence, text)):
-        i = blob.find(file)
-        if i >= 0:
-            m = _LINE_RE.search(blob[i + len(file):i + len(file) + 40])
-            if m:
-                return file, int(next(g for g in m.groups() if g))
+    def tier(f):
+        return 0 if (cited(f, in_text) and cited(f, in_ev)) else 1 if "/" in f else 2
+
+    pick = min(cands, key=tier)  # min is stable: first-seen wins ties
+    forms = sorted({c for c in cands if _same_cite(c, pick)}, key=len, reverse=True)
+    file = forms[0]
+    for blob in ((text, evidence) if cited(pick, in_text) else (evidence, text)):
+        for form in forms:
+            i = blob.find(form)
+            if i >= 0:
+                m = _LINE_RE.search(blob[i + len(form):i + len(form) + 40])
+                if m:
+                    return file, int(next(g for g in m.groups() if g))
     return file, None
 
 

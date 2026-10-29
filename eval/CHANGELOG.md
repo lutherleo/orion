@@ -77,3 +77,35 @@ writes the 1-hour cache (2x); the committed Opus-alone runs cost $0.73 (NodeGoat
 $0.61 / $0.84. `bench/token_ledger.price_usd` now needs the 5m/1h breakdown (else the price is None,
 not assumed), missing usage is None not 0, and `claude -p` agents no longer run from Orion's checkout
 (they could Read `tests/ground_truth_*.py`).
+
+## 2026-10-29 — measurement gates (merge plan Phase 6). Krish signs off before `orion-lm-prereg-v1`
+
+One change to the scoring of record; the rest is dev tooling that never feeds an `eval.report` number.
+
+- **Changed** `eval/normalize._extract_file_line` (prose locations): a file cited two ways, as a bare
+  name in one place and as a path ending in that name in another ("server.js" in the text,
+  "fixtures/NodeGoat/server.js:78" in the evidence), now counts as cited in BOTH text and evidence, and
+  the longest form is returned. Before, the two spellings were two different files, so a secondary file
+  that happened to contain a "/" won the tier: the committed NodeGoat arm-C session finding was located
+  at config/env/all.js:8 instead of server.js:78. Only findings located by prose are affected (Orion's
+  Claude engine without structured fields, the legacy bench arms); plain arms and orion-lm carry
+  structured locations.
+- **Added** `eval/devbench.py` + `eval/dataset/devbench/{nodegoat,pygoat}.json`: NodeGoat / PyGoat (dev
+  benchmarks, never headline) scored with `eval.match`'s L1/L2 tests against fix sites read from the
+  pinned fixtures. Keys are PROPOSED until a labeler signs them. **For Krish:** it assigns one-to-one by
+  maximum matching (`match_max`), because `match.match_run`'s greedy pass can hand a finding to a
+  neighbouring key when a run has many keys (measured on NodeGoat arm C: A10 went uncredited). The eval
+  matches each run against ONE key, so `match_run` stays exact there; use `match_max` if a manifest row
+  ever carries several keys.
+- **Dev scoring (training selection, not eval):** `train.devscore` now asks each dev row exactly as
+  `train.examples.to_sft` builds the training row (the case goes through `orion.lm.sinks.annotate`), so a
+  row built before the sink line existed is no longer asked without it. `eval.bakeoff` gains
+  `--temperature/--top-p/--top-k`, records the sampling each model ran with, and `--compare` (Gate 1:
+  C1 vs base, paired cluster bootstrap, rule `bakeoff.GATE1`). `eval/verifygate.py` measures
+  `--lm-verify` on the same dev sample (Gate 2, rule `verifygate.GATE2`). Both rules are proposals,
+  written before any run: `docs/notes/merge-phase6-gates.md`.
+- **Bench (legacy, not an `eval/` number):** `bench/prove.py` gains arm P, eval's own `plain-opus5` arm
+  (`eval/arms/plain.plain_arm`, unchanged) run on a .git-free export of the pinned NodeGoat / PyGoat
+  fixture, so the Opus-alone row reports a CWE per finding and can be compared with Orion at L2 (the
+  committed prose C rows cite none; on a 15-bug repo L1 alone credits another class's finding near a fix
+  site). `bench/semgrep_adapter` appends each rule's CWE ids to the evidence for the same reason.

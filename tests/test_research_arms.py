@@ -38,6 +38,18 @@ def test_semgrep_findings_mapping():
     assert "app/views.py:42" in evidence
 
 
+def test_semgrep_rule_cwes_reach_the_evidence_for_eval_l2():
+    from eval import normalize
+    sg = {"results": [{"check_id": "python.django.security.injection.sql", "path": "app/views.py",
+                       "start": {"line": 42}, "extra": {"message": "SQL injection via raw()", "lines": "q",
+                                                         "metadata": {"cwe": ["CWE-89: Improper Neutralization "
+                                                                              "of Special Elements in SQL"]}}}]}
+    [(text, evidence)] = semgrep_adapter.findings_from_semgrep(sg)
+    assert "CWE" not in text and evidence.endswith("[CWE-89]")
+    f = normalize.finding({"text": text, "evidence": evidence}, arm="bench:D")
+    assert (f["file"], f["line"], f["cwe"]) == ("app/views.py", 42, "CWE-89")
+
+
 def test_semgrep_error_yields_no_findings():
     assert semgrep_adapter.findings_from_semgrep({"_error": "not installed"}) == []
 
@@ -90,6 +102,7 @@ def test_arm_o_writes_labelled_result_with_every_decision(tmp_path, monkeypatch)
 def test_prove_preflight_reports_each_missing_prerequisite(monkeypatch):
     from bench import prove
     monkeypatch.setattr(prove, "_check_claude", lambda: "no claude")
+    monkeypatch.setattr(prove, "_check_claude_login", lambda: None)
     monkeypatch.setattr(prove, "_check_neo4j", lambda: None)
     monkeypatch.setattr(prove, "_check_joern", lambda: "no joern")
     monkeypatch.setattr(prove, "_check_fixture", lambda b: None if b == "nodegoat" else f"no {b}")
@@ -110,3 +123,54 @@ def test_plot_results_recognises_orion_runs():
     assert pr._is_arm("O-opus") and pr._is_arm("O") and not pr._is_arm("notes")
     assert pr._label("O-opus", {"model": "opus"}) == "Orion + opus"
     assert pr._arms({"nodegoat": {"O-sonnet": {}, "C": {}, "D": {}}}) == ["C", "D", "O-sonnet"]
+
+
+# --- Gate 3 (merge plan Phase 6): arm P = eval's plain Opus arm on the fixture --------------------
+
+def test_arm_p_runs_eval_plain_arm_on_a_git_free_export_and_scores_at_l2(tmp_path, monkeypatch):
+    import json
+    import os
+    from bench import prove
+    from eval import devbench
+    from eval.arms import ArmResult
+    seen = {}
+
+    def export(src, sha, dest):
+        seen["export"] = (src, sha)
+        os.makedirs(dest)
+        open(os.path.join(dest, "server.js"), "w").close()
+
+    def plain(**kw):
+        seen["kw"] = kw
+        assert os.path.isfile(os.path.join(kw["repo_dir"], "server.js"))
+        assert not os.path.exists(os.path.join(kw["repo_dir"], ".git"))
+        with open(kw["json_out"], "w", encoding="utf-8") as f:
+            json.dump({"findings": [{"file": "app/routes/index.js", "function": "index", "line_start": 72,
+                                     "line_end": 72, "cwe": "CWE-601", "title": "open redirect",
+                                     "explanation": "e"}]}, f)
+        return ArmResult(status="ok", findings_path=kw["json_out"], usage=[{"uncached_in": 1}])
+
+    monkeypatch.setattr(prove, "_ROOT", tmp_path)
+    (tmp_path / "fixtures" / "NodeGoat").mkdir(parents=True)
+    monkeypatch.setattr(prove.subprocess, "run", lambda *a, **k: type("R", (), {"stdout": "abc123\n"})())
+    out = prove.run_plain("nodegoat", results=tmp_path / "res", on_line=lambda l: None, _plain=plain, _export=export)
+    r = json.loads(out.read_text(encoding="utf-8"))
+    assert (r["arm"], r["eval_arm"], r["status"], r["fixture_commit"]) == ("P", "plain-opus5", "ok", "abc123")
+    assert seen["kw"]["arm"] == "plain-opus5" and seen["kw"]["model_tag"] == "claude-opus-5"
+    assert seen["kw"]["effort"] == "xhigh" and seen["export"][1] == "abc123"
+    assert not os.path.exists(seen["kw"]["repo_dir"])                       # the tree is gone after the run
+    label, fs = devbench.findings_from(str(out))
+    s = devbench.score(fs, devbench.load_keys("nodegoat"))
+    assert label == "P-plain-opus5" and s["l2"] == ["A10"]
+
+
+def test_prove_preflight_checks_the_plain_login_only_when_p_runs(monkeypatch):
+    from bench import prove
+    for name in ("_check_claude", "_check_claude_login", "_check_neo4j", "_check_joern"):
+        monkeypatch.setattr(prove, name, lambda: None)
+    monkeypatch.setattr(prove, "_check_fixture", lambda b: None)
+    monkeypatch.setattr(prove, "_check_plain_login", lambda: "no eval login")
+    assert prove.preflight(["nodegoat"]) == []
+    assert prove.preflight(["nodegoat"], plain=True) == ["no eval login"]
+    assert prove.main(["--dry-run", "--benchmarks", "nodegoat"]) == 1
+    assert prove.main(["--dry-run", "--benchmarks", "nodegoat", "--no-plain"]) == 0

@@ -21,6 +21,7 @@ wallclock_s, findings} to bench/research/<benchmark>/<arm>.json (or --out).
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import sys
 import time
@@ -79,8 +80,11 @@ def _arm_orion(repo: str, scan_id: str | None, on_event,
         db.close()
     leads = discover.discover(scan_id, on_event, profile, timeout=timeout, shortlists=shortlists)
     verdicts = verify.verify_all(scan_id, leads, repo, on_event, routing=verify_routing)
+    # `verdict` = the whole Verdict as `orion scan --json` writes it, so eval's matcher (eval/devbench.py) can
+    # read the full lead (text, evidence, path) and the verifier's location, not only this summary.
     rows = [{"decision": v.decision, "shape": v.lead.shape, "route": v.route, "text": v.lead.text[:300],
-             **{k: val for k, val in v.location().items() if val}} for v in verdicts]
+             **{k: val for k, val in v.location().items() if val}, "verdict": dataclasses.asdict(v)}
+            for v in verdicts]
     findings = [(v.lead.text or "", v.lead.evidence or "", v.location()["file"] or "")
                 for v in verdicts if v.decision == "CONFIRM"]
     return findings, rows

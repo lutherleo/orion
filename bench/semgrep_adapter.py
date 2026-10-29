@@ -10,6 +10,7 @@ version so the baseline is reproducible.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 
@@ -63,9 +64,14 @@ def _version(binary: str) -> str:
         return "unknown"
 
 
+_CWE_ID = re.compile(r"CWE-\d+", re.I)
+
+
 def findings_from_semgrep(sg_json: dict) -> list[tuple[str, str]]:
     """Map Semgrep results into (text, evidence) pairs for bench.scoring. `text` = check_id + message
-    (carries the vuln class); `evidence` = path:line + the matched source line (carries the file).
+    (carries the vuln class); `evidence` = path:line + the matched source line (carries the file), then
+    the rule's CWE ids from `extra.metadata.cwe` (2026-10-29) so eval's matcher can test the CWE family
+    (L2). The ids go in the evidence, not the text, so bench.scoring's class keywords see what they did.
     Defensive: an `_error` or odd shape yields []."""
     if not isinstance(sg_json, dict) or "_error" in sg_json:
         return []
@@ -81,6 +87,11 @@ def findings_from_semgrep(sg_json: dict) -> list[tuple[str, str]]:
         start = (r.get("start") or {}).get("line", "")
         text = f"{check_id} {message}".strip()
         evidence = f"{path}:{start} {lines}".strip()
+        cwes = (extra.get("metadata") or {}).get("cwe") if isinstance(extra.get("metadata"), dict) else None
+        ids = [m.group(0).upper() for c in (cwes if isinstance(cwes, list) else [cwes]) if isinstance(c, str)
+               for m in [_CWE_ID.match(c.strip())] if m]
+        if ids:
+            evidence = f"{evidence} [{' '.join(dict.fromkeys(ids))}]".strip()
         if text or evidence:
             out.append((text, evidence))
     return out

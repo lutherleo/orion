@@ -21,6 +21,9 @@ orion-lm-research/raw/ (15 sources) -> train/mine.py [done]
   -> bash train/start_c1.sh (Unsloth MLX trainer on the Mac, guard, TensorBoard) -> train/runs/qwen35-c1/
   -> train.convert.merge_lora('models/orion-lm-base', 'train/runs/qwen35-c1', 'models/orion-lm')
   -> [next] freeze sampling; dev bakeoff of models/orion-lm vs models/orion-lm-base
+     (merge Phase 6 Gate 1: `eval.bakeoff --one <model> --dev train/data/stage1.jsonl --temperature 0
+     --out <model>.json` for each, then `eval.bakeoff --compare base.json c1.json`;
+     docs/notes/merge-phase6-gates.md)
 ```
 
 `../orion/train/data/` is a stale 2026-10-18 copy (4,058 pairs, no splits). Use orion-train's.

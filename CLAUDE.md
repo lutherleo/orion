@@ -60,6 +60,22 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
   findings, located by `Verdict.location()` (`eval/convert.py` folded into `normalize`); the judge
   can credit location-less findings (`judge.credit_locationless`, refuses until frozen + calibrated
   on >=100). `claude -p` agents run from an empty folder, not Orion's checkout.
+- **Phase 6 gates (2026-10-29, built, NOT run):** `docs/notes/merge-phase6-gates.md` (commands + rules,
+  each proposed and fixed before any run). Gate 1 (D4, Mac): `eval.bakeoff --temperature 0 --out` per
+  model, then `--compare base.json c1.json` -> KEEP_C1 / RETRAIN (`bakeoff.GATE1`: pair_correct gain CI
+  > 0 and patched_silence CI >= -5 pp). Gate 2 (D2, Mac): `python -m eval.verifygate` -> DEFAULT_ON /
+  KEEP_OPT_IN (`GATE2`: loses <= 2% of discovery's real vulns, false-alarm cut CI > 0). Gate 3 (D5):
+  `bench/prove.py` also scores through eval's matcher (`eval/devbench.py`, keys in
+  `eval/dataset/devbench/`, PROPOSED until a labeler signs; `--rescore` is token-free; maximum one-to-one
+  matching because `match_run`'s greedy order lost A10 on NodeGoat C). The dev judge now asks rows with
+  the `[sink]` line like `to_sft` (older bake-off numbers are not comparable). `eval/normalize` treats
+  "server.js" and "fixtures/NodeGoat/server.js" as one citation (CHANGELOG 2026-10-29, Phase 6).
+  Committed results through eval's matcher (draft keys): NodeGoat C 15/15 L1, D 5/15; PyGoat C 15/16,
+  D 13/16 -- but L1 is location-only and these prose rows cite no CWE (L2 0 for all), so on a 15-bug
+  repo another class's finding near a fix site is credited (5 of D's 13 PyGoat credits are
+  `@csrf_exempt` lines). So Gate 3 compares at L2: prove.py's arm **P** runs eval's own `plain-opus5` arm
+  (structured findings with a CWE) on a .git-free fixture export, and the Semgrep adapter now keeps rule
+  CWEs. WSL's `claude` is not logged in and eval's clean home has no login copy, so Gate 3 can't run yet.
 - **Phase 7** (added by Love Kush 2026-10-28): a localhost web UI to start / watch / stop scans and
   read reports from a browser, plus a bring-your-own LLM API key (never logged or committed).
   Designed and approved before it is built.
@@ -194,7 +210,8 @@ CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
   Checked: the merged model via `mlx_lm.load` scores 0.1315 on the trainer's 100 dev rows (eval_pick
   seed 3407). `start_c1.sh` now uses a 9 GB cap (7 GB killed attempt 1 at step 19), saves every 10
   steps, and resumes from the newest complete checkpoint by itself. Next: freeze sampling (temperature
-  0 or low, same for both arms), then rerun step 3's bakeoff on `models/orion-lm` vs `orion-lm-base`.
+  0 or low, same for both arms), then rerun step 3's bakeoff on `models/orion-lm` vs `orion-lm-base`
+  (= merge Phase 6 Gate 1: `--temperature 0 --out`, then `--compare`; see "Unified project").
 - **Orion-LM as a full engine (merge Phase 3, 2026-10-29).** `orion scan --engine lm`:
   - samples at `--lm-temperature` (default **0**, greedy) and re-seeds before every session, so a batch's
     answer does not depend on the batches before it (the eval arm still loads with the model's own
@@ -542,8 +559,11 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
   Claude login; `--dry-run` = token-free preflight) runs arm **O** (Orion + Claude, `research_eval
   --arm O --label O-<model>`) for sonnet and opus on NodeGoat and PyGoat through the same matcher and
   token ledger as the committed Opus-alone (C: 15/15 NodeGoat, $0.73 -- legacy matcher, N=1) and Semgrep (D) rows, and prints
-  the REPORT.md table. Orion result JSONs keep EVERY decision (`verdicts`, `decisions`) and the
-  unmatched CONFIRMs (`false_positive_candidates_detail`) for hand-labelling true FPs.
+  the REPORT.md table. Orion result JSONs keep EVERY decision (`verdicts`, `decisions`; since
+  2026-10-29 each row also carries the full `verdict`) and the unmatched CONFIRMs
+  (`false_positive_candidates_detail`) for hand-labelling true FPs. It then prints the same results
+  through eval's matcher (`eval/devbench.py`); `--rescore` does only that, token-free. The preflight
+  also checks `claude auth status` (a logged-out CLI fails before any graph is built).
 
 ## Environment
 

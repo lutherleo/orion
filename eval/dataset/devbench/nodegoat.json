@@ -1,0 +1,399 @@
+{
+ "benchmark": "nodegoat",
+ "fixture": "fixtures/NodeGoat",
+ "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+ "ground_truth": "tests/ground_truth_nodegoat.py",
+ "status": "proposed",
+ "signed_by": [],
+ "drafted": "2026-10-29: fix sites read from the fixture source (NodeGoat's own 'Fix for' markers and the vulnerable statements); every quote checked by eval.devbench.check_keys. Needs a labeler's sign-off before any score from it is quoted as more than draft dev evidence.",
+ "keys": [
+  {
+   "id": "A1-1",
+   "name": "Server-Side JS Injection via eval()",
+   "cwe": "CWE-95",
+   "cwes": [
+    "CWE-95",
+    "CWE-94"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/routes/contributions.js",
+     "line": 32,
+     "end_line": 41,
+     "function": "handleContributionsUpdate",
+     "quote": "const preTax = eval(req.body.preTax);",
+     "why": "eval() of req.body.preTax/afterTax/roth (lines 32-34) runs attacker JavaScript on the server; the commented fix at 36-41 (same function) replaces eval with parseInt."
+    }
+   ],
+   "notes": "Single site: the three eval() calls plus the adjacent commented 'Fix for A1 -1' block (36-41)."
+  },
+  {
+   "id": "A1-2",
+   "name": "NoSQL Injection via $where operator",
+   "cwe": "CWE-943",
+   "cwes": [
+    "CWE-943",
+    "CWE-89",
+    "CWE-94"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/data/allocations-dao.js",
+     "line": 78,
+     "end_line": 78,
+     "function": "searchCriteria",
+     "quote": "$where: `this.userId == ${parsedUserId} && this.stocks > '${threshold}'`",
+     "why": "The unsanitised threshold (req.query.threshold via allocations.js) is interpolated into a $where JavaScript expression; the commented fix at 63-76 parses and range-checks it first."
+    }
+   ],
+   "notes": "Judgement: function is the innermost named function 'searchCriteria' (line 60), as Joern also names it (eval/tests/test_names.py); the outer DAO method is getByUserIdAndThreshold (line 57). A finding that names only getByUserIdAndThreshold and gives no line in 68-88 will NOT match; add a second function if that should count. The query executes at line 86 (allocationsCol.find(searchCriteria())), inside the window. The commented fix block starts at line 63, so 63-67 lie outside the window. allocations.html:17 carries a UX-only 'Fix for A1 - 2' input-validation marker; not a server fix site. CWE-94 is listed because the marker says the input lets attackers 'inject arbitrary javascript code' into the query; CWE-89 is redundant with CWE-943 under eval/cwe.py's family rule but harmless."
+  },
+  {
+   "id": "A1-3",
+   "name": "Log Injection (CRLF forging)",
+   "cwe": "CWE-117",
+   "cwes": [
+    "CWE-117",
+    "CWE-93"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/routes/session.js",
+     "line": 64,
+     "end_line": 64,
+     "function": "handleLoginRequest",
+     "quote": "console.log(\"Error: attempt to login with invalid user: \", userName);",
+     "why": "The raw req.body userName is written to the log on a failed login, so CR/LF in it forges log lines; the commented fix at 66-80 encodes it or replaces CR/LF."
+    }
+   ],
+   "notes": "Judgement: end_line NOT extended over the 'Fix for A1 - 3' comment block (66-80) so the window (54-74) does not overlap A2-2's enumeration site (85-97). The line is inside an anonymous (err, user) => callback passed to userDAO.validateLogin; 'handleLoginRequest' is the nearest NAMED enclosing function. A1-3, A2-1 and A2-2 all have a site whose function is handleLoginRequest, so a finding naming that function matches all three at L1 regardless of line (L2/CWE separates them). No other console.log in app/routes or app/data logs user input (grep)."
+  },
+  {
+   "id": "A2-1",
+   "name": "Broken Auth — insecure session management",
+   "cwe": "CWE-384",
+   "cwes": [
+    "CWE-384",
+    "CWE-1004",
+    "CWE-614",
+    "CWE-613"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "server.js",
+     "line": 78,
+     "end_line": 102,
+     "function": null,
+     "quote": "app.use(session({",
+     "why": "express-session is configured with only secret/saveUninitialized/resave: no cookie httpOnly, secure or maxAge and the default cookie name; the commented fixes inside the call (86-90 cookie name, 92-100 httpOnly cookie) are where a fix goes."
+    },
+    {
+     "file": "app/routes/session.js",
+     "line": 116,
+     "end_line": 117,
+     "function": "handleLoginRequest",
+     "quote": "req.session.userId = user._id;",
+     "why": "On login the existing session id is reused (no req.session.regenerate), i.e. session fixation; the comment block at 104-115 describes wrapping these two lines in regenerate()."
+    }
+   ],
+   "notes": "Judgement calls: (1) the server.js site is the whole session() statement (25 lines, longer than the 1-15 norm) because both commented fixes sit inside it; its window (68-112) overlaps A8's server.js site (107-112) and A5's (42-64, window to 74), so server.js findings in 68-122 rely on L2/CWE to pick the right key. (2) The cookie block at 92-100 is marked 'Fix for A3 - XSS' and the cookie-name block at 86-90 'Fix for A5 - Security MisConfig' in the source, but GROUND_TRUTH's A2-1 keywords (httponly, cookie name, secure flag, session secret) put them here, so they are NOT in A3/A5. (3) The marker 'Fix for A2-1' in user-dao.js (plaintext password storage) is NOT here; it is under A2-2 (see there). (4) The session secret value is hard-coded in config/env/all.js:8 (cookieSecret: \"session_cookie_secret_key_here\"); not added as a site (GROUND_TRUTH files are server.js/session.js, and a window there would also cover cryptoKey at line 9); server.js:82 (secret: cookieSecret) is inside site 1. (5) Plain-HTTP serving (server.js:144-147) is not added. (6) Primary CWE-384 because NodeGoat's A2 tutorial cites it; the cookie-flag issues are CWE-1004 / CWE-614 / CWE-613. Site 2's line is inside the anonymous validateLogin callback; handleLoginRequest is the nearest named function (shared with A1-3 and A2-2)."
+  },
+  {
+   "id": "A2-2",
+   "name": "Broken Auth — weak password policy + user enumeration",
+   "cwe": "CWE-521",
+   "cwes": [
+    "CWE-521",
+    "CWE-204",
+    "CWE-203",
+    "CWE-256",
+    "CWE-916"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/routes/session.js",
+     "line": 144,
+     "end_line": 149,
+     "function": "validateSignup",
+     "quote": "const PASS_RE = /^.{1,20}$/;",
+     "why": "Signup accepts any 1-20 character password; the commented fix at 145-149 requires 8+ chars with digits, lower and upper case."
+    },
+    {
+     "file": "app/routes/session.js",
+     "line": 85,
+     "end_line": 97,
+     "function": "handleLoginRequest",
+     "quote": "loginError: invalidUserNameErrorMessage,",
+     "why": "Login renders 'Invalid username' (85) vs 'Invalid password' (94), enumerating valid user names; the commented fixes at 86-87 and 95-96 use one generic errorMessage."
+    },
+    {
+     "file": "app/data/user-dao.js",
+     "line": 25,
+     "end_line": 30,
+     "function": "addUser",
+     "quote": "password //received from request param",
+     "why": "The password is stored in plain text; the commented fix at 26-30 stores a bcrypt hash."
+    },
+    {
+     "file": "app/data/user-dao.js",
+     "line": 61,
+     "end_line": 66,
+     "function": "comparePassword",
+     "quote": "return fromDB === fromUser;",
+     "why": "Login compares the plaintext password directly; the commented fix at 62-66 uses bcrypt.compareSync, the counterpart of the hashed storage."
+    }
+   ],
+   "notes": "Judgement call (largest one): the two user-dao.js sites (plaintext storage + comparison) are marked 'Fix for A2-1' / 'Fix for A2-Broken Auth' in the source and NodeGoat's tutorial puts password storage under 'A2 - 1 Session Management', but GROUND_TRUTH lists user-dao.js only under A2-2 and its A2-2 keywords include plaintext password / password hashing / comparepassword / bcrypt, so they are placed here. Drop them if A2-2 should be only password policy + enumeration (the item's name). The enumeration's error flags originate in user-dao.js validateUserDoc (78-87), but the fix the source marks is in session.js, so validateUserDoc is not a site (line 75 still falls inside the comparePassword window 51-76). Site 2's line is inside the anonymous validateLogin callback; handleLoginRequest is the nearest named function (shared with A1-3, A2-1). The PASS_RE line's error text (172-173) claims '8 to 18 characters' but the regex is /^.{1,20}$/."
+  },
+  {
+   "id": "A3",
+   "name": "Cross-Site Scripting (auto-escaping disabled)",
+   "cwe": "CWE-79",
+   "cwes": [
+    "CWE-79",
+    "CWE-116"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "server.js",
+     "line": 137,
+     "end_line": 141,
+     "function": null,
+     "quote": "autoescape: false",
+     "why": "swig.setDefaults turns template auto-escaping off for every view; the commented fix at 138-141 (inside the same call) sets autoescape: true."
+    }
+   ],
+   "notes": "Site is the swig.setDefaults option (call spans 135-142, window 127-151). Not included: the httpOnly cookie block server.js:92-100 (marked 'Fix for A3 - XSS' and listed by the A3 tutorial as a second measure) is assigned to A2-1 per GROUND_TRUTH keywords; profile.js:28 (encodeForHTML of doc.website used in a URL context, a '@TODO @FIXME' the A3 tutorial points to) is a separate context-encoding XSS not among the 15; memos.html:31 ({{ marked(doc.memo) }}) and research.js:25 (res.write(body) of a fetched page) are other XSS-shaped outputs not among the 15. Findings at those places will be unmatched under this key set."
+  },
+  {
+   "id": "A4",
+   "name": "Insecure Direct Object Reference",
+   "cwe": "CWE-639",
+   "cwes": [
+    "CWE-639",
+    "CWE-862",
+    "CWE-863",
+    "CWE-285"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/routes/allocations.js",
+     "line": 16,
+     "end_line": 18,
+     "function": "displayAllocations",
+     "quote": "const {",
+     "why": "userId is taken from req.params (line 18: '} = req.params;') and passed to the DAO with no ownership check; the commented fix at 12-15 takes it from req.session."
+    }
+   ],
+   "notes": "The route that exposes the parameter is index.js:63 (app.get(\"/allocations/:userId\", ...)); not added because the marked fix is in allocations.js. Note an IDOR finding citing index.js:63 falls inside A10's index.js window (62-82) and, if it names function 'index', matches A7/A10 by function at L1. Quote is the literal first line of the destructuring statement (16-18)."
+  },
+  {
+   "id": "A5",
+   "name": "Security Misconfiguration (Helmet headers removed)",
+   "cwe": "CWE-693",
+   "cwes": [
+    "CWE-693",
+    "CWE-1021",
+    "CWE-16"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "server.js",
+     "line": 42,
+     "end_line": 64,
+     "function": null,
+     "quote": "app.disable(\"x-powered-by\");",
+     "why": "Absent control: the Helmet/nosniff middleware (x-powered-by removal, frameguard, noCache, CSP, HSTS, nosniff) is commented out in the block 38-65 ('Fix for A5 - Security MisConfig'); this is where it is wired."
+    },
+    {
+     "file": "server.js",
+     "line": 10,
+     "end_line": 14,
+     "function": null,
+     "quote": "// const helmet = require(\"helmet\");",
+     "why": "The helmet (line 10) and dont-sniff-mimetype (line 14) requires are commented out; a fix re-enables both."
+    }
+   ],
+   "notes": "Absent control: the sites are where the middleware is (commented-out) wired, not a vulnerable statement. Site 1 is 23 lines (the whole disabled block minus the comment delimiters). Site 2's range includes three unrelated requires (11-13). Overlap: site 2's window (0-24) covers the commented csurf require at line 7 (A8 site), and site 1's window (32-74) reaches into A2-1's session site; L2 separates them. Not included: the 'Fix for A5' cookie-name block 86-90 (assigned to A2-1 per GROUND_TRUTH keywords) and the 'Fix for A5' TODO at 119-121 (static assets after session), which is not about Helmet headers. Primary CWE-693 (protection mechanism failure); CWE-16 is a category (kept as an accepted alternate because tools emit it); CWE-1021 covers the missing frameguard."
+  },
+  {
+   "id": "A6",
+   "name": "Sensitive Data Exposure (SSN/DOB encryption disabled)",
+   "cwe": "CWE-312",
+   "cwes": [
+    "CWE-312",
+    "CWE-311",
+    "CWE-359"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/data/profile-dao.js",
+     "line": 61,
+     "end_line": 76,
+     "function": "updateUser",
+     "quote": "if (ssn) {",
+     "why": "SSN and DOB are written to the users collection as plain text; the commented fix at 67-76 ('Fix for A7 - Sensitive Data Exposure', same function) stores encrypt(ssn)/encrypt(dob)."
+    },
+    {
+     "file": "app/data/profile-dao.js",
+     "line": 15,
+     "end_line": 40,
+     "function": "ProfileDAO",
+     "quote": "/* Fix for A6 - Sensitive Data Exposure",
+     "why": "Absent control: the crypto encrypt/decrypt helpers the fix needs are commented out."
+    }
+   ],
+   "notes": "Site 1 is 16 lines (vulnerable assignments 61-66 + the adjacent fix block). Site 2 is 26 lines (the whole disabled helper block); its function is the constructor ProfileDAO, the only named function enclosing it, so a finding naming ProfileDAO matches (profile-dao.js has no other ground-truth item). The source marker at 68 says 'A7' but is about SSN/DOB encryption, so it belongs here. Not included: the decrypt block in getByUserId (100-105, only needed once data is encrypted) and the server.js 'Fix for A6' HTTPS blocks (18-28, 149-155; plain HTTP), because the item's name is SSN/DOB encryption. The cryptoKey is hard-coded in config/env/all.js:9; not a site."
+  },
+  {
+   "id": "A7",
+   "name": "Missing Function-Level Access Control",
+   "cwe": "CWE-285",
+   "cwes": [
+    "CWE-285",
+    "CWE-862",
+    "CWE-863"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/routes/index.js",
+     "line": 55,
+     "end_line": 60,
+     "function": "index",
+     "quote": "app.get(\"/benefits\", isLoggedIn, benefitsHandler.displayBenefits);",
+     "why": "Absent control: the /benefits GET and POST routes check only isLoggedIn; the commented fix at 57-60 adds the isAdmin middleware."
+    }
+   ],
+   "notes": "Absent control: site is the route registration where isAdmin should be wired. isAdmin is defined at index.js:27 but never used (outside the 45-70 window; a finding citing only line 27 matches only via function 'index'). benefits.js handlers have no role check either; not a site because the marked fix is in index.js. Function 'index' is shared with the A10 site, so an index.js finding naming 'index' matches A7 and A10 at L1 regardless of line (L2/CWE separates them)."
+  },
+  {
+   "id": "A8",
+   "name": "Cross-Site Request Forgery (missing CSRF middleware)",
+   "cwe": "CWE-352",
+   "cwes": [
+    "CWE-352"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "server.js",
+     "line": 107,
+     "end_line": 112,
+     "function": null,
+     "quote": "app.use(csrf());",
+     "why": "Absent control: the csurf middleware and the csrftoken locals middleware are commented out in the block 104-113 ('Fix for A8 - CSRF')."
+    },
+    {
+     "file": "server.js",
+     "line": 7,
+     "end_line": 7,
+     "function": null,
+     "quote": "// const csrf = require('csurf');",
+     "why": "The csurf require is commented out; a fix re-enables it."
+    },
+    {
+     "file": "app/views/contributions.html",
+     "line": 91,
+     "end_line": 91,
+     "function": null,
+     "quote": "<input type=\"hidden\" name=\"_csrf\" value=\"{{csrftoken}}\"></input>",
+     "why": "The contributions form's hidden CSRF token field is commented out ('Fix for A8 - CSRF' at 89)."
+    }
+   ],
+   "notes": "Absent control: sites are where the middleware is (commented-out) wired plus the one form whose token field the source marks. GROUND_TRUTH files list contributions.js, app.js and index.js; there is no app.js in the fixture and neither contributions.js nor index.js contains a marked CSRF fix, so they are not sites -- a finding that cites only the POST /contributions handler (contributions.js:28) or the index.js route will NOT match; add a site there if those should count. login.html:117, profile.html:73 and signup.html:104 already have an active hidden _csrf field; the benefits.html and memos.html POST forms have none. Overlaps: site 2's window (-3..17) covers the helmet require (A5 site 2); site 1's window (97-122) overlaps A2-1's session site window."
+  },
+  {
+   "id": "A9",
+   "name": "Using Components with Known Vulnerabilities",
+   "cwe": "CWE-1395",
+   "cwes": [
+    "CWE-1395",
+    "CWE-1104",
+    "CWE-937"
+   ],
+   "known_gap": true,
+   "fix_sites": [
+    {
+     "file": "package.json",
+     "line": 17,
+     "end_line": 17,
+     "function": null,
+     "quote": "\"marked\": \"0.3.5\",",
+     "why": "marked is pinned to 0.3.5; NodeGoat's A9 tutorial (app/views/tutorial/a9.html) says the demo uses 'an insecure version of the Marked library that is vulnerable to XSS'."
+    }
+   ],
+   "notes": "known_gap item. The package was identified from package.json plus the in-repo A9 tutorial, not from a CVE feed (nothing here confirms a CVE id). Other exact-pinned old versions in package.json (bcrypt-nodejs 0.0.3 line 8, needle 2.2.4 line 19, node-esapi 0.0.1 line 20) and swig ^1.4.2 (line 22) are NOT added: nothing in the repo says they are vulnerable. package.json:25-27 has a comments entry 'a9 insecure components'. Not added: server.js:125-129 ('Fix for A9', the active marked.setOptions({sanitize: true}) mitigation; its window would overlap A3's server.js site) and the use site memos.html:31. CWE-79 (the component's own bug class) is deliberately not in cwes so an XSS finding cannot take A9 at L2; CWE-1395 is the CWE 4.14+ entry, CWE-937 the OWASP-2013-A9 category."
+  },
+  {
+   "id": "A10",
+   "name": "Unvalidated Redirects and Forwards",
+   "cwe": "CWE-601",
+   "cwes": [
+    "CWE-601"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/routes/index.js",
+     "line": 72,
+     "end_line": 72,
+     "function": "index",
+     "quote": "return res.redirect(req.query.url);",
+     "why": "GET /learn redirects to the unvalidated req.query.url."
+    }
+   ],
+   "notes": "The line is inside the anonymous (req, res) => handler registered at line 70; 'index' is the nearest named enclosing function (shared with A7, see there). No 'Fix for' marker exists for A10."
+  },
+  {
+   "id": "SSRF",
+   "name": "Server-Side Request Forgery",
+   "cwe": "CWE-918",
+   "cwes": [
+    "CWE-918"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/routes/research.js",
+     "line": 15,
+     "end_line": 16,
+     "function": "displayResearch",
+     "quote": "const url = req.query.url + req.query.symbol;",
+     "why": "The server fetches a URL built from req.query.url + req.query.symbol with needle.get (line 16)."
+    }
+   ],
+   "notes": "No 'Fix for' marker exists for SSRF. The fetched body is written back unescaped at line 25 (res.write(body)), inside the window."
+  },
+  {
+   "id": "ReDoS",
+   "name": "Regex Denial of Service (nested quantifier)",
+   "cwe": "CWE-1333",
+   "cwes": [
+    "CWE-1333",
+    "CWE-400"
+   ],
+   "known_gap": false,
+   "fix_sites": [
+    {
+     "file": "app/routes/profile.js",
+     "line": 59,
+     "end_line": 61,
+     "function": "handleProfileUpdate",
+     "quote": "const regexPattern = /([0-9]+)+\\#/;",
+     "why": "The nested quantifier ([0-9]+)+ is tested against req.body.bankRouting (line 61), allowing catastrophic backtracking; the comment at 52-58 gives /([0-9]+)\\#/ as the fix."
+    }
+   ],
+   "notes": "Site covers the regex definition and its test call; the 'Fix for Section: ReDoS attack' comment (52-58) precedes it and lies inside the window (49-71)."
+  }
+ ]
+}
