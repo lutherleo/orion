@@ -105,19 +105,6 @@ def blocked_reason(query: str) -> str | None:
     return None
 
 
-def scope_problem(query: str, scan_id: str) -> str | None:
-    """Agent-boundary policy: a query that MATCHes must be scoped -- by `$scan_id` or by this scan's
-    id inlined as a literal -- or it silently reads every other scan in the database too. Returns an
-    actionable error, or None. Not enforced for Orion's own internal reads (a cross-scan integrity
-    check is a legitimate harness query)."""
-    q = blank(query)
-    scoped = "$scan_id" in q or (bool(scan_id) and scan_id in query)
-    if re.search(r"\bMATCH\b", q, re.IGNORECASE) and not scoped:
-        return ("unscoped query: filter every MATCH by scan_id, e.g. "
-                "MATCH (c:CpgCall {scan_id:$scan_id}) ... (the tool binds $scan_id for you)")
-    return None
-
-
 class GraphDB:
     """A thin read-only wrapper over the scan graph (plus a single-scan clear for reloads)."""
 

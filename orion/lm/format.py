@@ -63,42 +63,17 @@ ACTION_SCHEMA: dict = {
 _SYSTEM_PROMPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "system_prompt.txt")
 _SCHEMA_CARD_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema_card.txt")
 
-# Markers around every piece of text that came out of the scanned repository (read_code lines, flow
-# code snippets). The repo is untrusted: it can contain lines that look like RESULT:/ERROR: turns or a
-# ready-made {"action":...}. The markers tell the model where data ends; ACTION_RULES says it is data.
-CODE_OPEN = "<<<CODE>>>"
-CODE_CLOSE = "<<<END CODE>>>"
-
-# Marker injection guard. Untrusted text may itself contain `<<<END CODE>>>` (or `<<<CODE>>>`), which
-# would close the block early. Every run of three or more `<` or `>` gets a backslash after EACH
-# character (`<<<` -> `<\<\<\`, `<<<<` -> `<\<\<\<\`), so no `<<<`/`>>>` can survive — a plain
-# str.replace of the first three would leave `<<<<` as `<\<<<`, still a marker. Runs of one or two
-# are untouched (they cannot form a marker). Deterministic, so training examples stay consistent.
-# This rewrites REAL source too (`List<List<List<X>>>>`, CUDA `kernel<<<grid, block>>>`, heredoc or
-# merge-conflict markers), always the same way, so the model sees `<\<\<\` wherever the file has a
-# literal `<<<` — Krish's system prompt can say so. Every repo-controlled string that lands in a
-# message (file names, function names, uids, code, rows, tool error text) goes through `_s`/`_neutralise`
-# at the point of rendering, inside or outside a CODE block, so the marker count is always honest.
-_MARKER_RUN = re.compile(r"<{3,}|>{3,}")
-
-
-def _neutralise(text: str) -> str:
-    return _MARKER_RUN.sub(lambda m: "".join(ch + "\\" for ch in m.group()), text)
+# The CODE markers and the neutralising of repo text live in orion/textsafe.py (shared with the Claude
+# prompts since 2026-10-28): marker runs escaped exactly as before, plus chat-control tokens
+# (`<|im_end|>`, `<think>`, ...) broken so repo text can never forge a turn. Every repo-controlled
+# string that lands in a message goes through `_s`/`_neutralise` at the point of rendering.
+from orion.textsafe import CODE_CLOSE, CODE_OPEN, _MARKER_RUN, code_block, code_inline  # noqa: E402,F401
+from orion.textsafe import neutralise as _neutralise  # noqa: E402
 
 
 def _s(value) -> str:
     """Render one repo-controlled value for a message: str() then marker-neutralised."""
     return _neutralise(str(value))
-
-
-def code_block(text: str) -> str:
-    """Wrap untrusted repository text in CODE markers (multi-line: markers on their own lines)."""
-    return f"{CODE_OPEN}\n{_neutralise(text)}\n{CODE_CLOSE}"
-
-
-def code_inline(text: str) -> str:
-    """Wrap a one-line untrusted snippet in CODE markers."""
-    return f"{CODE_OPEN}{_neutralise(text)}{CODE_CLOSE}"
 
 
 ACTION_RULES = (

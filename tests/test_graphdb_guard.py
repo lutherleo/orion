@@ -38,7 +38,8 @@ def test_plain_read_is_allowed():
 
 
 # ── reads that escape the graph, procedures, and scan scoping ──────────
-from orion.graphdb import blocked_reason, scope_problem  # noqa: E402
+from orion.cypher_guard import scope_problem  # noqa: E402
+from orion.graphdb import blocked_reason  # noqa: E402
 
 
 def test_escaping_reads_and_batch_writes_are_blocked():

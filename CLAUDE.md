@@ -294,7 +294,8 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
 - Scans are recorded (`OrionScan`): `--scan-id` refuses a scan with no record; `orion gc`
   (`--prefix`, `--dry-run`) deletes old recorded scans; `orion reanalyze` recomputes
   CandidateFlows from Neo4j without Joern (`--engine` must match the recorded profile).
-- MCP `run_cypher` (the Claude path) also refuses LOAD CSV, SHOW, TERMINATE, USE and CALL.
+- MCP `run_cypher` (the Claude path) also refuses LOAD CSV, SHOW, TERMINATE, USE and procedures
+  outside the read-only allowlist (merge decision D3; see the read-only gotcha below).
 - PyGoat fixture pinned: `fixtures/pygoat` at `19d17cc8874861142b330636d068bbde54e86b85`
   (`tests/test_stream_build.py::test_stream_flows_parity_pygoat`, slow; fails on another commit).
   Golden outputs live in `tests/golden/`.
@@ -432,9 +433,21 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
   channel); `tests/test_graphdb_guard.py::test_a_quote_in_a_comment_cannot_hide_load_csv` pins it. It
   refuses writes, `LOAD CSV`, `FOREACH`/`IN TRANSACTIONS`, and any `CALL` procedure outside the
   db.schema/labels/index-query allowlist. The MCP boundary (`mcp_server.run_cypher_impl` ->
-  `cypher_guard.claude_problem`) also refuses SHOW / TERMINATE / USE and a MATCH not scoped by
-  `$scan_id` (or the literal id); Orion's own internal reads are exempt. The Orion-LM engine has its own
-  stricter checker (`orion/lm/tools.check_query`); the Claude MCP server never imports `orion.lm`.
+  `cypher_guard.claude_problem`) also refuses SHOW / TERMINATE / USE and any pattern NOT ANCHORED to
+  the scan (2026-10-28, `cypher_guard.scope_problem`): each connected pattern needs one element tied to
+  the scan -- a `{scan_id:$scan_id}` map (or the literal id) on a node or relationship, a top-level
+  `WHERE v.scan_id = $scan_id` conjunct (never under OR/XOR/NOT, never on OPTIONAL MATCH), or a
+  variable tied earlier and carried by WITH; UNION branches and CALL{} bodies are separate scopes,
+  db.index.* results must be filtered by scan_id, unreadable patterns are refused with a hint.
+  `tests/test_cypher_guard.py` pins the accept corpus (every query the rendered prompts teach + the
+  apex agents' real queries) and the bypass corpus. Orion's own internal reads are exempt. The
+  Orion-LM engine keeps its stricter checker (`orion/lm/tools.check_query`); both share the pattern
+  parsing in `orion/cypher_parse.py`, and the Claude MCP server never imports `orion.lm`.
+- **Repo text is neutralised before it reaches a model** (`orion/textsafe.py`, shared by Orion-LM's
+  `lm/format` and, opt-in, the Claude prompts): marker runs (`<<<`) escaped as Krish wrote it, plus
+  chat-control tokens (`<|im_end|>`, `<think>`, `<start_of_turn>`...) broken with a backslash after
+  the `<`, so a repo comment cannot forge a turn. Without such a token the output is byte-identical
+  to the old rule (`tests/test_textsafe.py` pins it); C1's training rows differ only where one appeared.
 - **The MCP server is launched INLINE with `sys.executable`** (`claude_cli.mcp_config`), not via
   `.mcp/orion.json` (which hardcodes `./.venv/bin/python` and silently fails on Windows). Set
   `ORION_MCP_CONFIG=<path>` to force a config file.
