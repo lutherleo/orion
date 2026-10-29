@@ -19,8 +19,7 @@ clause filter that imports (does not edit) `orion/lm/tools.py`.
 
 ## Global constraints (from the brief)
 
-- Branch `fix/graph-hardening` from `eval/orion-lm` (created). One commit per change. No AI
-  attribution (no `Co-Authored-By`, no "Generated with Claude Code"). No push.
+- Branch `fix/graph-hardening` from `eval/orion-lm` (created). One commit per change. No push.
 - Out of scope: dependency/CVE linking, exposure, anything from Cartography, `train/`, `eval/`.
   `orion/lm/tools.py` may be imported from, never edited.
 - Invariants at the end: FLOWS_TO parity 217 (NodeGoat) and 1075 (PyGoat); default `orion scan`

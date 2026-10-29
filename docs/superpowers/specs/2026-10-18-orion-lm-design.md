@@ -343,14 +343,14 @@ then move on.
    (by `data_source`, checked 2026-10-18: gpt4turbo 5,611 · gpt4o 5,324 · gemini 4,980 · claudeopus
    2,659 · T5-model predictions 456 · provenance unverified 16,436 incl. functional_cypher 13,349 ·
    human crowdsourced/CySpider ≈480, of 35,946);
-   (b) the builder is Claude Code, so any Cypher templates/examples it writes become training
+   (b) any Cypher templates/examples written with an AI coding assistant would become training
    targets. Recommended: drop text2cypher's LLM-synthetic subsets (GPT, Claude, Gemini) and keep the
-   rest only if its provenance checks out as non-LLM; Claude writes plumbing code only, while the
+   rest only if its provenance checks out as non-LLM; AI help is limited to plumbing code, while the
    small set of templates that become training targets (Cypher query templates, final-lead
    phrasing) is written or rewritten by Krish.
    **Decision:** all AI-written text2cypher rows (GPT, Claude, Gemini, T5 predictions) are dropped;
    unknown-provenance rows are used only if verified non-LLM (default: not used); Krish writes the
-   target templates and the system prompt; Claude writes plumbing code only.
+   target templates and the system prompt; AI help is limited to plumbing code.
 6. **DECIDED: grow the test set to ≈60 dataflow vulns** (Krish: "ok works"). Context — test-set size vs timeline. 29 candidates (≈21 dataflow + 8 access-control), none checked yet.
    Recommended: script-mine post-cutoff advisories (≈600 repos have them) to ≈60 dataflow vulns and
    gate the test run on their answer keys — costs ~1–2 extra days, mostly human labeling.

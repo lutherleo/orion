@@ -71,7 +71,7 @@ Two ways to give the Claude engine model access; both keep one model per scan (d
 - **Never shown or logged:** never written to a run dir, log, SARIF, config file or git; never on a
   command line (argv is visible to `ps`), only in the child's env; the API returns only "set / ends in
   ...abcd"; every line streamed to the browser is scrubbed of it.
-- **Entering it is yours:** you type the key into the Settings page yourself (Claude never types a key).
+- **Entering it is yours:** you type the key into the Settings page yourself.
 - Orion-LM needs no key (local model).
 
 ## 5. Safety

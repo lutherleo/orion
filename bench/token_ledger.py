@@ -17,7 +17,7 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-# Per-1M-token USD rates (Claude API skill, cached 2026-06-24). input/output; cache read 0.1x input;
+# Per-1M-token USD rates (Anthropic's price list, cached 2026-06-24). input/output; cache read 0.1x input;
 # cache WRITE 1.25x input for the 5-minute cache and 2x for the 1-hour one, which is what `claude -p`
 # writes (2026-10-29: the old flat 1.25x put C.json at $0.61 / $0.84 where the CLI's own cost is
 # $0.73 / $1.01; at 2x the tokens reproduce the CLI's figure within $0.001). Aliases map to the id the CLI resolves them to, so a usage.model of either

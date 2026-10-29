@@ -34,7 +34,7 @@ What this costs:
 
 ## Global Constraints
 
-- **No AI attribution** in any commit or PR: no `Co-Authored-By:` trailer and no "Generated with Claude Code" line (CLAUDE.md top rule). Don't push without Krish.
+- Don't push without Krish.
 - **No Claude, no Ollama, no network in the model path** (`orion/lm/` at runtime). Network is allowed only in `train/` fetchers (git partial clone, `gh api`) and the cloud LoRA notebook.
 - **Never fabricate, estimate or backfill a measured value.** Fetch time, bytes, index time, example counts, throughput and dev scores are all measured, or stored as null. Projections are labelled as projections and computed only from measurements.
 - **Data rules:**
