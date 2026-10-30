@@ -44,11 +44,20 @@ def counts_as_finding(verdict: dict) -> bool:
 def _verdict_location(v: dict, lead: dict) -> dict:
     """orion.contracts.Verdict.location() on the JSON form (tests/test_normalize.py checks parity):
     the verifier's file / lines / cwe where it gave them, else the lead's; a corrected file resets the
-    lines and the function to the verifier's."""
+    lines and the function to the verifier's; the lines are a pair (a verifier start never borrows the
+    lead's end, an end below the start is dropped; CHANGELOG 2026-10-30)."""
     moved = bool(v.get("file") and v.get("file") != lead.get("file"))
+    if v.get("line_start"):
+        start, end = v.get("line_start"), v.get("line_end")
+    elif moved:
+        start, end = None, v.get("line_end")
+    else:
+        start, end = _lead_line(lead), v.get("line_end") or lead.get("line_end")
+    if isinstance(start, int) and isinstance(end, int) and end < start:
+        end = None
     return {"file": v.get("file") or lead.get("file"),
-            "line_start": v.get("line_start") or (None if moved else _lead_line(lead)),
-            "line_end": v.get("line_end") or (None if moved else lead.get("line_end")),
+            "line_start": start,
+            "line_end": end,
             "function": None if moved else lead.get("function"),
             "cwe": v.get("cwe") or lead.get("cwe")}
 

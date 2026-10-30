@@ -356,7 +356,8 @@ LEAD = dict(index=0, shape="A", text="SQL injection", evidence="e", confidence="
             line_start=4, line_end=6, function="handler", cwe="CWE-89")
 BARE_LEAD = dict(index=1, shape="B", text="hedge comment", evidence="e", confidence="LOW")
 VERDICT_OVERRIDES = [{}, {"line_start": 5}, {"file": "app/a.js", "line_start": 9, "line_end": 9},
-                     {"file": "app/b.js"}, {"file": "app/b.js", "line_start": 12, "cwe": "CWE-79"}, {"cwe": "CWE-79"}]
+                     {"file": "app/b.js"}, {"file": "app/b.js", "line_start": 12, "cwe": "CWE-79"}, {"cwe": "CWE-79"},
+                     {"line_end": 3}, {"line_end": 40}]                   # an end below the start is dropped
 
 
 @needs_node

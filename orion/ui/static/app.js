@@ -276,10 +276,24 @@
     const verdict = v || {};
     const lead = verdict.lead || {};
     const moved = !!(verdict.file && verdict.file !== lead.file);
+    // The lines are a pair, as in Verdict.location(): a verifier start never borrows the lead's end.
+    let start;
+    let end;
+    if (verdict.line_start) {
+      start = verdict.line_start;
+      end = verdict.line_end || null;
+    } else if (moved) {
+      start = null;
+      end = verdict.line_end || null;
+    } else {
+      start = lead.line_start || null;
+      end = verdict.line_end || lead.line_end || null;
+    }
+    if (start !== null && end !== null && end < start) end = null;
     return {
       file: verdict.file || lead.file || null,
-      line_start: verdict.line_start || (moved ? null : lead.line_start || null),
-      line_end: verdict.line_end || (moved ? null : lead.line_end || null),
+      line_start: start,
+      line_end: end,
       function: moved ? null : lead.function || null,
       cwe: verdict.cwe || lead.cwe || null,
     };

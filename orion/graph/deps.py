@@ -13,13 +13,30 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 
+def _read_text(path: Path) -> str | None:
+    """A manifest's text, or None if unreadable. Decoded by its BOM (UTF-16 is what Windows PowerShell 5.1
+    writes for `pip freeze > requirements.txt`), else UTF-8 with a BOM stripped (pip and npm accept one) and
+    undecodable bytes replaced: never the platform encoding, which made the same manifest parse on one
+    machine and crash the graph build on another."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16", errors="replace")
+    return data.decode("utf-8-sig", errors="replace")
+
+
 def _from_package_json(repo: Path) -> list[tuple[str, str]]:
     pj = repo / "package.json"
     if not pj.exists():
         return []
+    text = _read_text(pj)
     try:
-        data = json.loads(pj.read_text())
-    except (ValueError, OSError):
+        data = json.loads(text) if text is not None else None
+    except ValueError:
+        return []
+    if not isinstance(data, dict):
         return []
     out: list[tuple[str, str]] = []
     for key in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
@@ -35,12 +52,13 @@ _REQ_LINE = re.compile(r"^\s*([A-Za-z0-9._-]+)\s*(?:\[[^\]]*\])?\s*([=<>!~]=?[^#
 def _from_requirements(repo: Path) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for req in list(repo.glob("requirements*.txt")):
-        try:
-            lines = req.read_text().splitlines()
-        except OSError:
+        text = _read_text(req)
+        if text is None:
             continue
-        for line in lines:
-            line = line.strip()
+        for line in text.splitlines():
+            # pip options after the requirement (`--hash=...`, pip-compile --generate-hashes) and a trailing
+            # line continuation are not part of the version
+            line = re.split(r"\s+--", line, maxsplit=1)[0].strip().removesuffix("\\").strip()
             # Skip blanks, comments, pip options (-e/-r/...), and URL/VCS requirement lines. Match
             # real URL schemes ("http://"/"https://"/"git+"), NOT any package NAMED like "httpx".
             if not line or line.startswith(("#", "-", "git+", "http://", "https://")):
@@ -56,8 +74,8 @@ def _from_pom(repo: Path) -> list[tuple[str, str]]:
     if not pom.exists():
         return []
     try:
-        root = ElementTree.fromstring(pom.read_text())
-    except (ElementTree.ParseError, OSError):
+        root = ElementTree.fromstring(pom.read_bytes())   # bytes: the XML declaration's encoding is honoured
+    except (ElementTree.ParseError, OSError, ValueError):
         return []
     out: list[tuple[str, str]] = []
     for dep in root.iter():
@@ -82,14 +100,14 @@ def _from_gomod(repo: Path) -> list[tuple[str, str]]:
     gm = repo / "go.mod"
     if not gm.exists():
         return []
-    try:
-        lines = gm.read_text().splitlines()
-    except OSError:
+    text = _read_text(gm)
+    if text is None:
         return []
+    lines = text.splitlines()
     out: list[tuple[str, str]] = []
     in_block = False
     for line in lines:
-        s = line.strip()
+        s = line.split("//", 1)[0].strip()   # a comment is never a module (`// vendored fork`)
         if s.startswith("require ("):
             in_block = True
             continue

@@ -43,6 +43,12 @@ def dedup_keep(leads: list[Lead]) -> list[Lead]:
                 continue
             seen_struct.add(key)
             if fp is not None:
+                pos = by_fingerprint.get(fp)
+                if pos is not None and not (kept[pos].source_uid and kept[pos].sink_uid):
+                    # An unanchored report of this bug came first: the anchored one takes its slot (its
+                    # endpoints feed the verifier), so the order leads arrive in never decides the dedup.
+                    kept[pos] = lead
+                    continue
                 by_fingerprint.setdefault(fp, len(kept))   # later unanchored duplicates fold into it
         elif fp is not None:
             pos = by_fingerprint.get(fp)

@@ -667,13 +667,23 @@ def _line(x: object) -> int | None:
 
 def _location(v: dict) -> dict:
     """contracts.Verdict.location() on a verdict DICT: the verifier's file / lines / cwe win; a
-    verifier-corrected file resets the lead's lines and function. Malformed values count as absent."""
+    verifier-corrected file resets the lead's lines and function; the lines are a pair (a verifier start
+    never borrows the lead's end, an end below the start is dropped). Malformed values count as absent."""
     lead = v.get("lead") if isinstance(v.get("lead"), dict) else {}
     vfile, lfile = _text(v.get("file")), _text(lead.get("file"))
     moved = bool(vfile and vfile != lfile)
+    vstart, vend = _line(v.get("line_start")), _line(v.get("line_end"))
+    if vstart:
+        start, end = vstart, vend
+    elif moved:
+        start, end = None, vend
+    else:
+        start, end = _line(lead.get("line_start")), vend or _line(lead.get("line_end"))
+    if start is not None and end is not None and end < start:
+        end = None
     return {"file": vfile or lfile,
-            "line_start": _line(v.get("line_start")) or (None if moved else _line(lead.get("line_start"))),
-            "line_end": _line(v.get("line_end")) or (None if moved else _line(lead.get("line_end"))),
+            "line_start": start,
+            "line_end": end,
             "function": None if moved else _text(lead.get("function")),
             "cwe": _text(v.get("cwe")) or _text(lead.get("cwe"))}
 

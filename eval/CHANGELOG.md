@@ -109,3 +109,13 @@ One change to the scoring of record; the rest is dev tooling that never feeds an
   fixture, so the Opus-alone row reports a CWE per finding and can be compared with Orion at L2 (the
   committed prose C rows cite none; on a 15-bug repo L1 alone credits another class's finding near a fix
   site). `bench/semgrep_adapter` appends each rule's CWE ids to the evidence for the same reason.
+
+## 2026-10-30 — a verifier's start line no longer borrows the lead's end. Krish signs off before `orion-lm-prereg-v1`
+
+- **Changed** `eval/normalize._verdict_location` (and `orion.contracts.Verdict.location`, which it mirrors;
+  pinned by `test_verdict_location_matches_contracts`): the verifier's lines are taken as a PAIR. Before, a
+  verifier that re-read only the start line kept the analyst's end, so start 9 + the lead's 3-5 became the
+  inverted range 9-5 (and start 5 + 10-60 widened to 5-60). Now a verifier start comes with the verifier's
+  own end or none, and an end below the start is dropped. A finding's line range can only get narrower or
+  become a single line, so under the range-overlap rule an L1 credit can be lost where the old, wrong range
+  reached a fix site, never gained. No scored run exists yet, so no reported number changes.

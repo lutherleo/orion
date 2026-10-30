@@ -531,14 +531,14 @@ def _run_scan(args: argparse.Namespace) -> int:
     text = report.render(verdicts)
     on_event(_event("report", "done", detail="report rendered"))
 
-    print("\n" + "=" * 70)
-    print(text)
-
+    # The files first: a console that cannot print the report must never cost the run its results.
     payload = json.dumps([dataclasses.asdict(v) for v in verdicts], indent=2, default=str)
     Path(run_dir, "verdicts.json").write_text(payload, encoding="utf-8")
     Path(run_dir, "report.txt").write_text(text, encoding="utf-8")
     sarif = json.dumps(sarif_mod.to_sarif(verdicts), indent=2)
     Path(run_dir, "results.sarif").write_text(sarif, encoding="utf-8")
+    print("\n" + "=" * 70)
+    print(text)
     print(f"\nreport, verdicts and SARIF saved under {run_dir}")
     if args.json:
         n = write_verdicts_json(args.json, verdicts)
@@ -680,7 +680,20 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _safe_stdout() -> None:
+    """stdout that cannot encode a character prints '?' for it instead of raising. Redirected on Windows
+    it is cp1252, and the report and progress lines carry agent text (arrows, non-Latin names) and the
+    route 'light\u2192full': one such print used to kill a scan mid-verify."""
+    enc = (getattr(sys.stdout, "encoding", None) or "").lower().replace("-", "")
+    if enc != "utf8" and hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(errors="replace")
+        except (ValueError, OSError):
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _safe_stdout()
     args = _build_parser().parse_args(argv)
 
     if args.cmd == "scan":

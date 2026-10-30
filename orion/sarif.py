@@ -11,6 +11,7 @@ reopening it. A verdict with no file cannot be placed in the code, so it is left
 from __future__ import annotations
 
 import hashlib
+from urllib.parse import quote
 
 from .contracts import Verdict
 
@@ -35,6 +36,13 @@ def _rule(rule_id: str) -> dict:
     return rule
 
 
+def _uri(path) -> str:
+    """A repo-relative path as a SARIF uri reference: percent-encoded (a raw '#' made src/C#/Login.cs
+    point at "src/C"; spaces, brackets and '%' are not valid in a uri) and relative to %SRCROOT% (a
+    leading '/' resolved to the file-system root). Fingerprints keep the raw path."""
+    return quote(str(path).lstrip("/"), safe="/")
+
+
 def fingerprint(v: Verdict) -> str:
     """Stable identity of a finding across runs: its file, class and function/line -- not its
     wording, which changes every run."""
@@ -51,7 +59,7 @@ def _code_flow(path: list[dict] | None) -> dict | None:
     for node in path or []:
         if not isinstance(node, dict) or not node.get("file"):
             continue
-        physical: dict = {"artifactLocation": {"uri": str(node["file"]), "uriBaseId": "%SRCROOT%"}}
+        physical: dict = {"artifactLocation": {"uri": _uri(node["file"]), "uriBaseId": "%SRCROOT%"}}
         line = node.get("line")
         if isinstance(line, int) and not isinstance(line, bool) and line >= 1:
             physical["region"] = {"startLine": line}
@@ -79,7 +87,7 @@ def to_sarif(verdicts: list[Verdict]) -> dict:
             region["startLine"] = loc["line_start"]
             if loc["line_end"]:
                 region["endLine"] = loc["line_end"]
-        physical: dict = {"artifactLocation": {"uri": loc["file"], "uriBaseId": "%SRCROOT%"}}
+        physical: dict = {"artifactLocation": {"uri": _uri(loc["file"]), "uriBaseId": "%SRCROOT%"}}
         if region:
             physical["region"] = region
         props = {"shape": v.lead.shape, "confidence": v.lead.confidence, "decision": v.decision,
