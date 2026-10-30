@@ -55,12 +55,14 @@ def build_line_starts(source: str) -> list[int]:
     uses: UTF-16 code units of the RAW script text, i.e. a JavaScript string index. Verified: after
     "// café 😀 naïve" + newline the next line starts at 17 -- not 21 UTF-8 bytes, not 16 code points.
     `source` must be the file exactly as Node read it: a CRLF translated to LF would shift every line
-    after it (see v8_tracer._fs_reader)."""
+    after it (see v8_tracer._fs_reader). A line ends at LF, a lone CR, U+2028 or U+2029 (CRLF is one end),
+    as V8 and Babel count them: counting only LF put every line after one of the others off."""
     starts = [0]
     unit = 0
-    for ch in source:
+    last = len(source) - 1
+    for i, ch in enumerate(source):
         unit += 2 if ord(ch) > 0xFFFF else 1      # astral characters are a surrogate pair in UTF-16
-        if ch == "\n":
+        if ch in "\n\u2028\u2029" or (ch == "\r" and (i == last or source[i + 1] != "\n")):
             starts.append(unit)
     return starts
 
@@ -100,6 +102,8 @@ class StaticIndex:
     method_names: dict[str, list[str]] = field(default_factory=dict)
     # (file, line) -> CpgCall uids on that line, real calls before operator nodes
     calls: dict[tuple[str, int], list[str]] = field(default_factory=dict)
+    # CpgCall uid -> its name (picks the dispatch site among several calls on one line)
+    call_names: dict[str, str] = field(default_factory=dict)
     # basename -> the one graph file with that basename (ambiguous basenames are absent)
     by_base: dict[str, str] = field(default_factory=dict)
     # (file, line) -> every method declared there, best first -- only where more than one is
@@ -206,6 +210,7 @@ def index_from_rows(method_rows, call_rows) -> StaticIndex:
         if not f or not isinstance(line, int) or line <= 0 or not uid:
             continue
         scored.setdefault((f, line), []).append((_call_synth_score(r.get("name") or ""), uid))
+        idx.call_names[uid] = r.get("name") or ""
     idx.calls = {k: [uid for _, uid in sorted(v, key=lambda t: t[0])] for k, v in scored.items()}
 
     base_count: dict[str, list[str]] = {}
@@ -330,10 +335,16 @@ def correlate(trace: RuntimeTrace, index: StaticIndex, scan_id: str) -> WritePla
         sites = index.calls_at(d.site_file, d.site_line)
         target = (endpoint(d.callee_file, d.callee_line, d.callee_name)
                   if d.callee_line is not None else None)
-        if not sites or target is None:
+        # The call whose name is the callee's; else the line's only real call. `self.render(self.ctx(r))`
+        # used to put the edge on whichever call came first; with no way to tell, nothing is guessed.
+        want = _short(d.callee_name)
+        named = [u for u in sites if want and _short(index.call_names.get(u, "")) == want]
+        real = [u for u in sites if not index.call_names.get(u, "").startswith("<operator>")]
+        site = named[0] if named else (real[0] if len(real) == 1 else None)
+        if site is None or target is None:
             dropped["dispatch_unresolved"] += 1
             continue
-        k = ("OBSERVED_DISPATCH", "CpgCall", sites[0], target[0], target[1])
+        k = ("OBSERVED_DISPATCH", "CpgCall", site, target[0], target[1])
         plan.edges[k] = plan.edges.get(k, 0) + 1
 
     plan.dropped = dropped

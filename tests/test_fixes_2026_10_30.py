@@ -2,14 +2,20 @@
 demonstrated against the real module before it was fixed. Token-free, offline, no Neo4j."""
 import io
 import json
+import os
+import stat
 import sys
 
-from orion import cli, embed, monitor, sarif
+import pytest
+
+from orion import claude_cli, cli, discover, embed, monitor, sarif
 from orion.contracts import Lead, Verdict, clean_location
 from orion.dedup import dedup
 from orion.graph import schema, shortlists
 from orion.graph.deps import parse_dependencies
 from orion.graph.profiles import EXPRESS
+from orion.runtime.correlate import build_line_starts, correlate, index_from_rows
+from orion.runtime.trace import ObservedDispatch, RuntimeTrace
 
 
 def _lead(i=0, shape="A", conf="MEDIUM", **kw):
@@ -166,3 +172,82 @@ def test_one_candidate_row_per_uid(tmp_path):
 def test_keyword_query_keeps_unicode_letters_like_the_simple_analyzer():
     assert embed.keyword_query("contraseña del usuario") == "contraseña del usuario"
     assert embed.keyword_query("eval(req.body.preTax) $where") == "eval req body pretax where"
+
+
+# ── round 3: the agent plumbing (claude_cli, discover, runtime correlate) ─
+def test_claude_output_is_decoded_as_utf8_not_the_locale(tmp_path):
+    """Windows' cp1252 has no character for 0x8F (in the UTF-8 of the warning sign's U+FE0F): the reader
+    died, stdout came back None and run_agent raised out of verify_all."""
+    result = {"type": "result", "subtype": "success", "is_error": False,
+              "structured_output": {"decision": "CONFIRM", "reason": "caf\u00e9 \u2192 \u26a0\ufe0f",
+                                    "file": "src/caf\u00e9.js"}}
+    script = tmp_path / "emit.py"
+    script.write_text("import sys\nsys.stdout.buffer.write(" + repr((json.dumps(result, ensure_ascii=False) + "\n")
+                                                                   .encode("utf-8")) + ")\n", encoding="utf-8")
+    out = claude_cli._run_once([sys.executable, str(script)], timeout=60, on_event=None)
+    assert out == result["structured_output"]
+
+
+def test_stream_lines_that_are_not_objects_are_skipped():
+    events, final = claude_cli.parse_stream_events('42\nnull\n[1]\n{"type": "result", "result": "{}"}\n')
+    assert final == {"type": "result", "result": "{}"} and events == [final]
+    assert claude_cli.parse_stream_events(None) == ([], None)
+
+
+def test_a_launch_failure_is_not_retried(monkeypatch):
+    calls, slept = [], []
+    monkeypatch.setattr(claude_cli, "_run_once", lambda cmd, **kw: calls.append(cmd) or
+                        {"_error": "failed to launch claude -p: [Errno 2] No such file"})
+    monkeypatch.setattr(claude_cli.time, "sleep", slept.append)
+    out = claude_cli.run_agent("s", "sys", "m", retries=2)
+    assert out["_error"].startswith("failed to launch") and len(calls) == 1 and slept == []
+
+
+def test_a_fenced_reply_whose_strings_quote_a_fence_is_unwrapped():
+    obj = {"decision": "CONFIRM", "reason": "r", "evidence": "the code: ```js eval(x)```"}
+    assert json.loads(claude_cli._unfence("```json\n" + json.dumps(obj) + "\n```")) == obj
+    two = "```json\n{\"a\": 1}\n```\nprose\n```json\n{\"b\": 2}\n```"
+    with pytest.raises(ValueError):
+        json.loads(claude_cli._unfence(two))           # two fences are still refused
+
+
+def test_leads_with_non_string_text_evidence_or_uids_are_dropped_or_cleaned():
+    leads = discover._to_leads({"leads": [
+        {"text": ["a"], "evidence": "e"}, {"text": 7, "evidence": "e"}, {"text": "t", "evidence": {"x": 1}},
+        {"text": "ok", "evidence": "e", "source_uid": 5, "sink_uid": ["k"]}]}, "A")
+    assert [(l.text, l.source_uid, l.sink_uid) for l in leads] == [("ok", None, None)]
+
+
+def test_a_reply_without_a_leads_array_is_an_error_not_zero_leads(monkeypatch):
+    monkeypatch.setattr(claude_cli, "run_agent", lambda *a, **k: {"findings": [{"text": "x"}]})
+    events: list[dict] = []
+    assert discover.discover("sid", events.append) == []
+    errs = [e for e in events if e["event"] == "error"]
+    assert errs and all("no leads array" in e["detail"] for e in errs)
+    assert not [e for e in events if e["event"] == "done" and e.get("phase") == "discover" and e.get("shape")]
+
+
+def test_javascript_line_terminators_end_a_line():
+    assert build_line_starts("a\rb\rc") == [0, 2, 4]                  # classic-Mac CR-only file
+    assert build_line_starts("a\u2028b\nc") == [0, 2, 4]               # U+2028 LINE SEPARATOR
+    assert build_line_starts("a\r\nb\r\nc") == [0, 3, 6]               # CRLF is still one line end
+
+
+def test_dispatch_goes_on_the_call_named_like_the_callee():
+    idx = index_from_rows([{"f": "app/impl.py", "l": 4, "fn": "app.impl.Impl.handle"}],
+                          [{"f": "app/a.py", "l": 6, "uid": "U_INFO", "name": "info"},
+                           {"f": "app/a.py", "l": 6, "uid": "U_HANDLE", "name": "handle"}])
+    trace = RuntimeTrace(dispatches=(ObservedDispatch("app/a.py", 6, "Impl.handle", "app/impl.py", 4),))
+    assert correlate(trace, idx, "sid").edges_of("OBSERVED_DISPATCH") == {
+        ("CpgCall", "U_HANDLE", "CpgMethod", "app.impl.Impl.handle"): 1}
+    anon = RuntimeTrace(dispatches=(ObservedDispatch("app/a.py", 6, "", "app/impl.py", 4),))
+    plan = correlate(anon, idx, "sid")                                  # two real calls, no name: not guessed
+    assert plan.edges_of("OBSERVED_DISPATCH") == {} and plan.dropped["dispatch_unresolved"] == 1
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows' temp folder is per-user already")
+def test_agents_run_from_a_private_folder_not_the_shared_tmp(monkeypatch, tmp_path):
+    monkeypatch.setattr(claude_cli.config, "MCP_CONFIG", "")
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    d = claude_cli._agent_cwd()
+    assert d == tmp_path / "cache" / "orion" / "agent-cwd" and stat.S_IMODE(d.stat().st_mode) & 0o077 == 0

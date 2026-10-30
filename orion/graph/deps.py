@@ -2,13 +2,15 @@
 
 Closes a data-gap that was empty on every repo before: with dependencies populated, discovery
 shape D can reason about outdated/known-vulnerable components (the OWASP A9 class). Language-
-agnostic by dispatch on manifest filename — package.json / requirements.txt / pom.xml / go.mod.
+agnostic by dispatch on manifest filename — package.json / requirements.txt / pom.xml / go.mod /
+pyproject.toml (PEP 621 and Poetry).
 Every parser is defensive: a malformed manifest yields [] (a warn, never a crashed build).
 """
 from __future__ import annotations
 
 import json
 import re
+import tomllib
 from pathlib import Path
 from xml.etree import ElementTree
 
@@ -121,12 +123,51 @@ def _from_gomod(repo: Path) -> list[tuple[str, str]]:
     return out
 
 
+def _from_pyproject(repo: Path) -> list[tuple[str, str]]:
+    """PEP 621 (`[project]` dependencies and optional-dependencies) and Poetry (`[tool.poetry]`
+    dependencies, dev-dependencies and groups). A project that declares its dependencies only here (no
+    requirements.txt) used to get no Dependency nodes at all. Poetry's `python` entry is the interpreter,
+    not a package."""
+    pp = repo / "pyproject.toml"
+    text = _read_text(pp) if pp.exists() else None
+    try:
+        data = tomllib.loads(text) if text is not None else {}
+    except (tomllib.TOMLDecodeError, ValueError):
+        return []
+
+    def table(d, *keys):
+        for k in keys:
+            d = d.get(k) if isinstance(d, dict) else None
+        return d if isinstance(d, dict) else {}
+
+    out: list[tuple[str, str]] = []
+    project = table(data, "project")
+    specs = list(project.get("dependencies") or [])
+    for group in table(project, "optional-dependencies").values():
+        specs.extend(group if isinstance(group, list) else [])
+    for spec in specs:
+        m = _REQ_LINE.match(spec) if isinstance(spec, str) else None
+        if m:
+            out.append((m.group(1), (m.group(2) or "").strip()))
+    poetry = table(data, "tool", "poetry")
+    tables = [table(poetry, "dependencies"), table(poetry, "dev-dependencies")]
+    tables += [table(g, "dependencies") for g in table(poetry, "group").values()]
+    for deps in tables:
+        for name, spec in deps.items():
+            if not isinstance(name, str) or name.lower() == "python":
+                continue
+            version = spec if isinstance(spec, str) else (spec.get("version") if isinstance(spec, dict) else "")
+            out.append((name, str(version or "")))
+    return out
+
+
 def parse_dependencies(repo_path: str | Path) -> list[tuple[str, str]]:
     """All declared dependencies of `repo` as (name, version) pairs, deduped by name (first wins).
     Reads whatever manifests are present; returns [] for a repo with none."""
     repo = Path(repo_path)
     pairs: list[tuple[str, str]] = []
-    for parser in (_from_package_json, _from_requirements, _from_pom, _from_gomod):
+    # pyproject last: a version pinned in requirements.txt wins over its range there (first wins)
+    for parser in (_from_package_json, _from_requirements, _from_pom, _from_gomod, _from_pyproject):
         pairs.extend(parser(repo))
     seen: set[str] = set()
     deduped: list[tuple[str, str]] = []

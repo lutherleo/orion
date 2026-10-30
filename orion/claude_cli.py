@@ -69,8 +69,14 @@ def _agent_cwd() -> Path:
     relative paths may assume the checkout, so the checkout stays the cwd."""
     if config.MCP_CONFIG:
         return _REPO_ROOT
-    d = Path(tempfile.gettempdir()) / "orion-agent-cwd"
-    d.mkdir(exist_ok=True)
+    # Private to this user: a fixed folder in the shared /tmp could be created first by another local user,
+    # who could then plant Claude Code project settings (hooks) or a CLAUDE.md there or in /tmp itself (a
+    # parent the CLI also reads). Windows' temp folder is already per-user.
+    if os.name == "nt":
+        d = Path(tempfile.gettempdir()) / "orion-agent-cwd"
+    else:
+        d = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "orion" / "agent-cwd"
+    d.mkdir(parents=True, exist_ok=True, mode=0o700)
     return d
 
 
@@ -160,6 +166,7 @@ def parse_stream_events(
     last `{"type":"result"}` line seen (or None if the stream never produced one).
     """
     on_event = on_event or (lambda ev: None)
+    raw = raw if raw is not None else ""
     lines = raw.splitlines() if isinstance(raw, str) else raw
 
     events: list[dict] = []
@@ -173,6 +180,8 @@ def parse_stream_events(
         try:
             obj = json.loads(line)
         except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):    # `42`, `null`, `[1]`: valid JSON, not an event
             continue
         events.append(obj)
 
@@ -248,7 +257,7 @@ def _unfence(text: str) -> str:
     around a fence, or several fences, are left as-is and still fail json.loads -- nothing is guessed
     out of free text."""
     m = _FENCE.match(text)
-    return m.group(1) if m and "```" not in m.group(1) else text
+    return m.group(1) if m else text   # two fences leave a ``` line inside, which json.loads refuses
 
 
 def _final_to_result(final: dict | None) -> dict:
@@ -276,6 +285,9 @@ def _final_to_result(final: dict | None) -> dict:
     return {"_error": "no structured_output or result field in final event"}
 
 
+_LAUNCH_FAILED = "failed to launch claude -p"
+
+
 def _run_once(cmd: list[str], *, timeout: int, on_event: Callable[[dict], None] | None) -> dict:
     """One `claude -p` invocation. Returns the parsed structured object on success, else a rich
     failure sentinel. Crucially, stdout is parsed EVEN on a non-zero exit: any tool_use still
@@ -283,13 +295,15 @@ def _run_once(cmd: list[str], *, timeout: int, on_event: Callable[[dict], None] 
     opaque (the prior code discarded stdout on non-zero exit and left failures unexplainable)."""
     try:
         r = subprocess.run(
-            cmd, text=True, capture_output=True, timeout=timeout,
+            # UTF-8, not text=True: the locale's cp1252 on Windows garbled non-ASCII and, on bytes it has no
+            # character for (0x81, 0x8D, 0x8F, 0x90, 0x9D), left stdout None and crashed verify_all
+            cmd, encoding="utf-8", errors="replace", capture_output=True, timeout=timeout,
             stdin=subprocess.DEVNULL, cwd=str(_agent_cwd()),
         )
     except subprocess.TimeoutExpired:
         return {"_error": f"claude -p timed out after {timeout}s"}
     except OSError as exc:
-        return {"_error": f"failed to launch claude -p: {exc}"}
+        return {"_error": f"{_LAUNCH_FAILED}: {exc}"}
 
     # Parse regardless of exit code: fires tool events + lets us salvage a partial result / tail.
     _events, final = parse_stream_events(r.stdout, on_event)
@@ -358,6 +372,8 @@ def run_agent(
 
         result = _run_once(cmd, timeout=call_timeout, on_event=on_event)
         if "_error" not in result:
+            return result
+        if result["_error"].startswith(_LAUNCH_FAILED):   # nothing ran: a retry would fail the same way
             return result
 
         if attempt < attempts - 1 and not _STOP.is_set():
