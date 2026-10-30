@@ -87,9 +87,9 @@ def test_build_cmd_omits_effort_flag_when_unset():
 
 
 def test_config_home_is_per_cli():
-    assert plain.config_home("plain-gpt", "/c") == "/c/codex"
-    assert plain.config_home("plain-opus5", "/c") == "/c/claude"
-    assert plain.config_home("plain-sonnet5", "/c") == "/c/claude"
+    assert plain.config_home("plain-gpt", "/c") == os.path.join("/c", "codex")
+    assert plain.config_home("plain-opus5", "/c") == os.path.join("/c", "claude")
+    assert plain.config_home("plain-sonnet5", "/c") == os.path.join("/c", "claude")
     assert plain.CONFIG_ROOT.endswith(os.path.join("eval", ".config"))
 
 

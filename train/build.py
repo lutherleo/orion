@@ -246,10 +246,13 @@ def _scoped_tempdir(path: str):
         tempfile.tempdir = old
 
 
-def _maxrss_mb() -> tuple[float, float]:
-    """(this process, largest finished child) RSS high-water marks in MB. ru_maxrss is bytes on macOS,
-    KiB on Linux."""
-    import resource  # POSIX-only; imported here so the module (and its tests) load on Windows
+def _maxrss_mb() -> tuple[float | None, float | None]:
+    """(this process, largest finished child) RSS high-water marks in MB, or (None, None) where there is
+    no getrusage (Windows): recorded as missing, never guessed. ru_maxrss is bytes on macOS, KiB on Linux."""
+    try:
+        import resource  # POSIX-only; imported here so the module (and its tests) load on Windows
+    except ImportError:
+        return None, None
     div = 1024 * 1024 if sys.platform == "darwin" else 1024
     return (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / div,
             resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / div)
@@ -279,7 +282,7 @@ def _capture(rec: dict, events_path: str | None, pair_id: str, side: str):
                 if m and m["label"] in _STAGES:
                     rec["timings"][_STAGES[m["label"]]] = float(m["s"])
         if events_path:
-            with open(events_path, "a") as fh:
+            with open(events_path, "a", encoding="utf-8") as fh:
                 fh.write(json.dumps({"pair": pair_id, "side": side, "ev": ev}, default=str) + "\n")
     return on_event
 
@@ -325,14 +328,15 @@ def _build_side(pair: dict, side: str, sha: str, mirror_dir: str, work_root: str
                 shutil.move(cpg, dest)
                 rec["cpg_bin_kept"] = dest
             break
-        shutil.rmtree(tree, ignore_errors=True)
-        shutil.rmtree(tmp, ignore_errors=True)
+        erepo.remove_tree(tree)
+        erepo.remove_tree(tmp)
         rec["timings"]["side_total_s"] = round(time.monotonic() - t0, 3)
         rss1 = _maxrss_mb()
-        rec["maxrss_python_mb_hwm"], rec["maxrss_children_mb_hwm"] = round(rss1[0], 1), round(rss1[1], 1)
+        hwm = [None if v is None else round(v, 1) for v in rss1]
+        rec["maxrss_python_mb_hwm"], rec["maxrss_children_mb_hwm"] = hwm
         # Lifetime high-water marks: attributable to THIS side only if they rose during it.
-        rec["peak_rss_python_mb"] = round(rss1[0], 1) if rss1[0] > rss0[0] else None
-        rec["peak_rss_children_mb"] = round(rss1[1], 1) if rss1[1] > rss0[1] else None
+        rec["peak_rss_python_mb"] = hwm[0] if hwm[0] is not None and rss1[0] > rss0[0] else None
+        rec["peak_rss_children_mb"] = hwm[1] if hwm[1] is not None and rss1[1] > rss0[1] else None
         rec["finished_at"] = _now()
     if rec["status"] == "ok" and db is not None:
         try:
@@ -423,7 +427,7 @@ def read_ledger(path: str) -> list[dict]:
     """Every parseable line (a torn last line from a hard kill is skipped)."""
     rows = []
     if os.path.exists(path):
-        with open(path) as fh:
+        with open(path, encoding="utf-8") as fh:
             for line in fh:
                 try:
                     r = json.loads(line)
@@ -436,7 +440,7 @@ def read_ledger(path: str) -> list[dict]:
 
 def _append(path: str, rec: dict) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    with open(path, "a") as fh:
+    with open(path, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(rec, default=str) + "\n")
         fh.flush()
         os.fsync(fh.fileno())
@@ -448,7 +452,7 @@ def _run_lock(work_root: str):
     os.makedirs(work_root, exist_ok=True)
     lock = os.path.join(work_root, ".build.lock")
     try:
-        with open(lock) as fh:
+        with open(lock, encoding="utf-8") as fh:
             pid = int(fh.read().strip() or 0)
         if pid and pid != os.getpid():
             try:
@@ -458,7 +462,7 @@ def _run_lock(work_root: str):
                 pass
     except (FileNotFoundError, ValueError):
         pass
-    with open(lock, "w") as fh:
+    with open(lock, "w", encoding="utf-8") as fh:
         fh.write(str(os.getpid()))
     try:
         yield
@@ -523,7 +527,7 @@ def build_all(pairs: list[dict], mirror_root: str, work_root: str, *, ledger: st
     try:
         with _run_lock(work_root):
             for d in ("trees", "tmp"):   # leftovers from a hard-killed run
-                shutil.rmtree(os.path.join(work_root, d), ignore_errors=True)
+                erepo.remove_tree(os.path.join(work_root, d))
             if db is not None:
                 _append(capacity_log, _capacity(db, work_root, 0))
             fails = 0
@@ -614,7 +618,7 @@ def main(argv=None) -> int:
         finally:
             db.close()
         return 0
-    with open(a.pairs) as fh:
+    with open(a.pairs, encoding="utf-8") as fh:
         pairs = json.load(fh)
     if a.ids:
         want = set(a.ids.split(","))

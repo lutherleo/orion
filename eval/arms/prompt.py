@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from string import Template
 
-FINDINGS_SCHEMA = json.loads((Path(__file__).parent / "findings.schema.json").read_text())
+FINDINGS_SCHEMA = json.loads((Path(__file__).parent / "findings.schema.json").read_text(encoding="utf-8"))
 
 TASK_PROMPT = """You are a security auditor. Review the source code in the current repository \
 for exploitable security vulnerabilities in its own first-party code (ignore third-party \

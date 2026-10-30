@@ -3,6 +3,7 @@ import os
 import re
 import signal
 import subprocess
+import sys
 import tempfile
 
 import pytest
@@ -207,6 +208,7 @@ def test_build_pair_timings_come_from_builder_events_and_missing_ones_are_null(t
     assert out2["sides"]["vulnerable"]["neo4j_nodes"] is None          # no DB -> null, not 0
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups (sh, ps -o pgid)")
 def test_children_run_outside_the_terminal_process_group():
     """Subprocesses started inside a build (joern-parse, the stream producer) get their own session,
     so a terminal Ctrl-C reaches only the orchestrator; guards against Ctrl-C killing Joern mid-side
@@ -294,6 +296,7 @@ def test_build_all_keeps_going_after_a_build_failure(tmp_path, multi):
     assert "rc=137" in rows[0]["reason"]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="os.kill(own pid, SIGINT) terminates the process on Windows")
 def test_build_all_sigint_finishes_current_side_writes_ledger_and_stops(tmp_path, multi):
     """Ctrl-C (SIGINT) mid-side lets that side finish, writes the pair's ledger line as 'interrupted',
     starts nothing else, returns normally and restores the old handler; the next run rebuilds that pair

@@ -37,7 +37,7 @@ def urllib_get(url: str):
 def _load(path: str) -> dict[str, dict]:
     recs = {}
     if os.path.exists(path):
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     r = json.loads(line)
@@ -78,7 +78,7 @@ def run(cves, cache_path: str = DEFAULT_CACHE, *, get=urllib_get, sleep=time.sle
     log(f"[cve-dates] {len(todo)} to fetch ({len(recs)} cached)")
     os.makedirs(os.path.dirname(cache_path) or ".", exist_ok=True)
     counts: dict[str, int] = {}
-    with open(cache_path, "a") as f:
+    with open(cache_path, "a", encoding="utf-8") as f:
         for i, cve in enumerate(todo, 1):
             rec = fetch(cve, get=get, sleep=sleep)
             f.write(json.dumps(rec, sort_keys=True) + "\n")
@@ -113,7 +113,7 @@ def main(argv=None) -> int:
     ap.add_argument("--todo", required=True, help="JSON list of CVE ids (from `train/mine.py collect`)")
     ap.add_argument("--cache", default=DEFAULT_CACHE)
     args = ap.parse_args(argv)
-    with open(args.todo) as f:
+    with open(args.todo, encoding="utf-8") as f:
         cves = json.load(f)
     print(json.dumps(run(cves, args.cache, log=lambda *a: print(*a, flush=True))), flush=True)
     return 0

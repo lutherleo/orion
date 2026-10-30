@@ -180,7 +180,7 @@ def main(argv=None) -> None:
                steps=steps, rows=rows.rows, caps={"memory_gb": a.memory_gb, "wired_gb": a.wired_gb,
                                                   "cache_gb": a.cache_gb})
     trainer.save_model(a.out)
-    with open(os.path.join(a.out, "memory.json"), "w") as fh:
+    with open(os.path.join(a.out, "memory.json"), "w", encoding="utf-8") as fh:
         json.dump(mem, fh, indent=1)
     print(f"mlx_train: done {json.dumps(mem)}", flush=True)
 

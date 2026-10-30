@@ -7,7 +7,7 @@ _COMMIT_STATUS = {"commit_missing": "commit_missing", "error": "commit_fetch_err
 def load_candidates(path: str) -> list[dict]:
     rows = []
     header = None
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             if line.startswith("#"):
                 continue

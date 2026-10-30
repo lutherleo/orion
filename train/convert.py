@@ -29,10 +29,10 @@ def merge_lora(base_dir: str, adapter_dir: str, out_dir: str) -> str:
     base, out = Path(base_dir), Path(out_dir)
     if out.exists():
         raise FileExistsError(out)
-    q = json.loads((base / "config.json").read_text())["quantization"]
-    scale = json.loads((Path(adapter_dir) / "adapter_config.json").read_text())["lora_parameters"]["scale"]
+    q = json.loads((base / "config.json").read_text(encoding="utf-8"))["quantization"]
+    scale = json.loads((Path(adapter_dir) / "adapter_config.json").read_text(encoding="utf-8"))["lora_parameters"]["scale"]
     ad = mx.load(str(Path(adapter_dir) / "adapters.safetensors"))
-    index = json.loads((base / "model.safetensors.index.json").read_text())
+    index = json.loads((base / "model.safetensors.index.json").read_text(encoding="utf-8"))
     adapted = sorted({k.rsplit(".", 1)[0] for k in ad})
     if missing := [m for m in adapted if f"{m}.scales" not in index["weight_map"]]:
         raise ValueError(f"adapter layers not quantized in {base_dir}: {missing}")
@@ -54,5 +54,5 @@ def merge_lora(base_dir: str, adapter_dir: str, out_dir: str) -> str:
     for m in adapted:
         del index["weight_map"][f"{m}.scales"], index["weight_map"][f"{m}.biases"]
     index.setdefault("metadata", {})["total_size"] = total
-    (out / "model.safetensors.index.json").write_text(json.dumps(index, indent=2))
+    (out / "model.safetensors.index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
     return out_dir

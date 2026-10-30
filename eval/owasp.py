@@ -23,11 +23,11 @@ import json
 import os
 import random
 import re
-import shutil
 import tempfile
 from datetime import date
 
 from eval.match import _same_file   # the frozen L1 "same file" rule (./-stripped, suffix match)
+from eval.repo import remove_tree
 
 # The two benchmarks of the study (spec 5.4). `version` must equal the version in the header of the
 # expected-results CSV at the pinned commit (build_sample checks it).
@@ -290,7 +290,7 @@ def youden(rows: list):
 # ---- the sample file (eval/dataset/owasp_sample.json) --------------------------------------------
 
 def load_sample(path: str) -> dict:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict) or not isinstance(data.get("benchmarks"), list):
         raise ValueError(f'{path}: OWASP sample must be {{"benchmarks": [...], ...}}')
@@ -378,7 +378,7 @@ def build_sample(specs: list, *, n_per_lang: int = 60, seed: int = 0, tmp_root=N
                                "expected_results": csvs[0], "expected_results_sha256": _sha256(csv_path),
                                "csv_cases": len(rows), "cases": cases})
         finally:
-            shutil.rmtree(work, ignore_errors=True)
+            remove_tree(work)
     return {"version": 1, "generated": date.today().isoformat(), "seed": seed, "n_per_lang": n_per_lang,
             "note": "OWASP Benchmark false-alarm set (spec 5.4): one targeted-judgement run per case. "
                     "Built by `python -m eval.owasp` from each repo's own expected-results CSV at "
@@ -404,7 +404,7 @@ def main(argv=None) -> int:
         for e in errs:
             print(e, flush=True)
         return 2
-    with open(args.out, "w") as f:
+    with open(args.out, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=1)
         f.write("\n")
     for b in data["benchmarks"]:

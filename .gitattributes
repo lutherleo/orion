@@ -1,0 +1,4 @@
+# Shell scripts keep LF in every checkout: a Windows checkout (core.autocrlf=true) is also run from WSL,
+# where bash cannot run a CRLF script (eval's `claude` usage shim, train/start_c1.sh).
+*.sh text eol=lf
+eval/shim/* text eol=lf

@@ -266,7 +266,7 @@ COMMIT;
 
 def test_cvefixes_parses_sqlite_dump_without_executing_it(tmp_path):
     f = tmp_path / "dump.sql.gz"
-    with gzip.open(f, "wt") as g:
+    with gzip.open(f, "wt", encoding="utf-8", newline="\n") as g:   # like the real dump: LF, UTF-8
         g.write(_DUMP)
     rows = {r["id"]: r for r in sources.cvefixes(str(f))}
     a = rows["CVE-2019-1"]
@@ -452,7 +452,7 @@ def test_copy_field_unescapes_postgres_text_format():
 
 def test_morefixes_parses_postgres_copy_dump_without_loading_it(tmp_path):
     f = tmp_path / "dump.sql.gz"
-    with gzip.open(f, "wt") as g:
+    with gzip.open(f, "wt", encoding="utf-8", newline="\n") as g:   # like the real dump: LF, UTF-8
         g.write(_PG_DUMP)
     st: dict = {}
     rows = {r["id"]: r for r in sources.morefixes(str(f), stats=st)}

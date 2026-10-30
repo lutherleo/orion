@@ -49,7 +49,7 @@ _GH = re.compile(r"github\.com[/:]([^/\s]+)/([^/\s]+?)(?:\.git)?/?$", re.I)
 
 def load(path: str) -> dict:
     """Parse the manifest file; checks only the top-level {"repos": [...]} structure."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict) or not isinstance(data.get("repos"), list):
         raise ValueError(f'{path}: manifest must be {{"repos": [...]}}')
@@ -180,9 +180,9 @@ def split_repos(pairs_path: str = "train/data/pairs.json",
             raise FileNotFoundError(
                 f"{what} file not found: {p} (needed for the training-repo check; "
                 f"pairs.json is gitignored and lives only in a checkout's train/data/)")
-    with open(pairs_path) as f:
+    with open(pairs_path, encoding="utf-8") as f:
         pairs = {p["id"]: p for p in json.load(f)}
-    with open(splits_path) as f:
+    with open(splits_path, encoding="utf-8") as f:
         assignment = json.load(f)["assignment"]
     missing = sorted(set(assignment) - set(pairs))
     if missing:

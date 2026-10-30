@@ -289,7 +289,7 @@ def readymade(kind: str, path: str, *, stats: dict | None = None, advisory_dir: 
 def _csv_rows(path: str) -> list[dict]:
     if not os.path.exists(path):
         return []
-    with open(path, newline="") as f:
+    with open(path, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
@@ -316,7 +316,7 @@ def _cwe_bench_java(root: str, advisory_dir: str | None = None) -> list[dict]:
         adv_path = os.path.join(adv_dir, f"{r['project_slug']}.json") if adv_dir else ""
         published, aliases = None, [r.get("advisory_id") or ""]
         if adv_path and os.path.exists(adv_path):
-            with open(adv_path) as af:
+            with open(adv_path, encoding="utf-8") as af:
                 adv = json.load(af)
             published = _date(adv.get("published"))
             aliases += adv.get("aliases") or []
@@ -336,7 +336,7 @@ def _cwe_bench_java(root: str, advisory_dir: str | None = None) -> list[dict]:
 def _openssf(root: str, stats) -> list[dict]:
     rows = []
     for p in sorted(glob.glob(os.path.join(root, "CVEs", "*.json"))):
-        with open(p) as f:
+        with open(p, encoding="utf-8") as f:
             d = json.load(f)
         if d.get("state") != "PUBLISHED":
             _bump(stats, f"skipped_state:{d.get('state')}")
@@ -354,7 +354,7 @@ def _openssf(root: str, stats) -> list[dict]:
 
 def _vul4j(csv_path: str) -> list[dict]:
     rows = []
-    with open(csv_path, newline="") as f:
+    with open(csv_path, newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             m = _COMMIT.search(r.get("human_patch") or "")
             cve = r.get("cve_id") if (r.get("cve_id") or "").upper().startswith("CVE-") else None
@@ -384,7 +384,7 @@ def sap_kb(root: str) -> list[dict]:
 
     rows = []
     for p in sorted(glob.glob(os.path.join(root, "statements", "*", "statement.yaml"))):
-        with open(p) as f:
+        with open(p, encoding="utf-8") as f:
             d = yaml.safe_load(f) or {}
         vid = str(d.get("vulnerability_id") or os.path.basename(os.path.dirname(p)))
         commits = [(c.get("repository") or "", str(c.get("id") or "")) for fx in d.get("fixes") or []
@@ -402,7 +402,7 @@ def sap_kb(root: str) -> list[dict]:
 
 def crossvul(metadata_json: str) -> list[dict]:
     """CrossVul metadata.json: one entry per fix commit -> one row per (CVE, repo)."""
-    with open(metadata_json) as f:
+    with open(metadata_json, encoding="utf-8") as f:
         entries = json.load(f)
     groups: dict = {}
     for e in entries:
@@ -451,7 +451,7 @@ def vulcan(reviews_dir: str) -> list[dict]:
     reviewer's corrected CWE and source->sink locations (paths relative to the npm tarball)."""
     rows = []
     for p in sorted(glob.glob(os.path.join(reviews_dir, "*.json"))):
-        with open(p) as f:
+        with open(p, encoding="utf-8") as f:
             d = json.load(f)
         adv = d.get("advisory") or {}
         aid = str(adv.get("id") or "")
@@ -479,7 +479,7 @@ def secbench_js(root: str) -> list[dict]:
     rows = []
     for cls in sorted(_SECBENCH_CLASS):
         for p in sorted(glob.glob(os.path.join(root, cls, "*", "package.json"))):
-            with open(p) as f:
+            with open(p, encoding="utf-8") as f:
                 d = json.load(f)
             deps = d.get("dependencies") or {}
             pkg, ver = next(iter(deps.items()), (None, None))
@@ -501,7 +501,7 @@ def javavulbench(jsonl: str) -> list[dict]:
     """JavaVulBench (Zenodo 10.5281/zenodo.20110173) method-level benchmark -> one row per (CVE, repo),
     fix commits as given, vulnerable methods kept as annotations."""
     groups: dict = {}
-    with open(jsonl) as f:
+    with open(jsonl, encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
@@ -531,7 +531,7 @@ def repopairbench(jsonl: str) -> list[dict]:
     import ast
 
     rows = []
-    with open(jsonl) as f:
+    with open(jsonl, encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
@@ -563,7 +563,7 @@ def pyvul(root: str) -> list[dict]:
         path = os.path.join(root, name)
         if not os.path.exists(path):
             return default
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
 
     cwes, ids = defaultdict(set), defaultdict(set)
@@ -589,7 +589,7 @@ def pyvul(root: str) -> list[dict]:
                 ids[k] |= {e.get("cve") or None, sid.group(1) if sid else None}
                 cwes[k].add(e.get("cwe"))
     rows = []
-    with open(os.path.join(root, "commit_level_dataset.out")) as f:
+    with open(os.path.join(root, "commit_level_dataset.out"), encoding="utf-8") as f:
         for line in f:
             k = key(line.strip())
             if not k:
