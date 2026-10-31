@@ -345,6 +345,16 @@ def _run_scan(args: argparse.Namespace) -> int:
                           stream=args.stream, queue_size=args.queue_size,
                           on_batch=None if lm_engine else _index_semantic, **build_kwargs)
         on_event(_event("build", "done", detail="graph build complete"))
+        if lm_engine:
+            from .graph import scans
+            try:
+                err = scans.pathfind_error(scans.get_record(scan_id))
+            except Exception:  # noqa: BLE001 -- unreadable now means discovery's own flow read fails too (exit 3)
+                err = None
+            if err:   # no CandidateFlows: discovery would judge nothing and report a clean 0 leads
+                print(f"orion scan: the flow search failed at build ({err}); recompute it with: "
+                      f"orion reanalyze --scan-id {scan_id} --engine lm", file=sys.stderr)
+                return 3
     else:
         on_event(_event("build", "done", detail=f"using existing scan_id {scan_id}"))
         if args.repo and not lm_engine:
@@ -639,6 +649,9 @@ def _build_parser() -> argparse.ArgumentParser:
     gc.add_argument("--include-unrecorded", dest="include_unrecorded", action="store_true",
                     help="also delete scans with no OrionScan record (built before records existed); "
                          "refused until a --dry-run --include-unrecorded has listed them")
+    gc.add_argument("--include-building", dest="include_building", action="store_true",
+                    help="also delete records still 'building' (a crashed build; gc cannot tell one from a "
+                         "build or reanalyze still running, so they are kept by default)")
 
     tr = sub.add_parser("trace",
                         help="runtime stage on its own: drive the target and record what ran into an "
@@ -815,7 +828,7 @@ def _run_gc(args: argparse.Namespace) -> int:
     from .graph import scans
     try:
         out = scans.gc(keep=args.keep, prefix=args.prefix, dry_run=args.dry_run,
-                       include_unrecorded=args.include_unrecorded)
+                       include_unrecorded=args.include_unrecorded, include_building=args.include_building)
     except scans.GcRefused as exc:
         print(f"orion gc: {exc}", file=sys.stderr)
         return 2
@@ -826,6 +839,8 @@ def _run_gc(args: argparse.Namespace) -> int:
         removed = row.get("removed")
         what = (", ".join(f"{k} {v}" for k, v in removed.items() if v) or "nothing") if removed else ""
         print(f"{verb:<13} {row['scan_id']} ({row['status'] or 'unrecorded'}){': ' + what if what else ''}")
+    for sid in out.get("building", []):
+        print(f"not touched   {sid} (building: running, or crashed; delete it with --include-building)")
     if out["unrecorded"] and not args.include_unrecorded:
         print(f"{len(out['unrecorded'])} unrecorded scan(s) not touched; list them with "
               "--dry-run --include-unrecorded")

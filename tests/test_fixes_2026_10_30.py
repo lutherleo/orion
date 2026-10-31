@@ -251,3 +251,105 @@ def test_agents_run_from_a_private_folder_not_the_shared_tmp(monkeypatch, tmp_pa
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     d = claude_cli._agent_cwd()
     assert d == tmp_path / "cache" / "orion" / "agent-cwd" and stat.S_IMODE(d.stat().st_mode) & 0o077 == 0
+
+
+# ── round 4 ─────────────────────────────────────────────────────────────
+def test_sarif_rules_carry_the_highest_security_severity_of_their_results():
+    def v(cwe, severity, line):
+        return Verdict(lead=_lead(file="a.js", cwe=cwe, line_start=line), decision="CONFIRM", reason="r",
+                       severity=severity)
+    run = sarif.to_sarif([v("CWE-89", "MEDIUM", 1), v("CWE-89", "HIGH", 9), v("CWE-79", None, 3)])["runs"][0]
+    rules = {r["id"]: r["properties"] for r in run["tool"]["driver"]["rules"]}
+    assert rules["CWE-89"]["security-severity"] == "8.0"            # GitHub reads it here, not on results
+    assert "security-severity" not in rules["CWE-79"]                 # no severity given: none invented
+    assert [r["properties"].get("security-severity") for r in run["results"]] == ["5.5", "8.0", None]
+
+
+# scan records and gc (the data-deleting paths)
+class _FakeResult:
+    def __init__(self, n=0):
+        self.n = n
+
+    def consume(self):
+        return None
+
+    def single(self):
+        return {"n": self.n}
+
+
+class _FakeSession:
+    def __init__(self, log):
+        self.log = log
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def run(self, query, **kw):
+        self.log.append(("run", query))
+        return _FakeResult()
+
+    def execute_write(self, fn):
+        class Tx:
+            def run(tx, query, **kw):
+                self.log.append(("write", query))
+                return _FakeResult(0)
+        return fn(Tx())
+
+
+class _FakeDriver:
+    def __init__(self):
+        self.log = []
+
+    def session(self, **kw):
+        return _FakeSession(self.log)
+
+    def close(self):
+        pass
+
+
+def test_a_scan_delete_marks_the_record_deleting_before_any_node_goes():
+    from orion.graph import scans
+    d = _FakeDriver()
+    scans.delete_scan(d, "sid", scans.SCAN_LABELS)
+    writes = [q for kind, q in d.log if kind == "write"]
+    assert "SET r.status" in writes[0] and "DETACH DELETE" not in writes[0]
+    assert all("DETACH DELETE" in q for q in writes[1:])
+    d2 = _FakeDriver()
+    scans.delete_scan(d2, "sid", ("CandidateFlow",))                 # the record is not being deleted
+    assert all("DETACH DELETE" in q for kind, q in d2.log if kind == "write")
+
+
+def test_check_usable_refuses_a_half_deleted_scan_and_an_lm_scan_without_flows(monkeypatch):
+    from orion.graph import scans
+    record = {"status": "complete", "profile": "", "built_at": "t",
+              "counts": {"precompute": {"pathfind": {"error": "RuntimeError: boom"}}}}
+    monkeypatch.setattr(scans, "get_record", lambda sid: dict(record, status="deleting"))
+    assert "being deleted" in scans.check_usable("s", engine="claude", repo=None)
+    monkeypatch.setattr(scans, "get_record", lambda sid: dict(record))
+    monkeypatch.setattr(scans, "expected_profile", lambda engine, repo: "generic+lm" if engine == "lm" else None)
+    record["profile"] = "generic+lm"
+    problem = scans.check_usable("s", engine="lm", repo="r")
+    assert "flow search failed" in problem and "orion reanalyze --scan-id s --engine lm" in problem
+    record["counts"] = {"precompute": {"pathfind": {"flows": 3}}}
+    assert scans.check_usable("s", engine="lm", repo="r") is None
+    assert scans.pathfind_error(None) is None
+
+
+def test_gc_keeps_a_record_that_is_still_building_unless_asked(monkeypatch):
+    from orion.graph import scans
+    recs = [{"scan_id": "new", "status": "complete", "built_at": "3"},
+            {"scan_id": "busy", "status": "building", "built_at": "2"},
+            {"scan_id": "old", "status": "complete", "built_at": "1"}]
+    deleted = []
+    monkeypatch.setattr(scans.GraphDatabase, "driver", lambda *a, **k: _FakeDriver())
+    monkeypatch.setattr(scans, "_records", lambda s: [dict(r) for r in recs])
+    monkeypatch.setattr(scans, "_unrecorded_ids", lambda s, recorded: set())
+    monkeypatch.setattr(scans, "delete_scan", lambda driver, sid, labels: deleted.append(sid) or {})
+    out = scans.gc(keep=1)
+    assert out["kept"] == ["new"] and out["building"] == ["busy"] and deleted == ["old"]
+    deleted.clear()
+    out = scans.gc(keep=1, include_building=True)
+    assert out["building"] == [] and deleted == ["busy", "old"]

@@ -95,6 +95,11 @@ def to_sarif(verdicts: list[Verdict]) -> dict:
         if v.severity:
             props["severity"] = v.severity
             props["security-severity"] = _SECURITY_SEVERITY[v.severity]
+            # GitHub code scanning reads the severity from the RULE (reportingDescriptor) properties, not
+            # the result's: the rule gets the highest severity among its results.
+            rule_props = rules[rule_id]["properties"]
+            if float(props["security-severity"]) > float(rule_props.get("security-severity", "0")):
+                rule_props["security-severity"] = props["security-severity"]
         result = {
             "ruleId": rule_id,
             "level": level,
