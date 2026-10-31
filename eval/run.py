@@ -3,7 +3,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import tempfile
 import time
@@ -298,7 +297,7 @@ def build_launcher(*, base_env, shim_dir, graph_cache, _plain=_default_plain, _l
                 # the arm copies its findings.json out of the tree before it is deleted
                 res = _plain(shim_dir=shim_dir, **common)
         finally:
-            shutil.rmtree(work, ignore_errors=True)   # the tree and anything an arm left next to it
+            repo.remove_tree(work)   # the tree and anything an arm left next to it
         return res
     return launcher
 

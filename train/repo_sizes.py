@@ -29,7 +29,7 @@ def _is_404(exc: BaseException) -> bool:
 def _read_cache(path: str) -> dict[str, int | None]:
     got: dict[str, int | None] = {}
     if os.path.exists(path):
-        with open(path) as fh:
+        with open(path, encoding="utf-8") as fh:
             for line in fh:
                 try:
                     r = json.loads(line)
@@ -59,7 +59,7 @@ def fetch_sizes(repos: list[str], cache: str, *, run=None) -> dict[str, int | No
                     raise
                 size = None
             got[repo] = size
-            with open(cache, "a") as fh:
+            with open(cache, "a", encoding="utf-8") as fh:
                 fh.write(json.dumps({"repo": repo, "size_kb": size}) + "\n")
                 fh.flush()
         out[repo] = got[repo]

@@ -5,10 +5,10 @@ are downloaded when `sha` is checked out. Nothing here raises on a git failure: 
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import time
 
+from eval.repo import remove_tree
 from train.build import _err
 
 CLONE_TIMEOUT_S = 900
@@ -50,7 +50,7 @@ def fetch(repo_url: str, sha: str, dest: str, *, globs: list[str], run=None,
     Returns {ok, seconds, bytes (size of dest on disk, None on failure), error (head of the failure
     text, None on success)}. Any existing `dest` is removed first, and a failed fetch removes what it created, so a retry starts clean."""
     run = run or _default_run
-    shutil.rmtree(dest, ignore_errors=True)   # dest is a runner-owned work dir; a stale one (hard kill) is replaced
+    remove_tree(dest)   # dest is a runner-owned work dir; a stale one (hard kill) is replaced
     t0 = time.monotonic()
     try:
         run(["git", "clone", "--filter=blob:none", "--no-checkout", "--quiet", "--", repo_url, dest],
@@ -58,7 +58,7 @@ def fetch(repo_url: str, sha: str, dest: str, *, globs: list[str], run=None,
         run(["git", "-C", dest, "sparse-checkout", "set", "--no-cone", *globs], timeout=timeout)
         run(["git", "-C", dest, "checkout", "--quiet", sha], timeout=timeout)
     except Exception as exc:  # noqa: BLE001 - reported, never raised
-        shutil.rmtree(dest, ignore_errors=True)
+        remove_tree(dest)
         return {"ok": False, "seconds": time.monotonic() - t0, "bytes": None,
                 "error": f"timeout after {timeout:g} s" if isinstance(exc, subprocess.TimeoutExpired)
                 else _head(exc)}

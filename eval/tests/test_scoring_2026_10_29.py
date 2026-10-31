@@ -38,6 +38,7 @@ def test_only_confirms_and_unverified_leads_are_findings(tmp_path):
     {"line_start": 9},                                              # the verifier re-read the line
     {"file": "b.py", "line_start": 2, "cwe": "CWE-79"},             # it moved the file
     {"file": "a.py", "line_end": 12},                               # same file, new end
+    {"line_end": 2},                                                # an end below the start is dropped
 ])
 def test_verdict_location_matches_contracts(verdict_fields):
     from orion.contracts import Lead, Verdict

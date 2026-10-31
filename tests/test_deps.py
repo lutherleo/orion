@@ -80,3 +80,28 @@ def test_nodegoat_dependencies_are_populated():
     deps = dict(parse_dependencies("fixtures/NodeGoat"))
     assert "express" in deps          # the A9 data-gap is now closed for a real repo
     assert len(deps) > 5
+
+
+def test_pyproject_pep621_and_poetry(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "x"\n'
+        'dependencies = ["django>=3.2,<4; python_version > \'3.8\'", "requests[socks]==2.19.0", "pkg @ https://x/y.whl"]\n'
+        '[project.optional-dependencies]\ntest = ["pytest>=8"]\n'
+        '[tool.poetry.dependencies]\npython = "^3.10"\nflask = "^2.0"\nlxml = {version = "4.9.1", extras = ["x"]}\n'
+        'mylib = {git = "https://example.com/mylib.git"}\n'
+        '[tool.poetry.group.dev.dependencies]\nblack = "23.1"\n', encoding="utf-8")
+    assert parse_dependencies(tmp_path) == [
+        ("django", ">=3.2,<4"), ("requests", "==2.19.0"), ("pkg", ""), ("pytest", ">=8"),
+        ("flask", "^2.0"), ("lxml", "4.9.1"), ("mylib", ""), ("black", "23.1")]
+
+
+def test_requirements_pin_wins_over_a_pyproject_range(tmp_path):
+    (tmp_path / "requirements.txt").write_text("django==3.2.0\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "x"\ndependencies = ["django>=3"]\n',
+                                             encoding="utf-8")
+    assert parse_dependencies(tmp_path) == [("django", "==3.2.0")]
+
+
+def test_malformed_pyproject_yields_empty(tmp_path):
+    (tmp_path / "pyproject.toml").write_text("[project\ndependencies = [", encoding="utf-8")
+    assert parse_dependencies(tmp_path) == []

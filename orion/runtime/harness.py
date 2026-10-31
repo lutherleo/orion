@@ -11,6 +11,7 @@ logged skip (no seeds -> the engine drives nothing), never a crash and never a f
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 import uuid
 from pathlib import Path
@@ -77,7 +78,9 @@ def _format_entry_points(rows: list[dict]) -> str:
 
 def generate(db, scan_id: str, repo: str, language: str, on_event: OnEvent | None = None,
              *, timeout: int = 300) -> str | None:
-    """Ask the agent for a driver; write it to a temp file and return its path (None on any skip)."""
+    """Ask the agent for a driver; write it into a private temp folder of its own and return its path
+    (None on any skip). The folder is the one the Docker sandbox mounts and the one a host run puts on
+    sys.path, so it holds nothing else: the shared temp dir used to be mounted (and importable) whole."""
     res = db.run_cypher(scan_id, _ENTRY_CYPHER, limit=200)
     entries = res.get("rows", []) if isinstance(res, dict) else []
     emit = on_event or (lambda ev: None)
@@ -104,8 +107,8 @@ def generate(db, scan_id: str, repo: str, language: str, on_event: OnEvent | Non
     if not isinstance(driver, str) or not driver.strip():
         emit(_ev("warn", "harness agent returned no driver, skipping"))
         return None
-    fd, path = tempfile.mkstemp(prefix="orion_harness_", suffix=_SUFFIX.get(language, ".txt"))
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
+    path = os.path.join(tempfile.mkdtemp(prefix="orion_harness_"), "harness" + _SUFFIX.get(language, ".txt"))
+    with open(path, "w", encoding="utf-8") as f:
         f.write(driver)
     notes = result.get("notes") if isinstance(result.get("notes"), str) else ""
     emit(_ev("done", f"harness written ({len(driver)} chars): {notes[:160]}"))
@@ -135,6 +138,7 @@ class HarnessDriver:
         self._isolation = isolation
         self._image = image or default_image(language)
         self.use_docker = False
+        self._generated: str | None = None     # folder of an agent-written driver (removed at stop)
 
     def _warn(self, detail: str) -> None:
         if self._on_event is not None:
@@ -154,6 +158,7 @@ class HarnessDriver:
         if path is None:
             path = generate(db, scan_id, self._repo, self.language, self._on_event,
                             timeout=int(self._timeout) + 180)
+            self._generated = os.path.dirname(path) if path else None
         return [Input(kind="script", label=f"harness {os.path.basename(path)}", argv=(path,))] if path else []
 
     def _sandbox_for(self, target: RunningTarget, script: str) -> Sandbox:
@@ -173,4 +178,6 @@ class HarnessDriver:
                         detail=(r.stderr or "")[-300:], timed_out=r.timed_out)
 
     def stop(self, target: RunningTarget) -> None:
-        pass
+        if self._generated:      # the agent-written driver is untrusted code: never left behind
+            shutil.rmtree(self._generated, ignore_errors=True)
+            self._generated = None

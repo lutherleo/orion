@@ -51,7 +51,7 @@ def write(path: str, assignment: dict[str, str], *, seed: int, dev_frac: float =
           oldcve_frac: float = 0.20) -> None:
     if os.path.exists(path):
         raise FileExistsError(f"{path} exists; a frozen split is never overwritten")
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump({"seed": seed, "dev_frac": dev_frac, "oldcve_frac": oldcve_frac,
                    "assignment": dict(sorted(assignment.items()))}, f, indent=1)
         f.write("\n")
@@ -67,7 +67,7 @@ def extend(path: str, old_pairs: list[dict], pairs: list[dict], *, note: str) ->
     under ``extensions``. Refuses (ValueError) when a frozen pair's repo now belongs to another split,
     since one repo would then sit in two splits.
     """
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     frozen = data["assignment"]
     if set(frozen) != {p["id"] for p in old_pairs}:
@@ -100,7 +100,7 @@ def extend(path: str, old_pairs: list[dict], pairs: list[dict], *, note: str) ->
         "new_repos": len({_repo(p) for p in fresh})})
     data["assignment"] = dict(sorted(out.items()))
     tmp = f"{path}.tmp"
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=1)
         f.write("\n")
     os.replace(tmp, path)
@@ -108,7 +108,7 @@ def extend(path: str, old_pairs: list[dict], pairs: list[dict], *, note: str) ->
 
 
 def load(path: str, pairs: list[dict]) -> dict[str, str]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     a = data["assignment"]
     ids = {p["id"] for p in pairs}

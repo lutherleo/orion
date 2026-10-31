@@ -54,7 +54,6 @@ Seams (tests replace them; nothing in the tests touches Neo4j, Joern, MLX or a m
 import gc
 import json
 import os
-import shutil
 import sys
 import tempfile
 import threading
@@ -66,6 +65,7 @@ from orion.cli import lm_verdicts, write_verdicts_json   # stdlib-only module; h
 from orion.monitor import _format_event as _event_line   # the line `orion scan` prints per event
 
 from eval import infra
+from eval.repo import remove_tree
 from eval.resources import PhaseSampler
 
 from . import PHASES_ATTR, ArmResult
@@ -85,7 +85,7 @@ def _build_graph(repo_dir: str, on_event) -> str:
     try:
         return lmbuild.lm_build(repo_dir, on_event, scratch_dir=scratch)
     finally:
-        shutil.rmtree(scratch, ignore_errors=True)
+        remove_tree(scratch)
 
 
 def _scan_problem(scan_id: str, repo_dir: str):
@@ -292,7 +292,7 @@ def _write_case_meta(json_out: str, meta: dict, on_line) -> None:
     path = os.path.join(os.path.dirname(json_out) or ".", "case_meta.json")
     try:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=1)
             f.write("\n")
     except Exception as e:

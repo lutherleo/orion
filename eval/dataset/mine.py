@@ -557,7 +557,7 @@ def tables_markdown(summary: dict) -> str:
 
 
 def _dump(path: str, obj) -> None:
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=1, sort_keys=False)
         f.write("\n")
 
@@ -579,7 +579,7 @@ def main(argv=None) -> int:
         print(*a, file=sys.stderr, flush=True)
 
     zips = [os.path.join(args.raw, z) for z in OSV_ZIPS]
-    with open(args.splits) as f:
+    with open(args.splits, encoding="utf-8") as f:
         splits = json.load(f)["assignment"]
     split_repos = manifest.split_repos(args.pairs, args.splits)
     selected, assessed, summary = mine_testset(zips, cache_path=args.cache, splits=splits, split_repos=split_repos,

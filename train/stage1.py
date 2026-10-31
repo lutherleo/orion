@@ -39,13 +39,13 @@ import json
 import os
 import posixpath
 import random
-import shutil
 import signal
 import subprocess
 import sys
 import time
 from collections import Counter
 
+from eval.repo import remove_tree
 from orion.lm import cases as _cases
 from orion.lm.codeindex import LANG_BY_EXT, MODULE, RepoIndex, Span, _split_lines, is_test_path, parse_text
 from train import snapshot
@@ -403,7 +403,7 @@ def _globs(pairs: list[dict]) -> list[str]:
 def _done_ids(ledger: str) -> set[str]:
     done: set[str] = set()
     if os.path.exists(ledger):
-        with open(ledger) as fh:
+        with open(ledger, encoding="utf-8") as fh:
             for line in fh:
                 try:
                     done.add(json.loads(line)["id"])
@@ -414,7 +414,7 @@ def _done_ids(ledger: str) -> set[str]:
 
 def _append(path: str, rows: list[dict]) -> None:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "a") as fh:
+    with open(path, "a", encoding="utf-8") as fh:
         for r in rows:
             fh.write(json.dumps(r) + "\n")
         fh.flush()
@@ -443,7 +443,7 @@ def _reconcile(out_jsonl: str, ledger: str) -> None:
     if not os.path.exists(out_jsonl):
         return
     done, keep = _done_ids(ledger), []
-    with open(out_jsonl) as fh:
+    with open(out_jsonl, encoding="utf-8") as fh:
         for line in fh:
             try:
                 if json.loads(line)["pair_id"] in done:
@@ -451,7 +451,7 @@ def _reconcile(out_jsonl: str, ledger: str) -> None:
             except (ValueError, KeyError, TypeError):
                 continue
     tmp = out_jsonl + ".tmp"
-    with open(tmp, "w") as fh:
+    with open(tmp, "w", encoding="utf-8") as fh:
         fh.writelines(keep)
         fh.flush()
         os.fsync(fh.fileno())
@@ -577,7 +577,7 @@ def build(pairs: list[dict], splits: dict[str, str], *, work_root: str, out_json
                                                             seconds_network=first_fetch)
                         record(pair, row, examples)
                 finally:
-                    shutil.rmtree(dest, ignore_errors=True)
+                    remove_tree(dest)
                 if stop["flag"]:
                     break
     except KeyboardInterrupt:   # no handler installed (non-main thread) or raised outside a pair
@@ -622,7 +622,7 @@ def main(argv=None) -> int:
     ap.add_argument("--n-negatives", type=int, default=2)
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args(argv)
-    with open(a.pairs) as f:
+    with open(a.pairs, encoding="utf-8") as f:
         all_pairs = json.load(f)
     if not os.path.exists(a.splits):
         print(f"{a.splits} not found: freeze the splits first (train.splits.write)", file=sys.stderr)

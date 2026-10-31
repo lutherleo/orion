@@ -64,8 +64,9 @@ def run_logger(run_dir: str, quiet: bool = False) -> OnEvent:
                     f.write(line + "\n")
                 if not quiet:
                     print(_format_event(evt))
-            except OSError:
+            except (OSError, UnicodeError):
                 # Best-effort observability, never fatal: a disk-full/broken-pipe/permissions
+                # failure, or a console that cannot encode the agent's text (cp1252 when redirected),
                 # failure here must not crash the pipeline it's supposed to be observing (a live
                 # scan hit ENOSPC on this exact write and it took the whole run down with it).
                 pass
@@ -87,7 +88,10 @@ def read_events(run_dir: str) -> list[dict]:
             line = line.strip()
             if not line:
                 continue
-            events.append(json.loads(line))
+            try:
+                events.append(json.loads(line))
+            except ValueError:   # a torn line (a killed writer, a disk-full partial write): skip it
+                continue
     return events
 
 

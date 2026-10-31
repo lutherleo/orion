@@ -40,7 +40,7 @@ def _lines(p):
     return [json.loads(l) for l in open(p).read().splitlines()]
 
 
-def test_build_writes_examples_ledger_and_resumes(tmp_path, hermetic_git):
+def test_build_writes_examples_ledger_and_resumes(needs_tree_sitter, tmp_path, hermetic_git):
     """Pair 1 builds examples; pair 2 (unreachable repo) is recorded as failed; a rerun skips both."""
     src, fix = _repo(tmp_path / "src")
     pairs = [_pair("CVE-1", src.path, fix), _pair("CVE-2", tmp_path / "nope", fix)]
@@ -57,7 +57,7 @@ def test_build_writes_examples_ledger_and_resumes(tmp_path, hermetic_git):
     assert len(_lines(tmp_path / "led.jsonl")) == 2 and t["pairs"] == 0   # resumed, nothing redone
 
 
-def test_one_snapshot_serves_all_pairs_of_a_repo_and_missing_fix_is_recorded(tmp_path, hermetic_git):
+def test_one_snapshot_serves_all_pairs_of_a_repo_and_missing_fix_is_recorded(needs_tree_sitter, tmp_path, hermetic_git):
     src, fix = _repo(tmp_path / "src")
     pairs = [_pair("A", src.path, fix), _pair("B", src.path, fix), _pair("C", src.path, "1" * 40)]
     calls = []
@@ -79,7 +79,7 @@ def test_unknown_cwe_is_skipped_without_fetching(tmp_path):
     assert _lines(tmp_path / "led.jsonl")[0]["reason"] == "no_cwe"
 
 
-def test_sigint_finishes_current_pair_then_stops(tmp_path, hermetic_git):
+def test_sigint_finishes_current_pair_then_stops(needs_tree_sitter, tmp_path, hermetic_git):
     """Stoppable: an interrupt during pair 1 still writes pair 1's ledger line, skips pair 2, exits cleanly."""
     src, fix = _repo(tmp_path / "src")
     src2, fix2 = _repo(tmp_path / "src2")
@@ -114,7 +114,7 @@ def test_main_refuses_without_frozen_splits(tmp_path, capsys):
     assert stage1.main(["--pairs", str(pairs), "--splits", str(tmp_path / "none.json")]) == 2
 
 
-def test_resume_reconciles_out_jsonl_after_a_crash(tmp_path, hermetic_git):
+def test_resume_reconciles_out_jsonl_after_a_crash(needs_tree_sitter, tmp_path, hermetic_git):
     """Examples written but no ledger line (crash), plus a torn last line: rerun leaves one copy per pair."""
     src, fix = _repo(tmp_path / "src")
     pairs = [_pair("A", src.path, fix)]
@@ -129,7 +129,7 @@ def test_resume_reconciles_out_jsonl_after_a_crash(tmp_path, hermetic_git):
     assert [l["id"] for l in _lines(led)] == ["A"]
 
 
-def test_reconcile_keeps_rows_of_ledgered_pairs(tmp_path, hermetic_git):
+def test_reconcile_keeps_rows_of_ledgered_pairs(needs_tree_sitter, tmp_path, hermetic_git):
     src, fix = _repo(tmp_path / "src")
     _run([_pair("A", src.path, fix)], {"A": "train"}, tmp_path)
     n = len(_lines(tmp_path / "out.jsonl"))

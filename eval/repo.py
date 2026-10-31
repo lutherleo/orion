@@ -1,6 +1,22 @@
 import os
 import shutil
+import stat
 import subprocess
+
+
+def _retry_writable(func, path, _exc) -> None:
+    try:
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    except OSError:
+        pass
+
+
+def remove_tree(path: str) -> None:
+    """`shutil.rmtree(path, ignore_errors=True)` that also deletes read-only files. Git writes its pack
+    files read-only, and on Windows rmtree cannot unlink those, so every cleared clone was left behind;
+    on POSIX the result is the same as before. Never raises."""
+    shutil.rmtree(path, onexc=_retry_writable)
 
 
 def _default_run(cmd: list[str]) -> str:
@@ -13,7 +29,7 @@ def mirror(repo_url: str, mirror_dir: str, *, run=_default_run) -> None:
         run(["git", "-C", mirror_dir, "fetch", "--all", "--tags", "--prune"])
     else:
         tmp = f"{mirror_dir}.tmp"
-        shutil.rmtree(tmp, ignore_errors=True)  # leftover partial clone
+        remove_tree(tmp)  # leftover partial clone
         run(["git", "clone", "--bare", "--", repo_url, tmp])
         os.rename(tmp, mirror_dir)
 
@@ -28,7 +44,7 @@ def export_tree(mirror_dir: str, sha: str, dest: str, *, run=_default_run) -> No
     Known limits: export-ignore files and submodules are not exported.
     """
     tar = f"{dest}.tar"
-    shutil.rmtree(dest, ignore_errors=True)  # stale tree from an earlier attempt
+    remove_tree(dest)  # stale tree from an earlier attempt
     os.makedirs(dest, exist_ok=True)
     try:
         run(["git", "-C", mirror_dir, "archive", "--format=tar", "-o", tar, sha])

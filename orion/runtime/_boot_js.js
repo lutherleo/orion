@@ -5,7 +5,8 @@
 // so v8_tracer.collect parses a harness run and a live server with ONE code path.
 //
 // Invoked as `node _boot_js.js <driver> <root> <covDir> <profDir>` inside the sandboxed child
-// (Orion never runs target JS in its own process). The driver's synchronous part runs inside
+// (Orion never runs target JS in its own process); script URLs under <root> are written root-relative,
+// the same on the host and in a container. The driver's synchronous part runs inside
 // require(); a returned/exported promise is awaited, then the loop gets ORION_JS_SETTLE_MS to drain
 // timers/IO so async handlers are observed too. Dumps are written in `finally`, so a throwing
 // driver still yields its partial trace.
@@ -15,7 +16,7 @@ const inspector = require('inspector');
 const path = require('path');
 const fs = require('fs');
 
-const [, , driver, , covDir, profDir] = process.argv;
+const [, , driver, root, covDir, profDir] = process.argv;
 const settleMs = parseInt(process.env.ORION_JS_SETTLE_MS || '500', 10);
 
 const session = new inspector.Session();
@@ -41,6 +42,12 @@ async function main() {
     if (settleMs > 0) await sleep(settleMs);
     ({ profile } = await post('Profiler.stop'));
     coverage = await post('Profiler.takePreciseCoverage');
+    // Root-relative script URLs: in a container the repo is mounted at /src, so V8 records
+    // file:///src/... and the host collector, relativizing against the HOST repo, dropped every file.
+    const rootUrl = require('url').pathToFileURL(path.resolve(root || '.')).href.replace(/\/?$/, '/');
+    const rel = (u) => (typeof u === 'string' && u.startsWith(rootUrl)) ? decodeURIComponent(u.slice(rootUrl.length)) : u;
+    for (const r of coverage.result || []) r.url = rel(r.url);
+    for (const n of (profile && profile.nodes) || []) if (n.callFrame) n.callFrame.url = rel(n.callFrame.url);
   } catch (e) {
     // an inspector failure yields an empty-but-valid trace, never a crash
   } finally {

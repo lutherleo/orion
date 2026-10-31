@@ -89,7 +89,7 @@ def read_usage(usage_log: str, *, source: str, on_line=None) -> list[dict]:
     marker = f'"type":"{want}"'
     blocks, nonempty = [], False
     per_message: dict[str, dict] = {}     # claude: message id -> its usage, for a run with no result
-    with open(usage_log) as fh:
+    with open(usage_log, encoding="utf-8") as fh:
         for n, line in enumerate(fh, 1):
             line = line.strip()
             if not line:
@@ -149,7 +149,7 @@ def _capture_findings(repo_dir: str, json_out: str, on_line) -> "str | None":
         return None
     shutil.copy2(src, json_out)  # raw artifact is kept verbatim even if it fails validation
     try:
-        obj = json.loads(Path(json_out).read_text())
+        obj = json.loads(Path(json_out).read_text(encoding="utf-8"))
     except ValueError as e:
         on_line(f"warning: findings.json is not valid JSON ({e}); scored as a miss")
         return None
@@ -175,7 +175,7 @@ def _capture_findings(repo_dir: str, json_out: str, on_line) -> "str | None":
         shutil.copy2(json_out, raw_out)
         dropped = {i for i, _ in bad}
         keep = [it for i, it in enumerate(items) if i not in dropped]
-        Path(json_out).write_text(json.dumps({**obj, "findings": keep}, indent=2))
+        Path(json_out).write_text(json.dumps({**obj, "findings": keep}, indent=2), encoding="utf-8")
         detail = "; ".join(f"finding {i}: {p[0].split(' ', 2)[-1]}" for i, p in bad[:5])
         on_line(f"warning: findings.json: dropped {len(bad)} of {len(items)} findings that failed the "
                 f"schema check ({detail}); the {len(keep)} valid ones are scored (raw kept in {raw_out})")
@@ -199,7 +199,7 @@ def plain_arm(*, arm, repo_dir, model_tag, effort, json_out, usage_log, shim_dir
             # stdout either, so the arm keeps the raw event stream itself.
             env = codex_env(base_env, home=ensure_codex_home(home))
             os.makedirs(os.path.dirname(usage_log), exist_ok=True)
-            log = open(usage_log, "w")
+            log = open(usage_log, "w", encoding="utf-8")
 
             def _on_line(line):
                 log.write(line + "\n")

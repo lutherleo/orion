@@ -62,10 +62,17 @@ def ensure_scan_indexes(session) -> None:
 
 def delete_scan(driver, scan_id: str, labels, batch: int = DELETE_BATCH_SIZE) -> dict[str, int]:
     """DETACH DELETE every node of `scan_id` under each of `labels`, `batch` nodes per transaction,
-    until none is left. Returns {label: nodes deleted} for every label asked for."""
+    until none is left. Returns {label: nodes deleted} for every label asked for.
+
+    When the record itself is to go, it is first set to status 'deleting' in its own transaction: the
+    record is deleted LAST, so a delete stopped half-way (Ctrl-C, a Neo4j error) used to leave a
+    'complete' record on a half-deleted partition that --scan-id and reanalyze accepted."""
     deleted: dict[str, int] = {}
     with driver.session(database=config.NEO4J_DATABASE) as s:
         ensure_scan_indexes(s)
+        if RECORD in labels:
+            s.execute_write(lambda tx: tx.run(f"MATCH (r:{RECORD} {{scan_id:$sid}}) SET r.status = $status",
+                                              sid=scan_id, status=DELETING).consume())
         for label in labels:
             cypher = DELETE_BATCH.format(label=label)
             total = 0
@@ -89,6 +96,7 @@ def count_scan(session, scan_id: str, labels) -> dict[str, int]:
 RECORD = "OrionScan"
 BUILDING = "building"
 COMPLETE = "complete"
+DELETING = "deleting"   # set by delete_scan before any node goes; never usable
 
 
 @contextmanager
@@ -111,7 +119,7 @@ def mark_building(scan_id: str, *, commit: str, profile: str) -> None:
     with _session() as s:
         s.run(f"MERGE (r:{RECORD} {{scan_id:$sid}}) "
               "SET r.commit = $commit, r.profile = $profile, r.orion_version = $version, "
-              "r.status = $status, r.built_at = $now, r.counts = null",
+              "r.status = $status, r.built_at = $now, r.counts = null, r.reanalyzed_at = null",
               sid=scan_id, commit=commit, profile=profile, version=__version__,
               status=BUILDING, now=_now()).consume()
 
@@ -178,6 +186,15 @@ def _rebuild_hint(engine: str, repo: str | None) -> str:
     return f"rebuild it with: {cmd}"
 
 
+def pathfind_error(rec: dict | None) -> str | None:
+    """The error a build's pathfind step left in a scan record (counts.precompute.pathfind.error), or None.
+    Such a scan was still marked complete, but no CandidateFlow was persisted (`orion reanalyze` redoes them)."""
+    counts = rec.get("counts") if isinstance(rec, dict) else None
+    precompute = counts.get("precompute") if isinstance(counts, dict) else None
+    pathfind = precompute.get("pathfind") if isinstance(precompute, dict) else None
+    return str(pathfind["error"]) if isinstance(pathfind, dict) and pathfind.get("error") else None
+
+
 def check_usable(scan_id: str, *, engine: str, repo: str | None) -> str | None:
     """Why `scan_id` must not be used for `engine` (an error message), or None if it may.
 
@@ -192,6 +209,9 @@ def check_usable(scan_id: str, *, engine: str, repo: str | None) -> str | None:
         return f"cannot read the scan record for {scan_id}: {exc}"
     if rec is None:
         return f"scan {scan_id} has no {RECORD} record (built before scan records existed); {hint}"
+    if rec.get("status") == DELETING:
+        return (f"scan {scan_id} is being deleted (or a delete stopped part-way): its partition may be "
+                f"half-gone; {hint}")
     if rec.get("status") != COMPLETE:
         return (f"scan {scan_id} is incomplete (status {rec.get('status')!r} since "
                 f"{rec.get('built_at')}): its build did not finish; {hint}")
@@ -201,6 +221,10 @@ def check_usable(scan_id: str, *, engine: str, repo: str | None) -> str | None:
     if want is None and got.endswith("+lm"):
         return (f"scan {scan_id} was built with profile {got!r} (lm sinks), which the claude engine "
                 f"does not use; {hint}")
+    err = pathfind_error(rec) if engine == "lm" else None
+    if err:   # the lm engine judges CandidateFlows: with none it would report a clean "found nothing"
+        return (f"scan {scan_id}'s flow search failed at build ({err}), so it has no CandidateFlows to "
+                f"judge; recompute them with: orion reanalyze --scan-id {scan_id} --engine lm")
     return None
 
 
@@ -213,12 +237,15 @@ class GcRefused(RuntimeError):
 
 
 def gc(*, keep: int, prefix: str = "", dry_run: bool = False, include_unrecorded: bool = False,
-       plan_path: Path = UNRECORDED_PLAN) -> dict:
-    """Delete old scan partitions; returns {"deleted": [...], "kept": [...], "unrecorded": [...]}.
+       include_building: bool = False, plan_path: Path = UNRECORDED_PLAN) -> dict:
+    """Delete old scan partitions; returns {"deleted": [...], "kept": [...], "unrecorded": [...],
+    "building": [...]}.
 
     Recorded scans whose id starts with `prefix` are sorted newest `built_at` first; the first
-    `keep` are kept and the rest deleted (every SCAN_LABELS label, record included), whatever their
-    status. A build in progress is the newest, so `keep >= 1` never deletes it.
+    `keep` are kept and the rest deleted (every SCAN_LABELS label, record included). A record still
+    'building' is only listed unless `include_building`: an older build still persisting, or a scan
+    being reanalyzed (which keeps its old built_at), looks exactly like a crashed build, and deleting
+    it under the running writer left orphan nodes and a failed build.
 
     Scans with no record are only listed -- unless `include_unrecorded`: then a dry run saves the
     listed ids to `plan_path`, and a real run deletes only ids from that saved listing that still
@@ -233,8 +260,10 @@ def gc(*, keep: int, prefix: str = "", dry_run: bool = False, include_unrecorded
                                 if sid.startswith(prefix))
         records.sort(key=lambda r: r.get("built_at") or "", reverse=True)
         kept, old = records[:keep], records[keep:]
-        out = {"kept": [r["scan_id"] for r in kept], "deleted": [], "unrecorded": unrecorded}
-        targets = [(r["scan_id"], r.get("status")) for r in old]
+        busy = [r for r in old if r.get("status") == BUILDING and not include_building]
+        out = {"kept": [r["scan_id"] for r in kept], "deleted": [], "unrecorded": unrecorded,
+               "building": [r["scan_id"] for r in busy]}
+        targets = [(r["scan_id"], r.get("status")) for r in old if r not in busy]
         if include_unrecorded:
             if dry_run:
                 plan_path.parent.mkdir(parents=True, exist_ok=True)

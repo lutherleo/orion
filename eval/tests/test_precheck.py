@@ -82,8 +82,8 @@ def test_buildable_refuses_a_tree_under_a_repo(tmp_path):
 
 
 def test_mirror_dir_is_one_per_repo_url():
-    assert precheck.mirror_dir_for("https://github.com/Apache/airflow.git", "/m") == "/m/Apache__airflow"
-    assert precheck.mirror_dir_for("https://github.com/apache/airflow", "/m") == "/m/apache__airflow"
+    assert precheck.mirror_dir_for("https://github.com/Apache/airflow.git", "/m") == os.path.join("/m", "Apache__airflow")
+    assert precheck.mirror_dir_for("https://github.com/apache/airflow", "/m") == os.path.join("/m", "apache__airflow")
 
 
 

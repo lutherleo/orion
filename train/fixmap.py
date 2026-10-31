@@ -338,7 +338,7 @@ def yield_all(builds: list[dict], db, *, out: str, on_event=print, run=None) -> 
     reasons ('gold' when a gold flow was found)."""
     done = set()
     if os.path.exists(out):
-        with open(out) as fh:
+        with open(out, encoding="utf-8") as fh:
             for line in fh:
                 try:
                     done.add(json.loads(line)["id"])
@@ -359,7 +359,7 @@ def yield_all(builds: list[dict], db, *, out: str, on_event=print, run=None) -> 
                              patched_scan_id=b.get("patched_scan_id"))
             rec["n_hunks"] = len(hunks)
         os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
-        with open(out, "a") as fh:
+        with open(out, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec, default=str) + "\n")
         key = "gold" if rec.get("gold_flow") else str(rec.get("reason"))
         tally[key] += 1

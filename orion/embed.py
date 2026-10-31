@@ -493,7 +493,7 @@ def keyword_query(text: str) -> str:
     `eval(req.body.preTax)` becomes `eval req body pretax` and `$where` becomes `where`. No operator,
     quote, wildcard or escape character can survive, so nothing needs escaping. "" = nothing to match."""
     terms: list[str] = []
-    for t in re.findall(r"[A-Za-z]+", text):
+    for t in re.findall(r"[^\W\d_]+", text):   # Unicode letters: "contrase\u00f1a" stays one term
         t = t.lower()
         if t not in terms:
             terms.append(t)

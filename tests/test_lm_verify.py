@@ -165,6 +165,7 @@ def test_discover_lm_records_every_batch_it_could_not_judge(monkeypatch):
 
 def _lm_scan(monkeypatch, tmp_path, *extra, leads=(), failures=()):
     repo = _repo(tmp_path)
+    monkeypatch.chdir(tmp_path)          # the run dir is ./.orion/runs/...: never inside Orion's checkout
     loads = []
     monkeypatch.setattr(cli, "_load_lm_model", lambda path, **kw: loads.append(kw) or _Model())
 
@@ -213,3 +214,18 @@ def test_cli_lm_verify_runs_the_same_model_verifier(monkeypatch, tmp_path):
     rc, out, _ = _lm_scan(monkeypatch, tmp_path, "--lm-verify", "--fail-on", "confirm", leads=[_lead()])
     assert rc == 1 and calls["n"] == 1 and isinstance(calls["model"], _Model)    # --fail-on now trips
     assert out[0]["decision"] == "CONFIRM" and out[0]["route"] == "lm-verify"
+
+
+def test_cli_lm_verify_errors_make_the_scan_incomplete(monkeypatch, tmp_path):
+    """A lead lm-verify could not judge (stopped, failed session) is an ERROR, and the scan exits 3 like a
+    discovery batch it could not judge -- it used to exit 0 with a finished-looking run."""
+    def fake_verify(scan_id, leads, repo, on_event, *, model, stop=None, on_verdict=None, **kw):
+        from orion.contracts import Verdict
+        out = [Verdict(lead, "ERROR", "not verified (stopped)", route="lm-verify") for lead in leads]
+        for v in out:
+            on_verdict(v)
+        return out
+
+    monkeypatch.setattr(lm_verify, "verify_lm", fake_verify)
+    rc, out, _ = _lm_scan(monkeypatch, tmp_path, "--lm-verify", leads=[_lead(), _lead(1)])
+    assert rc == 3 and [v["decision"] for v in out] == ["ERROR", "ERROR"]

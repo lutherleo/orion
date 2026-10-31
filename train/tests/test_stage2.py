@@ -39,11 +39,11 @@ class StubDB:
         s = self.scans.get(scan_id, {})
         if "CandidateFlow" in query:
             rows = s.get("flows", [])
-        elif "CpgMethod" in query:
-            rows = s.get("methods", [])
-        elif "c.uid IN" in query:
+        elif "c.uid IN" in query:      # before CpgMethod: the path-node query names the calling method
             rows = [{k: c[k] for k in ("uid", "file", "function", "line", "code")}
                     for c in s.get("calls", []) if f"'{c['uid']}'" in query]
+        elif "CpgMethod" in query:
+            rows = s.get("methods", [])
         elif "AS code" in query:       # the template queries of the trace tests
             rows = s.get("other", [])
         elif "CpgCall" in query:
@@ -118,7 +118,7 @@ def test_select_excludes_oldcve_unknown_size_and_missing_cwe():
 
 # ───────────────────────────── cases_from_graph ─────────────────────────────
 
-def test_cases_from_graph_vuln_patched_and_negative(trees):
+def test_cases_from_graph_vuln_patched_and_negative(needs_tree_sitter, trees):
     ex = run_cases(graph(), trees)
     assert [e["label"] for e in ex] == ["vulnerable", "patched", "negative"] and all(e["stage"] == 2 for e in ex)
     assert all(e["pair_id"] == "P" and e["cwe_class"] == "dataflow" for e in ex)
@@ -133,15 +133,15 @@ def test_cases_from_graph_vuln_patched_and_negative(trees):
 
 @pytest.mark.parametrize("rec", [yrec(flows_gone_on_patched=[GOLD]), yrec(flows_unresolved=[GOLD]),
                                  yrec(patched_scan_id=None)])
-def test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt(trees, rec):
+def test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt(needs_tree_sitter, trees, rec):
     assert [e["label"] for e in run_cases(graph(), trees, rec)] == ["vulnerable", "negative"]
 
 
-def test_patched_example_omitted_when_patched_scan_has_no_flows(trees):
+def test_patched_example_omitted_when_patched_scan_has_no_flows(needs_tree_sitter, trees):
     assert [e["label"] for e in run_cases(graph(patched_flows=False), trees)] == ["vulnerable", "negative"]
 
 
-def test_negatives_never_touch_a_fix_site_and_are_seeded(trees):
+def test_negatives_never_touch_a_fix_site_and_are_seeded(needs_tree_sitter, trees):
     db = graph()
     # a different source and sink than the gold flow, but its path runs THROUGH the fix-site call vk0:
     # only the fix-site filter can exclude it
@@ -152,7 +152,7 @@ def test_negatives_never_touch_a_fix_site_and_are_seeded(trees):
     assert [e["label"] for e in run_cases(db, trees, n_negatives=0)] == ["vulnerable", "patched"]
 
 
-def test_negative_sampling_is_deterministic_per_seed(trees):
+def test_negative_sampling_is_deterministic_per_seed(needs_tree_sitter, trees):
     db = graph()
     for k in range(2, 12):    # many eligible flows so that the seed matters
         db.scans["P:vulnerable"]["flows"].append(_flow(f"fx{k}", [f"s{k}", f"k{k}"], k))
@@ -171,7 +171,7 @@ def _many_flows(db, ranks):
                                               _call(f"k{k}", "b.js", 2, "eval", "other")]
 
 
-def test_negatives_come_only_from_the_flows_the_runtime_judges(trees):
+def test_negatives_come_only_from_the_flows_the_runtime_judges(needs_tree_sitter, trees):
     """Final review M7: the runtime judges the top engine.DEFAULT_MAX_FLOWS flows, so negatives come from that
     rank range, never from the long tail of the wide read."""
     from orion.lm import engine
@@ -181,7 +181,7 @@ def test_negatives_come_only_from_the_flows_the_runtime_judges(trees):
     assert max(neg) < engine.DEFAULT_MAX_FLOWS and len(neg) == engine.DEFAULT_MAX_FLOWS - 1    # all but gold
 
 
-def test_gold_flow_ranked_past_the_runtime_cap_is_still_found(trees):
+def test_gold_flow_ranked_past_the_runtime_cap_is_still_found(needs_tree_sitter, trees):
     """The wide read (MAX_FLOWS) is kept for finding the gold flow."""
     db = graph()
     db.scans["P:vulnerable"]["flows"] = [f for f in db.scans["P:vulnerable"]["flows"] if f["uid"] != "fl0"]
@@ -195,7 +195,7 @@ def test_no_gold_flow_gives_no_examples(trees):
     assert run_cases(graph(), trees, yrec(gold_flow=None)) == []
 
 
-def test_graph_cases_reports_why_the_patched_example_is_missing(trees):
+def test_graph_cases_reports_why_the_patched_example_is_missing(needs_tree_sitter, trees):
     _, why = stage2._graph_cases(graph(), yrec(flows_gone_on_patched=[GOLD]), PAIR, *trees,
                                  budget=cases.CaseBudget(), n_negatives=0, seed=0, hunks=[HUNK])
     assert why == ["flow_gone"]
@@ -217,7 +217,7 @@ def xgraph():
         "flows": [_flow("fl0", ["vs0", "vk0"], 0)]}})
 
 
-def test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink(tmp_path):
+def test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink(needs_tree_sitter, tmp_path):
     from eval import match
     vt = tmp_path / "vt"
     vt.mkdir()
@@ -232,7 +232,7 @@ def test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink(tmp_path):
     assert match.l1(v["lead"], v["fix_site"]) and why == ["no_patched_scan"]
 
 
-def test_pair_without_a_fix_site_node_on_the_gold_path_is_skipped_with_a_reason(trees):
+def test_pair_without_a_fix_site_node_on_the_gold_path_is_skipped_with_a_reason(needs_tree_sitter, trees):
     off_path = {**HUNK, "file": "b.js", "old_file": "b.js"}          # site call bk is not on the gold path
     for hunks in ([off_path], None):
         ex, why = stage2._graph_cases(graph(), yrec(), PAIR, *trees, budget=cases.CaseBudget(), n_negatives=1,
@@ -240,7 +240,7 @@ def test_pair_without_a_fix_site_node_on_the_gold_path_is_skipped_with_a_reason(
         assert ex == [] and why == ["no_fix_site_node"]          # never a fallback to the sink
 
 
-def test_fix_site_of_an_add_only_hunk_is_its_insertion_line(trees):
+def test_fix_site_of_an_add_only_hunk_is_its_insertion_line(needs_tree_sitter, trees):
     add = {"file": "a.js", "old_file": "a.js", "old_start": 2, "old_end": 1, "new_start": 2, "new_end": 2}
     (v, *_), _ = stage2._graph_cases(graph(), yrec(), PAIR, *trees, budget=cases.CaseBudget(), n_negatives=0,
                                      seed=0, hunks=[add])
@@ -345,7 +345,7 @@ def read(path):
     return [json.loads(ln) for ln in open(path)] if os.path.exists(path) else []
 
 
-def test_build_writes_examples_one_ledger_line_and_evicts_both_scans(tmp_path):
+def test_build_writes_examples_one_ledger_line_and_evicts_both_scans(needs_tree_sitter, tmp_path):
     db = graph()
     totals, calls, a = run_build(tmp_path, db)
     rows = read(a["out_jsonl"])
@@ -358,7 +358,7 @@ def test_build_writes_examples_one_ledger_line_and_evicts_both_scans(tmp_path):
     assert not os.path.exists(os.path.join(a["work_root"], "stage2_trees"))      # trees removed
 
 
-def test_build_with_templates_adds_traces_carrying_pair_id_and_split(tmp_path):
+def test_build_with_templates_adds_traces_carrying_pair_id_and_split(needs_tree_sitter, tmp_path):
     db = graph()
     db.scans["P:vulnerable"]["other"] = [{"code": "exec(x)"}]
     db.scans["P:patched"]["other"] = [{"code": "exec(clean(x))"}]
@@ -423,7 +423,7 @@ def test_build_reconciles_rows_of_a_pair_that_crashed_before_its_ledger_line(tmp
     assert [r["pair_id"] for r in read(str(out))] == ["DONE"]
 
 
-def test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts(tmp_path):
+def test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts(needs_tree_sitter, tmp_path):
     """The single-step row (target: final) and the trace's first step (target: run_cypher) of the same
     case have the same prompt and different targets; only the trace may be written for such a case."""
     from train import examples
@@ -448,7 +448,7 @@ def test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conf
     assert all(len(t) == 1 for t in targets.values())
 
 
-def test_a_case_whose_trace_is_dropped_keeps_its_single_step_row(tmp_path):
+def test_a_case_whose_trace_is_dropped_keeps_its_single_step_row(needs_tree_sitter, tmp_path):
     db = graph()      # no "other" rows for the template -> rows empty but no error; force an error instead
     orig = db.run_cypher
 
