@@ -353,3 +353,132 @@ def test_gc_keeps_a_record_that_is_still_building_unless_asked(monkeypatch):
     deleted.clear()
     out = scans.gc(keep=1, include_building=True)
     assert out["building"] == [] and deleted == ["busy", "old"]
+
+
+# ── round 5: runtime drivers, V8 coverage, Orion-LM ─────────────────────
+def test_a_hit_on_a_methods_own_def_line_does_not_mark_it_executed():
+    from orion.runtime.trace import Hit, ObservedMethod
+    idx = index_from_rows([{"f": "app.py", "l": 1, "fn": "app.py:<module>"},
+                           {"f": "app.py", "l": 2, "fn": "app.py:<module>.used"},
+                           {"f": "app.py", "l": 4, "fn": "app.py:<module>.never"}], [])
+    trace = RuntimeTrace(coverage=(Hit("app.py", 1, 1), Hit("app.py", 2, 1), Hit("app.py", 3, 1), Hit("app.py", 4, 1)),
+                         methods=(ObservedMethod("<module>", "app.py", 1, 1), ObservedMethod("used", "app.py", 2, 1)))
+    hits = correlate(trace, idx, "sid").method_hits
+    assert "app.py:<module>.never" not in hits                      # line 4 is only `def never(...)` running
+    assert hits["app.py:<module>.used"] == 1 and hits["app.py:<module>"] == 1
+
+
+def test_a_never_called_one_liner_is_not_executed_in_v8_coverage():
+    from orion.runtime.v8_tracer import parse_v8_coverage
+    src = "const api = {\n  never: function (q) { return eval(q); },\n  used: function () { return 1; },\n};\napi.used();\n"
+    never, used = src.index("function (q)"), src.index("function ()")
+    blob = {"result": [{"url": "file:///repo/m.js", "functions": [
+        {"functionName": "", "ranges": [{"startOffset": 0, "endOffset": len(src), "count": 1}]},
+        {"functionName": "never", "ranges": [{"startOffset": never, "endOffset": src.index("},\n  used"), "count": 0}]},
+        {"functionName": "used", "ranges": [{"startOffset": used, "endOffset": src.index("},\n};"), "count": 1}]}]}]}
+    trace, _ = parse_v8_coverage([blob], "/repo", lambda rel: src if rel == "m.js" else None)
+    lines = {h.line for h in trace.coverage}
+    assert 2 not in lines and {1, 3, 5} <= lines                    # line 2 holds only the dead one-liner
+
+
+def test_a_repo_that_sits_under_node_modules_is_still_first_party():
+    from orion.runtime.v8_tracer import _script_relpath
+    root = os.path.join(os.path.abspath(os.sep), "work", "node_modules", "express")
+    url = "file:///" + os.path.join(root, "lib", "a.js").replace(os.sep, "/").lstrip("/")
+    assert _script_relpath(url, root) == "lib/a.js"
+    inner = "file:///" + os.path.join(root, "node_modules", "x", "i.js").replace(os.sep, "/").lstrip("/")
+    assert _script_relpath(inner, root) is None                    # the repo's own dependencies stay out
+
+
+def test_node_options_paths_use_forward_slashes(tmp_path):
+    from orion.runtime.v8_tracer import V8Tracer
+    opts = V8Tracer().launch_env(tmp_path)["NODE_OPTIONS"]
+    assert "\\" not in opts and "orion_exit_flush.cjs" in opts     # node reads "\U" in quotes as an escape
+
+
+def test_the_http_driver_resolves_its_boot_command(monkeypatch, tmp_path):
+    from orion.runtime import http_driver
+    from orion.runtime.v8_tracer import V8Tracer
+    seen = {}
+
+    class Proc:
+        pid = 4242
+
+        def poll(self):
+            return None
+
+    monkeypatch.setattr(http_driver.shutil, "which", lambda name: f"/opt/bin/{name}.cmd")
+    monkeypatch.setattr(http_driver.subprocess, "Popen", lambda argv, **kw: seen.setdefault("argv", argv) and Proc())
+    monkeypatch.setattr(http_driver.HttpDriver, "_wait_ready", lambda self, proc: True)
+    http_driver.HttpDriver(["npm", "start"], "http://localhost:3000", V8Tracer()).start(str(tmp_path), tmp_path, [])
+    assert seen["argv"] == ["/opt/bin/npm.cmd", "start"]           # npm is npm.CMD on Windows (no PATHEXT)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="process groups are POSIX")
+def test_http_stop_waits_for_the_whole_group(monkeypatch):
+    from orion.runtime import http_driver
+    calls = iter([None, None, ProcessLookupError()])
+
+    def killpg(pgid, sig):
+        step = next(calls)
+        if isinstance(step, Exception):
+            raise step
+        killed.append(sig)
+
+    killed = []
+    monkeypatch.setattr(http_driver.os, "killpg", killpg)
+    monkeypatch.setattr(http_driver.time, "sleep", lambda s: None)
+    http_driver._wait_group_gone(7, timeout=5)
+    assert killed == [0, 0]                                         # polled until the group was empty, no SIGKILL
+
+
+def test_an_agent_written_harness_gets_a_private_folder_removed_at_stop(monkeypatch, tmp_path):
+    from orion.runtime import harness
+    from orion.runtime.sandbox import DockerSandbox, SubprocessSandbox
+
+    class DB:
+        def run_cypher(self, scan_id, query, limit=50):
+            return {"rows": []}
+
+    monkeypatch.setattr(harness.claude_cli, "run_agent", lambda **kw: {"driver": "print(1)\n", "notes": ""})
+    drv = harness.HarnessDriver(str(tmp_path), "py", tracer=None, sandbox=SubprocessSandbox())
+    (inp,) = drv.seeds(DB(), "sid")
+    script = inp.argv[0]
+    folder = os.path.dirname(script)
+    assert os.listdir(folder) == [os.path.basename(script)]         # nothing else to mount or import
+    mounts = DockerSandbox.for_harness("img", repo=str(tmp_path), work=str(tmp_path / "w"), script=script).mounts
+    assert [m.host for m in mounts if m.container == "/harness"] == [folder]
+    drv.stop(None)
+    assert not os.path.exists(folder)
+
+
+def test_go_builds_every_main_package_into_a_folder_and_runs_the_one(monkeypatch, tmp_path):
+    from orion.runtime import process_driver
+
+    class Tracer:
+        def launch_env(self, work):
+            return {}
+
+    def fake_build(names):
+        def run(cmd, **kw):
+            out = cmd[cmd.index("-o") + 1]
+            assert out.endswith(os.sep)                             # a folder, so ./... may hold many packages
+            for n in names:
+                open(os.path.join(out, n), "w").close()
+            return type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        return run
+
+    drv = process_driver.ProcessDriver(build_cmd=["go", "build", "./..."], out_bin="bin/", tracer=Tracer())
+    monkeypatch.setattr(process_driver.subprocess, "run", fake_build(["app"]))
+    target = drv.start(str(tmp_path), tmp_path / "w1", [])
+    assert target.exe_path == str(tmp_path / "w1" / "bin" / "app")
+    monkeypatch.setattr(process_driver.subprocess, "run", fake_build(["api", "worker"]))
+    with pytest.raises(RuntimeError, match="2 binaries"):
+        drv.start(str(tmp_path), tmp_path / "w2", [])
+
+
+def test_an_lm_final_with_invalid_leads_judged_nothing():
+    from orion.lm import engine
+    assert engine._session_failure([{"kind": "final", "error": "final.leads must be a list"}]) == \
+        "invalid final: final.leads must be a list"
+    assert engine._session_failure([{"kind": "final", "error": None}]) is None      # an empty answer is still one

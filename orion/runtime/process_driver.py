@@ -7,6 +7,7 @@ It seeds one empty-argv run and lets the mutator derive argv/stdin variants from
 """
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -30,12 +31,26 @@ class ProcessDriver:
 
     def start(self, repo: str, work: Path, build_flags: list[str]) -> RunningTarget:
         self._env = target_env(self._tracer.launch_env(work))     # no model credentials for the target
-        out = str(Path(work) / self._out_bin)
-        cmd = self._inject_flags(self._build_cmd, build_flags + self._extra_flags, out)
+        # An `out` ending in "/" is a folder: `go build -o dir/ ./...` writes one binary per main package
+        # there, where `-o file ./...` fails ("cannot write multiple packages to non-directory") for any
+        # module with more than one package.
+        to_dir = self._out_bin.endswith(("/", "\\"))
+        out = str(Path(work) / self._out_bin.rstrip("/\\"))
+        if to_dir:
+            os.makedirs(out, exist_ok=True)
+        cmd = self._inject_flags(self._build_cmd, build_flags + self._extra_flags, out + os.sep if to_dir else out)
         r = subprocess.run(cmd, cwd=repo, env=self._env, capture_output=True, text=True,
                            timeout=600, check=False)
         if r.returncode != 0:
             raise RuntimeError(f"coverage build failed: {(r.stderr or r.stdout).strip()[-300:]}")
+        if to_dir:
+            bins = sorted(p for p in Path(out).iterdir() if p.is_file())
+            if len(bins) != 1:
+                raise RuntimeError(
+                    f"coverage build made {len(bins)} binaries ({', '.join(p.name for p in bins) or 'none'}): "
+                    'name the main package in .orion/runtime.json, e.g. {"kind": "process", '
+                    '"build": ["go", "build", "./cmd/app"], "out": "app.bin"}')
+            out = str(bins[0])
         return RunningTarget(kind="process", repo=repo, work=Path(work), exe_path=out)
 
     @staticmethod

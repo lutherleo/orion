@@ -304,6 +304,11 @@ def correlate(trace: RuntimeTrace, index: StaticIndex, scan_id: str) -> WritePla
         if not uids:
             dropped["coverage_no_call"] += 1
         fn = index.method_containing(h.file_path, h.line)
+        if fn is not None and index.method_exact(h.file_path, h.line) == fn:
+            # The `def` / function line runs when the ENCLOSING scope defines the method (import time),
+            # not when the method runs: every imported def was marked executed. A method's own runs
+            # come from trace.methods (exact invocation counts, Python and V8 alike).
+            continue
         if fn is None:
             dropped["coverage_no_method"] += 1
         elif h.hit_count > hottest_line.get(fn, 0):

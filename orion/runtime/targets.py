@@ -88,7 +88,7 @@ def _process(repo: str, desc: dict | None = None):
         return None
     tracer = GoCoverTracer(module_prefix=desc.get("module_prefix"))
     return ProcessDriver(build_cmd=desc.get("build", ["go", "build", "./..."]),
-                         out_bin=desc.get("out", "orion-target.bin"), tracer=tracer), tracer
+                         out_bin=desc.get("out", "bin/"), tracer=tracer), tracer
 
 
 def _harness(repo: str, language: str | None, harness_file: str | None, timeout: float, on_event,

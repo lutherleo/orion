@@ -14,6 +14,7 @@ from __future__ import annotations
 import http.cookiejar
 import os
 import re
+import shutil
 import signal
 import subprocess
 import time
@@ -72,7 +73,10 @@ class HttpDriver:
         # `npm start` -- signalling only npm would leave node running, never flushing coverage.
         kw = ({"start_new_session": True} if os.name == "posix"
               else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP})
-        proc = subprocess.Popen(self._boot_cmd, cwd=repo, env=env,
+        boot = list(self._boot_cmd)
+        if boot and not os.path.dirname(boot[0]):
+            boot[0] = shutil.which(boot[0]) or boot[0]   # npm is npm.CMD on Windows (no PATHEXT in CreateProcess)
+        proc = subprocess.Popen(boot, cwd=repo, env=env,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kw)
         booting = RunningTarget(kind="http", repo=repo, work=work, handle=proc)
         try:
@@ -144,3 +148,22 @@ class HttpDriver:
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait(timeout=5)
+        if os.name == "posix":
+            _wait_group_gone(proc.pid, timeout=15)
+
+
+def _wait_group_gone(pgid: int, *, timeout: float) -> None:
+    """Wait until process group `pgid` is empty, then SIGKILL whatever is left. The group leader (npm) can exit
+    at once -- it is a node process too, so the exit-flush preload ends it on SIGTERM -- while the server under it
+    is still writing its coverage; collecting then read nothing, or a half-written file."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            os.killpg(pgid, 0)
+        except (ProcessLookupError, PermissionError):
+            return
+        time.sleep(0.1)
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except OSError:
+        pass

@@ -558,6 +558,11 @@ def _run_scan(args: argparse.Namespace) -> int:
         print(f"wrote SARIF to {args.sarif}")
 
     code = _exit_code(verdicts, getattr(args, "fail_on", "none"))
+    unverified = [v for v in verdicts if v.decision == "ERROR" and v.route == "lm-verify"]
+    if code == 0 and unverified and not lm_failures:
+        print(f"\norion scan: incomplete -- {len(unverified)} lead(s) not verified by --lm-verify "
+              "(ERROR verdicts above)", file=sys.stderr)
+        return 3
     if code == 0 and lm_failures:
         print(f"\norion scan: incomplete -- {len(lm_failures)} Orion-LM batch(es) not judged "
               "(ERROR verdicts above)", file=sys.stderr)
