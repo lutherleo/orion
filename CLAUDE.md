@@ -129,6 +129,16 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
     folder aside) and CWE and overlapping line ranges pair one to one, largest overlap first, listed as
     "same finding, cited differently" (`relocated`) or a `changed` row with `match: "location"`. The same two
     runs: 17 unchanged (6 by location), 5 appeared, 4 vanished.
+- **External dev benchmarks (2026-10-30/31; keys built, nothing run -- a run needs approval: tokens +
+  cloning the target repos):** `eval/bountybench.py` = BountyBench (46 bounties, 42 in scope; scored on
+  localization, since Orion writes no exploits; keys from the patch diffs, 18 broad keys flagged `review`).
+  `eval/vlb.py` = Cisco's Vulnerability Localization Benchmark (arXiv 2609.15939, Apache-2.0, pinned
+  `fa50b67`; attribution in `eval/dataset/vlb/NOTICE.md`): 244 Maven/npm/pip tasks + 215 Go, each with a
+  vulnerable and a patched snapshot; keys = VLB's ground-truth files + fix sites from the compare diff
+  (proposed). Scores: VLB File F1 (all findings / CWE family / without files the fix added), fix-site L1/L2,
+  silence on the patched snapshot -> pair-correct (the headline: VLB's best model is silent on only 28%).
+  Both are pre-cutoff: dev evidence, never in an eval.report table. Survey of every candidate benchmark:
+  `reports/Benchmarks for testing Orion.md` (untracked).
 - Open for Krish: the Orion-LM design excludes Qwen (no published cutoff), but C1's base is Qwen3.5-4B
   with no recorded decision -- needs one before `orion-lm-prereg-v1`.
 
