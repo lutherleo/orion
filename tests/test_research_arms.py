@@ -164,6 +164,49 @@ def test_arm_p_runs_eval_plain_arm_on_a_git_free_export_and_scores_at_l2(tmp_pat
     assert label == "P-plain-opus5" and s["l2"] == ["A10"]
 
 
+def test_arm_o_runs_on_the_plain_twins_exact_model_and_effort(tmp_path, monkeypatch):
+    """Gate 3 compares O with P on the same model and effort, so the gap is Orion's: O on sonnet/opus gets
+    eval's exact ids at xhigh, P runs for every --plain-models entry, and an unknown plain model is refused."""
+    import json
+    from bench import plot_results, prove, research_eval
+    o_argv, p_arms = [], []
+    monkeypatch.setattr(prove, "preflight", lambda benchmarks, plain=False: [])
+    monkeypatch.setattr(research_eval, "main", lambda argv: o_argv.append(argv) or 0)
+    monkeypatch.setattr(plot_results, "main", lambda argv: 0)
+
+    def run_plain(b, arm=prove.PLAIN_ARM):
+        p_arms.append((arm, b))
+        out = tmp_path / f"{b}-{arm}.json"
+        out.write_text(json.dumps({"status": "ok"}))
+        return out
+
+    monkeypatch.setattr(prove, "run_plain", run_plain)
+    monkeypatch.setattr(prove, "table", lambda *a: "")
+    monkeypatch.setattr(prove, "eval_table", lambda *a, **k: "")
+    assert prove.main(["--benchmarks", "nodegoat"]) == 0
+    assert [a[a.index("--model") + 1:a.index("--model") + 4] for a in o_argv] == [
+        ["claude-sonnet-5", "--effort", "xhigh"], ["claude-opus-5", "--effort", "xhigh"]]
+    assert p_arms == [("plain-sonnet5", "nodegoat"), ("plain-opus5", "nodegoat")]
+    assert prove.arm_o_settings("haiku") == ["--model", "haiku"]          # no plain twin: as given
+    assert prove.main(["--plain-models", "gpt", "--dry-run"]) == 2
+
+
+def test_research_eval_effort_override_is_recorded(tmp_path, monkeypatch):
+    import json
+    from bench import research_eval
+    from orion import config
+    monkeypatch.setattr(config, "EFFORT", config.EFFORT)        # restored after the test
+    monkeypatch.setattr(config, "MODEL", config.MODEL)
+    seen = {}
+    monkeypatch.setattr(research_eval, "_arm_orion",
+                        lambda repo, sid, ev, **kw: seen.setdefault("effort", config.EFFORT) and ([], []))
+    out = tmp_path / "O.json"
+    assert research_eval.main(["--arm", "O", "--benchmark", "nodegoat", "--repo", ".", "--model", "claude-sonnet-5",
+                               "--effort", "xhigh", "--out", str(out), "--quiet"]) == 0
+    r = json.loads(out.read_text())
+    assert seen["effort"] == "xhigh" and (r["model"], r["effort"]) == ("claude-sonnet-5", "xhigh")
+
+
 def test_prove_preflight_checks_the_plain_login_only_when_p_runs(monkeypatch):
     from bench import prove
     for name in ("_check_claude", "_check_claude_login", "_check_neo4j", "_check_joern"):

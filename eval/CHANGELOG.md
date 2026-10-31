@@ -110,6 +110,19 @@ One change to the scoring of record; the rest is dev tooling that never feeds an
   committed prose C rows cite none; on a 15-bug repo L1 alone credits another class's finding near a fix
   site). `bench/semgrep_adapter` appends each rule's CWE ids to the evidence for the same reason.
 
+## 2026-10-31 — a plain-arm run dir scores as structured findings (dev benchmarks). Krish signs off before `orion-lm-prereg-v1`
+
+- **Changed** `eval/devbench.findings_from`: a run dir holding `findings.json` and no `verdicts.json` is an eval
+  plain-arm run dir (`eval.run`, and the new external-benchmark driver `eval/extbench.py`), and its items are
+  read as the plain arms' structured findings (file, function, line range, CWE). Before, such a dir was read as an
+  Orion run dir with no `verdicts.json`, so it scored as 0 findings with no error, and the bare `findings.json` fell
+  to the prose branch, which keeps only the file. This affects only devbench / VLB / BountyBench scoring of plain
+  runs (all dev evidence); `eval.report` does not use `findings_from`. No scored run exists yet, so no reported
+  number changes.
+- **Added** `eval/extbench.py` (VLB and BountyBench end to end; dev evidence, never an `eval.report` table). Its
+  Orion arms (`orion-sonnet5` / `orion-opus5`) are `orion scan` on the plain twin's exact model id and effort; they
+  are not `eval.run` arms, and the registered `ARMS` are unchanged.
+
 ## 2026-10-30 — a verifier's start line no longer borrows the lead's end. Krish signs off before `orion-lm-prereg-v1`
 
 - **Changed** `eval/normalize._verdict_location` (and `orion.contracts.Verdict.location`, which it mirrors;

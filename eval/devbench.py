@@ -87,8 +87,15 @@ def _verdict_list(data) -> list | None:
 
 
 def findings_from(path: str, *, arm: str | None = None) -> tuple[str, list[dict]]:
-    """(arm label, normalized findings) for a run dir, a verdicts list, or a research_eval result."""
+    """(arm label, normalized findings) for an Orion or eval plain-arm run dir, a verdicts list, or a
+    research_eval result."""
     p = Path(path)
+    if p.is_dir() and (p / "findings.json").is_file() and not (p / "verdicts.json").exists():
+        # an eval plain-arm run dir (eval.run / eval.extbench): its findings.json items are structured. Read as
+        # an Orion dir it scored as 0 findings, and the bare file fell to the prose branch (no line, no CWE).
+        label = arm or str((normalize.load(str(p / "run.json")) or {}).get("arm") or "plain")
+        return label, normalize.load_arm(str(p / "findings.json"), arm=label if label.startswith("plain-")
+                                         else "plain-" + label)
     if p.is_dir():
         engine = (normalize.load(str(p / "leads.json")) or {})
         engine = engine.get("engine") if isinstance(engine, dict) else None

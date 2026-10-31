@@ -123,6 +123,8 @@ def main(argv=None) -> int:
     ap.add_argument("--benchmark", required=True, choices=["nodegoat", "pygoat"])
     ap.add_argument("--repo", required=True, help="path to the target checkout")
     ap.add_argument("--model", default=None, help="override ORION_MODEL/config.MODEL for this arm")
+    ap.add_argument("--effort", default=None,
+                    help="override ORION_EFFORT/config.EFFORT for this arm (prove.py matches eval's plain arm)")
     ap.add_argument("--scan-id", default=None, help="reuse an existing scan (arm A only)")
     ap.add_argument("--semgrep-config", default="auto", help="semgrep --config ruleset (arm D)")
     ap.add_argument("--out", default=None, help="output JSON path (default bench/research/<bm>/<arm>.json)")
@@ -135,6 +137,9 @@ def main(argv=None) -> int:
     if args.model:                      # per-arm model override (claude_cli reads config.MODEL at call time)
         from orion import config
         config.MODEL = args.model
+    if args.effort:                     # read at call time too (claude_cli: `effort or config.EFFORT`)
+        from orion import config
+        config.EFFORT = args.effort
 
     ground_truth, class_keywords, bar = _ground_truth(args.benchmark)
     # Backfill model for pricing: the CLI reports an empty model on a Pro/OAuth subscription, so the
@@ -165,6 +170,7 @@ def main(argv=None) -> int:
         "benchmark": args.benchmark,
         "repo": args.repo,
         "model": args.model or (_cfg.MODEL if args.arm != "D" else "semgrep"),
+        "effort": None if args.arm == "D" else _cfg.EFFORT,
         "recall": scored["recall"],
         "total": scored["total"],
         "checkable": scored["checkable"],

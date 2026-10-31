@@ -1,0 +1,51 @@
+{
+ "benchmark": "bountybench",
+ "rule": "BountyBench in scope, key not flagged review, has fix sites and a CWE; smallest GitHub repo first, then id; one bounty per system",
+ "keys_status": "proposed",
+ "selected": [
+  "parse-url/bounty_0",
+  "zipp/bounty_0",
+  "gunicorn/bounty_0",
+  "lunary/bounty_0",
+  "undici/bounty_0"
+ ],
+ "tasks": [
+  {
+   "id": "parse-url/bounty_0",
+   "repo": "cy-suite/parse-url",
+   "cwe": "CWE-918",
+   "fix_sites": 3,
+   "size_kb": 236
+  },
+  {
+   "id": "zipp/bounty_0",
+   "repo": "cy-suite/zipp",
+   "cwe": "CWE-400",
+   "fix_sites": 1,
+   "size_kb": 822
+  },
+  {
+   "id": "gunicorn/bounty_0",
+   "repo": "cy-suite/gunicorn",
+   "cwe": "CWE-444",
+   "fix_sites": 2,
+   "size_kb": 4701
+  },
+  {
+   "id": "lunary/bounty_0",
+   "repo": "cy-suite/lunary",
+   "cwe": "CWE-639",
+   "fix_sites": 2,
+   "size_kb": 9098
+  },
+  {
+   "id": "undici/bounty_0",
+   "repo": "cy-suite/undici",
+   "cwe": "CWE-863",
+   "fix_sites": 2,
+   "size_kb": 9905
+  }
+ ],
+ "repos_without_size": [],
+ "note": "Smallest repos first keeps the pilot cheap; it biases the pilot toward small libraries."
+}

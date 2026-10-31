@@ -21,6 +21,10 @@ of another class near a fix site, and the committed C rows are prose with no CWE
 CWE per finding, model and effort from `eval/run.py`), run on a .git-free export of the pinned fixture in an
 opaque temp dir outside any repo. `--no-plain` skips it. It needs eval's clean Claude home with a copied
 login (eval/README.md, one-time step); the preflight checks for it.
+
+Same model, same effort: P runs for each of `--plain-models` (default sonnet,opus -> plain-sonnet5 /
+plain-opus5), and arm O on a model that has a plain twin runs on that arm's exact model id and effort
+(claude-sonnet-5 / claude-opus-5 at xhigh, from `eval/run.py`), so an O-vs-P gap is Orion's, not the effort's.
 """
 from __future__ import annotations
 
@@ -41,6 +45,24 @@ if str(_ROOT) not in sys.path:
 FIXTURES = {"nodegoat": "fixtures/NodeGoat", "pygoat": "fixtures/pygoat"}
 RESULTS = _ROOT / "bench" / "research"
 PLAIN_ARM = "plain-opus5"            # arm P: eval's Opus-alone arm
+PLAIN_ARMS = {"sonnet": "plain-sonnet5", "opus": "plain-opus5"}   # --models / --plain-models name -> eval arm
+
+
+def _plain_arms(models: list[str]) -> list[str]:
+    unknown = [m for m in models if m not in PLAIN_ARMS]
+    if unknown:
+        raise ValueError(f"no plain arm for {', '.join(unknown)} (known: {', '.join(PLAIN_ARMS)})")
+    return [PLAIN_ARMS[m] for m in models]
+
+
+def arm_o_settings(model: str) -> list[str]:
+    """research_eval flags for arm O on `model`: the plain twin's exact model id and effort when it has one
+    (so O and P differ only in Orion), else the name as given at Orion's own default effort."""
+    arm = PLAIN_ARMS.get(model)
+    if arm is None:
+        return ["--model", model]
+    from eval.run import EFFORT, MODEL_TAGS
+    return ["--model", MODEL_TAGS[arm], "--effort", EFFORT[arm]]
 
 
 def _check_claude() -> str | None:
@@ -185,14 +207,14 @@ def run_plain(benchmark: str, *, arm: str = PLAIN_ARM, results: Path = RESULTS, 
     return out
 
 
-def eval_table(benchmarks: list[str], labels: list[str]) -> str:
-    """The committed C / D rows, arm P and the given O rows, scored by eval's matcher (eval/devbench.py)."""
+def eval_table(benchmarks: list[str], labels: list[str], plain_arms: tuple[str, ...] = tuple(PLAIN_ARMS.values())) -> str:
+    """The committed C / D rows, the P rows and the given O rows, scored by eval's matcher (eval/devbench.py)."""
     from eval import devbench
     out = []
     for b in benchmarks:
         data = devbench.load_keys(b)
         results = []
-        for name in ["C", "D", f"P-{PLAIN_ARM}", *labels]:
+        for name in ["C", "D", *[f"P-{a}" for a in plain_arms], *labels]:
             f = RESULTS / b / f"{name}.json"
             if f.exists():
                 label, findings = devbench.findings_from(str(f))
@@ -209,13 +231,21 @@ def main(argv=None) -> int:
     ap.add_argument("--rescore", action="store_true",
                     help="score the results already on disk with eval's matcher, run nothing (no tokens)")
     ap.add_argument("--no-plain", action="store_true",
-                    help=f"skip arm P (eval's {PLAIN_ARM} arm, the Opus-alone row that reports CWEs)")
+                    help="skip arm P (eval's plain arms, the model-alone rows that report CWEs)")
+    ap.add_argument("--plain-models", default="sonnet,opus",
+                    help=f"comma-separated models for arm P ({', '.join(f'{k} = {v}' for k, v in PLAIN_ARMS.items())})")
     args = ap.parse_args(argv)
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     benchmarks = [b.strip() for b in args.benchmarks.split(",") if b.strip()]
     unknown = [b for b in benchmarks if b not in FIXTURES]
     if unknown:
         print(f"unknown benchmark(s): {', '.join(unknown)} (known: {', '.join(FIXTURES)})", file=sys.stderr)
+        return 2
+    try:
+        plain_arms = [] if args.no_plain else _plain_arms(
+            [m.strip() for m in args.plain_models.split(",") if m.strip()])
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
         return 2
     labels = [f"O-{m}" for m in models]
     if args.rescore:
@@ -237,14 +267,14 @@ def main(argv=None) -> int:
         for b in benchmarks:
             print(f"\n=== arm O ({m}) on {b} ===")
             rc = research_eval.main(["--arm", "O", "--benchmark", b, "--repo", str(_ROOT / FIXTURES[b]),
-                                     "--model", m, "--label", label, "--quiet"])
+                                     *arm_o_settings(m), "--label", label, "--quiet"])
             if rc != 0:
                 print(f"research_eval failed (rc={rc}); stopping", file=sys.stderr)
                 return rc
-    if not args.no_plain:
+    for arm in plain_arms:
         for b in benchmarks:
-            print(f"\n=== arm P ({PLAIN_ARM}, eval's plain arm) on {b} ===")
-            out = run_plain(b)
+            print(f"\n=== arm P ({arm}, eval's plain arm) on {b} ===")
+            out = run_plain(b, arm=arm)
             status = json.loads(out.read_text(encoding="utf-8"))["status"]
             print(f"[P] {b}: status {status}, wrote {out}")
             if status != "ok":

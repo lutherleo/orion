@@ -1,0 +1,67 @@
+{
+ "benchmark": "vlb",
+ "rule": "VLB in scope, has a CWE, 1-10 fix sites, not only added files; per ecosystem {'npm': 2, 'pip': 2, 'maven': 1}; smallest GitHub repo first, then id; one task per repo",
+ "keys_status": "files: VLB's own ground truth; fix sites: proposed (derived by eval.vlb, unsigned)",
+ "selected": [
+  "0bCRIkhJ",
+  "TOhqi6Al",
+  "NXIHKkeO",
+  "JqAIZxnS",
+  "laTh1BVj"
+ ],
+ "tasks": [
+  {
+   "id": "0bCRIkhJ",
+   "repo": "AhmedAdelFahim/express-xss-sanitizer",
+   "ecosystem": "npm",
+   "cwes": [
+    "CWE-674"
+   ],
+   "fix_sites": 5,
+   "size_kb": 40
+  },
+  {
+   "id": "TOhqi6Al",
+   "repo": "abodelot/jquery.json-viewer",
+   "ecosystem": "npm",
+   "cwes": [
+    "CWE-79"
+   ],
+   "fix_sites": 4,
+   "size_kb": 43
+  },
+  {
+   "id": "NXIHKkeO",
+   "repo": "mmaitre314/picklescan",
+   "ecosystem": "pip",
+   "cwes": [
+    "CWE-502"
+   ],
+   "fix_sites": 5,
+   "size_kb": 566
+  },
+  {
+   "id": "JqAIZxnS",
+   "repo": "mpdavis/python-jose",
+   "ecosystem": "pip",
+   "cwes": [
+    "CWE-409"
+   ],
+   "fix_sites": 7,
+   "size_kb": 635
+  },
+  {
+   "id": "laTh1BVj",
+   "repo": "eclipse-ee4j/parsson",
+   "ecosystem": "maven",
+   "cwes": [
+    "CWE-20",
+    "CWE-834"
+   ],
+   "fix_sites": 8,
+   "size_kb": 514
+  }
+ ],
+ "repos_without_size": [],
+ "note": "Smallest repos first keeps the pilot cheap; it biases the pilot toward small libraries."
+}
