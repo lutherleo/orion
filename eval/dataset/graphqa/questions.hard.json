@@ -1,0 +1,2237 @@
+{
+ "status": "proposed",
+ "note": "AI-written templates and picks; a human must review every question before a result counts. Gold is the source oracle's; `reference` is the plain Cypher's answer.",
+ "generated_at": "2026-11-02T05:40:24+00:00",
+ "orion_commit": "d472645aa0b2c72376cd0884caf600982506a636",
+ "seed": 20261101,
+ "per_family": 2,
+ "fixtures": {
+  "nodegoat": {
+   "repo": "/home/lutherleo/orion/fixtures/NodeGoat",
+   "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "built_at": "2026-10-29T10:20:57.143519+00:00",
+   "export": "/home/lutherleo/.cache/orion/graphqa/NodeGoat-c5cb68a7084e",
+   "lang": "js",
+   "source_files": 25,
+   "unparsed": [],
+   "edges": {
+    "oracle_functions": 61,
+    "graph_functions": 59,
+    "both": 59,
+    "oracle_edges": 44,
+    "graph_edges": 20,
+    "common": 19,
+    "oracle_only": 25,
+    "graph_only": 1,
+    "graph_only_on_an_object": 0,
+    "recall": 0.4318,
+    "precision": 0.95
+   },
+   "skipped_candidates": {
+    "reach_down: answer size outside 3..20": 55,
+    "reach_up: answer size outside 3..20": 17,
+    "chain: only one chain": 4,
+    "dead: answer size outside 3..20": 9,
+    "pair: answer size outside 3..20": 14,
+    "pair: two functions in the answer share a name": 2,
+    "pair: this variant has its question": 19,
+    "pair: Y never appears with X": 11
+   }
+  },
+  "pygoat": {
+   "repo": "/home/lutherleo/orion/fixtures/pygoat",
+   "commit": "19d17cc8874861142b330636d068bbde54e86b85",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "built_at": "2026-10-31T19:12:24.445466+00:00",
+   "export": "/home/lutherleo/.cache/orion/graphqa/pygoat-19d17cc88748",
+   "lang": "py",
+   "source_files": 80,
+   "unparsed": [],
+   "edges": {
+    "oracle_functions": 179,
+    "graph_functions": 179,
+    "both": 179,
+    "oracle_edges": 16,
+    "graph_edges": 26,
+    "common": 16,
+    "oracle_only": 0,
+    "graph_only": 10,
+    "graph_only_on_an_object": 9,
+    "recall": 1.0,
+    "precision": 0.6154
+   },
+   "skipped_candidates": {
+    "reach_down: answer size outside 3..20": 177,
+    "reach_down: too shallow": 2,
+    "reach_up: two functions in the answer share a name": 4,
+    "reach_up: answer size outside 3..20": 31,
+    "reach_up: too shallow": 4,
+    "hot: no K gives a usable fan-in answer": 1,
+    "hot: no K gives a usable fan-out answer": 1,
+    "dead: answer size outside 3..20": 1,
+    "pair: answer size outside 3..20": 23,
+    "pair: this variant has its question": 443,
+    "pair: Y never appears with X": 8
+   }
+  },
+  "black": {
+   "repo": "/home/lutherleo/bench-data/repoqa/repos/psf__black/src",
+   "commit": "f03ee113c9f3dfeb477f2d4247bfb7de2e5f465c",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "built_at": "2026-11-02T05:31:35.731559+00:00",
+   "export": "/home/lutherleo/.cache/orion/graphqa/src-f03ee113c9f3",
+   "lang": "py",
+   "source_files": 25,
+   "unparsed": [],
+   "edges": {
+    "oracle_functions": 363,
+    "graph_functions": 363,
+    "both": 363,
+    "oracle_edges": 488,
+    "graph_edges": 513,
+    "common": 449,
+    "oracle_only": 39,
+    "graph_only": 64,
+    "graph_only_on_an_object": 38,
+    "recall": 0.9201,
+    "precision": 0.8752
+   },
+   "skipped_candidates": {
+    "reach_down: answer size outside 3..20": 20,
+    "reach_down: too shallow": 3,
+    "reach_up: answer size outside 3..20": 1,
+    "chain: only one chain": 1,
+    "dead: same answer set as an earlier question": 1,
+    "pair: answer size outside 3..20": 25,
+    "pair: this variant has its question": 4534,
+    "pair: Y never appears with X": 16
+   }
+  },
+  "poetry": {
+   "repo": "/home/lutherleo/bench-data/repoqa/repos/python-poetry__poetry/src",
+   "commit": "21ffd99274d299bd6d2b7b0cdd7ba273fdd941be",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "built_at": "2026-11-02T05:34:24.089144+00:00",
+   "export": "/home/lutherleo/.cache/orion/graphqa/src-21ffd99274d2",
+   "lang": "py",
+   "source_files": 183,
+   "unparsed": [],
+   "edges": {
+    "oracle_functions": 1020,
+    "graph_functions": 1020,
+    "both": 1020,
+    "oracle_edges": 707,
+    "graph_edges": 979,
+    "common": 629,
+    "oracle_only": 78,
+    "graph_only": 350,
+    "graph_only_on_an_object": 281,
+    "recall": 0.8897,
+    "precision": 0.6425
+   },
+   "skipped_candidates": {
+    "reach_down: answer size outside 3..20": 18,
+    "reach_down: too shallow": 2,
+    "reach_up: too shallow": 3,
+    "reach_up: answer size outside 3..20": 7,
+    "reach_up: two functions in the answer share a name": 2,
+    "chain: only one chain": 9,
+    "chain: two functions in the answer share a name": 1,
+    "dead: answer size outside 3..20": 35,
+    "pair: answer size outside 3..20": 71,
+    "pair: two functions in the answer share a name": 1,
+    "pair: this variant has its question": 30064,
+    "pair: Y never appears with X": 32
+   }
+  }
+ },
+ "questions": [
+  {
+   "fixture": "nodegoat",
+   "family": "reach_down",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. Start at the function `handleSignup` (defined at app/routes/session.js:189). Follow its calls to functions defined in this repository, then the calls those functions make, and so on to any depth. Which functions can it reach? Do not list `handleSignup` itself. What counts as a call: `f(...)`, `obj.f(...)` on any object and `new f(...)`, where `f` is a function name defined exactly once in this repository's own code. Not a call: a function passed as a value. A call inside an anonymous callback counts as the named function around it. A named function (assigned to `this.f`, to an object property or to a variable) is its own function, not part of the function around it. `insert` and `test` are not followed: the code also calls a library's method by those names. Answer with the reached functions' names.",
+   "gold": [
+    "addUser",
+    "getNextSequence",
+    "getRandomFutureDate",
+    "getUserByUserName",
+    "prepareUserData",
+    "validateSignup"
+   ],
+   "check": {
+    "start": "app/routes/session.js:189",
+    "depth": {
+     "getUserByUserName": 1,
+     "getNextSequence": 2,
+     "addUser": 1,
+     "getRandomFutureDate": 2,
+     "validateSignup": 1,
+     "prepareUserData": 1
+    },
+    "objects_not_followed": [],
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [
+     "prepareUserData",
+     "validateSignup"
+    ],
+    "f1": 0.5,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "nodegoat-reach_down-1",
+   "candidate": "app/routes/session.js:189",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "reach_down",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. Start at the function `index` (defined at app/routes/index.js:11). Follow its calls to functions defined in this repository, then the calls those functions make, and so on to any depth. Which functions can it reach? Do not list `index` itself. What counts as a call: `f(...)`, `obj.f(...)` on any object and `new f(...)`, where `f` is a function name defined exactly once in this repository's own code. Not a call: a function passed as a value. A call inside an anonymous callback counts as the named function around it. A named function (assigned to `this.f`, to an object property or to a variable) is its own function, not part of the function around it. `insert` and `test` are not followed: the code also calls a library's method by those names. Answer with the reached functions' names.",
+   "gold": [
+    "AllocationsDAO",
+    "AllocationsHandler",
+    "BenefitsDAO",
+    "BenefitsHandler",
+    "ContributionsDAO",
+    "ContributionsHandler",
+    "MemosDAO",
+    "MemosHandler",
+    "ProfileDAO",
+    "ProfileHandler",
+    "ResearchDAO",
+    "ResearchHandler",
+    "SessionHandler",
+    "UserDAO"
+   ],
+   "check": {
+    "start": "app/routes/index.js:11",
+    "depth": {
+     "AllocationsDAO": 2,
+     "BenefitsDAO": 2,
+     "ContributionsDAO": 2,
+     "MemosDAO": 2,
+     "ProfileDAO": 2,
+     "ResearchDAO": 2,
+     "UserDAO": 2,
+     "AllocationsHandler": 1,
+     "BenefitsHandler": 1,
+     "ContributionsHandler": 1,
+     "MemosHandler": 1,
+     "ProfileHandler": 1,
+     "ResearchHandler": 1,
+     "SessionHandler": 1
+    },
+    "objects_not_followed": [],
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [
+     "AllocationsDAO",
+     "AllocationsHandler",
+     "BenefitsHandler",
+     "ContributionsHandler",
+     "MemosHandler",
+     "ProfileHandler",
+     "ResearchHandler",
+     "SessionHandler"
+    ],
+    "f1": 0.7273,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "nodegoat-reach_down-2",
+   "candidate": "app/routes/index.js:11",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "reach_up",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. No function named `ceil` is defined in this repository. Which functions in this repository can reach a call to `ceil`, either in their own body or through a chain of calls of any length to other functions defined in this repository? The call to `ceil` itself may be on any object (`ceil(...)` or `obj.ceil(...)`). For the chain: What counts as a call: `f(...)`, `obj.f(...)` on any object and `new f(...)`, where `f` is a function name defined exactly once in this repository's own code. Not a call: a function passed as a value. A call inside an anonymous callback counts as the named function around it. A named function (assigned to `this.f`, to an object property or to a variable) is its own function, not part of the function around it. `insert` and `test` are not followed: the code also calls a library's method by those names. Answer with the functions' names.",
+   "gold": [
+    "addUser",
+    "getRandomFutureDate",
+    "handleSignup"
+   ],
+   "check": {
+    "library_call": "ceil",
+    "direct": [
+     "app/data/user-dao.js:49"
+    ],
+    "depth": {
+     "addUser": 1,
+     "handleSignup": 2
+    },
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [
+     "getRandomFutureDate"
+    ],
+    "f1": 0.5,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "nodegoat-reach_up-1",
+   "candidate": "lib:ceil",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "reach_up",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. No function named `random` is defined in this repository. Which functions in this repository can reach a call to `random`, either in their own body or through a chain of calls of any length to other functions defined in this repository? The call to `random` itself may be on any object (`random(...)` or `obj.random(...)`). For the chain: What counts as a call: `f(...)`, `obj.f(...)` on any object and `new f(...)`, where `f` is a function name defined exactly once in this repository's own code. Not a call: a function passed as a value. A call inside an anonymous callback counts as the named function around it. A named function (assigned to `this.f`, to an object property or to a variable) is its own function, not part of the function around it. `insert` and `test` are not followed: the code also calls a library's method by those names. Answer with the functions' names.",
+   "gold": [
+    "addUser",
+    "getRandomFutureDate",
+    "handleSignup",
+    "prepareUserData"
+   ],
+   "check": {
+    "library_call": "random",
+    "direct": [
+     "app/data/user-dao.js:49",
+     "app/routes/session.js:14"
+    ],
+    "depth": {
+     "addUser": 1,
+     "handleSignup": 1
+    },
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [
+     "getRandomFutureDate",
+     "handleSignup",
+     "prepareUserData"
+    ],
+    "f1": 0.8571,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "nodegoat-reach_up-2",
+   "candidate": "lib:random",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "chain",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. Consider every chain of calls from `index` (defined at app/routes/index.js:11) to `AllocationsDAO` (defined at app/data/allocations-dao.js:4), going only through functions defined in this repository, of any length. Which functions lie on at least one such chain? Include both ends. What counts as a call: `f(...)`, `obj.f(...)` on any object and `new f(...)`, where `f` is a function name defined exactly once in this repository's own code. Not a call: a function passed as a value. A call inside an anonymous callback counts as the named function around it. A named function (assigned to `this.f`, to an object property or to a variable) is its own function, not part of the function around it. `insert` and `test` are not followed: the code also calls a library's method by those names. Answer with the functions' names.",
+   "gold": [
+    "AllocationsDAO",
+    "AllocationsHandler",
+    "SessionHandler",
+    "index"
+   ],
+   "check": {
+    "from": "app/routes/index.js:11",
+    "to": "app/data/allocations-dao.js:4",
+    "shortest_calls": 2,
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [
+     "AllocationsDAO",
+     "AllocationsHandler",
+     "SessionHandler",
+     "index"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "nodegoat-chain-1",
+   "candidate": "app/routes/index.js:11->app/data/allocations-dao.js:4",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "chain",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. Consider every chain of calls from `index` (defined at app/routes/index.js:11) to `UserDAO` (defined at app/data/user-dao.js:4), going only through functions defined in this repository, of any length. Which functions lie on at least one such chain? Include both ends. What counts as a call: `f(...)`, `obj.f(...)` on any object and `new f(...)`, where `f` is a function name defined exactly once in this repository's own code. Not a call: a function passed as a value. A call inside an anonymous callback counts as the named function around it. A named function (assigned to `this.f`, to an object property or to a variable) is its own function, not part of the function around it. `insert` and `test` are not followed: the code also calls a library's method by those names. Answer with the functions' names.",
+   "gold": [
+    "AllocationsDAO",
+    "AllocationsHandler",
+    "ContributionsDAO",
+    "ContributionsHandler",
+    "SessionHandler",
+    "UserDAO",
+    "index"
+   ],
+   "check": {
+    "from": "app/routes/index.js:11",
+    "to": "app/data/user-dao.js:4",
+    "shortest_calls": 2,
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [],
+    "f1": 0.0,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "nodegoat-chain-2",
+   "candidate": "app/routes/index.js:11->app/data/user-dao.js:4",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "hot",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. Which functions defined in this repository are called from at least 2 different functions or methods of this repository, not counting themselves? Count calling functions, not call sites; code at module level does not count as a caller. What counts as a call: `f(...)`, `obj.f(...)` on any object and `new f(...)`, where `f` is a function name defined exactly once in this repository's own code. Not a call: a function passed as a value. A call inside an anonymous callback counts as the named function around it. A named function (assigned to `this.f`, to an object property or to a variable) is its own function, not part of the function around it. `insert` and `test` are not followed: the code also calls a library's method by those names. Answer with the functions' names.",
+   "gold": [
+    "AllocationsDAO",
+    "UserDAO",
+    "getAllNonAdminUsers",
+    "getUserById"
+   ],
+   "check": {
+    "variant": "fan-in",
+    "k": 2,
+    "counts": {
+     "AllocationsDAO": 2,
+     "getAllNonAdminUsers": 2,
+     "UserDAO": 3,
+     "getUserById": 6
+    },
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [
+     "AllocationsDAO"
+    ],
+    "f1": 0.4,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "nodegoat-hot-1",
+   "candidate": "fan-in",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "hot",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. Which functions or methods defined in this repository call at least 2 different functions defined in this repository, not counting themselves? What counts as a call: `f(...)`, `obj.f(...)` on any object and `new f(...)`, where `f` is a function name defined exactly once in this repository's own code. Not a call: a function passed as a value. A call inside an anonymous callback counts as the named function around it. A named function (assigned to `this.f`, to an object property or to a variable) is its own function, not part of the function around it. `insert` and `test` are not followed: the code also calls a library's method by those names. Answer with the functions' names.",
+   "gold": [
+    "SessionHandler",
+    "addUser",
+    "handleSignup",
+    "index"
+   ],
+   "check": {
+    "variant": "fan-out",
+    "k": 2,
+    "counts": {
+     "addUser": 2,
+     "index": 7,
+     "handleSignup": 4,
+     "SessionHandler": 2
+    },
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [
+     "handleSignup",
+     "index"
+    ],
+    "f1": 0.6667,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "nodegoat-hot-2",
+   "candidate": "fan-out",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "pair",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. Which functions or methods defined in this repository call both `UserDAO` and `collection`? A call by that name on any receiver counts (`UserDAO(...)`, `obj.UserDAO(...)`), in the function's own body or in a function nested in it; code at module level does not count. Answer with the functions' names.",
+   "gold": [
+    "AllocationsDAO",
+    "ContributionsDAO",
+    "UserDAO"
+   ],
+   "check": {
+    "variant": "both",
+    "x": "UserDAO",
+    "y": "collection",
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [],
+    "f1": 0.0,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "nodegoat-pair-1",
+   "candidate": "both:UserDAO,collection",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "pair",
+   "answer_kind": "name",
+   "question": "Only the server code counts: ignore `app/assets/` and `test/`. Which functions or methods defined in this repository call `redirect` but never call `getUserById`? A call by that name on any receiver counts (`redirect(...)`, `obj.redirect(...)`), in the function's own body or in a function nested in it; code at module level does not count. Answer with the functions' names.",
+   "gold": [
+    "displayLogoutPage",
+    "handleLoginRequest",
+    "index",
+    "isLoggedInMiddleware"
+   ],
+   "check": {
+    "variant": "not",
+    "x": "redirect",
+    "y": "getUserById",
+    "oracle": "lexical"
+   },
+   "reference": {
+    "answer": [
+     "displayLogoutPage",
+     "handleLoginRequest",
+     "isLoggedInMiddleware"
+    ],
+    "f1": 0.8571,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "nodegoat-pair-2",
+   "candidate": "not:redirect,getUserById",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "reach_up",
+   "answer_kind": "name",
+   "question": "No function named `system` is defined in this repository. Which functions in this repository can reach a call to `system`, either in their own body or through a chain of calls of any length to other functions defined in this repository? The call to `system` itself may be on any object (`system(...)` or `obj.system(...)`). For the chain: What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "is_user_admin",
+    "main",
+    "remove_pygoat"
+   ],
+   "check": {
+    "library_call": "system",
+    "direct": [
+     "uninstaller.py:13",
+     "uninstaller.py:73"
+    ],
+    "depth": {
+     "main": 1
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "is_user_admin",
+     "main",
+     "remove_pygoat"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "pygoat-reach_up-1",
+   "candidate": "lib:system",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "reach_up",
+   "answer_kind": "name",
+   "question": "No function named `Popen` is defined in this repository. Which functions in this repository can reach a call to `Popen`, either in their own body or through a chain of calls of any length to other functions defined in this repository? The call to `Popen` itself may be on any object (`Popen(...)` or `obj.Popen(...)`). For the chain: What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "cmd_lab",
+    "command_out",
+    "delete",
+    "mitre_lab_17_api",
+    "post"
+   ],
+   "check": {
+    "library_call": "Popen",
+    "direct": [
+     "challenge/views.py:27",
+     "challenge/views.py:68",
+     "introduction/mitre.py:232",
+     "introduction/views.py:415"
+    ],
+    "depth": {
+     "mitre_lab_17_api": 1
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "cmd_lab",
+     "command_out",
+     "delete",
+     "mitre_lab_17_api",
+     "post"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "pygoat-reach_up-2",
+   "candidate": "lib:Popen",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "dead",
+   "answer_kind": "name",
+   "question": "Consider the module-level functions (not methods) defined in this repository. Which of them are never mentioned anywhere else in this repository's Python code? That is, the function's name appears on no other line of code in any file: a call, an import or a plain reference is a mention, and so is code inside an f-string's braces; comments and plain strings are not. Answer with the functions' names.",
+   "gold": [
+    "dashboard",
+    "deserialize_data",
+    "lab",
+    "reset_form",
+    "reset_password",
+    "serialize_data",
+    "unique_id_generator"
+   ],
+   "check": {
+    "folder": "",
+    "of": 152,
+    "kind": "module-level functions (not methods)",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "A6_discussion",
+     "A6_disscussion_api",
+     "A6_disscussion_api_2",
+     "A7_discussion",
+     "A7_disscussion_api",
+     "A9_discussion",
+     "Otp",
+     "a10",
+     "a10_lab",
+     "a10_lab2",
+     "a1_broken_access",
+     "a1_broken_access_lab3_secret",
+     "a1_broken_access_lab_1",
+     "a1_broken_access_lab_2",
+     "a1_broken_access_lab_3",
+     "a9",
+     "a9_lab",
+     "a9_lab2",
+     "about",
+     "all_users_data_view",
+     "api_data_view",
+     "auth_failure",
+     "auth_failure_lab2",
+     "auth_failure_lab3",
+     "auth_home",
+     "auth_lab",
+     "auth_lab_login",
+     "auth_lab_logout",
+     "auth_lab_signup",
+     "ba",
+     "ba_lab",
+     "bau",
+     "bau_lab",
+     "check_vuln",
+     "cmd",
+     "cmd_lab",
+     "cmd_lab2",
+     "crypto_failure",
+     "crypto_failure_lab",
+     "crypto_failure_lab2",
+     "crypto_failure_lab3",
+     "csrf_lab_login",
+     "csrf_transfer_monei",
+     "csrf_transfer_monei_api",
+     "dashboard",
+     "data_exp",
+     "data_exp_lab",
+     "debug",
+     "deserialize_data",
+     "error",
+     "get_version",
+     "home",
+     "index",
+     "injection",
+     "injection_sql_lab",
+     "insec_des",
+     "insec_des_lab",
+     "insec_desgine",
+     "insec_desgine_lab",
+     "lab",
+     "log_function_checker",
+     "log_function_target",
+     "login",
+     "login_otp",
+     "login_view",
+     "logout_view",
+     "mitre_lab_17",
+     "mitre_lab_17_api",
+     "mitre_lab_25",
+     "mitre_lab_25_api",
+     "mitre_top1",
+     "mitre_top10",
+     "mitre_top11",
+     "mitre_top12",
+     "mitre_top13",
+     "mitre_top14",
+     "mitre_top15",
+     "mitre_top16",
+     "mitre_top17",
+     "mitre_top18",
+     "mitre_top19",
+     "mitre_top2",
+     "mitre_top20",
+     "mitre_top21",
+     "mitre_top22",
+     "mitre_top23",
+     "mitre_top24",
+     "mitre_top25",
+     "mitre_top3",
+     "mitre_top4",
+     "mitre_top5",
+     "mitre_top6",
+     "mitre_top7",
+     "mitre_top8",
+     "mitre_top9",
+     "profile_view",
+     "register",
+     "register_view",
+     "reset_form",
+     "reset_password",
+     "robots",
+     "sec_mis",
+     "sec_mis_lab",
+     "sec_misconfig_lab3",
+     "secret",
+     "sensitive_data_exposure_lesson",
+     "serialize_data",
+     "software_and_data_integrity_failure",
+     "software_and_data_integrity_failure_lab2",
+     "software_and_data_integrity_failure_lab3",
+     "sql",
+     "sql_lab",
+     "ssrf",
+     "ssrf_code_checker",
+     "ssrf_discussion",
+     "ssrf_lab",
+     "ssrf_lab2",
+     "ssrf_target",
+     "ssti",
+     "ssti_lab",
+     "ssti_view_blog",
+     "unique_id_generator",
+     "xss",
+     "xss_lab",
+     "xss_lab2",
+     "xss_lab3",
+     "xxe",
+     "xxe_lab",
+     "xxe_parse",
+     "xxe_see"
+    ],
+    "f1": 0.1022,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "pygoat-dead-1",
+   "candidate": "top:",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "dead",
+   "answer_kind": "name",
+   "question": "Consider the module-level functions (not methods) defined under `dockerized_labs/`. Which of them are never mentioned anywhere else in this repository's Python code? That is, the function's name appears on no other line of code in any file: a call, an import or a plain reference is a mention, and so is code inside an f-string's braces; comments and plain strings are not. Answer with the functions' names.",
+   "gold": [
+    "dashboard",
+    "deserialize_data",
+    "lab",
+    "reset_form",
+    "reset_password",
+    "serialize_data"
+   ],
+   "check": {
+    "folder": "dockerized_labs",
+    "of": 21,
+    "kind": "module-level functions (not methods)",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "about",
+     "all_users_data_view",
+     "api_data_view",
+     "dashboard",
+     "deserialize_data",
+     "index",
+     "lab",
+     "login",
+     "login_view",
+     "logout_view",
+     "profile_view",
+     "register",
+     "register_view",
+     "reset_form",
+     "reset_password",
+     "sensitive_data_exposure_lesson",
+     "serialize_data"
+    ],
+    "f1": 0.5217,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "pygoat-dead-2",
+   "candidate": "top:dockerized_labs",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "pair",
+   "answer_kind": "name",
+   "question": "Which functions or methods defined in this repository call both `redirect` and `split`? A call by that name on any receiver counts (`redirect(...)`, `obj.redirect(...)`), in the function's own body or in a function nested in it; code at module level does not count. Answer with the functions' names.",
+   "gold": [
+    "a9_lab2",
+    "dashboard",
+    "delete",
+    "post",
+    "ssti_lab"
+   ],
+   "check": {
+    "variant": "both",
+    "x": "redirect",
+    "y": "split",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "a9_lab2",
+     "dashboard",
+     "delete",
+     "post",
+     "ssti_lab"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "pygoat-pair-1",
+   "candidate": "both:redirect,split",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "pair",
+   "answer_kind": "name",
+   "question": "Which functions or methods defined in this repository call `write` but never call `JsonResponse`? A call by that name on any receiver counts (`write(...)`, `obj.write(...)`), in the function's own body or in a function nested in it; code at module level does not count. Answer with the functions' names.",
+   "gold": [
+    "error",
+    "handle",
+    "info",
+    "ssrf_code_converter",
+    "ssti_lab",
+    "warning"
+   ],
+   "check": {
+    "variant": "not",
+    "x": "write",
+    "y": "JsonResponse",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "error",
+     "handle",
+     "info",
+     "ssrf_code_converter",
+     "ssti_lab",
+     "warning"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "pygoat-pair-2",
+   "candidate": "not:write,JsonResponse",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "reach_down",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Start at the function `_validate` (defined at black/trans.py:1134). Follow its calls to functions defined in this repository, then the calls those functions make, and so on to any depth. Which functions can it reach? Do not list `_validate` itself. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the reached functions' names.",
+   "gold": [
+    "TErr",
+    "_get_max_string_length",
+    "char_width",
+    "contains_pragma_comment",
+    "count_chars_in_width",
+    "has_triple_quotes",
+    "is_valid_index_factory"
+   ],
+   "check": {
+    "start": "black/trans.py:1134",
+    "depth": {
+     "contains_pragma_comment": 1,
+     "char_width": 3,
+     "count_chars_in_width": 2,
+     "has_triple_quotes": 1,
+     "_get_max_string_length": 1,
+     "is_valid_index_factory": 2,
+     "TErr": 1
+    },
+    "objects_not_followed": [
+     "comments_after"
+    ],
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_get_max_string_length",
+     "char_width",
+     "contains_pragma_comment",
+     "count_chars_in_width",
+     "has_triple_quotes",
+     "is_valid_index_factory"
+    ],
+    "f1": 0.9231,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "black-reach_down-1",
+   "candidate": "black/trans.py:1134",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "reach_down",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Start at the function `visit_paramspec` (defined at black/linegen.py:234). Follow its calls to functions defined in this repository, then the calls those functions make, and so on to any depth. Which functions can it reach? Do not list `visit_paramspec` itself. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the reached functions' names.",
+   "gold": [
+    "_cached_compile",
+    "format_complex_number",
+    "format_float_or_int_string",
+    "format_hex",
+    "format_scientific_notation",
+    "generate_comments",
+    "is_async_stmt_or_funcdef",
+    "line",
+    "list_comments",
+    "make_comment",
+    "make_simple_prefix",
+    "normalize_numeric_literal",
+    "normalize_string_prefix",
+    "normalize_string_quotes",
+    "normalize_trailing_prefix",
+    "sub_twice",
+    "visit_default"
+   ],
+   "check": {
+    "start": "black/linegen.py:234",
+    "depth": {
+     "normalize_trailing_prefix": 3,
+     "make_comment": 4,
+     "generate_comments": 2,
+     "list_comments": 3,
+     "line": 2,
+     "visit_default": 1,
+     "make_simple_prefix": 3,
+     "is_async_stmt_or_funcdef": 3,
+     "format_scientific_notation": 3,
+     "format_complex_number": 3,
+     "format_float_or_int_string": 3,
+     "normalize_numeric_literal": 2,
+     "format_hex": 3,
+     "normalize_string_prefix": 2,
+     "_cached_compile": 3,
+     "normalize_string_quotes": 2,
+     "sub_twice": 3
+    },
+    "objects_not_followed": [
+     "any_open_brackets",
+     "append"
+    ],
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [],
+    "f1": 0.0,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "black-reach_down-2",
+   "candidate": "black/linegen.py:234",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "reach_up",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. No function named `setdefault` is defined in this repository. Which functions in this repository can reach a call to `setdefault`, either in their own body or through a chain of calls of any length to other functions defined in this repository? The call to `setdefault` itself may be on any object (`setdefault(...)` or `obj.setdefault(...)`). For the chain: What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "_transform_to_new_line",
+    "append",
+    "append_comment",
+    "append_safe",
+    "do_transform",
+    "remove_trailing_comma"
+   ],
+   "check": {
+    "library_call": "setdefault",
+    "direct": [
+     "black/lines.py:387",
+     "black/lines.py:428",
+     "black/trans.py:1033"
+    ],
+    "depth": {
+     "append": 1,
+     "append_safe": 2,
+     "do_transform": 1
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "__call__",
+     "_first_right_hand_split",
+     "_format_str_once",
+     "_maybe_empty_lines",
+     "_maybe_split_omitting_optional_parens",
+     "_prefer_split_rhs_oop_over_rhs",
+     "_transform_to_new_line",
+     "append",
+     "append_comment",
+     "append_safe",
+     "assert_stable",
+     "bracket_split_build_line",
+     "check_stability_and_equivalence",
+     "contains_unsplittable_type_ignore",
+     "delimiter_split",
+     "detect_target_versions",
+     "do_transform",
+     "format_cell",
+     "format_file_contents",
+     "format_file_in_place",
+     "format_ipynb_string",
+     "format_stdin_to_stdout",
+     "format_str",
+     "get_cache_key",
+     "get_features_used",
+     "is_line_short_enough",
+     "left_hand_split",
+     "main",
+     "maybe_empty_lines",
+     "patched_main",
+     "reformat_code",
+     "reformat_one",
+     "remove_trailing_comma",
+     "right_hand_split",
+     "run_transformer",
+     "should_split_funcdef_with_rhs",
+     "standalone_comment_split",
+     "transform_line"
+    ],
+    "f1": 0.2727,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "black-reach_up-1",
+   "candidate": "lib:setdefault",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "reach_up",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. No function named `seek` is defined in this repository. Which functions in this repository can reach a call to `seek`, either in their own body or through a chain of calls of any length to other functions defined in this repository? The call to `seek` itself may be on any object (`seek(...)` or `obj.seek(...)`). For the chain: What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "_format_str_once",
+    "assert_stable",
+    "check_stability_and_equivalence",
+    "decode_bytes",
+    "format_cell",
+    "format_file_contents",
+    "format_file_in_place",
+    "format_ipynb_string",
+    "format_stdin_to_stdout",
+    "format_str",
+    "main",
+    "patched_main",
+    "reformat_code",
+    "reformat_one"
+   ],
+   "check": {
+    "library_call": "seek",
+    "direct": [
+     "black/__init__.py:1280"
+    ],
+    "depth": {
+     "check_stability_and_equivalence": 3,
+     "format_file_contents": 3,
+     "format_cell": 3,
+     "format_ipynb_string": 4,
+     "format_str": 2,
+     "_format_str_once": 1,
+     "assert_stable": 2,
+     "patched_main": 4,
+     "main": 3,
+     "reformat_code": 2,
+     "reformat_one": 2,
+     "format_file_in_place": 1,
+     "format_stdin_to_stdout": 1
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_format_str_once",
+     "assert_stable",
+     "check_stability_and_equivalence",
+     "decode_bytes",
+     "format_cell",
+     "format_file_contents",
+     "format_file_in_place",
+     "format_ipynb_string",
+     "format_stdin_to_stdout",
+     "format_str",
+     "main",
+     "patched_main",
+     "reformat_code",
+     "reformat_one"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "black-reach_up-2",
+   "candidate": "lib:seek",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "chain",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Consider every chain of calls from `assert_stable` (defined at black/__init__.py:1542) to `handle_is_simple_look_up_prev` (defined at black/trans.py:182), going only through functions defined in this repository, of any length. Which functions lie on at least one such chain? Include both ends. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "_format_str_once",
+    "_hugging_power_ops_line_to_string",
+    "assert_stable",
+    "handle_is_simple_look_up_prev",
+    "hug_power_op",
+    "run_transformer",
+    "transform_line"
+   ],
+   "check": {
+    "from": "black/__init__.py:1542",
+    "to": "black/trans.py:182",
+    "shortest_calls": 5,
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_format_str_once",
+     "_hugging_power_ops_line_to_string",
+     "assert_stable",
+     "handle_is_simple_look_up_prev",
+     "hug_power_op",
+     "run_transformer",
+     "transform_line"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "black-chain-1",
+   "candidate": "black/__init__.py:1542->black/trans.py:182",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "chain",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Consider every chain of calls from `reformat_code` (defined at black/__init__.py:825) to `_convert_unchanged_line_by_line` (defined at black/ranges.py:224), going only through functions defined in this repository, of any length. Which functions lie on at least one such chain? Include both ends. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "_convert_unchanged_line_by_line",
+    "_format_str_once",
+    "assert_stable",
+    "check_stability_and_equivalence",
+    "convert_unchanged_lines",
+    "format_cell",
+    "format_file_contents",
+    "format_ipynb_string",
+    "format_stdin_to_stdout",
+    "format_str",
+    "reformat_code"
+   ],
+   "check": {
+    "from": "black/__init__.py:825",
+    "to": "black/ranges.py:224",
+    "shortest_calls": 6,
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_convert_unchanged_line_by_line",
+     "_format_str_once",
+     "assert_stable",
+     "check_stability_and_equivalence",
+     "convert_unchanged_lines",
+     "format_cell",
+     "format_file_contents",
+     "format_ipynb_string",
+     "format_stdin_to_stdout",
+     "format_str",
+     "reformat_code"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "black-chain-2",
+   "candidate": "black/__init__.py:825->black/ranges.py:224",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "hot",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Which module-level functions (not methods) defined in this repository are called from at least 8 different functions or methods of this repository, not counting themselves? Count calling functions, not call sites; code at module level does not count as a caller. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "TErr",
+    "is_valid_index_factory",
+    "out",
+    "wrap_in_parentheses"
+   ],
+   "check": {
+    "variant": "fan-in",
+    "k": 8,
+    "counts": {
+     "wrap_in_parentheses": 8,
+     "out": 8,
+     "is_valid_index_factory": 14,
+     "TErr": 9
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "err",
+     "is_valid_index_factory",
+     "out",
+     "wrap_in_parentheses"
+    ],
+    "f1": 0.75,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "black-hot-1",
+   "candidate": "fan-in",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "hot",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Which functions or methods defined in this repository call at least 10 different functions defined in this repository, not counting themselves? What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "do_transform",
+    "main",
+    "maybe_make_parens_invisible_in_atom"
+   ],
+   "check": {
+    "variant": "fan-out",
+    "k": 10,
+    "counts": {
+     "main": 11,
+     "maybe_make_parens_invisible_in_atom": 10,
+     "do_transform": 14
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "__call__",
+     "_format_str_once",
+     "do_transform",
+     "get_sources",
+     "main",
+     "maybe_make_parens_invisible_in_atom"
+    ],
+    "f1": 0.6667,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "black-hot-2",
+   "candidate": "fan-out",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "dead",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Consider the module-level functions (not methods) defined under `black/`. Which of them are never mentioned anywhere else in this repository's Python code? That is, the function's name appears on no other line of code in any file: a call, an import or a plain reference is a mention, and so is code inside an f-string's braces; comments and plain strings are not. Answer with the functions' names.",
+   "gold": [
+    "get_schema",
+    "is_function_or_class",
+    "lib2to3_unparse",
+    "matches_grammar"
+   ],
+   "check": {
+    "folder": "black",
+    "of": 221,
+    "kind": "module-level functions (not methods)",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "TErr",
+     "enable_unstable_feature_callback",
+     "enumerate_reversed",
+     "get_schema",
+     "is_function_or_class",
+     "left_hand_split",
+     "lib2to3_unparse",
+     "matches_grammar",
+     "read_pyproject_toml",
+     "target_version_option_callback",
+     "validate_regex"
+    ],
+    "f1": 0.5333,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "black-dead-1",
+   "candidate": "top:black",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "dead",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Consider the methods (not module-level functions) defined in this repository. Which of them are never mentioned anywhere else in this repository's Python code? That is, the function's name appears on no other line of code in any file: a call, an import or a plain reference is a mention, and so is code inside an f-string's braces; comments and plain strings are not. Answer with the functions' names.",
+   "gold": [
+    "show",
+    "visit_Assign",
+    "visit_DEDENT",
+    "visit_ENDMARKER",
+    "visit_INDENT",
+    "visit_SEMI",
+    "visit_STANDALONE_COMMENT",
+    "visit_STRING",
+    "visit_dictsetmaker",
+    "visit_factor",
+    "visit_funcdef",
+    "visit_paramspec",
+    "visit_power",
+    "visit_test",
+    "visit_tname",
+    "visit_typeparams",
+    "visit_typevartuple"
+   ],
+   "check": {
+    "folder": "",
+    "of": 128,
+    "kind": "methods (not module-level functions)",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_is_triple_quoted_string",
+     "any_open_brackets",
+     "any_open_for_or_lambda",
+     "clone",
+     "contains_implicit_multiline_string_with_comments",
+     "contains_multiline_strings",
+     "contains_standalone_comments",
+     "contains_uncollapsable_type_comments",
+     "contains_unsplittable_type_ignore",
+     "delimiter_count_with_priority",
+     "do_match",
+     "do_splitter_match",
+     "do_transform",
+     "enumerate_with_length",
+     "filtered_cached",
+     "get_cache_key",
+     "get_open_lsqb",
+     "header",
+     "is_chained_assignment",
+     "is_class",
+     "is_class_paren_empty",
+     "is_comment",
+     "is_decorator",
+     "is_def",
+     "is_docstring",
+     "is_fmt_pass_converted",
+     "is_import",
+     "is_stub_class",
+     "is_stub_def",
+     "is_with_or_async_with_stmt",
+     "line",
+     "opens_block",
+     "return_code",
+     "show",
+     "visit_Assign",
+     "visit_DEDENT",
+     "visit_ENDMARKER",
+     "visit_Expr",
+     "visit_INDENT",
+     "visit_SEMI",
+     "visit_STANDALONE_COMMENT",
+     "visit_STRING",
+     "visit_async_stmt",
+     "visit_decorators",
+     "visit_default",
+     "visit_dictsetmaker",
+     "visit_factor",
+     "visit_funcdef",
+     "visit_match_case",
+     "visit_paramspec",
+     "visit_power",
+     "visit_simple_stmt",
+     "visit_stmt",
+     "visit_suite",
+     "visit_test",
+     "visit_tname",
+     "visit_typeparams",
+     "visit_typevartuple"
+    ],
+    "f1": 0.4533,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "black-dead-2",
+   "candidate": "nested:",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "pair",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Which functions or methods defined in this repository call both `line` and `visit`? A call by that name on any receiver counts (`line(...)`, `obj.line(...)`), in the function's own body or in a function nested in it; code at module level does not count. Answer with the functions' names.",
+   "gold": [
+    "visit_async_stmt",
+    "visit_decorators",
+    "visit_funcdef",
+    "visit_match_case",
+    "visit_stmt"
+   ],
+   "check": {
+    "variant": "both",
+    "x": "line",
+    "y": "visit",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "visit_async_stmt",
+     "visit_decorators",
+     "visit_funcdef",
+     "visit_match_case",
+     "visit_stmt"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "black-pair-1",
+   "candidate": "both:line,visit",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "black",
+   "family": "pair",
+   "answer_kind": "name",
+   "question": "Only the `black/` folder counts: ignore `blackd/` and `blib2to3/`. Which functions or methods defined in this repository call `parse` but never call `TErr`? A call by that name on any receiver counts (`parse(...)`, `obj.parse(...)`), in the function's own body or in a function nested in it; code at module level does not count. Answer with the functions' names.",
+   "gold": [
+    "_assert_match",
+    "_assign_match",
+    "_dict_or_lambda_match",
+    "_parse_single_version",
+    "do_transform",
+    "mask_cell",
+    "replace_cell_magics",
+    "replace_magics"
+   ],
+   "check": {
+    "variant": "not",
+    "x": "parse",
+    "y": "TErr",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_assert_match",
+     "_assign_match",
+     "_dict_or_lambda_match",
+     "_parse_single_version",
+     "do_transform",
+     "mask_cell",
+     "replace_cell_magics",
+     "replace_magics"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "black-pair-2",
+   "candidate": "not:parse,TErr",
+   "status": "proposed",
+   "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "reach_down",
+   "answer_kind": "name",
+   "question": "Start at the function `_do_install` (defined at poetry/installation/installer.py:210). Follow its calls to functions defined in this repository, then the calls those functions make, and so on to any depth. Which functions can it reach? Do not list `_do_install` itself. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the reached functions' names.",
+   "gold": [
+    "_execute",
+    "_filter_operations",
+    "_get_extra_packages",
+    "_get_operations_from_lock",
+    "_populate_lockfile_repo",
+    "_write_lock_file",
+    "from_packages",
+    "get_extra_package_names",
+    "is_dry_run"
+   ],
+   "check": {
+    "start": "poetry/installation/installer.py:210",
+    "depth": {
+     "is_dry_run": 2,
+     "_write_lock_file": 1,
+     "_execute": 1,
+     "_populate_lockfile_repo": 1,
+     "_get_operations_from_lock": 1,
+     "_filter_operations": 1,
+     "_get_extra_packages": 2,
+     "from_packages": 1,
+     "get_extra_package_names": 3
+    },
+    "objects_not_followed": [
+     "add_package",
+     "add_repository",
+     "append",
+     "calculate_operations",
+     "execute",
+     "get",
+     "has_package",
+     "is_fresh",
+     "is_locked",
+     "is_valid_for_marker",
+     "is_verbose",
+     "load_deferred",
+     "locked_repository",
+     "repository",
+     "set_lock_data",
+     "skip",
+     "solve",
+     "use_environment",
+     "use_source_root",
+     "validate"
+    ],
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_execute",
+     "_filter_operations",
+     "_get_extra_packages",
+     "_get_operations_from_lock",
+     "_populate_lockfile_repo",
+     "_write_lock_file",
+     "append",
+     "calculate_operations",
+     "get_extra_package_names",
+     "is_dry_run",
+     "is_verbose",
+     "solve",
+     "use_environment"
+    ],
+    "f1": 0.7273,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "poetry-reach_down-1",
+   "candidate": "poetry/installation/installer.py:210",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "reach_down",
+   "answer_kind": "name",
+   "question": "Start at the function `handle` (defined at poetry/console/commands/self/self_command.py:119). Follow its calls to functions defined in this repository, then the calls those functions make, and so on to any depth. Which functions can it reach? Do not list `handle` itself. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the reached functions' names.",
+   "gold": [
+    "_system_project_handle",
+    "create_pyproject_from_package",
+    "dependency_to_specification",
+    "directory",
+    "generate_system_pyproject",
+    "get_base_prefix",
+    "get_system_env",
+    "reset",
+    "reset_env",
+    "reset_poetry"
+   ],
+   "check": {
+    "start": "poetry/console/commands/self/self_command.py:119",
+    "depth": {
+     "reset": 1,
+     "reset_env": 2,
+     "generate_system_pyproject": 3,
+     "reset_poetry": 2,
+     "_system_project_handle": 1,
+     "create_pyproject_from_package": 4,
+     "dependency_to_specification": 5,
+     "get_system_env": 3,
+     "get_base_prefix": 4,
+     "directory": 1
+    },
+    "objects_not_followed": [
+     "append",
+     "create_poetry",
+     "exists",
+     "write"
+    ],
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_get_environment_repositories",
+     "_get_normalizer",
+     "_is_plugin_candidate",
+     "_load_plugin_entry_point",
+     "_system_project_handle",
+     "activate",
+     "add_plugin",
+     "append",
+     "create",
+     "create_package_source",
+     "create_poetry",
+     "create_pool",
+     "create_pyproject_from_package",
+     "dependency_to_specification",
+     "directory",
+     "exists",
+     "generate_system_pyproject",
+     "get",
+     "get_plugin_entry_points",
+     "load_plugins",
+     "merge",
+     "merge_dicts",
+     "process",
+     "read",
+     "reset",
+     "reset_env",
+     "reset_poetry",
+     "set_plugin_manager",
+     "set_pool"
+    ],
+    "f1": 0.4103,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "poetry-reach_down-2",
+   "candidate": "poetry/console/commands/self/self_command.py:119",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "reach_up",
+   "answer_kind": "name",
+   "question": "No function named `repository_class` is defined in this repository. Which functions in this repository can reach a call to `repository_class`, either in their own body or through a chain of calls of any length to other functions defined in this repository? The call to `repository_class` itself may be on any object (`repository_class(...)` or `obj.repository_class(...)`). For the chain: What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "create_package_source",
+    "create_poetry",
+    "create_pool",
+    "handle"
+   ],
+   "check": {
+    "library_call": "repository_class",
+    "direct": [
+     "poetry/factory.py:205"
+    ],
+    "depth": {
+     "handle": 2,
+     "create_pool": 1,
+     "create_poetry": 2
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_execute_install",
+     "_execute_update",
+     "_install",
+     "_install_directory_without_wheel_installer",
+     "_update",
+     "create_package_source",
+     "create_poetry",
+     "create_pool",
+     "handle",
+     "poetry",
+     "reset",
+     "reset_poetry"
+    ],
+    "f1": 0.5,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "poetry-reach_up-1",
+   "candidate": "lib:repository_class",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "reach_up",
+   "answer_kind": "name",
+   "question": "Which functions in this repository can reach the function `remove_directory` (defined at poetry/utils/helpers.py:98) through a chain of calls of any length: they call it, or call a function that calls it, and so on? Do not list `remove_directory` itself. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "_clone",
+    "_clone_legacy",
+    "_clone_submodules",
+    "_execute_install",
+    "_execute_uninstall",
+    "_execute_update",
+    "_get_package_from_git",
+    "_install",
+    "_prepare_git_archive",
+    "_remove",
+    "_update",
+    "activate",
+    "clone",
+    "create_venv",
+    "get_package_from_vcs",
+    "handle",
+    "remove",
+    "remove_distribution_files",
+    "remove_venv"
+   ],
+   "check": {
+    "target": "poetry/utils/helpers.py:98",
+    "depth": {
+     "handle": 1,
+     "_execute_install": 3,
+     "_execute_update": 4,
+     "_execute_uninstall": 2,
+     "_install": 2,
+     "_update": 3,
+     "_remove": 1,
+     "_prepare_git_archive": 2,
+     "_get_package_from_git": 2,
+     "get_package_from_vcs": 3,
+     "activate": 3,
+     "remove": 2,
+     "create_venv": 2,
+     "remove_venv": 1,
+     "remove_distribution_files": 1,
+     "_clone_legacy": 1,
+     "_clone": 1,
+     "_clone_submodules": 2,
+     "clone": 1
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_clone",
+     "_clone_legacy",
+     "_clone_submodules",
+     "_execute_install",
+     "_execute_uninstall",
+     "_execute_update",
+     "_install",
+     "_remove",
+     "_update",
+     "activate",
+     "clone",
+     "create_venv",
+     "handle",
+     "remove",
+     "remove_distribution_files",
+     "remove_venv"
+    ],
+    "f1": 0.9143,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "poetry-reach_up-2",
+   "candidate": "poetry/utils/helpers.py:98",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "chain",
+   "answer_kind": "name",
+   "question": "Consider every chain of calls from `from_path` (defined at poetry/inspection/info.py:554) to `ephemeral_environment` (defined at poetry/utils/env/__init__.py:42), going only through functions defined in this repository, of any length. Which functions lie on at least one such chain? Include both ends. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "_from_sdist_file",
+    "ephemeral_environment",
+    "from_directory",
+    "from_path",
+    "from_sdist",
+    "get_pep517_metadata"
+   ],
+   "check": {
+    "from": "poetry/inspection/info.py:554",
+    "to": "poetry/utils/env/__init__.py:42",
+    "shortest_calls": 4,
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_from_sdist_file",
+     "ephemeral_environment",
+     "from_directory",
+     "from_path",
+     "from_sdist",
+     "get_pep517_metadata"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "poetry-chain-1",
+   "candidate": "poetry/inspection/info.py:554->poetry/utils/env/__init__.py:42",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "chain",
+   "answer_kind": "name",
+   "question": "Consider every chain of calls from `from_path` (defined at poetry/inspection/info.py:554) to `get_pep517_metadata` (defined at poetry/inspection/info.py:567), going only through functions defined in this repository, of any length. Which functions lie on at least one such chain? Include both ends. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "_from_sdist_file",
+    "from_directory",
+    "from_path",
+    "from_sdist",
+    "get_pep517_metadata"
+   ],
+   "check": {
+    "from": "poetry/inspection/info.py:554",
+    "to": "poetry/inspection/info.py:567",
+    "shortest_calls": 3,
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_from_sdist_file",
+     "from_directory",
+     "from_path",
+     "from_sdist",
+     "get_pep517_metadata"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "poetry-chain-2",
+   "candidate": "poetry/inspection/info.py:554->poetry/inspection/info.py:567",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "hot",
+   "answer_kind": "name",
+   "question": "Which module-level functions (not methods) defined in this repository are called from at least 6 different functions or methods of this repository, not counting themselves? Count calling functions, not call sites; code at module level does not count as a caller. What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "decode",
+    "get_highest_priority_hash_type",
+    "remove_directory"
+   ],
+   "check": {
+    "variant": "fan-in",
+    "k": 6,
+    "counts": {
+     "decode": 8,
+     "get_highest_priority_hash_type": 6,
+     "remove_directory": 7
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "decode",
+     "get_highest_priority_hash_type",
+     "remove_directory"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "poetry-hot-1",
+   "candidate": "fan-in",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "hot",
+   "answer_kind": "name",
+   "question": "Which functions or methods defined in this repository call at least 8 different functions defined in this repository, not counting themselves? What counts as a call: `f(...)`, `module.f(...)`, `Class.f(...)`, `self.f(...)`, `cls.f(...)` and `super().f(...)`, followed through the imports and through the class (then its base classes defined in this repository) that the code names. Not a call: a call on any other object (`obj.f(...)`, `self.attr.f(...)`, `Class().f(...)`), creating an instance (`Class(...)`), a decorator, a function passed as a value, a dunder method. A call inside a function nested in F counts as F's own, and so does one inside an f-string's braces. Answer with the functions' names.",
+   "gold": [
+    "_display_packages_information",
+    "_install",
+    "clone",
+    "create_venv"
+   ],
+   "check": {
+    "variant": "fan-out",
+    "k": 8,
+    "counts": {
+     "_display_packages_information": 8,
+     "_install": 9,
+     "create_venv": 9,
+     "clone": 8
+    },
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_add_scripts",
+     "_display_packages_information",
+     "_do_install",
+     "_get_payload",
+     "_init_pyproject",
+     "_install",
+     "_system_project_handle",
+     "clone",
+     "complete_package",
+     "create_poetry",
+     "create_venv",
+     "handle"
+    ],
+    "f1": 0.5,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "poetry-hot-2",
+   "candidate": "fan-out",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "dead",
+   "answer_kind": "name",
+   "question": "Consider the methods (not module-level functions) defined under `poetry/console/`. Which of them are never mentioned anywhere else in this repository's Python code? That is, the function's name appears on no other line of code in any file: a call, an import or a plain reference is a mention, and so is code inside an f-string's braces; comments and plain strings are not. Answer with the functions' names.",
+   "gold": [
+    "_parse",
+    "emit",
+    "set_poetry"
+   ],
+   "check": {
+    "folder": "poetry/console",
+    "of": 122,
+    "kind": "methods (not module-level functions)",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_default_definition",
+     "_hint_update_packages",
+     "_module",
+     "_parse",
+     "_run",
+     "_system_project_handle",
+     "_validate_package",
+     "activated_groups",
+     "command_loader",
+     "configure_env",
+     "configure_installer_for_event",
+     "default_group",
+     "default_groups",
+     "emit",
+     "env",
+     "first_argument",
+     "handle",
+     "has_parameter_option",
+     "installer",
+     "non_optional_groups",
+     "poetry",
+     "register_command_loggers",
+     "register_factory",
+     "reset_poetry",
+     "set_installer",
+     "set_poetry",
+     "system_pyproject",
+     "unique_config_values"
+    ],
+    "f1": 0.1935,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "poetry-dead-1",
+   "candidate": "nested:poetry/console",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "dead",
+   "answer_kind": "name",
+   "question": "Consider the methods (not module-level functions) defined under `poetry/utils/`. Which of them are never mentioned anywhere else in this repository's Python code? That is, the function's name appears on no other line of code in any file: a call, an import or a plain reference is a mention, and so is code inside an f-string's braces; comments and plain strings are not. Answer with the functions' names.",
+   "gold": [
+    "find_distribution_files_with_suffix",
+    "http_credential_keys",
+    "read_setup_cfg",
+    "read_setup_py"
+   ],
+   "check": {
+    "folder": "poetry/utils",
+    "of": 212,
+    "kind": "methods (not module-level functions)",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_bin",
+     "_get_lib_dirs",
+     "_get_repository_config_for_url",
+     "_run",
+     "accepts_ranges",
+     "activate",
+     "add_repository",
+     "authenticated_url",
+     "base",
+     "base_env_name",
+     "candidates",
+     "configured_repositories",
+     "deactivate",
+     "delete_cache",
+     "delete_password",
+     "envs_file",
+     "execute",
+     "expired",
+     "find_distribution",
+     "find_distribution_direct_url_json_files",
+     "find_distribution_files_with_suffix",
+     "find_executables",
+     "get_cached_archive_for_git",
+     "get_cached_archive_for_link",
+     "get_certs_for_repository",
+     "get_credential",
+     "get_http_auth",
+     "get_marker_env",
+     "get_password",
+     "get_pypi_token",
+     "get_python_implementation",
+     "get_supported_tags",
+     "get_version_info",
+     "head",
+     "http_credential_keys",
+     "in_project_venv",
+     "includes_system_site_packages",
+     "is_path_relative_to_lib",
+     "is_sane",
+     "is_valid_for_marker",
+     "is_venv",
+     "keyring",
+     "marker_env",
+     "name",
+     "os",
+     "parent_env",
+     "path",
+     "paths",
+     "pip",
+     "pip_embedded",
+     "platform",
+     "platform_machine",
+     "platlib",
+     "post",
+     "purelib",
+     "python",
+     "python_implementation",
+     "read_setup_cfg",
+     "read_setup_py",
+     "remember",
+     "remove",
+     "remove_distribution_files",
+     "remove_section",
+     "script_dirs",
+     "set_password",
+     "site_packages",
+     "supported_tags",
+     "sys_path",
+     "temp_environ",
+     "total_size",
+     "use_keyring",
+     "userbase",
+     "usersite",
+     "version_info",
+     "writable_candidates",
+     "write_text"
+    ],
+    "f1": 0.1,
+    "exact": false
+   },
+   "graph_agrees": false,
+   "id": "poetry-dead-2",
+   "candidate": "nested:poetry/utils",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "pair",
+   "answer_kind": "name",
+   "question": "Which functions or methods defined in this repository call both `calculate_operations` and `use_environment`? A call by that name on any receiver counts (`calculate_operations(...)`, `obj.calculate_operations(...)`), in the function's own body or in a function nested in it; code at module level does not count. Answer with the functions' names.",
+   "gold": [
+    "_display_packages_information",
+    "_do_install",
+    "handle"
+   ],
+   "check": {
+    "variant": "both",
+    "x": "calculate_operations",
+    "y": "use_environment",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "_display_packages_information",
+     "_do_install",
+     "handle"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "poetry-pair-1",
+   "candidate": "both:calculate_operations,use_environment",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  },
+  {
+   "fixture": "poetry",
+   "family": "pair",
+   "answer_kind": "name",
+   "question": "Which functions or methods defined in this repository call `match` but never call `endswith`? A call by that name on any receiver counts (`match(...)`, `obj.match(...)`), in the function's own body or in a function nested in it; code at module level does not count. Answer with the functions' names.",
+   "gold": [
+    "__init__",
+    "_get_environment_repositories",
+    "_parse_full_length_from_content_range",
+    "_parse_simple",
+    "_sort_key",
+    "_validate_author",
+    "create_package_source",
+    "debug",
+    "handle",
+    "is_reserved",
+    "is_revision_sha",
+    "link_package_data",
+    "locked_repository",
+    "post_data",
+    "validator"
+   ],
+   "check": {
+    "variant": "not",
+    "x": "match",
+    "y": "endswith",
+    "oracle": "python ast"
+   },
+   "reference": {
+    "answer": [
+     "__init__",
+     "_get_environment_repositories",
+     "_parse_full_length_from_content_range",
+     "_parse_simple",
+     "_sort_key",
+     "_validate_author",
+     "create_package_source",
+     "debug",
+     "handle",
+     "is_reserved",
+     "is_revision_sha",
+     "link_package_data",
+     "locked_repository",
+     "post_data",
+     "validator"
+    ],
+    "f1": 1.0,
+    "exact": true
+   },
+   "graph_agrees": true,
+   "id": "poetry-pair-2",
+   "candidate": "not:match,endswith",
+   "status": "proposed",
+   "scan_id": "18c849f24dbb2cfe0cfd17f8923ed4907787761f",
+   "rev": 1
+  }
+ ]
+}

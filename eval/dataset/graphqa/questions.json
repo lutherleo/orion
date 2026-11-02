@@ -1,0 +1,2103 @@
+{
+ "status": "proposed",
+ "note": "AI-written templates and picks; a human must review every question before a result counts.",
+ "generated_at": "2026-11-01T23:50:29+00:00",
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "seed": 20261031,
+ "per_family": 2,
+ "fixtures": {
+  "nodegoat": {
+   "repo": "/home/lutherleo/orion/fixtures/NodeGoat",
+   "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "export": "/home/lutherleo/.cache/orion/graphqa/NodeGoat-c5cb68a7084e",
+   "lang": "js",
+   "graph_files": 25,
+   "graph_files_not_tracked": [],
+   "skipped_candidates": {
+    "calls: no gold callee besides itself": 9,
+    "entry_sink: graph gold empty: no listed entry point reaches this sink kind": 2,
+    "flow_path: fewer than two lines on the flow": 69
+   }
+  },
+  "pygoat": {
+   "repo": "/home/lutherleo/orion/fixtures/pygoat",
+   "commit": "19d17cc8874861142b330636d068bbde54e86b85",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "export": "/home/lutherleo/.cache/orion/graphqa/pygoat-19d17cc88748",
+   "lang": "py",
+   "graph_files": 80,
+   "graph_files_not_tracked": [],
+   "skipped_candidates": {
+    "calls: no gold callee besides itself": 6,
+    "flow_path: fewer than two lines on the flow": 77
+   }
+  }
+ },
+ "questions": [
+  {
+   "fixture": "nodegoat",
+   "family": "lookup",
+   "answer_kind": "loc",
+   "question": "In which file, and on which line, is the function `ResearchHandler` defined? Give each definition site as `path/to/file:LINE` (the line of the `function` keyword, or of the name in an assignment such as `ResearchHandler = function ...` / `ResearchHandler = (...) => ...`). If it is defined more than once, list every site.",
+   "gold": [
+    "app/routes/research.js:7"
+   ],
+   "gold_cypher": "MATCH (m:CpgMethod {scan_id:$scan_id, name:$name}) WHERE NOT m.is_external RETURN DISTINCT m.file_path + ':' + toString(m.line) AS item, m.file_path AS file, m.line AS line",
+   "gold_params": {
+    "name": "ResearchHandler"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "app/routes/research.js:7",
+      "source": "function ResearchHandler(db) {"
+     }
+    ],
+    "completeness": "every lexical definition site of the name in the export equals the gold set"
+   },
+   "id": "nodegoat-lookup-1",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "lookup",
+   "answer_kind": "loc",
+   "question": "In which file, and on which line, is the function `errorHandler` defined? Give each definition site as `path/to/file:LINE` (the line of the `function` keyword, or of the name in an assignment such as `errorHandler = function ...` / `errorHandler = (...) => ...`). If it is defined more than once, list every site.",
+   "gold": [
+    "app/routes/error.js:3"
+   ],
+   "gold_cypher": "MATCH (m:CpgMethod {scan_id:$scan_id, name:$name}) WHERE NOT m.is_external RETURN DISTINCT m.file_path + ':' + toString(m.line) AS item, m.file_path AS file, m.line AS line",
+   "gold_params": {
+    "name": "errorHandler"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "app/routes/error.js:3",
+      "source": "const errorHandler = (err, req, res,next) => {"
+     }
+    ],
+    "completeness": "every lexical definition site of the name in the export equals the gold set"
+   },
+   "id": "nodegoat-lookup-2",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "calls",
+   "answer_kind": "loc",
+   "question": "List every place in this repository where the function `AllocationsDAO` (defined at app/data/allocations-dao.js:4) is called. Give each call site as `path/to/file:LINE`. Count `new AllocationsDAO(...)` as a call. Do not list the definition itself.",
+   "gold": [
+    "app/data/allocations-dao.js:12",
+    "app/routes/allocations.js:9",
+    "app/routes/session.js:12"
+   ],
+   "gold_cypher": "MATCH (c:CpgCall {scan_id:$scan_id})-[:RESOLVES_TO]->(x:CpgMethod {scan_id:$scan_id, full_name:$full_name}) RETURN DISTINCT c.file_path + ':' + toString(c.line) AS item, c.file_path AS file, c.line AS line",
+   "gold_params": {
+    "full_name": "app/data/allocations-dao.js::program:AllocationsDAO"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "app/data/allocations-dao.js:12",
+      "source": "return new AllocationsDAO(db);"
+     },
+     {
+      "at": "app/routes/allocations.js:9",
+      "source": "const allocationsDAO = new AllocationsDAO(db);"
+     },
+     {
+      "at": "app/routes/session.js:12",
+      "source": "const allocationsDAO = new AllocationsDAO(db);"
+     }
+    ],
+    "direction": "callers",
+    "completeness": "every lexical `name(` call line in the export equals the gold set"
+   },
+   "id": "nodegoat-calls-1",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "calls",
+   "answer_kind": "name",
+   "question": "Which functions defined in this repository does `validateUserDoc` (defined at app/data/user-dao.js:70) call? Include calls made inside functions nested within its body and count `new X(...)` as a call to X. Ignore built-in, library and third-party functions. Answer with the called functions' names.",
+   "gold": [
+    "comparePassword"
+   ],
+   "gold_cypher": "MATCH (x:CpgMethod {scan_id:$scan_id, full_name:$full_name}) MATCH (m:CpgMethod {scan_id:$scan_id}) WHERE m.full_name = x.full_name OR m.full_name STARTS WITH x.full_name + ':' OR m.full_name STARTS WITH x.full_name + '.' MATCH (m)-[:CONTAINS_CALL]->(c:CpgCall {scan_id:$scan_id})-[:RESOLVES_TO]->(t:CpgMethod {scan_id:$scan_id}) WHERE NOT t.is_external AND NOT t.name CONTAINS '<' RETURN DISTINCT t.name AS item, c.file_path AS file, c.line AS line",
+   "gold_params": {
+    "full_name": "app/data/user-dao.js::program:UserDAO:<lambda>4:validateUserDoc"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "app/data/user-dao.js:75",
+      "source": "if (comparePassword(password, user.password)) {",
+      "callee": "comparePassword"
+     }
+    ],
+    "direction": "callees",
+    "body": [
+     70,
+     89
+    ],
+    "completeness": "the repo-defined names called lexically inside the body equal the gold set"
+   },
+   "id": "nodegoat-calls-2",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "entry_sink",
+   "answer_kind": "name",
+   "question": "Orion marks these functions as the repository's entry points (where untrusted input enters):\n  - AllocationsDAO (app/data/allocations-dao.js:4)\n  - BenefitsDAO (app/data/benefits-dao.js:2)\n  - ContributionsDAO (app/data/contributions-dao.js:4)\n  - MemosDAO (app/data/memos-dao.js:2)\n  - ProfileDAO (app/data/profile-dao.js:2)\n  - ResearchDAO (app/data/research-dao.js:2)\n  - UserDAO (app/data/user-dao.js:4)\n  - comparePassword (app/data/user-dao.js:60)\n  - validateUserDoc (app/data/user-dao.js:70)\n  - AllocationsHandler (app/routes/allocations.js:6)\n  - BenefitsHandler (app/routes/benefits.js:8)\n  - ContributionsHandler (app/routes/contributions.js:7)\n  - errorHandler (app/routes/error.js:3)\n  - index (app/routes/index.js:11)\n  - MemosHandler (app/routes/memos.js:6)\n  - ProfileHandler (app/routes/profile.js:8)\n  - ResearchHandler (app/routes/research.js:7)\n  - SessionHandler (app/routes/session.js:8)\n  - prepareUserData (app/routes/session.js:14)\n  - validateSignup (app/routes/session.js:138)\n  - tryDropCollection (artifacts/db-reset.js:39)\n  - parseResponse (artifacts/db-reset.js:50)\nWhich of them contain -- in their own body or in a function nested inside it -- a call to `eval`, `Function`, `exec` or `execSync` (Orion's code_exec sinks) whose argument carries untrusted input (HTTP request data, or the entry point's own parameters)? Only those names count: a method of any object with that name counts (`x.eval(...)`), a call to any other function does not, even one with the same effect. Answer with entry-point names from the list.",
+   "gold": [
+    "ContributionsHandler"
+   ],
+   "gold_cypher": "MATCH (cf:CandidateFlow {scan_id:$scan_id, sink_category:$kind}) MATCH (s:CpgCall {scan_id:$scan_id, uid:cf.sink_uid}) WHERE s.name IN $sink_names MATCH (a:CpgCall {scan_id:$scan_id})-[:FLOWS_TO*0..6]->(s) MATCH (am:CpgMethod {scan_id:$scan_id})-[:CONTAINS_CALL]->(a) MATCH (:EntryPoint {scan_id:$scan_id})-[:ENTERS_AT]->(m:CpgMethod {scan_id:$scan_id}) WHERE m.full_name IN $candidates AND (am = m OR am.full_name STARTS WITH m.full_name + ':' OR am.full_name STARTS WITH m.full_name + '.') RETURN DISTINCT m.name AS item, m.full_name AS full_name, s.file_path AS file, s.line AS line",
+   "gold_params": {
+    "kind": "code_exec",
+    "candidates": [
+     "app/data/allocations-dao.js::program:AllocationsDAO",
+     "app/data/benefits-dao.js::program:BenefitsDAO",
+     "app/data/contributions-dao.js::program:ContributionsDAO",
+     "app/data/memos-dao.js::program:MemosDAO",
+     "app/data/profile-dao.js::program:ProfileDAO",
+     "app/data/research-dao.js::program:ResearchDAO",
+     "app/data/user-dao.js::program:UserDAO",
+     "app/data/user-dao.js::program:UserDAO:<lambda>4:comparePassword",
+     "app/data/user-dao.js::program:UserDAO:<lambda>4:validateUserDoc",
+     "app/routes/allocations.js::program:AllocationsHandler",
+     "app/routes/benefits.js::program:BenefitsHandler",
+     "app/routes/contributions.js::program:ContributionsHandler",
+     "app/routes/error.js::program:errorHandler",
+     "app/routes/index.js::program:index",
+     "app/routes/memos.js::program:MemosHandler",
+     "app/routes/profile.js::program:ProfileHandler",
+     "app/routes/research.js::program:ResearchHandler",
+     "app/routes/session.js::program:SessionHandler",
+     "app/routes/session.js::program:SessionHandler:prepareUserData",
+     "app/routes/session.js::program:SessionHandler:validateSignup",
+     "artifacts/db-reset.js::program:tryDropCollection",
+     "artifacts/db-reset.js::program:parseResponse"
+    ],
+    "sink_names": [
+     "eval",
+     "Function",
+     "exec",
+     "execSync"
+    ]
+   },
+   "check": {
+    "items": [
+     {
+      "at": "app/routes/contributions.js:32",
+      "source": "const preTax = eval(req.body.preTax);",
+      "entry_point": "ContributionsHandler"
+     }
+    ],
+    "kind": "code_exec",
+    "completeness": "the listed entry points whose body has a lexical sink call equal the gold set (taint itself is the graph's claim)"
+   },
+   "id": "nodegoat-entry_sink-1",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 2
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "deps",
+   "answer_kind": "dep",
+   "question": "From package.json (dependencies, devDependencies, peerDependencies and optionalDependencies), list every package declared. Give each as `name@version` with the version as declared (e.g. `express@^4.13.4`; a range operator such as ^, ~ or == may be kept or dropped).",
+   "gold": [
+    "async@2.0.0-rc.4",
+    "bcrypt-nodejs@0.0.3",
+    "body-parser@1.15.1",
+    "consolidate@0.14.1",
+    "cross-env@7.0.2",
+    "csurf@1.8.3",
+    "cypress@3.3.1",
+    "dont-sniff-mimetype@1.0.0",
+    "express-session@1.13.0",
+    "express@4.13.4",
+    "forever@2.0.0",
+    "grunt-cli@1.2.0",
+    "grunt-concurrent@2.3.0",
+    "grunt-contrib-jshint@3.0.0",
+    "grunt-contrib-watch@1.0.0",
+    "grunt-env@latest",
+    "grunt-if@https://github.com/binarymist/grunt-if/tarball/master",
+    "grunt-jsbeautifier@0.2.12",
+    "grunt-mocha-test@0.12.7",
+    "grunt-npm-install@0.3.0",
+    "grunt-retire@0.3.12",
+    "grunt@1.0.3",
+    "helmet@2.0.0",
+    "jshint@2.12.0",
+    "marked@0.3.5",
+    "mocha@2.4.5",
+    "mongodb@2.1.18",
+    "needle@2.2.4",
+    "node-esapi@0.0.1",
+    "nodemon@1.19.1",
+    "selenium-webdriver@2.53.2",
+    "serve-favicon@2.3.0",
+    "should@8.3.1",
+    "swig@1.4.2",
+    "underscore@1.8.3",
+    "zaproxy@0.2.0"
+   ],
+   "gold_cypher": "MATCH (d:Dependency {scan_id:$scan_id}) WHERE $version_rx IS NULL OR d.version =~ $version_rx RETURN d.name + '@' + d.version AS item, d.name AS name, d.version AS version",
+   "gold_params": {
+    "version_rx": null
+   },
+   "check": {
+    "items": [
+     {
+      "at": "package.json",
+      "declared": "async@2.0.0-rc.4"
+     },
+     {
+      "at": "package.json",
+      "declared": "bcrypt-nodejs@0.0.3"
+     },
+     {
+      "at": "package.json",
+      "declared": "body-parser@1.15.1"
+     },
+     {
+      "at": "package.json",
+      "declared": "consolidate@0.14.1"
+     },
+     {
+      "at": "package.json",
+      "declared": "cross-env@7.0.2"
+     },
+     {
+      "at": "package.json",
+      "declared": "csurf@1.8.3"
+     },
+     {
+      "at": "package.json",
+      "declared": "cypress@3.3.1"
+     },
+     {
+      "at": "package.json",
+      "declared": "dont-sniff-mimetype@1.0.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "express-session@1.13.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "express@4.13.4"
+     },
+     {
+      "at": "package.json",
+      "declared": "forever@2.0.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-cli@1.2.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-concurrent@2.3.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-contrib-jshint@3.0.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-contrib-watch@1.0.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-env@latest"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-if@https://github.com/binarymist/grunt-if/tarball/master"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-jsbeautifier@0.2.12"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-mocha-test@0.12.7"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-npm-install@0.3.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-retire@0.3.12"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt@1.0.3"
+     },
+     {
+      "at": "package.json",
+      "declared": "helmet@2.0.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "jshint@2.12.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "marked@0.3.5"
+     },
+     {
+      "at": "package.json",
+      "declared": "mocha@2.4.5"
+     },
+     {
+      "at": "package.json",
+      "declared": "mongodb@2.1.18"
+     },
+     {
+      "at": "package.json",
+      "declared": "needle@2.2.4"
+     },
+     {
+      "at": "package.json",
+      "declared": "node-esapi@0.0.1"
+     },
+     {
+      "at": "package.json",
+      "declared": "nodemon@1.19.1"
+     },
+     {
+      "at": "package.json",
+      "declared": "selenium-webdriver@2.53.2"
+     },
+     {
+      "at": "package.json",
+      "declared": "serve-favicon@2.3.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "should@8.3.1"
+     },
+     {
+      "at": "package.json",
+      "declared": "swig@1.4.2"
+     },
+     {
+      "at": "package.json",
+      "declared": "underscore@1.8.3"
+     },
+     {
+      "at": "package.json",
+      "declared": "zaproxy@0.2.0"
+     }
+    ],
+    "variant": "all",
+    "completeness": "an independent parse of package.json gives the same set"
+   },
+   "id": "nodegoat-deps-1",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "deps",
+   "answer_kind": "dep",
+   "question": "From package.json (dependencies, devDependencies, peerDependencies and optionalDependencies), list the packages whose declared version (ignoring range operators such as ^ ~ ==) has major version 0, i.e. starts with `0.`. Give each as `name@version` with the version as declared (e.g. `express@^4.13.4`; a range operator such as ^, ~ or == may be kept or dropped).",
+   "gold": [
+    "bcrypt-nodejs@0.0.3",
+    "consolidate@0.14.1",
+    "grunt-jsbeautifier@0.2.12",
+    "grunt-mocha-test@0.12.7",
+    "grunt-npm-install@0.3.0",
+    "grunt-retire@0.3.12",
+    "marked@0.3.5",
+    "node-esapi@0.0.1",
+    "zaproxy@0.2.0"
+   ],
+   "gold_cypher": "MATCH (d:Dependency {scan_id:$scan_id}) WHERE $version_rx IS NULL OR d.version =~ $version_rx RETURN d.name + '@' + d.version AS item, d.name AS name, d.version AS version",
+   "gold_params": {
+    "version_rx": "^[=^~<>!\\s]*v?0(\\..*)?$"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "package.json",
+      "declared": "bcrypt-nodejs@0.0.3"
+     },
+     {
+      "at": "package.json",
+      "declared": "consolidate@0.14.1"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-jsbeautifier@0.2.12"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-mocha-test@0.12.7"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-npm-install@0.3.0"
+     },
+     {
+      "at": "package.json",
+      "declared": "grunt-retire@0.3.12"
+     },
+     {
+      "at": "package.json",
+      "declared": "marked@0.3.5"
+     },
+     {
+      "at": "package.json",
+      "declared": "node-esapi@0.0.1"
+     },
+     {
+      "at": "package.json",
+      "declared": "zaproxy@0.2.0"
+     }
+    ],
+    "variant": "major0",
+    "completeness": "an independent parse of package.json gives the same set"
+   },
+   "id": "nodegoat-deps-2",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "routes_noauth",
+   "answer_kind": "route",
+   "question": "In app/routes/index.js, routes are registered with `app.get(...)` / `app.post(...)`. Which of these route registrations do NOT pass the `isLoggedIn` middleware? Ignore commented-out code. Answer as `METHOD /path` (e.g. `GET /login`).",
+   "gold": [
+    "GET /",
+    "GET /login",
+    "GET /logout",
+    "GET /signup",
+    "POST /login",
+    "POST /signup"
+   ],
+   "gold_cypher": "MATCH (c:CpgCall {scan_id:$scan_id, file_path:$file}) WHERE c.name IN ['get','post','put','delete','patch','all'] AND c.code STARTS WITH 'app.' AND all(t IN $need WHERE c.code CONTAINS t) AND none(t IN $forbid WHERE c.code CONTAINS t) RETURN toUpper(c.name) + ' ' + split(c.code, '\"')[1] AS item, c.file_path AS file, c.line AS line",
+   "gold_params": {
+    "file": "app/routes/index.js",
+    "need": [],
+    "forbid": [
+     "isLoggedIn"
+    ]
+   },
+   "check": {
+    "items": [
+     {
+      "at": "app/routes/index.js:30",
+      "source": "app.get(\"/\", sessionHandler.displayWelcomePage);",
+      "route": "GET /"
+     },
+     {
+      "at": "app/routes/index.js:33",
+      "source": "app.get(\"/login\", sessionHandler.displayLoginPage);",
+      "route": "GET /login"
+     },
+     {
+      "at": "app/routes/index.js:34",
+      "source": "app.post(\"/login\", sessionHandler.handleLoginRequest);",
+      "route": "POST /login"
+     },
+     {
+      "at": "app/routes/index.js:37",
+      "source": "app.get(\"/signup\", sessionHandler.displaySignupPage);",
+      "route": "GET /signup"
+     },
+     {
+      "at": "app/routes/index.js:38",
+      "source": "app.post(\"/signup\", sessionHandler.handleSignup);",
+      "route": "POST /signup"
+     },
+     {
+      "at": "app/routes/index.js:41",
+      "source": "app.get(\"/logout\", sessionHandler.displayLogoutPage);",
+      "route": "GET /logout"
+     }
+    ],
+    "variant": "no-login",
+    "completeness": "a lexical parse of the route file(s) gives the same set"
+   },
+   "id": "nodegoat-routes_noauth-1",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "nodegoat",
+   "family": "routes_noauth",
+   "answer_kind": "route",
+   "question": "In app/routes/index.js, routes are registered with `app.get(...)` / `app.post(...)`. Which of these route registrations pass `isLoggedIn` but NOT `isAdmin`? Ignore commented-out code. Answer as `METHOD /path` (e.g. `GET /login`).",
+   "gold": [
+    "GET /allocations/:userId",
+    "GET /benefits",
+    "GET /contributions",
+    "GET /dashboard",
+    "GET /learn",
+    "GET /memos",
+    "GET /profile",
+    "GET /research",
+    "POST /benefits",
+    "POST /contributions",
+    "POST /memos",
+    "POST /profile"
+   ],
+   "gold_cypher": "MATCH (c:CpgCall {scan_id:$scan_id, file_path:$file}) WHERE c.name IN ['get','post','put','delete','patch','all'] AND c.code STARTS WITH 'app.' AND all(t IN $need WHERE c.code CONTAINS t) AND none(t IN $forbid WHERE c.code CONTAINS t) RETURN toUpper(c.name) + ' ' + split(c.code, '\"')[1] AS item, c.file_path AS file, c.line AS line",
+   "gold_params": {
+    "file": "app/routes/index.js",
+    "need": [
+     "isLoggedIn"
+    ],
+    "forbid": [
+     "isAdmin"
+    ]
+   },
+   "check": {
+    "items": [
+     {
+      "at": "app/routes/index.js:44",
+      "source": "app.get(\"/dashboard\", isLoggedIn, sessionHandler.displayWelcomePage);",
+      "route": "GET /dashboard"
+     },
+     {
+      "at": "app/routes/index.js:47",
+      "source": "app.get(\"/profile\", isLoggedIn, profileHandler.displayProfile);",
+      "route": "GET /profile"
+     },
+     {
+      "at": "app/routes/index.js:48",
+      "source": "app.post(\"/profile\", isLoggedIn, profileHandler.handleProfileUpdate);",
+      "route": "POST /profile"
+     },
+     {
+      "at": "app/routes/index.js:51",
+      "source": "app.get(\"/contributions\", isLoggedIn, contributionsHandler.displayContributions);",
+      "route": "GET /contributions"
+     },
+     {
+      "at": "app/routes/index.js:52",
+      "source": "app.post(\"/contributions\", isLoggedIn, contributionsHandler.handleContributionsUpdate);",
+      "route": "POST /contributions"
+     },
+     {
+      "at": "app/routes/index.js:55",
+      "source": "app.get(\"/benefits\", isLoggedIn, benefitsHandler.displayBenefits);",
+      "route": "GET /benefits"
+     },
+     {
+      "at": "app/routes/index.js:56",
+      "source": "app.post(\"/benefits\", isLoggedIn, benefitsHandler.updateBenefits);",
+      "route": "POST /benefits"
+     },
+     {
+      "at": "app/routes/index.js:63",
+      "source": "app.get(\"/allocations/:userId\", isLoggedIn, allocationsHandler.displayAllocations);",
+      "route": "GET /allocations/:userId"
+     },
+     {
+      "at": "app/routes/index.js:66",
+      "source": "app.get(\"/memos\", isLoggedIn, memosHandler.displayMemos);",
+      "route": "GET /memos"
+     },
+     {
+      "at": "app/routes/index.js:67",
+      "source": "app.post(\"/memos\", isLoggedIn, memosHandler.addMemos);",
+      "route": "POST /memos"
+     },
+     {
+      "at": "app/routes/index.js:70",
+      "source": "app.get(\"/learn\", isLoggedIn, (req, res) => {",
+      "route": "GET /learn"
+     },
+     {
+      "at": "app/routes/index.js:76",
+      "source": "app.get(\"/research\", isLoggedIn, researchHandler.displayResearch);",
+      "route": "GET /research"
+     }
+    ],
+    "variant": "login-no-admin",
+    "completeness": "a lexical parse of the route file(s) gives the same set"
+   },
+   "id": "nodegoat-routes_noauth-2",
+   "status": "proposed",
+   "scan_id": "85ecd596376abdc511b0900686a05c48c1eb4933",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "lookup",
+   "answer_kind": "loc",
+   "question": "In which file, and on which line, is the function `insec_desgine_lab` defined? Give each definition site as `path/to/file:LINE` (the line of its `def`). If it is defined more than once, list every site.",
+   "gold": [
+    "introduction/views.py:688"
+   ],
+   "gold_cypher": "MATCH (m:CpgMethod {scan_id:$scan_id, name:$name}) WHERE NOT m.is_external RETURN DISTINCT m.file_path + ':' + toString(m.line) AS item, m.file_path AS file, m.line AS line",
+   "gold_params": {
+    "name": "insec_desgine_lab"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "introduction/views.py:688",
+      "source": "def insec_desgine_lab(request):"
+     }
+    ],
+    "completeness": "every lexical definition site of the name in the export equals the gold set"
+   },
+   "id": "pygoat-lookup-1",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "lookup",
+   "answer_kind": "loc",
+   "question": "In which file, and on which line, is the function `A7_discussion` defined? Give each definition site as `path/to/file:LINE` (the line of its `def`). If it is defined more than once, list every site.",
+   "gold": [
+    "introduction/views.py:1209"
+   ],
+   "gold_cypher": "MATCH (m:CpgMethod {scan_id:$scan_id, name:$name}) WHERE NOT m.is_external RETURN DISTINCT m.file_path + ':' + toString(m.line) AS item, m.file_path AS file, m.line AS line",
+   "gold_params": {
+    "name": "A7_discussion"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "introduction/views.py:1209",
+      "source": "def A7_discussion(request):"
+     }
+    ],
+    "completeness": "every lexical definition site of the name in the export equals the gold set"
+   },
+   "id": "pygoat-lookup-2",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "calls",
+   "answer_kind": "loc",
+   "question": "List every place in this repository where the function `generate_api_key` (defined at dockerized_labs/sensitive_data_exposure/dataexposure/views.py:38) is called. Give each call site as `path/to/file:LINE`. Do not list the definition itself.",
+   "gold": [
+    "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:58",
+    "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:82",
+    "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:98"
+   ],
+   "gold_cypher": "MATCH (c:CpgCall {scan_id:$scan_id})-[:RESOLVES_TO]->(x:CpgMethod {scan_id:$scan_id, full_name:$full_name}) RETURN DISTINCT c.file_path + ':' + toString(c.line) AS item, c.file_path AS file, c.line AS line",
+   "gold_params": {
+    "full_name": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.generate_api_key"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:58",
+      "source": "api_key=generate_api_key()  # not very secure api key but whatever"
+     },
+     {
+      "at": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:82",
+      "source": "api_key=generate_api_key()  # not very secure api key but whatever"
+     },
+     {
+      "at": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:98",
+      "source": "api_key=generate_api_key()  # simple api key"
+     }
+    ],
+    "direction": "callers",
+    "completeness": "every lexical `name(` call line in the export equals the gold set"
+   },
+   "id": "pygoat-calls-1",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "calls",
+   "answer_kind": "name",
+   "question": "Which functions defined in this repository does `profile_view` (defined at dockerized_labs/sensitive_data_exposure/dataexposure/views.py:69) call? Include calls made inside functions nested within its body. Ignore built-in, library and third-party functions. Answer with the called functions' names.",
+   "gold": [
+    "generate_api_key"
+   ],
+   "gold_cypher": "MATCH (x:CpgMethod {scan_id:$scan_id, full_name:$full_name}) MATCH (m:CpgMethod {scan_id:$scan_id}) WHERE m.full_name = x.full_name OR m.full_name STARTS WITH x.full_name + ':' OR m.full_name STARTS WITH x.full_name + '.' MATCH (m)-[:CONTAINS_CALL]->(c:CpgCall {scan_id:$scan_id})-[:RESOLVES_TO]->(t:CpgMethod {scan_id:$scan_id}) WHERE NOT t.is_external AND NOT t.name CONTAINS '<' RETURN DISTINCT t.name AS item, c.file_path AS file, c.line AS line",
+   "gold_params": {
+    "full_name": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.profile_view"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:82",
+      "source": "api_key=generate_api_key()  # not very secure api key but whatever",
+      "callee": "generate_api_key"
+     }
+    ],
+    "direction": "callees",
+    "body": [
+     69,
+     84
+    ],
+    "completeness": "the repo-defined names called lexically inside the body equal the gold set"
+   },
+   "id": "pygoat-calls-2",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "entry_sink",
+   "answer_kind": "name",
+   "question": "Orion marks these functions as the repository's entry points (where untrusted input enters):\n  - get_free_port (challenge/utility.py:3)\n  - get (challenge/views.py:12)\n  - post (challenge/views.py:27)\n  - delete (challenge/views.py:68)\n  - put (challenge/views.py:85)\n  - reset_form (dockerized_labs/broken_auth_lab/app.py:98)\n  - __reduce__ (dockerized_labs/insec_des_lab/main.py:13)\n  - about (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:16)\n  - login_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:20)\n  - register_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:44)\n  - profile_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:69)\n  - api_data_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:87)\n  - all_users_data_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:112)\n  - logout_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:134)\n  - sensitive_data_exposure_lesson (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:140)\n  - ssrf_code_checker (introduction/apis.py:23)\n  - log_function_checker (introduction/apis.py:61)\n  - A7_disscussion_api (introduction/apis.py:94)\n  - A6_disscussion_api (introduction/apis.py:113)\n  - A6_disscussion_api_2 (introduction/apis.py:126)\n  - mitre_top1 (introduction/mitre.py:25)\n  - mitre_top2 (introduction/mitre.py:30)\n  - mitre_top3 (introduction/mitre.py:35)\n  - mitre_top4 (introduction/mitre.py:40)\n  - mitre_top5 (introduction/mitre.py:45)\n  - mitre_top6 (introduction/mitre.py:50)\n  - mitre_top7 (introduction/mitre.py:55)\n  - mitre_top8 (introduction/mitre.py:60)\n  - mitre_top9 (introduction/mitre.py:65)\n  - mitre_top10 (introduction/mitre.py:70)\n  - mitre_top11 (introduction/mitre.py:75)\n  - mitre_top12 (introduction/mitre.py:80)\n  - mitre_top13 (introduction/mitre.py:85)\n  - mitre_top14 (introduction/mitre.py:90)\n  - mitre_top15 (introduction/mitre.py:95)\n  - mitre_top16 (introduction/mitre.py:100)\n  - mitre_top17 (introduction/mitre.py:105)\n  - mitre_top18 (introduction/mitre.py:110)\n  - mitre_top19 (introduction/mitre.py:115)\n  - mitre_top20 (introduction/mitre.py:121)\n  - mitre_top21 (introduction/mitre.py:127)\n  - mitre_top22 (introduction/mitre.py:133)\n  - mitre_top23 (introduction/mitre.py:139)\n  - mitre_top24 (introduction/mitre.py:145)\n  - mitre_top25 (introduction/mitre.py:150)\n  - csrf_lab_login (introduction/mitre.py:155)\n  - csrf_transfer_monei (introduction/mitre.py:178)\n  - csrf_transfer_monei_api (introduction/mitre.py:191)\n  - mitre_lab_25_api (introduction/mitre.py:215)\n  - mitre_lab_25 (introduction/mitre.py:225)\n  - mitre_lab_17 (introduction/mitre.py:229)\n  - command_out (introduction/mitre.py:232)\n  - mitre_lab_17_api (introduction/mitre.py:238)\n  - ssrf_code_converter (introduction/utility.py:9)\n  - ssrf_html_input_extractor (introduction/utility.py:41)\n  - filter_blog (introduction/utility.py:55)\n  - customHash (introduction/utility.py:58)\n  - home (introduction/views.py:69)\n  - authentication_decorator (introduction/views.py:76)\n  - function (introduction/views.py:77)\n  - xss (introduction/views.py:87)\n  - xss_lab (introduction/views.py:93)\n  - xss_lab2 (introduction/views.py:106)\n  - xss_lab3 (introduction/views.py:122)\n  - sql (introduction/views.py:140)\n  - sql_lab (introduction/views.py:147)\n  - insec_des (introduction/views.py:193)\n  - insec_des_lab (introduction/views.py:205)\n  - xxe (introduction/views.py:226)\n  - xxe_lab (introduction/views.py:233)\n  - xxe_see (introduction/views.py:240)\n  - xxe_parse (introduction/views.py:256)\n  - auth_home (introduction/views.py:272)\n  - auth_lab (introduction/views.py:276)\n  - auth_lab_signup (introduction/views.py:279)\n  - auth_lab_login (introduction/views.py:299)\n  - auth_lab_logout (introduction/views.py:327)\n  - ba (introduction/views.py:336)\n  - ba_lab (introduction/views.py:342)\n  - data_exp (introduction/views.py:386)\n  - data_exp_lab (introduction/views.py:392)\n  - robots (introduction/views.py:397)\n  - cmd (introduction/views.py:409)\n  - cmd_lab (introduction/views.py:415)\n  - cmd_lab2 (introduction/views.py:453)\n  - bau (introduction/views.py:473)\n  - bau_lab (introduction/views.py:479)\n  - login_otp (introduction/views.py:489)\n  - Otp (introduction/views.py:493)\n  - sec_mis (introduction/views.py:523)\n  - sec_mis_lab (introduction/views.py:529)\n  - secret (introduction/views.py:535)\n  - a9 (introduction/views.py:545)\n  - a9_lab (introduction/views.py:551)\n  - get_version (introduction/views.py:570)\n  - a9_lab2 (introduction/views.py:574)\n  - A9_discussion (introduction/views.py:609)\n  - a10 (introduction/views.py:614)\n  - a10_lab (introduction/views.py:619)\n  - debug (introduction/views.py:636)\n  - a10_lab2 (introduction/views.py:645)\n  - insec_desgine (introduction/views.py:682)\n  - insec_desgine_lab (introduction/views.py:688)\n  - a1_broken_access (introduction/views.py:739)\n  - a1_broken_access_lab_1 (introduction/views.py:747)\n  - a1_broken_access_lab_2 (introduction/views.py:783)\n  - a1_broken_access_lab_3 (introduction/views.py:822)\n  - a1_broken_access_lab3_secret (introduction/views.py:837)\n  - injection (introduction/views.py:847)\n  - injection_sql_lab (introduction/views.py:855)\n  - ssrf (introduction/views.py:912)\n  - ssrf_discussion (introduction/views.py:935)\n  - ssrf_target (introduction/views.py:942)\n  - ssrf_lab2 (introduction/views.py:956)\n  - ssti (introduction/views.py:969)\n  - ssti_lab (introduction/views.py:975)\n  - ssti_view_blog (introduction/views.py:1003)\n  - crypto_failure (introduction/views.py:1012)\n  - crypto_failure_lab (introduction/views.py:1018)\n  - crypto_failure_lab2 (introduction/views.py:1034)\n  - crypto_failure_lab3 (introduction/views.py:1049)\n  - sec_misconfig_lab3 (introduction/views.py:1090)\n  - auth_failure (introduction/views.py:1114)\n  - auth_failure_lab2 (introduction/views.py:1122)\n  - auth_failure_lab3 (introduction/views.py:1179)\n  - A7_discussion (introduction/views.py:1209)\n  - software_and_data_integrity_failure (introduction/views.py:1214)\n  - software_and_data_integrity_failure_lab2 (introduction/views.py:1220)\n  - software_and_data_integrity_failure_lab3 (introduction/views.py:1230)\n  - A6_discussion (introduction/views.py:1236)\nWhich of them contain -- in their own body or in a function nested inside it -- a call to `execute`, `query` or `raw` (Orion's sql sinks) whose argument carries untrusted input (HTTP request data, or the entry point's own parameters)? Only those names count: a method of any object with that name counts (`x.execute(...)`), a call to any other function does not, even one with the same effect. Answer with entry-point names from the list.",
+   "gold": [
+    "injection_sql_lab",
+    "sql_lab"
+   ],
+   "gold_cypher": "MATCH (cf:CandidateFlow {scan_id:$scan_id, sink_category:$kind}) MATCH (s:CpgCall {scan_id:$scan_id, uid:cf.sink_uid}) WHERE s.name IN $sink_names MATCH (a:CpgCall {scan_id:$scan_id})-[:FLOWS_TO*0..6]->(s) MATCH (am:CpgMethod {scan_id:$scan_id})-[:CONTAINS_CALL]->(a) MATCH (:EntryPoint {scan_id:$scan_id})-[:ENTERS_AT]->(m:CpgMethod {scan_id:$scan_id}) WHERE m.full_name IN $candidates AND (am = m OR am.full_name STARTS WITH m.full_name + ':' OR am.full_name STARTS WITH m.full_name + '.') RETURN DISTINCT m.name AS item, m.full_name AS full_name, s.file_path AS file, s.line AS line",
+   "gold_params": {
+    "kind": "sql",
+    "candidates": [
+     "challenge/utility.py:<module>.get_free_port",
+     "challenge/views.py:<module>.DoItFast.get",
+     "challenge/views.py:<module>.DoItFast.post",
+     "challenge/views.py:<module>.DoItFast.delete",
+     "challenge/views.py:<module>.DoItFast.put",
+     "dockerized_labs/broken_auth_lab/app.py:<module>.reset_form",
+     "dockerized_labs/insec_des_lab/main.py:<module>.User.__reduce__",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.about",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.login_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.register_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.profile_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.api_data_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.all_users_data_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.logout_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.sensitive_data_exposure_lesson",
+     "introduction/apis.py:<module>.ssrf_code_checker",
+     "introduction/apis.py:<module>.log_function_checker",
+     "introduction/apis.py:<module>.A7_disscussion_api",
+     "introduction/apis.py:<module>.A6_disscussion_api",
+     "introduction/apis.py:<module>.A6_disscussion_api_2",
+     "introduction/mitre.py:<module>.mitre_top1",
+     "introduction/mitre.py:<module>.mitre_top2",
+     "introduction/mitre.py:<module>.mitre_top3",
+     "introduction/mitre.py:<module>.mitre_top4",
+     "introduction/mitre.py:<module>.mitre_top5",
+     "introduction/mitre.py:<module>.mitre_top6",
+     "introduction/mitre.py:<module>.mitre_top7",
+     "introduction/mitre.py:<module>.mitre_top8",
+     "introduction/mitre.py:<module>.mitre_top9",
+     "introduction/mitre.py:<module>.mitre_top10",
+     "introduction/mitre.py:<module>.mitre_top11",
+     "introduction/mitre.py:<module>.mitre_top12",
+     "introduction/mitre.py:<module>.mitre_top13",
+     "introduction/mitre.py:<module>.mitre_top14",
+     "introduction/mitre.py:<module>.mitre_top15",
+     "introduction/mitre.py:<module>.mitre_top16",
+     "introduction/mitre.py:<module>.mitre_top17",
+     "introduction/mitre.py:<module>.mitre_top18",
+     "introduction/mitre.py:<module>.mitre_top19",
+     "introduction/mitre.py:<module>.mitre_top20",
+     "introduction/mitre.py:<module>.mitre_top21",
+     "introduction/mitre.py:<module>.mitre_top22",
+     "introduction/mitre.py:<module>.mitre_top23",
+     "introduction/mitre.py:<module>.mitre_top24",
+     "introduction/mitre.py:<module>.mitre_top25",
+     "introduction/mitre.py:<module>.csrf_lab_login",
+     "introduction/mitre.py:<module>.csrf_transfer_monei",
+     "introduction/mitre.py:<module>.csrf_transfer_monei_api",
+     "introduction/mitre.py:<module>.mitre_lab_25_api",
+     "introduction/mitre.py:<module>.mitre_lab_25",
+     "introduction/mitre.py:<module>.mitre_lab_17",
+     "introduction/mitre.py:<module>.command_out",
+     "introduction/mitre.py:<module>.mitre_lab_17_api",
+     "introduction/utility.py:<module>.ssrf_code_converter",
+     "introduction/utility.py:<module>.ssrf_html_input_extractor",
+     "introduction/utility.py:<module>.filter_blog",
+     "introduction/utility.py:<module>.customHash",
+     "introduction/views.py:<module>.home",
+     "introduction/views.py:<module>.authentication_decorator",
+     "introduction/views.py:<module>.authentication_decorator.function",
+     "introduction/views.py:<module>.xss",
+     "introduction/views.py:<module>.xss_lab",
+     "introduction/views.py:<module>.xss_lab2",
+     "introduction/views.py:<module>.xss_lab3",
+     "introduction/views.py:<module>.sql",
+     "introduction/views.py:<module>.sql_lab",
+     "introduction/views.py:<module>.insec_des",
+     "introduction/views.py:<module>.insec_des_lab",
+     "introduction/views.py:<module>.xxe",
+     "introduction/views.py:<module>.xxe_lab",
+     "introduction/views.py:<module>.xxe_see",
+     "introduction/views.py:<module>.xxe_parse",
+     "introduction/views.py:<module>.auth_home",
+     "introduction/views.py:<module>.auth_lab",
+     "introduction/views.py:<module>.auth_lab_signup",
+     "introduction/views.py:<module>.auth_lab_login",
+     "introduction/views.py:<module>.auth_lab_logout",
+     "introduction/views.py:<module>.ba",
+     "introduction/views.py:<module>.ba_lab",
+     "introduction/views.py:<module>.data_exp",
+     "introduction/views.py:<module>.data_exp_lab",
+     "introduction/views.py:<module>.robots",
+     "introduction/views.py:<module>.cmd",
+     "introduction/views.py:<module>.cmd_lab",
+     "introduction/views.py:<module>.cmd_lab2",
+     "introduction/views.py:<module>.bau",
+     "introduction/views.py:<module>.bau_lab",
+     "introduction/views.py:<module>.login_otp",
+     "introduction/views.py:<module>.Otp",
+     "introduction/views.py:<module>.sec_mis",
+     "introduction/views.py:<module>.sec_mis_lab",
+     "introduction/views.py:<module>.secret",
+     "introduction/views.py:<module>.a9",
+     "introduction/views.py:<module>.a9_lab",
+     "introduction/views.py:<module>.get_version",
+     "introduction/views.py:<module>.a9_lab2",
+     "introduction/views.py:<module>.A9_discussion",
+     "introduction/views.py:<module>.a10",
+     "introduction/views.py:<module>.a10_lab",
+     "introduction/views.py:<module>.debug",
+     "introduction/views.py:<module>.a10_lab2",
+     "introduction/views.py:<module>.insec_desgine",
+     "introduction/views.py:<module>.insec_desgine_lab",
+     "introduction/views.py:<module>.a1_broken_access",
+     "introduction/views.py:<module>.a1_broken_access_lab_1",
+     "introduction/views.py:<module>.a1_broken_access_lab_2",
+     "introduction/views.py:<module>.a1_broken_access_lab_3",
+     "introduction/views.py:<module>.a1_broken_access_lab3_secret",
+     "introduction/views.py:<module>.injection",
+     "introduction/views.py:<module>.injection_sql_lab",
+     "introduction/views.py:<module>.ssrf",
+     "introduction/views.py:<module>.ssrf_discussion",
+     "introduction/views.py:<module>.ssrf_target",
+     "introduction/views.py:<module>.ssrf_lab2",
+     "introduction/views.py:<module>.ssti",
+     "introduction/views.py:<module>.ssti_lab",
+     "introduction/views.py:<module>.ssti_view_blog",
+     "introduction/views.py:<module>.crypto_failure",
+     "introduction/views.py:<module>.crypto_failure_lab",
+     "introduction/views.py:<module>.crypto_failure_lab2",
+     "introduction/views.py:<module>.crypto_failure_lab3",
+     "introduction/views.py:<module>.sec_misconfig_lab3",
+     "introduction/views.py:<module>.auth_failure",
+     "introduction/views.py:<module>.auth_failure_lab2",
+     "introduction/views.py:<module>.auth_failure_lab3",
+     "introduction/views.py:<module>.A7_discussion",
+     "introduction/views.py:<module>.software_and_data_integrity_failure",
+     "introduction/views.py:<module>.software_and_data_integrity_failure_lab2",
+     "introduction/views.py:<module>.software_and_data_integrity_failure_lab3",
+     "introduction/views.py:<module>.A6_discussion"
+    ],
+    "sink_names": [
+     "execute",
+     "query",
+     "raw"
+    ]
+   },
+   "check": {
+    "items": [
+     {
+      "at": "introduction/views.py:162",
+      "source": "val=login.objects.raw(sql_query)",
+      "entry_point": "sql_lab"
+     },
+     {
+      "at": "introduction/views.py:878",
+      "source": "user = sql_lab_table.objects.raw(sql_query)",
+      "entry_point": "injection_sql_lab"
+     }
+    ],
+    "kind": "sql",
+    "completeness": "the listed entry points whose body has a lexical sink call equal the gold set (taint itself is the graph's claim)"
+   },
+   "id": "pygoat-entry_sink-1",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 2
+  },
+  {
+   "fixture": "pygoat",
+   "family": "entry_sink",
+   "answer_kind": "name",
+   "question": "Orion marks these functions as the repository's entry points (where untrusted input enters):\n  - get_free_port (challenge/utility.py:3)\n  - get (challenge/views.py:12)\n  - post (challenge/views.py:27)\n  - delete (challenge/views.py:68)\n  - put (challenge/views.py:85)\n  - reset_form (dockerized_labs/broken_auth_lab/app.py:98)\n  - __reduce__ (dockerized_labs/insec_des_lab/main.py:13)\n  - about (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:16)\n  - login_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:20)\n  - register_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:44)\n  - profile_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:69)\n  - api_data_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:87)\n  - all_users_data_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:112)\n  - logout_view (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:134)\n  - sensitive_data_exposure_lesson (dockerized_labs/sensitive_data_exposure/dataexposure/views.py:140)\n  - ssrf_code_checker (introduction/apis.py:23)\n  - log_function_checker (introduction/apis.py:61)\n  - A7_disscussion_api (introduction/apis.py:94)\n  - A6_disscussion_api (introduction/apis.py:113)\n  - A6_disscussion_api_2 (introduction/apis.py:126)\n  - mitre_top1 (introduction/mitre.py:25)\n  - mitre_top2 (introduction/mitre.py:30)\n  - mitre_top3 (introduction/mitre.py:35)\n  - mitre_top4 (introduction/mitre.py:40)\n  - mitre_top5 (introduction/mitre.py:45)\n  - mitre_top6 (introduction/mitre.py:50)\n  - mitre_top7 (introduction/mitre.py:55)\n  - mitre_top8 (introduction/mitre.py:60)\n  - mitre_top9 (introduction/mitre.py:65)\n  - mitre_top10 (introduction/mitre.py:70)\n  - mitre_top11 (introduction/mitre.py:75)\n  - mitre_top12 (introduction/mitre.py:80)\n  - mitre_top13 (introduction/mitre.py:85)\n  - mitre_top14 (introduction/mitre.py:90)\n  - mitre_top15 (introduction/mitre.py:95)\n  - mitre_top16 (introduction/mitre.py:100)\n  - mitre_top17 (introduction/mitre.py:105)\n  - mitre_top18 (introduction/mitre.py:110)\n  - mitre_top19 (introduction/mitre.py:115)\n  - mitre_top20 (introduction/mitre.py:121)\n  - mitre_top21 (introduction/mitre.py:127)\n  - mitre_top22 (introduction/mitre.py:133)\n  - mitre_top23 (introduction/mitre.py:139)\n  - mitre_top24 (introduction/mitre.py:145)\n  - mitre_top25 (introduction/mitre.py:150)\n  - csrf_lab_login (introduction/mitre.py:155)\n  - csrf_transfer_monei (introduction/mitre.py:178)\n  - csrf_transfer_monei_api (introduction/mitre.py:191)\n  - mitre_lab_25_api (introduction/mitre.py:215)\n  - mitre_lab_25 (introduction/mitre.py:225)\n  - mitre_lab_17 (introduction/mitre.py:229)\n  - command_out (introduction/mitre.py:232)\n  - mitre_lab_17_api (introduction/mitre.py:238)\n  - ssrf_code_converter (introduction/utility.py:9)\n  - ssrf_html_input_extractor (introduction/utility.py:41)\n  - filter_blog (introduction/utility.py:55)\n  - customHash (introduction/utility.py:58)\n  - home (introduction/views.py:69)\n  - authentication_decorator (introduction/views.py:76)\n  - function (introduction/views.py:77)\n  - xss (introduction/views.py:87)\n  - xss_lab (introduction/views.py:93)\n  - xss_lab2 (introduction/views.py:106)\n  - xss_lab3 (introduction/views.py:122)\n  - sql (introduction/views.py:140)\n  - sql_lab (introduction/views.py:147)\n  - insec_des (introduction/views.py:193)\n  - insec_des_lab (introduction/views.py:205)\n  - xxe (introduction/views.py:226)\n  - xxe_lab (introduction/views.py:233)\n  - xxe_see (introduction/views.py:240)\n  - xxe_parse (introduction/views.py:256)\n  - auth_home (introduction/views.py:272)\n  - auth_lab (introduction/views.py:276)\n  - auth_lab_signup (introduction/views.py:279)\n  - auth_lab_login (introduction/views.py:299)\n  - auth_lab_logout (introduction/views.py:327)\n  - ba (introduction/views.py:336)\n  - ba_lab (introduction/views.py:342)\n  - data_exp (introduction/views.py:386)\n  - data_exp_lab (introduction/views.py:392)\n  - robots (introduction/views.py:397)\n  - cmd (introduction/views.py:409)\n  - cmd_lab (introduction/views.py:415)\n  - cmd_lab2 (introduction/views.py:453)\n  - bau (introduction/views.py:473)\n  - bau_lab (introduction/views.py:479)\n  - login_otp (introduction/views.py:489)\n  - Otp (introduction/views.py:493)\n  - sec_mis (introduction/views.py:523)\n  - sec_mis_lab (introduction/views.py:529)\n  - secret (introduction/views.py:535)\n  - a9 (introduction/views.py:545)\n  - a9_lab (introduction/views.py:551)\n  - get_version (introduction/views.py:570)\n  - a9_lab2 (introduction/views.py:574)\n  - A9_discussion (introduction/views.py:609)\n  - a10 (introduction/views.py:614)\n  - a10_lab (introduction/views.py:619)\n  - debug (introduction/views.py:636)\n  - a10_lab2 (introduction/views.py:645)\n  - insec_desgine (introduction/views.py:682)\n  - insec_desgine_lab (introduction/views.py:688)\n  - a1_broken_access (introduction/views.py:739)\n  - a1_broken_access_lab_1 (introduction/views.py:747)\n  - a1_broken_access_lab_2 (introduction/views.py:783)\n  - a1_broken_access_lab_3 (introduction/views.py:822)\n  - a1_broken_access_lab3_secret (introduction/views.py:837)\n  - injection (introduction/views.py:847)\n  - injection_sql_lab (introduction/views.py:855)\n  - ssrf (introduction/views.py:912)\n  - ssrf_discussion (introduction/views.py:935)\n  - ssrf_target (introduction/views.py:942)\n  - ssrf_lab2 (introduction/views.py:956)\n  - ssti (introduction/views.py:969)\n  - ssti_lab (introduction/views.py:975)\n  - ssti_view_blog (introduction/views.py:1003)\n  - crypto_failure (introduction/views.py:1012)\n  - crypto_failure_lab (introduction/views.py:1018)\n  - crypto_failure_lab2 (introduction/views.py:1034)\n  - crypto_failure_lab3 (introduction/views.py:1049)\n  - sec_misconfig_lab3 (introduction/views.py:1090)\n  - auth_failure (introduction/views.py:1114)\n  - auth_failure_lab2 (introduction/views.py:1122)\n  - auth_failure_lab3 (introduction/views.py:1179)\n  - A7_discussion (introduction/views.py:1209)\n  - software_and_data_integrity_failure (introduction/views.py:1214)\n  - software_and_data_integrity_failure_lab2 (introduction/views.py:1220)\n  - software_and_data_integrity_failure_lab3 (introduction/views.py:1230)\n  - A6_discussion (introduction/views.py:1236)\nWhich of them contain -- in their own body or in a function nested inside it -- a call to `eval`, `exec`, `system` or `spawn` (Orion's code_exec sinks) whose argument carries untrusted input (HTTP request data, or the entry point's own parameters)? Only those names count: a method of any object with that name counts (`x.eval(...)`), a call to any other function does not, even one with the same effect. Answer with entry-point names from the list.",
+   "gold": [
+    "a9_lab2",
+    "cmd_lab2",
+    "mitre_lab_25_api"
+   ],
+   "gold_cypher": "MATCH (cf:CandidateFlow {scan_id:$scan_id, sink_category:$kind}) MATCH (s:CpgCall {scan_id:$scan_id, uid:cf.sink_uid}) WHERE s.name IN $sink_names MATCH (a:CpgCall {scan_id:$scan_id})-[:FLOWS_TO*0..6]->(s) MATCH (am:CpgMethod {scan_id:$scan_id})-[:CONTAINS_CALL]->(a) MATCH (:EntryPoint {scan_id:$scan_id})-[:ENTERS_AT]->(m:CpgMethod {scan_id:$scan_id}) WHERE m.full_name IN $candidates AND (am = m OR am.full_name STARTS WITH m.full_name + ':' OR am.full_name STARTS WITH m.full_name + '.') RETURN DISTINCT m.name AS item, m.full_name AS full_name, s.file_path AS file, s.line AS line",
+   "gold_params": {
+    "kind": "code_exec",
+    "candidates": [
+     "challenge/utility.py:<module>.get_free_port",
+     "challenge/views.py:<module>.DoItFast.get",
+     "challenge/views.py:<module>.DoItFast.post",
+     "challenge/views.py:<module>.DoItFast.delete",
+     "challenge/views.py:<module>.DoItFast.put",
+     "dockerized_labs/broken_auth_lab/app.py:<module>.reset_form",
+     "dockerized_labs/insec_des_lab/main.py:<module>.User.__reduce__",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.about",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.login_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.register_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.profile_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.api_data_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.all_users_data_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.logout_view",
+     "dockerized_labs/sensitive_data_exposure/dataexposure/views.py:<module>.sensitive_data_exposure_lesson",
+     "introduction/apis.py:<module>.ssrf_code_checker",
+     "introduction/apis.py:<module>.log_function_checker",
+     "introduction/apis.py:<module>.A7_disscussion_api",
+     "introduction/apis.py:<module>.A6_disscussion_api",
+     "introduction/apis.py:<module>.A6_disscussion_api_2",
+     "introduction/mitre.py:<module>.mitre_top1",
+     "introduction/mitre.py:<module>.mitre_top2",
+     "introduction/mitre.py:<module>.mitre_top3",
+     "introduction/mitre.py:<module>.mitre_top4",
+     "introduction/mitre.py:<module>.mitre_top5",
+     "introduction/mitre.py:<module>.mitre_top6",
+     "introduction/mitre.py:<module>.mitre_top7",
+     "introduction/mitre.py:<module>.mitre_top8",
+     "introduction/mitre.py:<module>.mitre_top9",
+     "introduction/mitre.py:<module>.mitre_top10",
+     "introduction/mitre.py:<module>.mitre_top11",
+     "introduction/mitre.py:<module>.mitre_top12",
+     "introduction/mitre.py:<module>.mitre_top13",
+     "introduction/mitre.py:<module>.mitre_top14",
+     "introduction/mitre.py:<module>.mitre_top15",
+     "introduction/mitre.py:<module>.mitre_top16",
+     "introduction/mitre.py:<module>.mitre_top17",
+     "introduction/mitre.py:<module>.mitre_top18",
+     "introduction/mitre.py:<module>.mitre_top19",
+     "introduction/mitre.py:<module>.mitre_top20",
+     "introduction/mitre.py:<module>.mitre_top21",
+     "introduction/mitre.py:<module>.mitre_top22",
+     "introduction/mitre.py:<module>.mitre_top23",
+     "introduction/mitre.py:<module>.mitre_top24",
+     "introduction/mitre.py:<module>.mitre_top25",
+     "introduction/mitre.py:<module>.csrf_lab_login",
+     "introduction/mitre.py:<module>.csrf_transfer_monei",
+     "introduction/mitre.py:<module>.csrf_transfer_monei_api",
+     "introduction/mitre.py:<module>.mitre_lab_25_api",
+     "introduction/mitre.py:<module>.mitre_lab_25",
+     "introduction/mitre.py:<module>.mitre_lab_17",
+     "introduction/mitre.py:<module>.command_out",
+     "introduction/mitre.py:<module>.mitre_lab_17_api",
+     "introduction/utility.py:<module>.ssrf_code_converter",
+     "introduction/utility.py:<module>.ssrf_html_input_extractor",
+     "introduction/utility.py:<module>.filter_blog",
+     "introduction/utility.py:<module>.customHash",
+     "introduction/views.py:<module>.home",
+     "introduction/views.py:<module>.authentication_decorator",
+     "introduction/views.py:<module>.authentication_decorator.function",
+     "introduction/views.py:<module>.xss",
+     "introduction/views.py:<module>.xss_lab",
+     "introduction/views.py:<module>.xss_lab2",
+     "introduction/views.py:<module>.xss_lab3",
+     "introduction/views.py:<module>.sql",
+     "introduction/views.py:<module>.sql_lab",
+     "introduction/views.py:<module>.insec_des",
+     "introduction/views.py:<module>.insec_des_lab",
+     "introduction/views.py:<module>.xxe",
+     "introduction/views.py:<module>.xxe_lab",
+     "introduction/views.py:<module>.xxe_see",
+     "introduction/views.py:<module>.xxe_parse",
+     "introduction/views.py:<module>.auth_home",
+     "introduction/views.py:<module>.auth_lab",
+     "introduction/views.py:<module>.auth_lab_signup",
+     "introduction/views.py:<module>.auth_lab_login",
+     "introduction/views.py:<module>.auth_lab_logout",
+     "introduction/views.py:<module>.ba",
+     "introduction/views.py:<module>.ba_lab",
+     "introduction/views.py:<module>.data_exp",
+     "introduction/views.py:<module>.data_exp_lab",
+     "introduction/views.py:<module>.robots",
+     "introduction/views.py:<module>.cmd",
+     "introduction/views.py:<module>.cmd_lab",
+     "introduction/views.py:<module>.cmd_lab2",
+     "introduction/views.py:<module>.bau",
+     "introduction/views.py:<module>.bau_lab",
+     "introduction/views.py:<module>.login_otp",
+     "introduction/views.py:<module>.Otp",
+     "introduction/views.py:<module>.sec_mis",
+     "introduction/views.py:<module>.sec_mis_lab",
+     "introduction/views.py:<module>.secret",
+     "introduction/views.py:<module>.a9",
+     "introduction/views.py:<module>.a9_lab",
+     "introduction/views.py:<module>.get_version",
+     "introduction/views.py:<module>.a9_lab2",
+     "introduction/views.py:<module>.A9_discussion",
+     "introduction/views.py:<module>.a10",
+     "introduction/views.py:<module>.a10_lab",
+     "introduction/views.py:<module>.debug",
+     "introduction/views.py:<module>.a10_lab2",
+     "introduction/views.py:<module>.insec_desgine",
+     "introduction/views.py:<module>.insec_desgine_lab",
+     "introduction/views.py:<module>.a1_broken_access",
+     "introduction/views.py:<module>.a1_broken_access_lab_1",
+     "introduction/views.py:<module>.a1_broken_access_lab_2",
+     "introduction/views.py:<module>.a1_broken_access_lab_3",
+     "introduction/views.py:<module>.a1_broken_access_lab3_secret",
+     "introduction/views.py:<module>.injection",
+     "introduction/views.py:<module>.injection_sql_lab",
+     "introduction/views.py:<module>.ssrf",
+     "introduction/views.py:<module>.ssrf_discussion",
+     "introduction/views.py:<module>.ssrf_target",
+     "introduction/views.py:<module>.ssrf_lab2",
+     "introduction/views.py:<module>.ssti",
+     "introduction/views.py:<module>.ssti_lab",
+     "introduction/views.py:<module>.ssti_view_blog",
+     "introduction/views.py:<module>.crypto_failure",
+     "introduction/views.py:<module>.crypto_failure_lab",
+     "introduction/views.py:<module>.crypto_failure_lab2",
+     "introduction/views.py:<module>.crypto_failure_lab3",
+     "introduction/views.py:<module>.sec_misconfig_lab3",
+     "introduction/views.py:<module>.auth_failure",
+     "introduction/views.py:<module>.auth_failure_lab2",
+     "introduction/views.py:<module>.auth_failure_lab3",
+     "introduction/views.py:<module>.A7_discussion",
+     "introduction/views.py:<module>.software_and_data_integrity_failure",
+     "introduction/views.py:<module>.software_and_data_integrity_failure_lab2",
+     "introduction/views.py:<module>.software_and_data_integrity_failure_lab3",
+     "introduction/views.py:<module>.A6_discussion"
+    ],
+    "sink_names": [
+     "eval",
+     "exec",
+     "system",
+     "spawn"
+    ]
+   },
+   "check": {
+    "items": [
+     {
+      "at": "introduction/mitre.py:218",
+      "source": "result = eval(expression)",
+      "entry_point": "mitre_lab_25_api"
+     },
+     {
+      "at": "introduction/views.py:460",
+      "source": "output = eval(val)",
+      "entry_point": "cmd_lab2"
+     },
+     {
+      "at": "introduction/views.py:588",
+      "source": "output = ImageMath.eval(function_str,img = img, b=b, r=r, g=g)",
+      "entry_point": "a9_lab2"
+     }
+    ],
+    "kind": "code_exec",
+    "completeness": "the listed entry points whose body has a lexical sink call equal the gold set (taint itself is the graph's claim)"
+   },
+   "id": "pygoat-entry_sink-2",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 2
+  },
+  {
+   "fixture": "pygoat",
+   "family": "flow_path",
+   "answer_kind": "loc",
+   "question": "In introduction/views.py, the call on line 588 -- `output = ImageMath.eval(function_str,img = img, b=b, r=r, g=g)` -- is a code_exec sink for untrusted data. List every line holding a function or method call whose result is passed -- directly, or through variables and further calls -- into the arguments of this sink call. Give each as `path/to/file:LINE`, and include the sink's own line.",
+   "gold": [
+    "introduction/views.py:583",
+    "introduction/views.py:584",
+    "introduction/views.py:585",
+    "introduction/views.py:586",
+    "introduction/views.py:588"
+   ],
+   "gold_cypher": "MATCH (s:CpgCall {scan_id:$scan_id, uid:$sink_uid}) MATCH p = (:CpgCall {scan_id:$scan_id})-[:FLOWS_TO*1..6]->(s) WHERE all(x IN nodes(p) WHERE single(y IN nodes(p) WHERE y = x)) UNWIND nodes(p) AS n RETURN DISTINCT n.file_path + ':' + toString(n.line) AS item, n.file_path AS file, n.line AS line, n.name AS name",
+   "gold_params": {
+    "sink_uid": "377c74eb1634749cadb60a1f0000c6d5a1965fdd"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "introduction/views.py:583",
+      "source": "function_str = request.POST.get(\"function\")"
+     },
+     {
+      "at": "introduction/views.py:584",
+      "source": "img  = Image.open(file)"
+     },
+     {
+      "at": "introduction/views.py:585",
+      "source": "img = img.convert(\"RGB\")"
+     },
+     {
+      "at": "introduction/views.py:586",
+      "source": "r,g,b  = img.split()"
+     },
+     {
+      "at": "introduction/views.py:588",
+      "source": "output = ImageMath.eval(function_str,img = img, b=b, r=r, g=g)"
+     }
+    ],
+    "rank": 1,
+    "kind": "code_exec",
+    "completeness": "a lexical def-use pass between the first gold line and the sink finds no flow line the gold lacks (first lines of assignments and JS callback parameters only; approximate)"
+   },
+   "id": "pygoat-flow_path-1",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "deps",
+   "answer_kind": "dep",
+   "question": "From the repository's top-level requirements.txt, list every package declared. Give each as `name@version` with the version as declared (e.g. `Django@4.2`; a range operator such as ^, ~ or == may be kept or dropped).",
+   "gold": [
+    "argon2-cffi-bindings@21.2.0",
+    "argon2-cffi@21.3.0",
+    "asgiref@3.6.0",
+    "certifi@2022.12.7",
+    "cffi@1.15.1",
+    "charset-normalizer@3.0.1",
+    "crispy-bootstrap4@2022.1",
+    "cryptography@39.0.1",
+    "defusedxml@0.7.1",
+    "dj-database-url@0.5.0",
+    "django-allauth@0.52.0",
+    "django-crispy-forms@2.3",
+    "django-heroku@0.3.1",
+    "django@4.2",
+    "gunicorn@23.0.0",
+    "idna@3.4",
+    "mccabe@0.6.1",
+    "oauthlib@3.2.2",
+    "pillow@9.4.0",
+    "psycopg2@2.9.3",
+    "pycodestyle@2.7.0",
+    "pycparser@2.21",
+    "pyflakes@2.3.1",
+    "pyjwt@2.4.0",
+    "python3-openid@3.2.0",
+    "pytz@2020.1",
+    "pyyaml@5.1",
+    "requests-oauthlib@1.3.1",
+    "requests@2.28.2",
+    "sqlparse@0.3.1",
+    "urllib3@1.26.9",
+    "werkzeug@2.1.2",
+    "whitenoise@6.2.0",
+    "zipp@3.8.0"
+   ],
+   "gold_cypher": "MATCH (d:Dependency {scan_id:$scan_id}) WHERE $version_rx IS NULL OR d.version =~ $version_rx RETURN d.name + '@' + d.version AS item, d.name AS name, d.version AS version",
+   "gold_params": {
+    "version_rx": null
+   },
+   "check": {
+    "items": [
+     {
+      "at": "requirements.txt",
+      "declared": "argon2-cffi-bindings@21.2.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "argon2-cffi@21.3.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "asgiref@3.6.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "certifi@2022.12.7"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "cffi@1.15.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "charset-normalizer@3.0.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "crispy-bootstrap4@2022.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "cryptography@39.0.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "defusedxml@0.7.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "dj-database-url@0.5.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "django-allauth@0.52.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "django-crispy-forms@2.3"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "django-heroku@0.3.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "django@4.2"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "gunicorn@23.0.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "idna@3.4"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "mccabe@0.6.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "oauthlib@3.2.2"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "pillow@9.4.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "psycopg2@2.9.3"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "pycodestyle@2.7.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "pycparser@2.21"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "pyflakes@2.3.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "pyjwt@2.4.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "python3-openid@3.2.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "pytz@2020.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "pyyaml@5.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "requests-oauthlib@1.3.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "requests@2.28.2"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "sqlparse@0.3.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "urllib3@1.26.9"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "werkzeug@2.1.2"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "whitenoise@6.2.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "zipp@3.8.0"
+     }
+    ],
+    "variant": "all",
+    "completeness": "an independent parse of requirements.txt gives the same set"
+   },
+   "id": "pygoat-deps-1",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "deps",
+   "answer_kind": "dep",
+   "question": "From the repository's top-level requirements.txt, list the packages whose declared version (ignoring range operators such as ^ ~ ==) has major version 0, i.e. starts with `0.`. Give each as `name@version` with the version as declared (e.g. `Django@4.2`; a range operator such as ^, ~ or == may be kept or dropped).",
+   "gold": [
+    "defusedxml@0.7.1",
+    "dj-database-url@0.5.0",
+    "django-allauth@0.52.0",
+    "django-heroku@0.3.1",
+    "mccabe@0.6.1",
+    "sqlparse@0.3.1"
+   ],
+   "gold_cypher": "MATCH (d:Dependency {scan_id:$scan_id}) WHERE $version_rx IS NULL OR d.version =~ $version_rx RETURN d.name + '@' + d.version AS item, d.name AS name, d.version AS version",
+   "gold_params": {
+    "version_rx": "^[=^~<>!\\s]*v?0(\\..*)?$"
+   },
+   "check": {
+    "items": [
+     {
+      "at": "requirements.txt",
+      "declared": "defusedxml@0.7.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "dj-database-url@0.5.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "django-allauth@0.52.0"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "django-heroku@0.3.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "mccabe@0.6.1"
+     },
+     {
+      "at": "requirements.txt",
+      "declared": "sqlparse@0.3.1"
+     }
+    ],
+    "variant": "major0",
+    "completeness": "an independent parse of requirements.txt gives the same set"
+   },
+   "id": "pygoat-deps-2",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "routes_noauth",
+   "answer_kind": "route",
+   "question": "introduction/urls.py maps URL patterns to views with `path('<route>', views.<view>, ...)`. Consider the patterns whose view is a function defined in introduction/views.py. Which of them point at a view that has neither the `@authentication_decorator` nor the `@login_required` decorator? Answer with the route strings as written in `path(...)` (use `/` for the empty route).",
+   "gold": [
+    "/",
+    "/500error",
+    "/a10",
+    "/a10_lab",
+    "/a9",
+    "/a9_lab",
+    "/a9_lab2",
+    "/auth",
+    "/auth_lab",
+    "/auth_lab/login",
+    "/auth_lab/logout",
+    "/auth_lab/signup",
+    "/ba",
+    "/ba_lab",
+    "/bau",
+    "/bau_lab",
+    "/broken_access_control",
+    "/broken_access_control/secret",
+    "/broken_access_lab_1",
+    "/broken_access_lab_2",
+    "/broken_access_lab_3",
+    "/cmd",
+    "/cmd_lab",
+    "/cmd_lab2",
+    "/cryptographic_failure",
+    "/cryptographic_failure/lab",
+    "/cryptographic_failure/lab2",
+    "/cryptographic_failure/lab3",
+    "/data_exp",
+    "/data_exp_lab",
+    "/debug",
+    "/get_version",
+    "/injection",
+    "/injection_sql_lab",
+    "/insec_des",
+    "/insec_des_lab",
+    "/insecure-design",
+    "/insecure-design_lab",
+    "/login_otp",
+    "/otp",
+    "/robots.txt",
+    "/sec_mis",
+    "/sec_mis_lab",
+    "/sec_mis_lab3",
+    "/secret",
+    "/sql",
+    "/sql_lab",
+    "/sql_lab1",
+    "/ssrf",
+    "/ssrf_discussion",
+    "/ssrf_lab",
+    "/ssrf_target",
+    "/ssti",
+    "/ssti/blog/<str:blog_id>",
+    "/ssti/lab",
+    "/xss",
+    "/xssL",
+    "/xssL1",
+    "/xssL2",
+    "/xssL3",
+    "/xxe",
+    "/xxe_lab",
+    "/xxe_parse",
+    "/xxe_see"
+   ],
+   "gold_cypher": "MATCH (c:CpgCall {scan_id:$scan_id, file_path:$urls, name:'path'}) WHERE c.code CONTAINS 'views.' WITH c, trim(split(split(split(c.code, 'views.')[1], ',')[0], ')')[0]) AS view MATCH (:CpgMethod {scan_id:$scan_id, file_path:$views, name:view}) OPTIONAL MATCH (d:CpgCall {scan_id:$scan_id, file_path:$views}) WHERE d.name IN ['authentication_decorator','login_required','csrf_exempt'] AND d.code CONTAINS '(def ' + view + '(' WITH c, view, collect(DISTINCT d.name) AS decs WHERE none(x IN decs WHERE x IN $forbid) AND all(x IN $need WHERE x IN decs) RETURN CASE substring(c.code, 5, 1) WHEN '\"' THEN split(c.code, '\"')[1] ELSE split(c.code, \"'\")[1] END AS item, c.file_path AS file, c.line AS line, view",
+   "gold_params": {
+    "urls": "introduction/urls.py",
+    "views": "introduction/views.py",
+    "need": [],
+    "forbid": [
+     "authentication_decorator",
+     "login_required"
+    ]
+   },
+   "check": {
+    "items": [
+     {
+      "at": "introduction/urls.py:9",
+      "source": "path('', views.home, name='homepage'),",
+      "route": ""
+     },
+     {
+      "at": "introduction/urls.py:10",
+      "source": "path('xss', views.xss,name=\"xss\"),",
+      "route": "xss"
+     },
+     {
+      "at": "introduction/urls.py:11",
+      "source": "path('xssL',views.xss_lab,name='xss_lab'),",
+      "route": "xssL"
+     },
+     {
+      "at": "introduction/urls.py:12",
+      "source": "path('xssL2', views.xss_lab2, name='xss_lab2'),",
+      "route": "xssL2"
+     },
+     {
+      "at": "introduction/urls.py:13",
+      "source": "path('xssL3', views.xss_lab3, name='xss_lab3'),",
+      "route": "xssL3"
+     },
+     {
+      "at": "introduction/urls.py:14",
+      "source": "path('xssL1',views.xss_lab,name='xss_lab'),",
+      "route": "xssL1"
+     },
+     {
+      "at": "introduction/urls.py:15",
+      "source": "path(\"sql\",views.sql,name='sql'),",
+      "route": "sql"
+     },
+     {
+      "at": "introduction/urls.py:16",
+      "source": "path(\"sql_lab\",views.sql_lab,name=\"sql_lab\"),",
+      "route": "sql_lab"
+     },
+     {
+      "at": "introduction/urls.py:17",
+      "source": "path(\"sql_lab1\",views.sql_lab,name=\"sql_lab\"),",
+      "route": "sql_lab1"
+     },
+     {
+      "at": "introduction/urls.py:18",
+      "source": "path(\"insec_des\",views.insec_des,name=\"insec_des\"),",
+      "route": "insec_des"
+     },
+     {
+      "at": "introduction/urls.py:19",
+      "source": "path(\"insec_des_lab\",views.insec_des_lab,name=\"insec_des_lab\"),",
+      "route": "insec_des_lab"
+     },
+     {
+      "at": "introduction/urls.py:20",
+      "source": "path(\"xxe\",views.xxe,name=\"xxe\"),",
+      "route": "xxe"
+     },
+     {
+      "at": "introduction/urls.py:21",
+      "source": "path(\"xxe_lab\",views.xxe_lab,name=\"xxe_lab\"),",
+      "route": "xxe_lab"
+     },
+     {
+      "at": "introduction/urls.py:22",
+      "source": "path(\"xxe_see\",views.xxe_see,name=\"xxe_see\"),",
+      "route": "xxe_see"
+     },
+     {
+      "at": "introduction/urls.py:23",
+      "source": "path(\"xxe_parse\",views.xxe_parse,name=\"xxe_parse\"),",
+      "route": "xxe_parse"
+     },
+     {
+      "at": "introduction/urls.py:24",
+      "source": "path(\"auth_lab\",views.auth_lab,name=\"auth_lab\"),",
+      "route": "auth_lab"
+     },
+     {
+      "at": "introduction/urls.py:25",
+      "source": "path(\"auth_lab/signup\",views.auth_lab_signup,name=\"auth_lab_signup\"),",
+      "route": "auth_lab/signup"
+     },
+     {
+      "at": "introduction/urls.py:26",
+      "source": "path(\"auth_lab/login\",views.auth_lab_login,name=\"auth_lab_login\"),",
+      "route": "auth_lab/login"
+     },
+     {
+      "at": "introduction/urls.py:27",
+      "source": "path(\"auth_lab/logout\",views.auth_lab_logout,name=\"auth_lab_logout\"),",
+      "route": "auth_lab/logout"
+     },
+     {
+      "at": "introduction/urls.py:28",
+      "source": "path(\"auth\",views.auth_home,name=\"auth_home\"),",
+      "route": "auth"
+     },
+     {
+      "at": "introduction/urls.py:29",
+      "source": "path(\"ba\",views.ba,name=\"Broken Access Control\"),",
+      "route": "ba"
+     },
+     {
+      "at": "introduction/urls.py:30",
+      "source": "path(\"ba_lab\",views.ba_lab,name=\"Broken Access Control Lab\"),",
+      "route": "ba_lab"
+     },
+     {
+      "at": "introduction/urls.py:31",
+      "source": "path(\"data_exp\",views.data_exp,name=\"data_exp\"),",
+      "route": "data_exp"
+     },
+     {
+      "at": "introduction/urls.py:32",
+      "source": "path(\"data_exp_lab\",views.data_exp_lab,name=\"data_exp_lab\"),",
+      "route": "data_exp_lab"
+     },
+     {
+      "at": "introduction/urls.py:33",
+      "source": "path(\"robots.txt\",views.robots,name=\"robots.txt\"),",
+      "route": "robots.txt"
+     },
+     {
+      "at": "introduction/urls.py:34",
+      "source": "path(\"500error\",views.error,name=\"500error\"),",
+      "route": "500error"
+     },
+     {
+      "at": "introduction/urls.py:35",
+      "source": "path(\"cmd\",views.cmd,name=\"Command Injection\"),",
+      "route": "cmd"
+     },
+     {
+      "at": "introduction/urls.py:36",
+      "source": "path(\"cmd_lab\",views.cmd_lab,name=\"Command Injection Lab\"),",
+      "route": "cmd_lab"
+     },
+     {
+      "at": "introduction/urls.py:37",
+      "source": "path(\"cmd_lab2\",views.cmd_lab2,name=\"Command Injection Lab 2\"),",
+      "route": "cmd_lab2"
+     },
+     {
+      "at": "introduction/urls.py:38",
+      "source": "path(\"bau\", views.bau, name=\"Broken Authe\"),",
+      "route": "bau"
+     },
+     {
+      "at": "introduction/urls.py:39",
+      "source": "path(\"bau_lab\", views.bau_lab, name=\"LAB\"),",
+      "route": "bau_lab"
+     },
+     {
+      "at": "introduction/urls.py:40",
+      "source": "path(\"login_otp\", views.login_otp, name=\"OTP Login\"),",
+      "route": "login_otp"
+     },
+     {
+      "at": "introduction/urls.py:41",
+      "source": "path(\"otp\", views.Otp, name=\"OTP Verification\"),",
+      "route": "otp"
+     },
+     {
+      "at": "introduction/urls.py:42",
+      "source": "path(\"sec_mis\", views.sec_mis, name=\"Security Misconfiguration\"),",
+      "route": "sec_mis"
+     },
+     {
+      "at": "introduction/urls.py:43",
+      "source": "path(\"sec_mis_lab\", views.sec_mis_lab, name=\"Security Misconfiguration Lab\"),",
+      "route": "sec_mis_lab"
+     },
+     {
+      "at": "introduction/urls.py:44",
+      "source": "path(\"sec_mis_lab3\", views.sec_misconfig_lab3, name=\"Security Misconfiguration Lab\"),",
+      "route": "sec_mis_lab3"
+     },
+     {
+      "at": "introduction/urls.py:45",
+      "source": "path(\"secret\", views.secret, name=\"Secret key for A6\"),",
+      "route": "secret"
+     },
+     {
+      "at": "introduction/urls.py:46",
+      "source": "path(\"a9\",views.a9,name=\"A9\"),",
+      "route": "a9"
+     },
+     {
+      "at": "introduction/urls.py:47",
+      "source": "path(\"a9_lab\",views.a9_lab,name=\"A9 LAb\"),",
+      "route": "a9_lab"
+     },
+     {
+      "at": "introduction/urls.py:48",
+      "source": "path(\"a9_lab2\",views.a9_lab2,name=\"A9 LAb 2\"),",
+      "route": "a9_lab2"
+     },
+     {
+      "at": "introduction/urls.py:49",
+      "source": "path(\"get_version\",views.get_version,name=\"Get Version\"),",
+      "route": "get_version"
+     },
+     {
+      "at": "introduction/urls.py:50",
+      "source": "path(\"a10\",views.a10,name=\"A10\"),",
+      "route": "a10"
+     },
+     {
+      "at": "introduction/urls.py:51",
+      "source": "path(\"a10_lab\",views.a10_lab,name=\"A10 LAb\"),",
+      "route": "a10_lab"
+     },
+     {
+      "at": "introduction/urls.py:53",
+      "source": "path(\"debug\",views.debug,name=\"debug\"),",
+      "route": "debug"
+     },
+     {
+      "at": "introduction/urls.py:54",
+      "source": "path(\"insecure-design\",views.insec_desgine,name=\"insecure-design\"),",
+      "route": "insecure-design"
+     },
+     {
+      "at": "introduction/urls.py:55",
+      "source": "path(\"insecure-design_lab\",views.insec_desgine_lab,name=\"insecure-design_lab\"),",
+      "route": "insecure-design_lab"
+     },
+     {
+      "at": "introduction/urls.py:56",
+      "source": "path(\"broken_access_control\", views.a1_broken_access, name=\"broken_access\"),",
+      "route": "broken_access_control"
+     },
+     {
+      "at": "introduction/urls.py:57",
+      "source": "path(\"broken_access_lab_1\", views.a1_broken_access_lab_1, name=\"broken_access_lab_1\"),",
+      "route": "broken_access_lab_1"
+     },
+     {
+      "at": "introduction/urls.py:58",
+      "source": "path(\"broken_access_lab_2\", views.a1_broken_access_lab_2, name=\"broken_access_lab_2\"),",
+      "route": "broken_access_lab_2"
+     },
+     {
+      "at": "introduction/urls.py:59",
+      "source": "path(\"broken_access_lab_3\", views.a1_broken_access_lab_3, name=\"broken_access_lab_3\"),",
+      "route": "broken_access_lab_3"
+     },
+     {
+      "at": "introduction/urls.py:60",
+      "source": "path(\"broken_access_control/secret\", views.a1_broken_access_lab3_secret, name=\"broken_access_controle_secret\"),",
+      "route": "broken_access_control/secret"
+     },
+     {
+      "at": "introduction/urls.py:61",
+      "source": "path(\"ssrf\",views.ssrf,name=\"SSRF\"),",
+      "route": "ssrf"
+     },
+     {
+      "at": "introduction/urls.py:62",
+      "source": "path(\"ssrf_discussion\", views.ssrf_discussion, name=\"SSRF Discussion\"),",
+      "route": "ssrf_discussion"
+     },
+     {
+      "at": "introduction/urls.py:63",
+      "source": "path(\"ssrf_lab\",views.ssrf_lab,name=\"SSRF LAB\"),",
+      "route": "ssrf_lab"
+     },
+     {
+      "at": "introduction/urls.py:65",
+      "source": "path(\"ssrf_target\",views.ssrf_target,name=\"SSRF LAB\"),",
+      "route": "ssrf_target"
+     },
+     {
+      "at": "introduction/urls.py:66",
+      "source": "path(\"injection\",views.injection,name=\"injection\"),",
+      "route": "injection"
+     },
+     {
+      "at": "introduction/urls.py:67",
+      "source": "path(\"injection_sql_lab\",views.injection_sql_lab,name=\"injection\"),",
+      "route": "injection_sql_lab"
+     },
+     {
+      "at": "introduction/urls.py:69",
+      "source": "path(\"ssti\", views.ssti, name=\"SSTI\"),",
+      "route": "ssti"
+     },
+     {
+      "at": "introduction/urls.py:70",
+      "source": "path(\"ssti/lab\", views.ssti_lab, name=\"SSTI Lab\"),",
+      "route": "ssti/lab"
+     },
+     {
+      "at": "introduction/urls.py:71",
+      "source": "path(\"ssti/blog/<str:blog_id>\", views.ssti_view_blog, name=\"SSTI Blog\"),",
+      "route": "ssti/blog/<str:blog_id>"
+     },
+     {
+      "at": "introduction/urls.py:72",
+      "source": "path(\"cryptographic_failure\",views.crypto_failure,name=\"cryptographic_failure\"),",
+      "route": "cryptographic_failure"
+     },
+     {
+      "at": "introduction/urls.py:73",
+      "source": "path(\"cryptographic_failure/lab\",views.crypto_failure_lab,name=\"cryptographic_failure_lab\"),",
+      "route": "cryptographic_failure/lab"
+     },
+     {
+      "at": "introduction/urls.py:74",
+      "source": "path(\"cryptographic_failure/lab2\",views.crypto_failure_lab2,name=\"cryptographic_failure_lab2\"),",
+      "route": "cryptographic_failure/lab2"
+     },
+     {
+      "at": "introduction/urls.py:75",
+      "source": "path(\"cryptographic_failure/lab3\",views.crypto_failure_lab3,name=\"cryptographic_failure_lab3\"),",
+      "route": "cryptographic_failure/lab3"
+     }
+    ],
+    "variant": "no-auth",
+    "completeness": "a lexical parse of the route file(s) gives the same set"
+   },
+   "id": "pygoat-routes_noauth-1",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  },
+  {
+   "fixture": "pygoat",
+   "family": "routes_noauth",
+   "answer_kind": "route",
+   "question": "introduction/urls.py maps URL patterns to views with `path('<route>', views.<view>, ...)`. Consider the patterns whose view is a function defined in introduction/views.py. Which of them point at a view that has the `@csrf_exempt` decorator but neither `@authentication_decorator` nor `@login_required`? Answer with the route strings as written in `path(...)` (use `/` for the empty route).",
+   "gold": [
+    "/a9_lab",
+    "/a9_lab2",
+    "/ba",
+    "/ba_lab",
+    "/broken_access_control",
+    "/broken_access_lab_1",
+    "/broken_access_lab_2",
+    "/cmd_lab",
+    "/cmd_lab2",
+    "/injection",
+    "/injection_sql_lab",
+    "/otp",
+    "/xxe_parse",
+    "/xxe_see"
+   ],
+   "gold_cypher": "MATCH (c:CpgCall {scan_id:$scan_id, file_path:$urls, name:'path'}) WHERE c.code CONTAINS 'views.' WITH c, trim(split(split(split(c.code, 'views.')[1], ',')[0], ')')[0]) AS view MATCH (:CpgMethod {scan_id:$scan_id, file_path:$views, name:view}) OPTIONAL MATCH (d:CpgCall {scan_id:$scan_id, file_path:$views}) WHERE d.name IN ['authentication_decorator','login_required','csrf_exempt'] AND d.code CONTAINS '(def ' + view + '(' WITH c, view, collect(DISTINCT d.name) AS decs WHERE none(x IN decs WHERE x IN $forbid) AND all(x IN $need WHERE x IN decs) RETURN CASE substring(c.code, 5, 1) WHEN '\"' THEN split(c.code, '\"')[1] ELSE split(c.code, \"'\")[1] END AS item, c.file_path AS file, c.line AS line, view",
+   "gold_params": {
+    "urls": "introduction/urls.py",
+    "views": "introduction/views.py",
+    "need": [
+     "csrf_exempt"
+    ],
+    "forbid": [
+     "authentication_decorator",
+     "login_required"
+    ]
+   },
+   "check": {
+    "items": [
+     {
+      "at": "introduction/urls.py:22",
+      "source": "path(\"xxe_see\",views.xxe_see,name=\"xxe_see\"),",
+      "route": "xxe_see"
+     },
+     {
+      "at": "introduction/urls.py:23",
+      "source": "path(\"xxe_parse\",views.xxe_parse,name=\"xxe_parse\"),",
+      "route": "xxe_parse"
+     },
+     {
+      "at": "introduction/urls.py:29",
+      "source": "path(\"ba\",views.ba,name=\"Broken Access Control\"),",
+      "route": "ba"
+     },
+     {
+      "at": "introduction/urls.py:30",
+      "source": "path(\"ba_lab\",views.ba_lab,name=\"Broken Access Control Lab\"),",
+      "route": "ba_lab"
+     },
+     {
+      "at": "introduction/urls.py:36",
+      "source": "path(\"cmd_lab\",views.cmd_lab,name=\"Command Injection Lab\"),",
+      "route": "cmd_lab"
+     },
+     {
+      "at": "introduction/urls.py:37",
+      "source": "path(\"cmd_lab2\",views.cmd_lab2,name=\"Command Injection Lab 2\"),",
+      "route": "cmd_lab2"
+     },
+     {
+      "at": "introduction/urls.py:41",
+      "source": "path(\"otp\", views.Otp, name=\"OTP Verification\"),",
+      "route": "otp"
+     },
+     {
+      "at": "introduction/urls.py:47",
+      "source": "path(\"a9_lab\",views.a9_lab,name=\"A9 LAb\"),",
+      "route": "a9_lab"
+     },
+     {
+      "at": "introduction/urls.py:48",
+      "source": "path(\"a9_lab2\",views.a9_lab2,name=\"A9 LAb 2\"),",
+      "route": "a9_lab2"
+     },
+     {
+      "at": "introduction/urls.py:56",
+      "source": "path(\"broken_access_control\", views.a1_broken_access, name=\"broken_access\"),",
+      "route": "broken_access_control"
+     },
+     {
+      "at": "introduction/urls.py:57",
+      "source": "path(\"broken_access_lab_1\", views.a1_broken_access_lab_1, name=\"broken_access_lab_1\"),",
+      "route": "broken_access_lab_1"
+     },
+     {
+      "at": "introduction/urls.py:58",
+      "source": "path(\"broken_access_lab_2\", views.a1_broken_access_lab_2, name=\"broken_access_lab_2\"),",
+      "route": "broken_access_lab_2"
+     },
+     {
+      "at": "introduction/urls.py:66",
+      "source": "path(\"injection\",views.injection,name=\"injection\"),",
+      "route": "injection"
+     },
+     {
+      "at": "introduction/urls.py:67",
+      "source": "path(\"injection_sql_lab\",views.injection_sql_lab,name=\"injection\"),",
+      "route": "injection_sql_lab"
+     }
+    ],
+    "variant": "no-auth-csrf-exempt",
+    "completeness": "a lexical parse of the route file(s) gives the same set"
+   },
+   "id": "pygoat-routes_noauth-2",
+   "status": "proposed",
+   "scan_id": "e1d5897fac5119103fe3b827d9b2d78a521d3077",
+   "rev": 1
+  }
+ ],
+ "drops": {
+  "total": 26,
+  "by_family": {
+   "calls": 2,
+   "entry_sink": 2,
+   "flow_path": 22
+  },
+  "detail": [
+   {
+    "fixture": "nodegoat",
+    "family": "calls",
+    "candidate": "callees:UserDAO",
+    "reason": "body calls ['getNextSequence', 'getRandomFutureDate', 'insert'] too"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "calls",
+    "candidate": "callees:AllocationsHandler",
+    "reason": "callee names defined more than once in the repo: ['next']"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "entry_sink",
+    "candidate": "render",
+    "reason": "entry points with a render call in their body ['BenefitsHandler', 'ResearchHandler'] lack a graph flow"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "entry_sink",
+    "candidate": "log",
+    "reason": "entry points with a log call in their body ['tryDropCollection'] lack a graph flow"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank30:app/routes/allocations.js:25",
+    "reason": "the source also carries the data through lines [23], which the gold lacks"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank33:app/routes/contributions.js:21",
+    "reason": "the source also carries the data through lines [17], which the gold lacks"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank39:app/routes/memos.js:27",
+    "reason": "the source also carries the data through lines [25], which the gold lacks"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank40:app/routes/profile.js:33",
+    "reason": "the source also carries the data through lines [20], which the gold lacks"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank42:app/routes/profile.js:82",
+    "reason": "sink app/routes/profile.js:82 has no render call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank52:app/routes/index.js:47",
+    "reason": "sink app/routes/index.js:47 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank53:app/routes/index.js:51",
+    "reason": "sink app/routes/index.js:51 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank54:app/routes/index.js:55",
+    "reason": "sink app/routes/index.js:55 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank55:app/routes/index.js:63",
+    "reason": "sink app/routes/index.js:63 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank56:app/routes/index.js:66",
+    "reason": "sink app/routes/index.js:66 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank57:app/routes/index.js:76",
+    "reason": "sink app/routes/index.js:76 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank72:app/routes/index.js:33",
+    "reason": "sink app/routes/index.js:33 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank73:app/routes/index.js:41",
+    "reason": "sink app/routes/index.js:41 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank74:app/routes/index.js:44",
+    "reason": "sink app/routes/index.js:44 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank105:app/routes/index.js:48",
+    "reason": "sink app/routes/index.js:48 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank106:app/routes/index.js:52",
+    "reason": "sink app/routes/index.js:52 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank107:app/routes/index.js:56",
+    "reason": "sink app/routes/index.js:56 has no log call in the source"
+   },
+   {
+    "fixture": "nodegoat",
+    "family": "flow_path",
+    "candidate": "rank108:app/routes/index.js:67",
+    "reason": "sink app/routes/index.js:67 has no log call in the source"
+   },
+   {
+    "fixture": "pygoat",
+    "family": "flow_path",
+    "candidate": "rank9:introduction/mitre.py:247",
+    "reason": "sink introduction/mitre.py:247 has no sql call in the source"
+   },
+   {
+    "fixture": "pygoat",
+    "family": "flow_path",
+    "candidate": "rank18:introduction/views.py:159",
+    "reason": "sink introduction/views.py:159 has no sql call in the source"
+   },
+   {
+    "fixture": "pygoat",
+    "family": "flow_path",
+    "candidate": "rank22:introduction/views.py:165",
+    "reason": "sink introduction/views.py:165 has no sql call in the source"
+   },
+   {
+    "fixture": "pygoat",
+    "family": "flow_path",
+    "candidate": "rank24:introduction/views.py:177",
+    "reason": "sink introduction/views.py:177 has no sql call in the source"
+   }
+  ]
+ }
+}
