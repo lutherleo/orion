@@ -510,12 +510,20 @@ def _run_scan(args: argparse.Namespace) -> int:
             finally:
                 stop.set()
 
+        def _flag_stop() -> None:
+            lm_stop.set()
+            if not lm_engine:
+                # The worker's claude -p sessions got the same Ctrl-C: none is retried, none started.
+                claude_cli.interrupt()
+
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
         interrupted = False
         try:
             if args.watch:
-                tail(run_dir, stop)
+                # Flagged before tail's final drain re-reads the log: on a very long scan a session the Ctrl-C
+                # killed ends first, and a fresh session started on its failure gets no signal and runs on.
+                tail(run_dir, stop, on_interrupt=_flag_stop)
                 interrupted = not stop.is_set()     # tail swallows a Ctrl-C and returns before the worker ends
             else:
                 while not stop.wait(0.5):
@@ -523,13 +531,10 @@ def _run_scan(args: argparse.Namespace) -> int:
         except KeyboardInterrupt:
             interrupted = True
         if interrupted:
-            lm_stop.set()
+            _flag_stop()
             if lm_engine:
                 print("\nstopping: finishing the current Orion-LM session (Ctrl-C again to quit now)",
                       file=sys.stderr)
-            else:
-                # The worker's claude -p sessions got the same Ctrl-C: none is retried, none started.
-                claude_cli.interrupt()
         thread.join()
         if "error" in result:
             raise result["error"]
@@ -784,18 +789,21 @@ def _run_trace(args: argparse.Namespace) -> int:
             finally:
                 stop.set()
 
+        def _flag_stop() -> None:
+            drive_stop.set()
+            from . import claude_cli
+            claude_cli.interrupt()              # the harness agent's killed claude -p is not retried
+
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
         interrupted = False
         try:
-            tail(run_dir, stop)
+            tail(run_dir, stop, on_interrupt=_flag_stop)
             interrupted = not stop.is_set()     # tail swallows a Ctrl-C and returns before the worker ends
         except KeyboardInterrupt:
             interrupted = True
         if interrupted:
-            drive_stop.set()
-            from . import claude_cli
-            claude_cli.interrupt()              # the harness agent's killed claude -p is not retried
+            _flag_stop()
         thread.join()
         if "error" in result:
             raise result["error"]

@@ -188,13 +188,40 @@ def test_ctrl_c_under_watch_stops_and_keeps_the_run_resumable(run_dir, monkeypat
 
     monkeypatch.setattr(discover, "discover", lambda *a, **k: list(LEADS))
     monkeypatch.setattr(claude_cli, "_run_once", run_once)
-    monkeypatch.setattr(monitor, "tail", lambda d, stop: started.wait(10))   # returns early, stop unset
+    monkeypatch.setattr(monitor, "tail", lambda d, stop, on_interrupt=None: started.wait(10))   # back early, stop unset
     with pytest.raises(KeyboardInterrupt):
         cli.main(["scan", "--scan-id", "sid", "--watch"])
     assert claude_cli.interrupted() and launched and len(launched) == len(set(launched))   # none retried
     assert (run_dir / "leads.json").exists() and not (run_dir / "verdicts.json").exists()
     log = run_dir / "verdicts.jsonl"
     assert not log.exists() or log.read_text().strip() == ""
+
+
+def test_ctrl_c_under_watch_is_flagged_before_tail_re_reads_the_log(run_dir, monkeypatch):
+    """The real tail: by the time its final drain reads the log, the stop must already be flagged. See
+    test_scan_stop.test_tail_flags_a_ctrl_c_before_its_final_drain for what a later flag costs."""
+    started, flagged_at_drain, real_read = threading.Event(), [], monitor.read_events
+    pressed = threading.Event()
+
+    def run_once(cmd, *, timeout, on_event):
+        started.set()
+        _until_stopped()
+        return {"_error": "no result event found in stream-json output"}
+
+    def read_events(run_dir_):
+        if pressed.is_set():
+            flagged_at_drain.append(claude_cli.interrupted())
+        elif started.is_set():
+            pressed.set()
+            raise KeyboardInterrupt                     # the Ctrl-C lands in tail's polling loop
+        return real_read(run_dir_)
+
+    monkeypatch.setattr(discover, "discover", lambda *a, **k: list(LEADS))
+    monkeypatch.setattr(claude_cli, "_run_once", run_once)
+    monkeypatch.setattr(monitor, "read_events", read_events)
+    with pytest.raises(KeyboardInterrupt):
+        cli.main(["scan", "--scan-id", "sid", "--watch"])
+    assert flagged_at_drain == [True]
 
 
 def test_ctrl_c_under_watch_during_discovery_saves_no_leads(run_dir, monkeypatch):
@@ -208,7 +235,7 @@ def test_ctrl_c_under_watch_during_discovery_saves_no_leads(run_dir, monkeypatch
 
     monkeypatch.setattr(discover, "discover", discovering)
     monkeypatch.setattr(claude_cli, "_run_once", lambda *a, **k: pytest.fail("a session started after the stop"))
-    monkeypatch.setattr(monitor, "tail", lambda d, stop: started.wait(10))
+    monkeypatch.setattr(monitor, "tail", lambda d, stop, on_interrupt=None: started.wait(10))
     with pytest.raises(KeyboardInterrupt):
         cli.main(["scan", "--scan-id", "sid", "--watch"])
     assert not (run_dir / "leads.json").exists()

@@ -102,12 +102,14 @@ def _is_stopped(stop) -> bool:
     return bool(stop())
 
 
-def tail(run_dir: str, stop) -> None:
+def tail(run_dir: str, stop, on_interrupt=None) -> None:
     """Live `--watch` view: print new events from `<run_dir>/progress.jsonl` as they arrive,
     until `stop` says to end. `stop` may be a `threading.Event` (checked via `is_set()`) or a
     zero-arg callable predicate. Polls on a short interval rather than blocking, so a Ctrl-C
     (raised as `KeyboardInterrupt` in the polling loop) or the caller flipping `stop` both exit
-    within one poll tick -- clean, no dangling readers.
+    within one poll tick -- clean, no dangling readers. `on_interrupt` runs as soon as a Ctrl-C
+    lands, BEFORE the final drain, which re-reads the whole log and prints: whatever the caller
+    has to flag must not wait for that.
     """
     seen = 0
     try:
@@ -118,7 +120,8 @@ def tail(run_dir: str, stop) -> None:
             seen = len(events)
             time.sleep(_POLL_SECONDS)
     except KeyboardInterrupt:
-        pass
+        if on_interrupt is not None:
+            on_interrupt()
     finally:
         # Final drain: pick up anything written in the gap between the last poll and stop being
         # observed, so the tail never silently drops the run's last few events.

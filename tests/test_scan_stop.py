@@ -10,8 +10,14 @@ import threading
 
 import pytest
 
-from orion import claude_cli, discover, verify
+from orion import claude_cli, discover, monitor, verify
 from orion.contracts import Lead
+
+# How a real `claude -p` ends on SIGINT / Ctrl-Break mid-request (measured: 2.1.291 on Windows, 2.1.316 in WSL; repros
+# in reports/review-bbcd2ab): in under 250 ms, exit 0, with either no result event or this error one. The exit code
+# never says "stopped", so only the scan's own flag can.
+_INIT = '{"type":"system","subtype":"init"}\n'
+_ABORTED = _INIT + '{"type":"result","subtype":"error_during_execution","is_error":true}\n'
 
 
 @pytest.fixture(autouse=True)
@@ -21,7 +27,36 @@ def fresh_stop(monkeypatch):
 
 
 def _failed(cmd, **kw):
-    return subprocess.CompletedProcess(args=cmd, returncode=130, stdout="", stderr="")   # killed by SIGINT
+    return subprocess.CompletedProcess(args=cmd, returncode=130, stdout="", stderr="")   # a failed session
+
+
+@pytest.mark.parametrize("stdout", [_INIT, _ABORTED])
+def test_an_interrupted_session_is_a_failure_though_it_exits_0(monkeypatch, stdout):
+    monkeypatch.setattr(claude_cli.subprocess, "run",
+                        lambda cmd, **kw: subprocess.CompletedProcess(cmd, 0, stdout=stdout, stderr=""))
+    assert "_error" in claude_cli.run_agent("sid", "sys", "msg")
+
+
+def test_tail_flags_a_ctrl_c_before_its_final_drain(monkeypatch):
+    """The drain re-reads the whole log, about 270 ms at 100,000 events, when a killed session ends after about 180 ms:
+    flagged only after that, the failure of the session's last attempt starts a fresh session (the light pass's
+    escalation) that no signal reaches, and the scan cannot exit (measured: repro_stop_real_claude.py)."""
+    order = []
+
+    def ctrl_c(seconds):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(monitor, "read_events", lambda run_dir: order.append("read") or [])
+    monkeypatch.setattr(monitor.time, "sleep", ctrl_c)
+    monitor.tail("run", threading.Event(), on_interrupt=lambda: order.append("flagged"))
+    assert order == ["read", "flagged", "read"]
+
+
+def test_tail_flags_nothing_when_the_scan_ends_by_itself(tmp_path):
+    stop, flagged = threading.Event(), []
+    stop.set()
+    monitor.tail(str(tmp_path), stop, on_interrupt=lambda: flagged.append(True))
+    assert flagged == []
 
 
 def test_no_session_starts_once_the_scan_is_interrupted(monkeypatch):

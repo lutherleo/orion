@@ -59,7 +59,28 @@ def test_ctrl_c_under_watch_stops_the_drive_and_the_harness_agent(tmp_path, monk
         return {}
 
     monkeypatch.setattr(runtime, "enrich", enrich)
-    monkeypatch.setattr(monitor, "tail", lambda run_dir, stop: None)     # a Ctrl-C: back early, stop unset
+    monkeypatch.setattr(monitor, "tail", lambda d, stop, on_interrupt=None: None)    # a Ctrl-C: back early, stop unset
     monkeypatch.chdir(tmp_path)
     assert cli.main(["trace", str(tmp_path), "--scan-id", "s1", "--driver", "harness", "--watch"]) == 0
     assert seen["stopped"] is True and claude_cli.interrupted()
+
+
+def test_ctrl_c_under_watch_is_flagged_before_tail_re_reads_the_log(tmp_path, monkeypatch):
+    """The real tail: its final drain reads the whole log, and the stop must not wait for that."""
+    import orion.runtime as runtime
+    from orion import claude_cli, monitor
+
+    pressed, flagged_at_drain = [], []
+
+    def read_events(run_dir):
+        if pressed:
+            flagged_at_drain.append(claude_cli.interrupted())
+            return []
+        pressed.append(True)
+        raise KeyboardInterrupt                          # the Ctrl-C lands in tail's polling loop
+
+    monkeypatch.setattr(runtime, "enrich", lambda *a, stop=None, **k: stop.wait(10) and {})
+    monkeypatch.setattr(monitor, "read_events", read_events)
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["trace", str(tmp_path), "--scan-id", "s1", "--driver", "harness", "--watch"]) == 0
+    assert flagged_at_drain == [True]

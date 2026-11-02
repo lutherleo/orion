@@ -90,7 +90,9 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
     endpoint modes also drop `CLAUDE_CODE_OAUTH_TOKEN`. A key never reaches argv, a run dir, a log or the page.
   - CLI changes it needed (all scans): (1) `claude_cli.interrupt()` -- on Ctrl-C / Stop (asyncio cancels
     discovery's or verify's fan-out; under `--watch`, `monitor.tail` swallows the Ctrl-C, so an early return
-    from it counts as one) no `claude -p` session is started or retried, since a session killed by the group
+    from it counts as one, and `tail(on_interrupt=)` flags it before the final drain re-reads the log, which
+    at 100,000 events took longer than the killed session took to end) no `claude -p` session is started or
+    retried, since a session killed by the group
     SIGINT is not a transient failure (before, Stop restarted every running session on a fresh one); the
     pipeline then raises KeyboardInterrupt, so an interrupted run writes no partial `leads.json` and no
     finished-looking `verdicts.json`, and an ERROR after the stop is not logged (the lead stays for
@@ -105,8 +107,10 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
     `.orion/runtime.json` (`warn`), and target processes get no model credentials (`runtime.base.target_env`;
     defence in depth -- host-run code still runs as the user).
   - The UI pins each option's ORION_* twin in the scan's env (`jobs.env_pins`: an inherited
-    ORION_VERIFY_ROUTING=1 cannot turn on what the page shows off, on a scan or a resume), drops
-    CLAUDE_CODE_USE_BEDROCK/_VERTEX/_FOUNDRY in the key and endpoint modes, and ends the whole scan tree: on
+    ORION_VERIFY_ROUTING=1 cannot turn on what the page shows off, on a scan or a resume), drops the CLI's route
+    switches (`keys.PROVIDER_VARS`: CLAUDE_CODE_USE_BEDROCK/_VERTEX/_FOUNDRY/_MANTLE/_ANTHROPIC_AWS/
+    _ANTHROPIC_GOOGLE_CLOUD/_GATEWAY; a list, since other CLAUDE_CODE_USE_* names are plain settings) and
+    ANTHROPIC_CUSTOM_HEADERS in the key and endpoint modes, and ends the whole scan tree: on
     Windows a job object (the runtime target sits in a process group of its own, and the first Stop's
     Ctrl-Break ends the scan's python with no cleanup) that the scan joins while SUSPENDED (a venv's
     python.exe is a launcher whose real interpreter would otherwise start outside it), a force stop running
@@ -524,6 +528,10 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
   structured output. Still non-negotiable: a non-zero exit / timeout / `is_error` / missing result
   is NEVER a clean success — it becomes the `{"_error":...}` sentinel (`claude_cli._final_to_result`),
   never a fabricated lead/verdict. Surface subprocess failures; don't swallow them.
+- **An interrupted `claude -p` exits 0** (measured 2026-11-01, mid-request: SIGINT on 2.1.316 in WSL, Ctrl-Break on
+  2.1.291 on Windows), with no result event or an `error_during_execution` one. So an exit code never says "stopped":
+  only `claude_cli.interrupted()` does. Repros (real CLI, a local server that never answers, no tokens):
+  `reports/review-bbcd2ab/repros/`.
 - Both original graph bugs are FIXED: **B2** — every edge MERGE key now includes `scan_id`
   (`schema.emit_edge` stamps it on both endpoints), no cross-scan contamination; **B3** — every
   `CpgCall` gets `file_path` via AST-ancestry (`joern_adapter._call_file_map`). The arrow-function

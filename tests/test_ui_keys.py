@@ -752,6 +752,46 @@ def test_provider_switches_go_in_the_key_and_endpoint_modes_only():
     assert not any("provider" in n for n in fresh(CLAUDE_CODE_USE_BEDROCK="0").public()["notes"])
 
 
+@pytest.mark.parametrize("switch", [
+    "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY", "CLAUDE_CODE_USE_MANTLE",
+    "CLAUDE_CODE_USE_ANTHROPIC_AWS", "CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD", "CLAUDE_CODE_USE_GATEWAY",
+])
+def test_every_route_switch_the_cli_reads_is_a_provider_switch(switch):
+    """Named here, not read from PROVIDER_VARS: claude 2.1.316 given the first six sent nothing to the endpoint named
+    on the page (repro_route_vars_real_claude.py), and the seventh changed its requests to it."""
+    base, acc = {**INHERITED, switch: "1"}, fresh(**{switch: "1"})
+    assert acc.child_env(base)[switch] == "1"                                 # login: the CLI's own setup
+    assert any(switch in n and "provider" in n for n in acc.public()["notes"])
+    for set_mode in (lambda a: a.set_anthropic_key(KEY), lambda a: a.set_endpoint(GW, TOKEN, "m1")):
+        set_mode(acc)
+        assert switch not in {k.upper() for k in acc.child_env({**base, switch.lower(): "1"})}
+        assert any(switch in n and "drop" in n for n in acc.public()["notes"])
+
+
+def test_custom_headers_go_in_the_key_and_endpoint_modes_only():
+    """claude adds them to every request: a gateway key kept there reached the page's endpoint (measured)."""
+    headers = "X-Gateway-Key: corp-secret-value"
+    base = {**INHERITED, "ANTHROPIC_CUSTOM_HEADERS": headers, "anthropic_custom_headers": headers}
+    acc = fresh(ANTHROPIC_CUSTOM_HEADERS=headers)
+    assert acc.child_env(base)["ANTHROPIC_CUSTOM_HEADERS"] == headers         # login: the CLI's own setup
+    assert not any("ANTHROPIC_CUSTOM_HEADERS" in n for n in acc.public()["notes"])
+    for set_mode in (lambda a: a.set_anthropic_key(KEY), lambda a: a.set_endpoint(GW, TOKEN, "m1")):
+        set_mode(acc)
+        assert "ANTHROPIC_CUSTOM_HEADERS" not in {k.upper() for k in acc.child_env(base)}
+        pub = acc.public()
+        assert any("ANTHROPIC_CUSTOM_HEADERS" in n and "drop" in n for n in pub["notes"])
+        assert headers not in json.dumps(pub)                                 # the page gets its name, never its value
+
+
+def test_settings_that_only_share_the_prefix_stay_in_every_mode():
+    """No route: dropping every CLAUDE_CODE_USE_* name would switch off the user's own claude settings."""
+    others = {"CLAUDE_CODE_USE_POWERSHELL_TOOL": "1", "CLAUDE_CODE_USE_NATIVE_FILE_SEARCH": "1"}
+    acc = fresh()
+    for set_mode in (lambda a: None, lambda a: a.set_anthropic_key(KEY), lambda a: a.set_endpoint(GW, TOKEN, "m1")):
+        set_mode(acc)
+        assert others.items() <= acc.child_env({**INHERITED, **others}).items()
+
+
 def test_an_endpoint_model_cannot_start_with_a_dash():
     """It reaches `claude --model` through ORION_MODEL, where "-x" would read as a flag."""
     with pytest.raises(AccessError):
