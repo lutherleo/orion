@@ -102,6 +102,11 @@ def _check_plain_login() -> str | None:
             "or pass --no-plain")
 
 
+def _check_plain_sandbox() -> str | None:
+    from eval.arms.plain import sandbox_problem
+    return sandbox_problem()
+
+
 def _check_neo4j() -> str | None:
     try:
         from orion.graphdb import GraphDB
@@ -133,7 +138,8 @@ def _check_fixture(benchmark: str) -> str | None:
 def preflight(benchmarks: list[str], *, plain: bool = False) -> list[str]:
     """Every missing prerequisite, as an actionable message ([] = ready). Token-free."""
     checks = [_check_claude, _check_claude_login, _check_neo4j, _check_joern] + [
-        (lambda b=b: _check_fixture(b)) for b in benchmarks] + ([_check_plain_login] if plain else [])
+        (lambda b=b: _check_fixture(b)) for b in benchmarks] + (
+        [_check_plain_login, _check_plain_sandbox] if plain else [])
     return [msg for msg in (c() for c in checks) if msg]
 
 

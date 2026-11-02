@@ -1,4 +1,5 @@
 import os
+import sys
 
 from eval import preflight
 
@@ -34,6 +35,11 @@ def test_checks_require_the_copied_logins_in_the_clean_homes():
     assert cmds["claude-login"][-1].endswith(os.path.join("eval", ".config", "claude", ".credentials.json"))
     assert cmds["codex-login"][-1].endswith(os.path.join("eval", ".config", "codex", "auth.json"))
     assert cmds["claude-login"][:2] == ["test", "-s"]   # exists and non-empty
+
+
+def test_linux_checks_the_claude_sandbox_tools():
+    tools = [t for t, _ in preflight._CHECKS]
+    assert (("bwrap" in tools and "socat" in tools) == sys.platform.startswith("linux"))
 
 
 def test_joern_is_probed_with_help_not_version():

@@ -37,7 +37,7 @@ from pathlib import Path
 
 from eval import bountybench, devbench, repo, vlb
 from eval.arms.launch import stream_subprocess
-from eval.arms.plain import TASK_PROMPT, _build_cmd, plain_arm
+from eval.arms.plain import TASK_PROMPT, _build_cmd, plain_arm, sandbox_problem
 from eval.run import _RAW_RE, EFFORT, MODEL_TAGS, TREE_ROOT_NAME, _leak_guard, git_head
 from eval.shim_setup import shim_dir
 
@@ -371,9 +371,10 @@ def _quiet(line: str) -> None:
 def run(benchmark: str, task_ids: list[str], arms: list[str], *, runs: int = 1, resume_wait: int = 900,
         root: Path = RUNS_ROOT, mirrors: Path = MIRROR_ROOT, tree_root: str | None = None, dry_run: bool = False,
         on_line=_quiet, sleep=time.sleep, max_attempts: int = 4, _mirror=repo.mirror, _export=repo.export_tree,
-        _resolve=resolve, _arms=None) -> dict:
+        _resolve=resolve, _arms=None, _sandbox=sandbox_problem) -> dict:
     """Run every planned (task, snapshot, arm, run) not yet `ok`. Returns {"ok", "aborted_retries", "failed", "skipped"}.
-    An aborted run is retried until its `max_attempts`-th attempt, then left aborted (a failure) and the loop moves on."""
+    An aborted run is retried until its `max_attempts`-th attempt, then left aborted (a failure) and the loop moves on.
+    A plain arm on a host whose Claude sandbox cannot start is refused up front: each run would exit in a second."""
     bad = [a for a in arms if a not in ARMS]
     if bad:
         raise ValueError(f"unknown arm(s) {bad} (known: {', '.join(ARMS)})")
@@ -383,6 +384,8 @@ def run(benchmark: str, task_ids: list[str], arms: list[str], *, runs: int = 1, 
     if missing:
         raise ValueError(f"unknown {benchmark} task(s): {missing}")
     runners = _arms or {**{a: run_plain_arm for a in PLAIN}, **{a: run_orion_arm for a in ORION}}
+    if not dry_run and any(runners.get(a) is run_plain_arm for a in arms) and (problem := _sandbox()):
+        raise ValueError(problem)
     tree_root = tree_root or os.path.join(tempfile.gettempdir(), TREE_ROOT_NAME)
     commit = git_head(str(ROOT))
     items = plan([all_tasks[t] for t in task_ids], arms, runs)

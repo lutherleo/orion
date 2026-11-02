@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from . import ArmResult
@@ -23,6 +24,25 @@ CONFIG_ROOT = str(_HERE.parent / ".config")
 
 def config_home(arm: str, root: str = CONFIG_ROOT) -> str:
     return os.path.join(root, "codex" if arm == "plain-gpt" else "claude")
+
+
+# On Linux (WSL2 included) Claude Code's Bash sandbox is bubblewrap plus a socat network proxy, and
+# claude_settings.json sets failIfUnavailable, so without either binary every plain Claude run exits at
+# once with "sandbox required but unavailable" (measured 2026-10-31 in WSL: socat missing, every plain-sonnet5 pilot run crashed in under a second).
+# macOS uses Seatbelt, which needs nothing installed.
+LINUX_SANDBOX_TOOLS = (("bwrap", "bubblewrap"), ("socat", "socat"))
+
+
+def sandbox_problem(platform: str = sys.platform, which=shutil.which) -> "str | None":
+    """Why the Claude arms' Bash sandbox cannot start on this host, or None. Token-free."""
+    if not platform.startswith("linux"):
+        return None
+    missing = [(exe, pkg) for exe, pkg in LINUX_SANDBOX_TOOLS if not which(exe)]
+    if not missing:
+        return None
+    return (f"Claude Code's sandbox needs {' and '.join(exe for exe, _ in missing)} on Linux, and the plain "
+            "Claude arms refuse to run without it (claude_settings.json: failIfUnavailable) -- install as root: "
+            f"apt-get install -y {' '.join(pkg for _, pkg in missing)}")
 
 
 # Everything the Claude arms may call: a code audit needs a shell and the file tools, nothing

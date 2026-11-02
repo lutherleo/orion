@@ -18,8 +18,9 @@ have() { local p; p="$(command -v "$1" 2>/dev/null)" && [[ "$p" != /mnt/* ]]; }
 
 say "apt packages"
 apt-get update -y
+# bubblewrap + socat: Claude Code's Bash sandbox on Linux; the plain Claude arms refuse to start without it.
 apt-get install -y curl unzip tar xz-utils git ca-certificates jq python3 python3-venv \
-                   build-essential cloc zstd
+                   build-essential cloc zstd bubblewrap socat
 
 if ! have docker; then
   say "Docker Engine"

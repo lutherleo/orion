@@ -1,12 +1,13 @@
 import os
 import subprocess
+import sys
 
 _CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".config")
 
 _CHECKS = [
     ("codex", ["codex", "--version"]),
     ("claude", ["claude", "--version"]),
-    # the clean config homes need a copied login (README one-time step) or every run is
+    # the clean config homes need a login of their own (README one-time step) or every run is
     # "Not logged in" / 401
     ("claude-login", ["test", "-s", os.path.join(_CONFIG, "claude", ".credentials.json")]),
     ("codex-login", ["test", "-s", os.path.join(_CONFIG, "codex", "auth.json")]),
@@ -18,6 +19,10 @@ _CHECKS = [
     ("neo4j", ["curl", "-sf", "http://localhost:7475"]),
     ("cloc", ["cloc", "--version"]),
 ]
+# The Claude arms' Bash sandbox on Linux (eval/arms/plain.py sandbox_problem): without these every
+# plain Claude run exits at once, since claude_settings.json sets failIfUnavailable.
+if sys.platform.startswith("linux"):
+    _CHECKS += [("bwrap", ["bwrap", "--version"]), ("socat", ["socat", "-V"])]
 
 
 def _default_run(cmd):

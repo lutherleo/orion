@@ -213,7 +213,17 @@ def test_prove_preflight_checks_the_plain_login_only_when_p_runs(monkeypatch):
         monkeypatch.setattr(prove, name, lambda: None)
     monkeypatch.setattr(prove, "_check_fixture", lambda b: None)
     monkeypatch.setattr(prove, "_check_plain_login", lambda: "no eval login")
+    monkeypatch.setattr(prove, "_check_plain_sandbox", lambda: "no socat")
     assert prove.preflight(["nodegoat"]) == []
-    assert prove.preflight(["nodegoat"], plain=True) == ["no eval login"]
+    assert prove.preflight(["nodegoat"], plain=True) == ["no eval login", "no socat"]
     assert prove.main(["--dry-run", "--benchmarks", "nodegoat"]) == 1
     assert prove.main(["--dry-run", "--benchmarks", "nodegoat", "--no-plain"]) == 0
+
+
+def test_plain_sandbox_check_names_the_missing_linux_tools():
+    from eval.arms.plain import sandbox_problem
+    have = {"bwrap"}
+    msg = sandbox_problem("linux", which=lambda b: b if b in have else None)
+    assert "socat" in msg and "bwrap" not in msg.split("--")[0] and msg.endswith("apt-get install -y socat")
+    assert sandbox_problem("linux", which=lambda b: b) is None
+    assert sandbox_problem("darwin", which=lambda b: None) is None      # Seatbelt: nothing to install

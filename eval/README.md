@@ -115,9 +115,13 @@ What each piece buys, and why (all measured on 2026-10-18, transcripts below):
 
    Files copied, exactly: `eval/.config/claude/.credentials.json` (the `claudeAiOauth` object from
    the keychain item — the keychain export also carries `mcpOAuth` tokens for plugins, which are
-   dropped) and `eval/.config/codex/auth.json`. Caveat: the copied OAuth tokens are refreshed
-   independently of the ones in `~/.claude`/`~/.codex`; if a run ever reports "Not logged in",
-   redo this step.
+   dropped) and `eval/.config/codex/auth.json`. Caveat: a copy is the SAME login, not a second one.
+   Both homes hold one refresh token, and the first home to refresh it logs the other out (measured
+   2026-11-01 in WSL: the clean home's credentials were rewritten at 15:17:03, `~/.claude`'s 31 s
+   later with the token expiry zeroed, and `~/.claude` then read loggedIn=false). Fine when only the plain arms run; when Orion's arms (which use
+   `~/.claude`) run in the same round, give the clean home a login of its own instead of a copy:
+   `CLAUDE_CONFIG_DIR=$PWD/eval/.config/claude claude`, then `/login` there. If a run ever reports
+   "Not logged in", check both homes with `claude auth status`.
 3. **Preflight** — `./.venv/bin/python -m eval.preflight` — checks codex, claude, claude-login
    (`eval/.config/claude/.credentials.json` present and non-empty), codex-login
    (`eval/.config/codex/auth.json`), docker, joern, neo4j, cloc (`ALL PRESENT` before a scored run).

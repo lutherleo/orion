@@ -114,6 +114,22 @@ def test_a_run_that_keeps_hitting_the_limit_is_left_aborted_after_max_attempts(t
     assert (tmp_path / "r/bountybench/plain-opus5/s__bounty_0/vulnerable/1.a2/run.json").is_file()
 
 
+def test_a_plain_arm_is_refused_before_any_clone_when_the_claude_sandbox_cannot_start(tmp_path, monkeypatch):
+    # 2026-10-31: socat was missing in WSL, so every plain run exited in a second ("sandbox required but unavailable")
+    monkeypatch.setattr(eb, "load_keys", lambda b: _vlb_keys("t1"))
+    mirrored = []
+    kw = dict(root=tmp_path / "r", mirrors=tmp_path / "m", tree_root=str(tmp_path / "w"),
+              _mirror=lambda u, d: mirrored.append(u), _resolve=lambda m, r: r, _export=lambda m, s, t: os.makedirs(t))
+    with pytest.raises(ValueError, match="socat"):
+        eb.run("vlb", ["t1"], ["orion-sonnet5", "plain-sonnet5"], _sandbox=lambda: "needs socat", **kw)
+    assert mirrored == [] and not (tmp_path / "r").exists()
+    ok = {"status": "ok", "usage": []}
+    counts = eb.run("vlb", ["t1"], ["orion-sonnet5"], _sandbox=lambda: "needs socat",   # no plain arm: not checked
+                    _arms={"orion-sonnet5": lambda *a: ok}, **kw)
+    assert counts["ok"] == 2
+    eb.run("vlb", ["t1"], ["plain-sonnet5"], _sandbox=lambda: "needs socat", dry_run=True, **kw)   # a dry run prints
+
+
 def test_progress_lines_about_rate_limiting_never_look_like_a_usage_limit(tmp_path):
     assert eb._limit_hit(["  [discover/lead] login is not rate-limited; error messages leak usernames"], None) is None
     assert eb._limit_hit(["Error: Claude AI usage limit reached|1761900000"], None)
