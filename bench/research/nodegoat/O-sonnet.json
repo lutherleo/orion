@@ -1,0 +1,1397 @@
+{
+  "arm": "O",
+  "label": "O-sonnet",
+  "benchmark": "nodegoat",
+  "repo": "/home/lutherleo/orion-bench/fixtures/NodeGoat",
+  "model": "claude-sonnet-5",
+  "effort": "xhigh",
+  "recall": 15,
+  "total": 15,
+  "checkable": 14,
+  "recall_bar": 13,
+  "found": {
+    "A1-1": [
+      0
+    ],
+    "A1-2": [
+      1
+    ],
+    "A1-3": [
+      5
+    ],
+    "A2-1": [
+      14,
+      18,
+      22
+    ],
+    "A2-2": [
+      13,
+      20,
+      21
+    ],
+    "A3": [
+      11,
+      17,
+      18
+    ],
+    "A4": [
+      16
+    ],
+    "A5": [
+      10,
+      19
+    ],
+    "A6": [
+      12
+    ],
+    "A7": [
+      7,
+      15
+    ],
+    "A8": [
+      3
+    ],
+    "A9": [
+      24
+    ],
+    "A10": [
+      4
+    ],
+    "SSRF": [
+      3
+    ],
+    "ReDoS": [
+      6,
+      23
+    ]
+  },
+  "missed": [],
+  "false_positive_candidates": 4,
+  "false_positive_candidates_detail": [
+    {
+      "text": "In app/data/user-dao.js, validateLogin queries usersCol.findOne({ userName: userName }, ...) with the raw userName value destructured straight from req.body.userName in session.js handleLoginRequest -- no type-check forces it to a string, so a JSON/urlencoded body such as userName[$ne]=x lets an attacker inject a MongoDB operator and match an arbitrary user document, defeating the login lookup (NoSQL injection auth bypass risk).",
+      "file": "app/data/user-dao.js"
+    },
+    {
+      "text": "In app/routes/memos.js, addMemos stores req.body.memo verbatim (no HTML-encoding/sanitization) via memosDAO.insert, and displayMemos later feeds every stored memo back into res.render(\"memos\", { memosList: docs, ... }) -- if the memos template outputs memo text unescaped, this is a stored XSS: any user's posted memo content executes in other viewers' browsers.",
+      "file": "app/views/memos.html"
+    },
+    {
+      "text": "CSRF protection is entirely absent despite being a declared dependency: 'csurf' is listed in Dependency nodes but is never required/imported or wired up as middleware anywhere in the codebase, and no '_csrf' token field appears in any call. All state-changing POST routes (/login, /signup, /profile, /contributions, /benefits, /memos) are exposed to cross-site request forgery.",
+      "file": "server.js"
+    },
+    {
+      "text": "Several other declared dependencies are very old major/pre-1.0 releases with multiple publicly known CVEs patched in later versions and should be flagged for upgrade as components-with-known-vulnerabilities: express ^4.13.4 (several CVEs fixed in 4.17+/4.19+, e.g. open-redirect and ReDoS fixes), express-session ^1.13.0, body-parser ^1.15.1, helmet ^2.0.0 (current major is 7+, missing many later protections), csurf ^1.8.3 (package itself deprecated by maintainers), swig ^1.4.2 (templating engine unmaintained/deprecated since 2016), and mongodb driver ^2.1.18 (ancient driver predating many client-side fixes).",
+      "file": "package.json"
+    }
+  ],
+  "n_findings": 26,
+  "findings": [
+    {
+      "text": "In app/routes/contributions.js, handleContributionsUpdate passes req.body.preTax, req.body.afterTax and req.body.roth directly into eval() with no sanitization, giving attackers server-side JS execution (SSJS injection) via any of the three POST fields on /contributions.",
+      "evidence": "CandidateFlow ranks 0-2 (sink_category=code_exec) point at CpgCall uids 4094c2d1d3f2231be2a75c9db5753b81f9ba40bf / ae8821a6415884679d8af690da21327cd1f801dc / 5057514eebef41901e259293dbd9d0e3ccdab305. Queried their code: 'const preTax = eval(req.body.preTax); const afterTax = eval(req.body.afterTax); const roth = eval(req.body.roth);' with inline comment '// Insecure use of eval() to parse inputs'.",
+      "file": "app/routes/contributions.js"
+    },
+    {
+      "text": "In app/data/allocations-dao.js, getByUserIdAndThreshold builds a MongoDB $where clause by string-concatenating the raw (unparsed) 'threshold' parameter -- which comes straight from req.query.threshold on GET /allocations/:userId -- allowing arbitrary JavaScript injection into the $where evaluation context (NoSQL/JS injection), e.g. threshold=\"0';while(true){}'\".",
+      "evidence": "CandidateFlow ranks 3-5 (sink_category=nosql) -> uids 05f2ce18591b2ce0d7c07d3585c59020dd8ac821 / 59e4424cb6a2c14eca22f14df3d9c88978898cf6 / b7b75e44a59dc6e17d221a27b3601f700a6cf1bb. Fetched the real (uncommented) line 78 code: '_tmp_5.$where = <operator>.formatString(\"this.userId == \", parsedUserId, \" && this.stocks > '\", threshold, \"'\")' using raw `threshold`, then used at line 86: 'allocationsCo",
+      "file": "app/data/allocations-dao.js"
+    },
+    {
+      "text": "In app/data/user-dao.js, validateLogin queries usersCol.findOne({ userName: userName }, ...) with the raw userName value destructured straight from req.body.userName in session.js handleLoginRequest -- no type-check forces it to a string, so a JSON/urlencoded body such as userName[$ne]=x lets an attacker inject a MongoDB operator and match an arbitrary user document, defeating the login lookup (NoSQL injection auth bypass risk).",
+      "evidence": "Queried app/routes/session.js lines 53-58: handleLoginRequest destructures const {userName,password}=req.body and calls userDAO.validateLogin(userName,password,...); confirmed reachable via app/routes/index.js line 34 'app.post(\"/login\", sessionHandler.handleLoginRequest)' reachable_from_entry=true hop=1. Queried app/data/user-dao.js lines 57-91: validateLogin calls 'usersCol.findOne({ userName: u",
+      "file": "app/data/user-dao.js"
+    },
+    {
+      "text": "In app/routes/research.js, displayResearch builds an outbound request URL by concatenating req.query.url and req.query.symbol with no validation, then fetches it via needle.get(url, ...) and writes the raw response body back into the HTTP response -- a Server-Side Request Forgery (attacker picks the fetched host/path) that also reflects uncontrolled external content into the page.",
+      "evidence": "Queried app/routes/research.js lines 12-27: 'if (req.query.symbol) { const url = req.query.url + req.query.symbol; return needle.get(url, (error, newResponse, body) => { ... res.write(body); ... }); }'. Confirmed entry reachability via app/routes/index.js line 76: 'app.get(\"/research\", isLoggedIn, researchHandler.displayResearch)' reachable_from_entry=true, hop=1; displayResearch itself is reachab",
+      "file": "app/routes/research.js"
+    },
+    {
+      "text": "In app/routes/index.js, the '/learn' GET handler passes req.query.url directly into res.redirect(req.query.url) with no allow-list/validation, letting attackers craft links that redirect victims to an arbitrary external site (open redirect), confirmed by the inline comment admitting the design is insecure.",
+      "evidence": "CandidateFlow rank 20 (sink_category=redirect, uid 1cc7c3cfcc976777c772848f7e006d08a3705230) and rank 38 (uid 32c142b1178ce0e741f6d945dc84a116967c4263) both point at: 'app.get(\"/learn\", isLoggedIn, (req, res) => { // Insecure way to handle redirects by taking redirect url from query string return res.redirect(req.query.url); })' in app/routes/index.js line 70-72. reachable_from_entry=true, hop_dis",
+      "file": "app/routes/index.js"
+    },
+    {
+      "text": "In app/routes/session.js, handleLoginRequest logs the raw, attacker-controlled userName from req.body straight into console.log on a failed-login path with no CRLF/encoding sanitization, allowing log forging / log injection (CWE-117), as the code's own fix-comment confirms.",
+      "evidence": "CandidateFlow rank 110 (sink_category=log, uid 15ad3d25a7effb135e10bccc5e82c2b74ffac0a7). Queried code: 'console.log(\"Error: attempt to login with invalid user: \", userName)' at app/routes/session.js line 64, immediately followed by comment '// Fix for A1 - 3 Log Injection - encode/sanitize input for CRLF Injection that could result in log forging'. userName originates from 'const { userName, pass",
+      "file": "app/routes/session.js"
+    },
+    {
+      "text": "In app/routes/profile.js, handleProfileUpdate runs the attacker-controlled req.body.bankRouting field through the catastrophic-backtracking regex /([0-9]+)+\\#/ via regexPattern.test(bankRouting), with no length cap on bankRouting before the test -- a crafted value can pin the Node event loop (ReDoS/DoS), as flagged by the code's own fix-comment.",
+      "evidence": "Queried app/routes/profile.js lines 40-65: handleProfileUpdate destructures bankRouting from req.body, then 'const regexPattern = /([0-9]+)+\\#/; ... const testComplyWithRequirements = regexPattern.test(bankRouting);' preceded by comment '// Fix for Section: ReDoS attack // The following regexPattern ... is insecure and vulnerable to catastrophic backtracking'. Confirmed entry reachability via app/",
+      "file": "app/routes/profile.js"
+    },
+    {
+      "text": "In app/routes/benefits.js, updateBenefits takes 'userId' straight from req.body (not from the authenticated session) and passes it to benefitsDAO.updateBenefits, which writes { $set: { benefitStartDate } } to usersCol filtered only by that attacker-supplied _id -- any logged-in (non-admin) user can modify any other user's benefitStartDate (IDOR / broken access control), since the route only requires isLoggedIn, not isAdmin.",
+      "evidence": "CandidateFlow rank 16 (uid 0bdef44ce5469b525cc8a3b8715779a06f3c8d1e, sink_category=render) and rank 76 (uid 892f44c23ef9010addccd65e1cfbd3c6fdd42edf, sink_category=log) map to: app/routes/benefits.js 'this.updateBenefits = (req, res, next) => { const { userId, benefitStartDate } = req.body; benefitsDAO.updateBenefits(userId, benefitStartDate, ...) }' and app/data/benefits-dao.js 'this.updateBenefi",
+      "file": "app/routes/benefits.js"
+    },
+    {
+      "text": "In app/routes/memos.js, addMemos stores req.body.memo verbatim (no HTML-encoding/sanitization) via memosDAO.insert, and displayMemos later feeds every stored memo back into res.render(\"memos\", { memosList: docs, ... }) -- if the memos template outputs memo text unescaped, this is a stored XSS: any user's posted memo content executes in other viewers' browsers.",
+      "evidence": "CandidateFlow rank 39 (uid c5caca8b4b174abba977d03c9ed46b1739fcb763, sink_category=render). Queried app/routes/memos.js: 'this.addMemos = (req, res, next) => { memosDAO.insert(req.body.memo, (err, docs) => { ... this.displayMemos(req, res, next); }); }' (line 11-15) and 'this.displayMemos = (req,res,next) => { ... memosDAO.getAllMemos((err, docs) => { ... return res.render(\"memos\", { memosList: do",
+      "file": "app/views/memos.html"
+    },
+    {
+      "text": "CSRF protection is entirely absent despite being a declared dependency: 'csurf' is listed in Dependency nodes but is never required/imported or wired up as middleware anywhere in the codebase, and no '_csrf' token field appears in any call. All state-changing POST routes (/login, /signup, /profile, /contributions, /benefits, /memos) are exposed to cross-site request forgery.",
+      "evidence": "Query: MATCH (d:Dependency) WHERE d.scan_id=$scan_id RETURN d.name -> includes 'csurf'. Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND (c.code CONTAINS 'csurf' OR c.code CONTAINS 'csrf') -> 0 rows. Query: MATCH (c:CpgCall) WHERE c.file_path='server.js' AND c.name='require' -> lists express, serve-favicon, body-parser, express-session, consolidate, swig, mongodb, http, marked, ./app/routes, ",
+      "file": "server.js"
+    },
+    {
+      "text": "Security-header hardening (helmet) is declared as a dependency but never applied: the entire helmet setup block (x-powered-by disable, frameguard/clickjacking protection, noCache, contentSecurityPolicy, hsts) is commented out inside the MongoClient.connect callback in server.js, and 'helmet' is never required anywhere in the code.",
+      "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND (c.code CONTAINS 'helmet') -> 1 row, which is the MongoClient.connect call in server.js whose body contains the fully commented-out block: 'app.disable(\"x-powered-by\")', 'app.use(helmet.frameguard())', 'app.use(helmet.noCache())', 'app.use(helmet.contentSecurityPolicy())', 'app.use(helmet.hsts())' all inside /* */. Query of server.js require() ",
+      "file": "server.js"
+    },
+    {
+      "text": "Output auto-escaping is explicitly disabled for the swig template engine (autoescape: false) with the secure fix (autoescape: true) commented out directly beside it, meaning every view rendered via res.render (profile, benefits, memos, contributions, dashboard, allocations, research, signup/login) emits user-controlled fields without automatic HTML-encoding by the templating layer.",
+      "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.code CONTAINS 'setDefaults' -> server.js line 135: 'swig.setDefaults({ // Autoescape disabled\\n  autoescape: false\\n  /* // Fix for A3 - XSS, enable auto escaping\\n  autoescape: true // default value */\\n})'.",
+      "file": "server.js"
+    },
+    {
+      "text": "Sensitive PII fields (ssn, dob, bankAcc, bankRouting) are stored and retrieved in plaintext in MongoDB \u2014 the encryption/decryption code (crypto.pbkdf2Sync-derived key, createIV, encrypt()/decrypt() helpers) is entirely commented out in profile-dao.js, and updateUser/getByUserId operate on raw fields with no encrypt()/decrypt() calls anywhere in the live code.",
+      "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.file_path CONTAINS 'profile-dao.js' -> constructor comment block '/* Fix for A6 - Sensitive Data Exposure ... const crypto = require(\"crypto\") ... */' entirely commented out; updateUser (line 42) sets user.ssn = ssn / user.dob = dob directly with the encrypt() fix commented ('/* if(ssn){ user.ssn = encrypt(ssn); } */'); getByUserId (line 94) ",
+      "file": "app/data/profile-dao.js"
+    },
+    {
+      "text": "Passwords are never hashed: bcrypt-nodejs is required in user-dao.js but bcrypt.hashSync/compareSync are never called \u2014 addUser stores the raw request password directly on the user document, and validateLogin's comparePassword helper does a plaintext '===' comparison; the bcrypt-based fixes are present only as commented-out code.",
+      "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND (c.code CONTAINS 'bcrypt' OR c.name CONTAINS 'hash') -> 7 rows: 'const bcrypt = require(\"bcrypt-nodejs\")' (line 1), addUser's user object at line 17/20 stores 'password //received from request param' with fix comment '/* password: bcrypt.hashSync(password, bcrypt.genSaltSync()) */', and validateLogin's comparePassword at line 57/60: 'return fro",
+      "file": "app/data/user-dao.js"
+    },
+    {
+      "text": "Session cookie configuration is insecure: express-session is configured with a hardcoded, non-rotatable secret ('session_cookie_secret_key_here' from config/env/all.js), saveUninitialized:true and resave:true (session-fixation-friendly defaults), and no cookie object at all \u2014 httpOnly, secure, and a non-default cookie name are all present only as commented-out fixes, so the default 'connect.sid' cookie is sent without HttpOnly/Secure flags.",
+      "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.code CONTAINS 'session(' -> server.js line 78: 'app.use(session({ secret: cookieSecret, saveUninitialized: true, resave: true /* key: \"sessionId\" */ /* cookie: { httpOnly: true // secure: true } */ }))'. Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.code CONTAINS 'cookieSecret' -> config/env/all.js line 5: 'cookieSecret: \"session_co",
+      "file": "server.js"
+    },
+    {
+      "text": "The /benefits route (view and update of another user's benefit start date, an administrative function \u2014 the handler hardcodes user:{isAdmin:true} and calls getAllNonAdminUsers) is registered with only the isLoggedIn middleware, not the isAdminUserMiddleware that exists in the same codebase specifically to gate admin-only actions \u2014 any authenticated non-admin user can view and modify all users' benefits data.",
+      "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.file_path CONTAINS 'routes/index.js' AND c.name IN ['get','post'] -> 'app.get(\"/benefits\", isLoggedIn, benefitsHandler.displayBenefits)' and 'app.post(\"/benefits\", isLoggedIn, benefitsHandler.updateBenefits)' (lines 55-56) \u2014 neither uses 'isAdmin'. Semantic search confirms isAdminUserMiddleware is defined in session.js ('return user && user.i",
+      "file": "app/routes/index.js"
+    },
+    {
+      "text": "The /allocations/:userId route performs no ownership/authorization check: displayAllocations reads the target userId straight from req.params (URL path) rather than from the authenticated session, so any logged-in user can view any other user's financial allocation data by changing the :userId path segment; the secure fix (take userId from req.session instead) is present only as a comment directly above the vulnerable code.",
+      "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.file_path CONTAINS 'routes/allocations.js' -> AllocationsHandler.displayAllocations (line 11-26): '/* Fix for A4 Insecure DOR - take user id from session instead of from URL param\\n const { userId } = req.session; */\\n const { userId } = req.params;' followed by allocationsDAO.getByUserIdAndThreshold(userId, ...) with no check that userId mat",
+      "file": "app/routes/allocations.js"
+    },
+    {
+      "text": "server.js globally disables the swig template engine's auto-escaping (autoescape: false) with the fix (autoescape: true) written as a commented-out line right next to it, re-enabling reflected/stored XSS across every res.render() call in the app.",
+      "evidence": "run_cypher on CpgCall at server.js line 135 returned: swig.setDefaults({ // Autoescape disabled\\n        autoescape: false\\n        /*\\n        // Fix for A3 - XSS, enable auto escaping\\n        autoescape: true // default value\\n        */\\n    }) (uid 95083a1f8c477432a34ab0098da2c310bbbeb984). This config runs once at startup (hence reachable_from_entry=false, hop_distance=-1) but governs render",
+      "file": "server.js"
+    },
+    {
+      "text": "server.js configures express-session without httpOnly/secure cookie flags; the fix block setting cookie: { httpOnly: true /* secure: true */ } for A3-XSS is present but commented out, leaving the session cookie readable by injected JS and sendable over plain HTTP.",
+      "evidence": "run_cypher on CpgCall at server.js line 78 returned: app.use(session({ secret: cookieSecret, saveUninitialized: true, resave: true /* // Fix for A5 - Security MisConfig // Use generic cookie name key: \"sessionId\", */ /* // Fix for A3 - XSS // TODO: Add \"maxAge\" cookie: { httpOnly: true // Remember to start an HTTPS server to get this working // secure: true } */ })) (uid 779a9e757cfae9f6fb06afc7fb",
+      "file": "server.js"
+    },
+    {
+      "text": "server.js has an entire helmet-based security header stack (disable x-powered-by, frameguard/clickjacking, noCache, contentSecurityPolicy, hsts) plus dont-sniff-mimetype and csurf (CSRF) written as the 'Fix for A5 - Security MisConfig' but the whole block is commented out and the corresponding require() calls for helmet/nosniff/csurf at the top of the file are also commented out, so none of these protections are ever applied to the running app.",
+      "evidence": "run_cypher on CpgCall at server.js line 30 (MongoClient.connect callback) returned the full commented block: '/* // Fix for A5 - Security MisConfig ... app.disable(\"x-powered-by\"); app.use(helmet.frameguard()); app.use(helmet.noCache()); app.use(helmet.contentSecurityPolicy()); app.use(helmet.hsts()); ... app.use(nosniff()); */' (uid dc1a697ac5bd20ab86703a0c74919490e29e594d, substring confirmed vi",
+      "file": "server.js"
+    },
+    {
+      "text": "user-dao.js comparePassword does a plaintext '===' string comparison of passwords instead of bcrypt.compareSync; the bcrypt-based fix for 'A2-Broken Auth' is written as a comment directly below the insecure comparison but is not active.",
+      "evidence": "run_cypher on CpgCall at app/data/user-dao.js line 60-61 returned: 'const comparePassword = (fromDB, fromUser) => { return fromDB === fromUser; /* // Fix for A2-Broken Auth // compares decrypted password stored in this.addUser() return bcrypt.compareSync(fromDB, fromUser); */ }' (uids 62f4b0bf..., 9e6a4cd5...). This call has reachable_from_entry=true, hop_distance=1, confirming it sits directly on",
+      "file": "app/data/user-dao.js"
+    },
+    {
+      "text": "session.js validateSignup enforces a weak password policy (PASS_RE = /^.{1,20}$/, any 1-20 chars) while a stronger regex requiring digits + upper + lower + min 8 chars ('Fix for A2-2 - Broken Authentication') is present only as a commented-out alternate declaration.",
+      "evidence": "run_cypher/semantic_search on app/routes/session.js returned: 'const PASS_RE = /^.{1,20}$/; /* //Fix for A2-2 - Broken Authentication - requires stronger password //(at least 8 characters with numbers and both lowercase and uppercase letters.) const PASS_RE =/^(?=.*\\\\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/; */' and the live call 'PASS_RE.test(password)' at line 171 (uid 51af647b4c16faaf69427511c6c2b310085",
+      "file": "app/routes/session.js"
+    },
+    {
+      "text": "server.js never starts an HTTPS listener -- it calls http.createServer(app).listen(...) in cleartext -- while the HTTPS setup (loading TLS key/cert via fs.readFileSync, requiring the 'https' module) for the 'A6-Sensitive Data Exposure' fix is written at the top of the file but entirely commented out, so session cookies, passwords, SSNs and bank account/routing numbers handled by this app (see profile.js/contributions.js) travel over plaintext HTTP.",
+      "evidence": "semantic_search on server.js top-of-file chunk returned: '/* // Fix for A6-Sensitive Data Exposure // Load keys for establishing secure HTTPS connection const fs = require(\"fs\"); const https = require(\"https\"); const path = require(\"path\"); const httpsOptions = { key: fs.readFileSync(...\"./artifacts/cert/server.key\"), cert: fs.readFileSync(...\"./artifacts/cert/server.crt\") }; */'. run_cypher on Cp",
+      "file": "server.js"
+    },
+    {
+      "text": "Dependency 'marked' is pinned to version 0.3.5, a release line with a publicly documented ReDoS vulnerability in its inline-lexer/markdown-link parsing regexes (catastrophic backtracking on crafted Markdown input, CVE-2017-1000427 class of issues fixed in later 0.3.x/0.4.x releases). If any route renders user-supplied Markdown through this library, a crafted payload could hang the event loop.",
+      "evidence": "Cypher: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version -> row {\"name\":\"marked\",\"version\":\"0.3.5\"} present in the 36-row dependency list for this scan.",
+      "file": "app/views/memos.html"
+    },
+    {
+      "text": "Dependency 'underscore' is pinned to ^1.8.3, which resolves within the vulnerable range for the publicly documented arbitrary-code-execution/template-injection issue in underscore's `template` function (CVE-2021-23358), not fixed until 1.12.1.",
+      "evidence": "Cypher: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version -> row {\"name\":\"underscore\",\"version\":\"^1.8.3\"} present in the dependency list for this scan.",
+      "file": "package.json"
+    },
+    {
+      "text": "Several other declared dependencies are very old major/pre-1.0 releases with multiple publicly known CVEs patched in later versions and should be flagged for upgrade as components-with-known-vulnerabilities: express ^4.13.4 (several CVEs fixed in 4.17+/4.19+, e.g. open-redirect and ReDoS fixes), express-session ^1.13.0, body-parser ^1.15.1, helmet ^2.0.0 (current major is 7+, missing many later protections), csurf ^1.8.3 (package itself deprecated by maintainers), swig ^1.4.2 (templating engine unmaintained/deprecated since 2016), and mongodb driver ^2.1.18 (ancient driver predating many client-side fixes).",
+      "evidence": "Cypher: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version ORDER BY d.name -> full 36-row list includes express ^4.13.4, express-session ^1.13.0, body-parser ^1.15.1, helmet ^2.0.0, csurf ^1.8.3, swig ^1.4.2, mongodb ^2.1.18.",
+      "file": "package.json"
+    }
+  ],
+  "tokens": {
+    "total": {
+      "calls": 32,
+      "input_tokens": 632,
+      "output_tokens": 247528,
+      "cache_creation_input_tokens": 634412,
+      "cache_read_input_tokens": 9378146,
+      "total_tokens": 10260718,
+      "cli_cost_usd": 7.022722,
+      "priced_cost_usd": 10.334732,
+      "n_missing_usage": 0,
+      "n_unpriced": 0
+    },
+    "by_phase": {
+      "?": {
+        "calls": 28,
+        "input_tokens": 510,
+        "output_tokens": 174852,
+        "cache_creation_input_tokens": 383834,
+        "cache_read_input_tokens": 6290264,
+        "total_tokens": 6849460,
+        "cli_cost_usd": 4.5945,
+        "priced_cost_usd": 6.814393,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover": {
+        "calls": 4,
+        "input_tokens": 122,
+        "output_tokens": 72676,
+        "cache_creation_input_tokens": 250578,
+        "cache_read_input_tokens": 3087882,
+        "total_tokens": 3411258,
+        "cli_cost_usd": 2.428222,
+        "priced_cost_usd": 3.520339,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      }
+    },
+    "by_phase_shape": {
+      "?/-": {
+        "calls": 28,
+        "input_tokens": 510,
+        "output_tokens": 174852,
+        "cache_creation_input_tokens": 383834,
+        "cache_read_input_tokens": 6290264,
+        "total_tokens": 6849460,
+        "cli_cost_usd": 4.5945,
+        "priced_cost_usd": 6.814393,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover/A": {
+        "calls": 1,
+        "input_tokens": 54,
+        "output_tokens": 30606,
+        "cache_creation_input_tokens": 113525,
+        "cache_read_input_tokens": 1876901,
+        "total_tokens": 2021086,
+        "cli_cost_usd": 1.200665,
+        "priced_cost_usd": 1.703472,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover/B": {
+        "calls": 1,
+        "input_tokens": 26,
+        "output_tokens": 14539,
+        "cache_creation_input_tokens": 53692,
+        "cache_read_input_tokens": 475742,
+        "total_tokens": 543999,
+        "cli_cost_usd": 0.461871,
+        "priced_cost_usd": 0.683038,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover/C": {
+        "calls": 1,
+        "input_tokens": 24,
+        "output_tokens": 15864,
+        "cache_creation_input_tokens": 52902,
+        "cache_read_input_tokens": 477374,
+        "total_tokens": 546164,
+        "cli_cost_usd": 0.47223,
+        "priced_cost_usd": 0.698656,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      },
+      "discover/D": {
+        "calls": 1,
+        "input_tokens": 18,
+        "output_tokens": 11667,
+        "cache_creation_input_tokens": 30459,
+        "cache_read_input_tokens": 257865,
+        "total_tokens": 300009,
+        "cli_cost_usd": 0.293456,
+        "priced_cost_usd": 0.435173,
+        "n_missing_usage": 0,
+        "n_unpriced": 0
+      }
+    },
+    "n_calls": 32
+  },
+  "wallclock_s": 1010.3,
+  "extra": {},
+  "verdicts": [
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/routes/contributions.js, handleContributionsUpdate passes req.body.preTax, req.body.afterTax and req.body.roth directly into eval() with no sanitization, giving attackers server-side JS execution (SSJS injection) via any of the three POST fields on /contributions.",
+      "file": "app/routes/contributions.js",
+      "line_start": 28,
+      "line_end": 34,
+      "function": "handleContributionsUpdate",
+      "cwe": "CWE-95",
+      "verdict": {
+        "lead": {
+          "index": 0,
+          "shape": "A",
+          "text": "In app/routes/contributions.js, handleContributionsUpdate passes req.body.preTax, req.body.afterTax and req.body.roth directly into eval() with no sanitization, giving attackers server-side JS execution (SSJS injection) via any of the three POST fields on /contributions.",
+          "evidence": "CandidateFlow ranks 0-2 (sink_category=code_exec) point at CpgCall uids 4094c2d1d3f2231be2a75c9db5753b81f9ba40bf / ae8821a6415884679d8af690da21327cd1f801dc / 5057514eebef41901e259293dbd9d0e3ccdab305. Queried their code: 'const preTax = eval(req.body.preTax); const afterTax = eval(req.body.afterTax); const roth = eval(req.body.roth);' with inline comment '// Insecure use of eval() to parse inputs'. Rank-0 call is reachable_from_entry=true, hop_distance=1; the sibling eval calls on the same lines show reachable=false/hop=-1, consistent with the documented arrow-function CONTAINS_CALL gap, not an actual unreachable path (same function body, same req.body source).",
+          "confidence": "HIGH",
+          "source_uid": "4094c2d1d3f2231be2a75c9db5753b81f9ba40bf",
+          "sink_uid": "5057514eebef41901e259293dbd9d0e3ccdab305",
+          "file": "app/routes/contributions.js",
+          "line_start": 28,
+          "line_end": 34,
+          "function": "handleContributionsUpdate",
+          "cwe": "CWE-95",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read app/routes/contributions.js directly: handleContributionsUpdate (lines 28-76) calls eval(req.body.preTax), eval(req.body.afterTax), eval(req.body.roth) at lines 32-34 with no sanitization, matching the analyst's claim exactly. Confirmed reachability myself via app/routes/index.js:52 (`app.post(\"/contributions\", isLoggedIn, contributionsHandler.handleContributionsUpdate)`), which wires this handler to a POST route behind only session-login middleware (no special authorization) \u2014 any authenticated user can submit the three form fields. Graph query shows the three real eval CpgCall nodes (uids 3a1d9f43a7f8771fac436d39515d3d1f2a20631c/ae8821a6.../5057514e...) are all reachable_from_entry=false, hop_distance=-1, and no CpgMethod/EntryPoint node exists for handleContributionsUpdate at all (0 rows) \u2014 confirming independently that this is the documented CPG gap for arrow-functions assigned to object properties, not a real unreachability. Route-table evidence overrides the static flag. Also note the analyst's cited rank-0 CandidateFlow uid is actually the enclosing `<operator>.assignment` node (not an eval call), and all three CandidateFlow rows have source_uid==sink_uid (no real traced path) \u2014 a flaw in the analyst's evidence, but immaterial since the vuln is confirmed directly from source + route registration.",
+        "evidence": "app/routes/contributions.js:32-34 `const preTax = eval(req.body.preTax); const afterTax = eval(req.body.afterTax); const roth = eval(req.body.roth);`; app/routes/index.js:52 `app.post(\"/contributions\", isLoggedIn, contributionsHandler.handleContributionsUpdate);`; Cypher: eval CpgCall nodes 3a1d9f43a7f8771fac436d39515d3d1f2a20631c (line32)/ae8821a6415884679d8af690da21327cd1f801dc(line33)/5057514eebef41901e259293dbd9d0e3ccdab305(line34) all reachable_from_entry=false,hop_distance=-1; `MATCH (m:CpgMethod) WHERE m.full_name CONTAINS 'handleContributionsUpdate'` \u2192 0 rows (confirms the CPG method-node gap for this arrow function).",
+        "sink_centrality": 0.0,
+        "file": "app/routes/contributions.js",
+        "line_start": 28,
+        "line_end": 34,
+        "cwe": "CWE-95",
+        "severity": "CRITICAL",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/data/allocations-dao.js, getByUserIdAndThreshold builds a MongoDB $where clause by string-concatenating the raw (unparsed) 'threshold' parameter -- which comes straight from req.query.threshold on GET /allocations/:userId -- allowing arbitrary JavaScript injection into the $where evaluation c",
+      "file": "app/data/allocations-dao.js",
+      "line_start": 57,
+      "line_end": 86,
+      "function": "getByUserIdAndThreshold",
+      "cwe": "CWE-943",
+      "verdict": {
+        "lead": {
+          "index": 1,
+          "shape": "A",
+          "text": "In app/data/allocations-dao.js, getByUserIdAndThreshold builds a MongoDB $where clause by string-concatenating the raw (unparsed) 'threshold' parameter -- which comes straight from req.query.threshold on GET /allocations/:userId -- allowing arbitrary JavaScript injection into the $where evaluation context (NoSQL/JS injection), e.g. threshold=\"0';while(true){}'\".",
+          "evidence": "CandidateFlow ranks 3-5 (sink_category=nosql) -> uids 05f2ce18591b2ce0d7c07d3585c59020dd8ac821 / 59e4424cb6a2c14eca22f14df3d9c88978898cf6 / b7b75e44a59dc6e17d221a27b3601f700a6cf1bb. Fetched the real (uncommented) line 78 code: '_tmp_5.$where = <operator>.formatString(\"this.userId == \", parsedUserId, \" && this.stocks > '\", threshold, \"'\")' using raw `threshold`, then used at line 86: 'allocationsCol.find(searchCriteria())'. Traced caller app/routes/allocations.js line 11: 'const { userId } = req.params; const { threshold } = req.query; allocationsDAO.getByUserIdAndThreshold(userId, threshold, ...)' -- displayAllocations is reachable_from_entry=true, hop_distance=1.",
+          "confidence": "HIGH",
+          "source_uid": "b7b75e44a59dc6e17d221a27b3601f700a6cf1bb",
+          "sink_uid": "59e4424cb6a2c14eca22f14df3d9c88978898cf6",
+          "file": "app/data/allocations-dao.js",
+          "line_start": 78,
+          "line_end": 86,
+          "function": "getByUserIdAndThreshold",
+          "cwe": "CWE-943",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source code confirms getByUserIdAndThreshold string-interpolates the raw, unsanitized `threshold` value (sourced from req.query.threshold in the GET /allocations/:userId handler) directly into a MongoDB $where clause, which is then passed unmodified to allocationsCol.find(). The commented-out block directly above the vulnerable line is the (disabled) fix, explicitly documenting the same injection payloads the analyst cited. Graph confirms the taint-construction call (uid b7b75e44a59dc6e17d221a27b3601f700a6cf1bb) is reachable_from_entry=true/hop_distance=1; the find()-sink and the displayAllocations handler show reachable_from_entry=false only because both are arrow functions assigned as object/this properties -- a documented CPG under-linking gap -- which real-source review resolves: route registration in app/routes/index.js:63 ties GET /allocations/:userId -> displayAllocations -> getByUserIdAndThreshold directly and synchronously.",
+        "evidence": "app/data/allocations-dao.js:77-79 `return { $where: \\`this.userId == ${parsedUserId} && this.stocks > '${threshold}'\\` };` (raw threshold, no sanitization; commented-out lines 63-76 show the disabled parseInt/range-check fix and literal exploit payloads 0';while(true){}' / 1'; return 1 == '1); line 86 `allocationsCol.find(searchCriteria())...` consumes it. app/routes/allocations.js:16-23 passes req.params.userId and req.query.threshold straight into getByUserIdAndThreshold with no validation. app/routes/index.js:63 `app.get(\"/allocations/:userId\", isLoggedIn, allocationsHandler.displayAllocations);` confirms the route. Cypher query on scan_id c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73: CpgCall uid b7b75e44a59dc6e17d221a27b3601f700a6cf1bb, code=\"_tmp_5.$where = <operator>.formatString(\\\"this.userId == \\\", parsedUserId, \\\" && this.stocks > '\\\", threshold, \\\"'\\\")\", line=78, reachable_from_entry=true, hop_distance=1.",
+        "sink_centrality": 0.0,
+        "file": "app/data/allocations-dao.js",
+        "line_start": 57,
+        "line_end": 86,
+        "cwe": "CWE-943",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/data/user-dao.js, validateLogin queries usersCol.findOne({ userName: userName }, ...) with the raw userName value destructured straight from req.body.userName in session.js handleLoginRequest -- no type-check forces it to a string, so a JSON/urlencoded body such as userName[$ne]=x lets an att",
+      "file": "app/data/user-dao.js",
+      "line_start": 91,
+      "line_end": 93,
+      "function": "validateLogin",
+      "cwe": "CWE-943",
+      "verdict": {
+        "lead": {
+          "index": 2,
+          "shape": "A",
+          "text": "In app/data/user-dao.js, validateLogin queries usersCol.findOne({ userName: userName }, ...) with the raw userName value destructured straight from req.body.userName in session.js handleLoginRequest -- no type-check forces it to a string, so a JSON/urlencoded body such as userName[$ne]=x lets an attacker inject a MongoDB operator and match an arbitrary user document, defeating the login lookup (NoSQL injection auth bypass risk).",
+          "evidence": "Queried app/routes/session.js lines 53-58: handleLoginRequest destructures const {userName,password}=req.body and calls userDAO.validateLogin(userName,password,...); confirmed reachable via app/routes/index.js line 34 'app.post(\"/login\", sessionHandler.handleLoginRequest)' reachable_from_entry=true hop=1. Queried app/data/user-dao.js lines 57-91: validateLogin calls 'usersCol.findOne({ userName: userName }, validateUserDoc)' at line 91 with no sanitization, then compares password via a plain '===' (comparePassword). This findOne call (uid f4d496794bfde44b542260da42d0ad7ebb7dbbe6) is not itself in the CandidateFlow precompute list and shows reachable_from_entry=false/hop=-1, matching the documented arrow-function CONTAINS_CALL gap -- the manual call-chain trace (handleLoginRequest -> validateLogin -> findOne) establishes real reachability.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": "f4d496794bfde44b542260da42d0ad7ebb7dbbe6",
+          "file": "app/data/user-dao.js",
+          "line_start": 91,
+          "line_end": 91,
+          "function": "validateLogin",
+          "cwe": "CWE-943",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source code confirms the full chain. (1) server.js:71 registers `app.use(bodyParser.json())` globally, so any POST can carry a JSON body where fields are arbitrary types, not just strings. (2) app/routes/index.js:34 wires the public, unauthenticated `app.post(\"/login\", sessionHandler.handleLoginRequest)`. (3) app/routes/session.js:53-58 destructures `const {userName, password} = req.body` with zero type/shape validation (unlike handleSignup, which runs validateSignup's regex checks before touching the DAO - validateLogin has no equivalent guard) and passes userName straight into `userDAO.validateLogin(userName, password, ...)`. (4) app/data/user-dao.js:91-93 calls `usersCol.findOne({ userName: userName }, validateUserDoc)` using that unvalidated value directly as a Mongo query value. Because body-parser.json() is active, an attacker can send Content-Type: application/json with e.g. `{\"userName\":{\"$ne\":null},\"password\":\"x\", \"_csrf\":\"<token>\"}`; userName arrives as an object and MongoDB interprets it as an operator (`$ne`, `$gt`, `$regex`, etc.), letting the query match an arbitrary document instead of the exact named user - this is a textbook CWE-943 NoSQL injection with no sanitization at the injection point, exactly as the analyst described. (CSRF middleware at server.js:107 is unrelated/no obstacle - an attacker interacting with the login form directly still controls the field values and can obtain a valid token from the GET /login page.) One correction to the analyst's framing: password is NOT part of the Mongo query - comparePassword() at user-dao.js:60-61 does a plain JS `===` against the plaintext `user.password` returned from the matched doc, so the injection manipulates *which* document is looked up (enabling user enumeration/arbitrary-match) but does not by itself guarantee a credential-less full login without also knowing/guessing the matched user's real password - slightly less than the analyst's \"defeating the login lookup\" framing implies full bypass, but the injection vulnerability itself is real and unmitigated. On reachability: graph query confirms reachable_from_entry=false/hop_distance=-1 for both the findOne call (uid f4d496794bfde44b542260da42d0ad7ebb7dbbe6) and the validateLogin method, but the EntryPoint list only models constructor-level handlers (e.g. 'app/routes/session.js::program:SessionHandler'), not individual destructured route handlers like handleLoginRequest - and validateLogin/handleLoginRequest are themselves `this.foo = (..) => {}` arrow-functions assigned to object properties, exactly the CONTAINS_CALL/reachability gap documented for this graph. Manual source trace (index.js:34 -> session.js:53-58 -> user-dao.js:91-93) establishes genuine reachability from a public, unauthenticated HTTP entry point, overriding the static false negative.",
+        "evidence": "app/routes/index.js:34 `app.post(\"/login\", sessionHandler.handleLoginRequest)`; app/routes/session.js:53-58 `const {userName, password} = req.body; userDAO.validateLogin(userName, password, (err, user) => {...})`; app/data/user-dao.js:91-93 `usersCol.findOne({ userName: userName }, validateUserDoc);` with no prior validation of userName's type; server.js:71 `app.use(bodyParser.json())` enabling non-string req.body.userName; Cypher query on scan_id c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73 confirms CpgCall uid f4d496794bfde44b542260da42d0ad7ebb7dbbe6 (findOne, user-dao.js:91) has reachable_from_entry=false/hop_distance=-1, and CpgMethod UserDAO:validateLogin likewise false/-1, matching the documented arrow-function CONTAINS_CALL blind spot rather than true unreachability.",
+        "sink_centrality": 0.0,
+        "file": "app/data/user-dao.js",
+        "line_start": 91,
+        "line_end": 93,
+        "cwe": "CWE-943",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/routes/research.js, displayResearch builds an outbound request URL by concatenating req.query.url and req.query.symbol with no validation, then fetches it via needle.get(url, ...) and writes the raw response body back into the HTTP response -- a Server-Side Request Forgery (attacker picks the",
+      "file": "app/routes/research.js",
+      "line_start": 12,
+      "line_end": 28,
+      "function": "displayResearch",
+      "cwe": "CWE-918",
+      "verdict": {
+        "lead": {
+          "index": 3,
+          "shape": "A",
+          "text": "In app/routes/research.js, displayResearch builds an outbound request URL by concatenating req.query.url and req.query.symbol with no validation, then fetches it via needle.get(url, ...) and writes the raw response body back into the HTTP response -- a Server-Side Request Forgery (attacker picks the fetched host/path) that also reflects uncontrolled external content into the page.",
+          "evidence": "Queried app/routes/research.js lines 12-27: 'if (req.query.symbol) { const url = req.query.url + req.query.symbol; return needle.get(url, (error, newResponse, body) => { ... res.write(body); ... }); }'. Confirmed entry reachability via app/routes/index.js line 76: 'app.get(\"/research\", isLoggedIn, researchHandler.displayResearch)' reachable_from_entry=true, hop=1; displayResearch itself is reachable=true/hop=1 though the inner needle.get/res.write calls show reachable=false/hop=-1 (arrow-function CONTAINS_CALL gap), consistent with real reachability through the handler body.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": "1bdbac7cc511ba452e21309dc6be037de4d608ba",
+          "file": "app/routes/research.js",
+          "line_start": 14,
+          "line_end": 25,
+          "function": "displayResearch",
+          "cwe": "CWE-918",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source code read directly confirms the claim verbatim. In app/routes/research.js, displayResearch (assigned at line 12) checks req.query.symbol (line 14), then builds `url = req.query.url + req.query.symbol` by raw string concatenation of two attacker-controlled query parameters with zero validation/allowlisting (line 15), passes it to `needle.get(url, callback)` (line 16), and in the callback writes the fetched response body straight into the HTTP response via `res.write(body)` (line 25) with no sanitization. This is a classic CWE-918 SSRF: an attacker can set `url` to any scheme/host (internal service, cloud metadata endpoint, etc.) and the server will fetch it server-side and reflect the body back to the attacker. Route wiring confirmed in app/routes/index.js:76 \u2014 `app.get(\"/research\", isLoggedIn, researchHandler.displayResearch)` \u2014 so the handler is reached through a registered Express route (gated by isLoggedIn, i.e. requires an authenticated session but no further restriction). Graph query against scan_id c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73 shows CpgCall at research.js:12 (`this.displayResearch = (req,res)=>{...}`) with reachable_from_entry=true/hop_distance=1, while every single call inside the arrow-function body (lines 14-31, including req.query.symbol, the concatenation, needle.get, res.write, res.end, res.render) is uniformly marked reachable_from_entry=false/hop_distance=-1. This blanket, line-14-through-31 unreachability (not just the sink) is exactly the documented CONTAINS_CALL gap for calls nested inside an arrow function assigned to `this.X` \u2014 it is a graph-attribution artifact, not evidence the code is actually unreachable, since the containing arrow function itself is reachable at hop 1 and is directly wired as the Express route handler. This is app-specific custom code (not a third-party dependency/version issue), so the exploit_search version-pinning step does not apply here.",
+        "evidence": "app/routes/research.js lines 12-27 (read directly): 'this.displayResearch = (req, res) => { if (req.query.symbol) { const url = req.query.url + req.query.symbol; return needle.get(url, (error, newResponse, body) => { ... res.write(body); ... return res.end(); }); } ... }'. app/routes/index.js:76: 'app.get(\"/research\", isLoggedIn, researchHandler.displayResearch);'. Cypher query on scan c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73: CpgCall at research.js line 12 has reachable_from_entry=true, hop_distance=1; all CpgCall rows for lines 14-31 (req.query.symbol, url concat, needle.get, res.write, res.end, res.render) show reachable_from_entry=false, hop_distance=-1 uniformly, consistent with the known arrow-function CONTAINS_CALL omission rather than genuine unreachability.",
+        "sink_centrality": 0.0,
+        "file": "app/routes/research.js",
+        "line_start": 12,
+        "line_end": 28,
+        "cwe": "CWE-918",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/routes/index.js, the '/learn' GET handler passes req.query.url directly into res.redirect(req.query.url) with no allow-list/validation, letting attackers craft links that redirect victims to an arbitrary external site (open redirect), confirmed by the inline comment admitting the design is in",
+      "file": "app/routes/index.js",
+      "line_start": 70,
+      "line_end": 72,
+      "function": "app.get(\"/learn\")",
+      "cwe": "CWE-601",
+      "verdict": {
+        "lead": {
+          "index": 4,
+          "shape": "A",
+          "text": "In app/routes/index.js, the '/learn' GET handler passes req.query.url directly into res.redirect(req.query.url) with no allow-list/validation, letting attackers craft links that redirect victims to an arbitrary external site (open redirect), confirmed by the inline comment admitting the design is insecure.",
+          "evidence": "CandidateFlow rank 20 (sink_category=redirect, uid 1cc7c3cfcc976777c772848f7e006d08a3705230) and rank 38 (uid 32c142b1178ce0e741f6d945dc84a116967c4263) both point at: 'app.get(\"/learn\", isLoggedIn, (req, res) => { // Insecure way to handle redirects by taking redirect url from query string return res.redirect(req.query.url); })' in app/routes/index.js line 70-72. reachable_from_entry=true, hop_distance=1 for the outer app.get registration.",
+          "confidence": "HIGH",
+          "source_uid": "1cc7c3cfcc976777c772848f7e006d08a3705230",
+          "sink_uid": "32c142b1178ce0e741f6d945dc84a116967c4263",
+          "file": "app/routes/index.js",
+          "line_start": 70,
+          "line_end": 72,
+          "function": "app.get(\"/learn\")",
+          "cwe": "CWE-601",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source code at app/routes/index.js lines 69-73 verbatim confirms an unvalidated open redirect: the '/learn' GET handler calls res.redirect(req.query.url) with no allow-list, scheme check, or same-origin validation, and an inline comment explicitly calls this 'insecure'. The route registration call is graph-confirmed reachable_from_entry=true/hop_distance=1 from the file's entry method (app/routes/index.js::program:index, exposure=reachable); the sink call itself shows reachable_from_entry=false only because the static graph fails to link the inline arrow-function callback passed as app.get's 3rd argument back into the reachability chain (the documented arrow-function-callback omission), not because the handler is actually unreachable -- Express invokes this callback on every matching request after the isLoggedIn middleware, which gates who can trigger it but does not mitigate the redirect flaw itself.",
+        "evidence": "File app/routes/index.js lines 69-73: 'app.get(\\\"/learn\\\", isLoggedIn, (req, res) => { // Insecure way to handle redirects by taking redirect url from query string return res.redirect(req.query.url); });'. Graph: CandidateFlow rank20 uid 1cc7c3cfcc976777c772848f7e006d08a3705230 (the app.get call) has reachable_from_entry=true, hop_distance=1; CandidateFlow rank38 uid 32c142b1178ce0e741f6d945dc84a116967c4263 (res.redirect(req.query.url) at line 72) has reachable_from_entry=false, hop_distance=-1; EntryPoint query shows app/routes/index.js::program:index (line 11, exposure=reachable) is the file's entry method containing this registration.",
+        "sink_centrality": 0.0,
+        "file": "app/routes/index.js",
+        "line_start": 70,
+        "line_end": 72,
+        "cwe": "CWE-601",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/routes/session.js, handleLoginRequest logs the raw, attacker-controlled userName from req.body straight into console.log on a failed-login path with no CRLF/encoding sanitization, allowing log forging / log injection (CWE-117), as the code's own fix-comment confirms.",
+      "file": "app/routes/session.js",
+      "line_start": 64,
+      "line_end": 64,
+      "function": "handleLoginRequest",
+      "cwe": "CWE-117",
+      "verdict": {
+        "lead": {
+          "index": 5,
+          "shape": "A",
+          "text": "In app/routes/session.js, handleLoginRequest logs the raw, attacker-controlled userName from req.body straight into console.log on a failed-login path with no CRLF/encoding sanitization, allowing log forging / log injection (CWE-117), as the code's own fix-comment confirms.",
+          "evidence": "CandidateFlow rank 110 (sink_category=log, uid 15ad3d25a7effb135e10bccc5e82c2b74ffac0a7). Queried code: 'console.log(\"Error: attempt to login with invalid user: \", userName)' at app/routes/session.js line 64, immediately followed by comment '// Fix for A1 - 3 Log Injection - encode/sanitize input for CRLF Injection that could result in log forging'. userName originates from 'const { userName, password } = req.body;' in handleLoginRequest, reachable via app.post(\"/login\", sessionHandler.handleLoginRequest) at app/routes/index.js line 34 (reachable_from_entry=true, hop=1).",
+          "confidence": "HIGH",
+          "source_uid": "b9041912de07516f1ffa962361c7a756a29c6b70",
+          "sink_uid": "15ad3d25a7effb135e10bccc5e82c2b74ffac0a7",
+          "file": "app/routes/session.js",
+          "line_start": 64,
+          "line_end": 64,
+          "function": "handleLoginRequest",
+          "cwe": "CWE-117",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source code directly confirms the lead. In app/routes/session.js, handleLoginRequest destructures `const { userName, password } = req.body;` (lines 54-57) with no validation/sanitization of userName content, then on the failed-login (no-such-user) branch logs it raw: `console.log(\"Error: attempt to login with invalid user: \", userName);` at line 64. Immediately following (lines 66-80) is the app's own commented-out remediation: \"Fix for A1 - 3 Log Injection - encode/sanitize input for CRLF Injection that could result in log forging\", with example ESAPI-encoding/CRLF-stripping fixes never applied \u2014 i.e. the vulnerability is intentionally left unfixed. The route is wired in app/routes/index.js line 34: `app.post(\"/login\", sessionHandler.handleLoginRequest);`, with handleLoginRequest assigned via `this.handleLoginRequest = (req, res, next) => {...}` in the SessionHandler constructor (session.js:53) \u2014 a publicly reachable, unauthenticated POST endpoint (no isLoggedIn/isAdmin middleware gates it, consistent with it being the login form). server.js shows bodyParser.json()/urlencoded() parse the body with no sanitization, and the csrf() middleware does not block this (the attacker can fetch /login to obtain a valid token and submit directly, csrf only stops third-party forgery). Graph query confirms CandidateFlow rank=110, sink_category=log, uid=15ad3d25a7effb135e10bccc5e82c2b74ffac0a7 matches console.log at session.js:64 exactly. The graph marks this call and its containing lambda unreachable (reachable_from_entry=false, hop_distance=-1) for the CpgMethod at session.js:53, but this is the known arrow-function-assigned-to-object-property blind spot (handleLoginRequest is `this.handleLoginRequest = (req,res,next)=>{}`, same pattern as the other sibling handlers in this file that are also marked unreachable) \u2014 direct source inspection confirms real reachability via the registered Express route. This is an unsanitized attacker-controlled value reaching a logging sink on an exploitable path: CWE-117 Log Injection/Log Forging confirmed.",
+        "evidence": "app/routes/session.js:54-57 (`const { userName, password } = req.body;`), line 64 (`console.log(\"Error: attempt to login with invalid user: \", userName);`), lines 66-80 (unfixed \"Fix for A1 - 3 Log Injection\" comment block); app/routes/index.js:34 (`app.post(\"/login\", sessionHandler.handleLoginRequest);`); graph query on CandidateFlow uid 15ad3d25a7effb135e10bccc5e82c2b74ffac0a7 \u2192 rank=110, sink_category=log, source_uid=sink_uid=that uid, matching CpgCall {name:\"log\", code:'console.log(\"Error: attempt to login with invalid user: \", userName)', file_path:\"app/routes/session.js\", line:64}.",
+        "sink_centrality": 0.0,
+        "file": "app/routes/session.js",
+        "line_start": 64,
+        "line_end": 64,
+        "cwe": "CWE-117",
+        "severity": "LOW",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/routes/profile.js, handleProfileUpdate runs the attacker-controlled req.body.bankRouting field through the catastrophic-backtracking regex /([0-9]+)+\\#/ via regexPattern.test(bankRouting), with no length cap on bankRouting before the test -- a crafted value can pin the Node event loop (ReDoS/",
+      "file": "app/routes/profile.js",
+      "line_start": 59,
+      "line_end": 61,
+      "function": "handleProfileUpdate",
+      "cwe": "CWE-1333",
+      "verdict": {
+        "lead": {
+          "index": 6,
+          "shape": "A",
+          "text": "In app/routes/profile.js, handleProfileUpdate runs the attacker-controlled req.body.bankRouting field through the catastrophic-backtracking regex /([0-9]+)+\\#/ via regexPattern.test(bankRouting), with no length cap on bankRouting before the test -- a crafted value can pin the Node event loop (ReDoS/DoS), as flagged by the code's own fix-comment.",
+          "evidence": "Queried app/routes/profile.js lines 40-65: handleProfileUpdate destructures bankRouting from req.body, then 'const regexPattern = /([0-9]+)+\\#/; ... const testComplyWithRequirements = regexPattern.test(bankRouting);' preceded by comment '// Fix for Section: ReDoS attack // The following regexPattern ... is insecure and vulnerable to catastrophic backtracking'. Confirmed entry reachability via app/routes/index.js line 48: 'app.post(\"/profile\", isLoggedIn, profileHandler.handleProfileUpdate)' reachable_from_entry=true, hop=1.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": "6182d7fca16b4621bd27c3885dbadafbea1b7d3c",
+          "file": "app/routes/profile.js",
+          "line_start": 59,
+          "line_end": 61,
+          "function": "handleProfileUpdate",
+          "cwe": "CWE-1333",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived from source, not from the analyst's claim. app/routes/profile.js:40-61 shows this.handleProfileUpdate destructuring bankRouting directly from req.body (no length/format pre-check), then at line 59 declaring `const regexPattern = /([0-9]+)+\\#/;` and at line 61 running `regexPattern.test(bankRouting)`. The regex has a classic nested-quantifier (`(group+)+`) structure that is the textbook catastrophic-backtracking pattern: a long run of digits not ending in '#' forces the engine to try exponentially many ways to partition the digits among the outer `+` before failing, pinning the single-threaded Node event loop (CWE-1333). The developer's own comment immediately above (lines 52-58) explicitly identifies this exact line as the vulnerable one and even shows the single-quantifier fix (`/([0-9]+)\\#/`, commented out) \u2014 confirming the insecure version is the one actually active in committed code. Reachability from an unauthenticated-but-logged-in HTTP request is confirmed in source: app/routes/index.js:16 constructs `profileHandler = new ProfileHandler(db)` and line 48 wires `app.post(\"/profile\", isLoggedIn, profileHandler.handleProfileUpdate)`, directly invoking the vulnerable function. The graph's CpgCall node for the `.test()` call (uid 6182d7fc...) is marked reachable_from_entry=false/hop=-1, but this is the documented graph limitation (calls nested inside an arrow function assigned to `this.handleProfileUpdate` aren't propagated for reachability) \u2014 the real source wiring overrides that static flag. Since this is bespoke application logic rather than a versioned library/dependency, the exploit_search Metasploit-module check is not applicable here (no CVE/package version to pin); the vulnerability is a custom-code ReDoS, not a known-CVE'd component.",
+        "evidence": "app/routes/profile.js:59 `const regexPattern = /([0-9]+)+\\#/;` and line 61 `const testComplyWithRequirements = regexPattern.test(bankRouting);`, with bankRouting destructured unvalidated from req.body at profile.js:49-50; preceding comment block (lines 52-58) explicitly labeled \"Fix for Section: ReDoS attack\" names this exact pattern as \"insecure and vulnerable to catastrophic backtracking.\" Route wiring confirmed at app/routes/index.js:16 (`const profileHandler = new ProfileHandler(db)`) and line 48 (`app.post(\"/profile\", isLoggedIn, profileHandler.handleProfileUpdate)`). Cypher query against scan_id c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73 confirms the CpgCall node for `regexPattern.test(bankRouting)` exists at profile.js line 61 (uid 6182d7fca16b4621bd27c3885dbadafbea1b7d3c) with reachable_from_entry=false \u2014 a known static-graph gap for calls inside arrow-function-valued object properties, overridden here by direct source evidence of the route wiring.",
+        "sink_centrality": 0.0,
+        "file": "app/routes/profile.js",
+        "line_start": 59,
+        "line_end": 61,
+        "cwe": "CWE-1333",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/routes/benefits.js, updateBenefits takes 'userId' straight from req.body (not from the authenticated session) and passes it to benefitsDAO.updateBenefits, which writes { $set: { benefitStartDate } } to usersCol filtered only by that attacker-supplied _id -- any logged-in (non-admin) user can ",
+      "file": "app/routes/benefits.js",
+      "line_start": 29,
+      "line_end": 35,
+      "function": "updateBenefits",
+      "cwe": "CWE-639",
+      "verdict": {
+        "lead": {
+          "index": 7,
+          "shape": "A",
+          "text": "In app/routes/benefits.js, updateBenefits takes 'userId' straight from req.body (not from the authenticated session) and passes it to benefitsDAO.updateBenefits, which writes { $set: { benefitStartDate } } to usersCol filtered only by that attacker-supplied _id -- any logged-in (non-admin) user can modify any other user's benefitStartDate (IDOR / broken access control), since the route only requires isLoggedIn, not isAdmin.",
+          "evidence": "CandidateFlow rank 16 (uid 0bdef44ce5469b525cc8a3b8715779a06f3c8d1e, sink_category=render) and rank 76 (uid 892f44c23ef9010addccd65e1cfbd3c6fdd42edf, sink_category=log) map to: app/routes/benefits.js 'this.updateBenefits = (req, res, next) => { const { userId, benefitStartDate } = req.body; benefitsDAO.updateBenefits(userId, benefitStartDate, ...) }' and app/data/benefits-dao.js 'this.updateBenefits = (userId, startDate, callback) => { usersCol.update({ _id: parseInt(userId) }, { $set: { benefitStartDate: startDate } }, ...) }'. Confirmed route registration app/routes/index.js line 56: 'app.post(\"/benefits\", isLoggedIn, benefitsHandler.updateBenefits)' -- isLoggedIn only, no isAdmin/ownership check, reachable_from_entry=true, hop=1.",
+          "confidence": "HIGH",
+          "source_uid": "0bdef44ce5469b525cc8a3b8715779a06f3c8d1e",
+          "sink_uid": "892f44c23ef9010addccd65e1cfbd3c6fdd42edf",
+          "file": "app/routes/benefits.js",
+          "line_start": 29,
+          "line_end": 35,
+          "function": "updateBenefits",
+          "cwe": "CWE-639",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Verified directly against source: benefits.js updateBenefits takes userId unvalidated from req.body and forwards it to benefitsDAO.updateBenefits, which filters the users collection update solely by parseInt(userId) with no ownership check. The POST /benefits route in routes/index.js is guarded only by isLoggedIn (session.js confirms isLoggedInMiddleware only checks req.session.userId truthy, no ownership comparison) \u2014 isAdmin is commented out at index.js:57-60 as the documented-but-unapplied fix. Graph query confirms the updateBenefits call site (uid 0bdef44ce5469b525cc8a3b8715779a06f3c8d1e) at benefits.js:29 is reachable_from_entry=true, hop_distance=1, corroborating reachability independent of the analyst's claim. Any logged-in non-admin user can set another user's _id in the request body and overwrite that user's benefitStartDate -- a genuine IDOR/broken access control.",
+        "evidence": "app/routes/benefits.js:29-35 (userId destructured from req.body, passed to benefitsDAO.updateBenefits); app/data/benefits-dao.js:23-30 (usersCol.update filtered only by {_id: parseInt(userId)}); app/routes/index.js:56-60 (app.post(\\\"/benefits\\\", isLoggedIn, benefitsHandler.updateBenefits) with the isAdmin fix commented out); app/routes/session.js:36-42 (isLoggedInMiddleware checks only req.session.userId, no ownership logic); Cypher: MATCH (c:CpgCall {scan_id}) WHERE c.file_path CONTAINS 'benefits' confirms uid 0bdef44ce5469b525cc8a3b8715779a06f3c8d1e at benefits.js:29 has reachable_from_entry=true, hop_distance=1.",
+        "sink_centrality": 0.0,
+        "file": "app/routes/benefits.js",
+        "line_start": 29,
+        "line_end": 35,
+        "cwe": "CWE-639",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/routes/memos.js, addMemos stores req.body.memo verbatim (no HTML-encoding/sanitization) via memosDAO.insert, and displayMemos later feeds every stored memo back into res.render(\"memos\", { memosList: docs, ... }) -- if the memos template outputs memo text unescaped, this is a stored XSS: any u",
+      "file": "app/views/memos.html",
+      "line_start": 28,
+      "line_end": 34,
+      "cwe": "CWE-79",
+      "verdict": {
+        "lead": {
+          "index": 8,
+          "shape": "A",
+          "text": "In app/routes/memos.js, addMemos stores req.body.memo verbatim (no HTML-encoding/sanitization) via memosDAO.insert, and displayMemos later feeds every stored memo back into res.render(\"memos\", { memosList: docs, ... }) -- if the memos template outputs memo text unescaped, this is a stored XSS: any user's posted memo content executes in other viewers' browsers.",
+          "evidence": "CandidateFlow rank 39 (uid c5caca8b4b174abba977d03c9ed46b1739fcb763, sink_category=render). Queried app/routes/memos.js: 'this.addMemos = (req, res, next) => { memosDAO.insert(req.body.memo, (err, docs) => { ... this.displayMemos(req, res, next); }); }' (line 11-15) and 'this.displayMemos = (req,res,next) => { ... memosDAO.getAllMemos((err, docs) => { ... return res.render(\"memos\", { memosList: docs, userId: userId, environmentalScripts }); }); }' (line 19-27); addMemos is reachable_from_entry=true/hop=1. app/data/memos-dao.js confirms insert() stores the raw memo field with no encoding: 'const memos = { memo, timestamp: new Date() }; memosCol.insert(memos, ...)'. Template escaping itself was not inspected (not present in the CPG), so this is inferred from the unsanitized store+reflect flow.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": "c5caca8b4b174abba977d03c9ed46b1739fcb763",
+          "file": "app/routes/memos.js",
+          "line_start": 11,
+          "line_end": 27,
+          "function": "addMemos / displayMemos",
+          "cwe": "CWE-79",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Full source-verified stored XSS chain: POST /memos -> addMemos (app/routes/memos.js:13) stores req.body.memo verbatim via memosDAO.insert (app/data/memos-dao.js:15-24, no sanitization). GET /memos -> displayMemos (app/routes/memos.js:25-32) fetches all memos and renders template \"memos\" with memosList=docs. The template app/views/memos.html:31 outputs `{{ marked(doc.memo) }}` \u2014 i.e. it runs the stored memo through the `marked` markdown-to-HTML converter (registered globally via `app.locals.marked = marked` in server.js:129) and injects the resulting HTML into the page. Critically, server.js:134-141 explicitly disables autoescaping on the template engine (`swig.setDefaults({ autoescape: false })`) with a comment literally saying \"// Fix for A3 - XSS, enable auto escaping\" (commented out), confirming this is the intentional, well-known NodeGoat XSS vulnerability. Both routes are live and reachable: app/routes/index.js:66-67 wire app.get(\"/memos\", isLoggedIn, displayMemos) and app.post(\"/memos\", isLoggedIn, addMemos) \u2014 reachable by any logged-in user, no sanitization or encoding anywhere in the chain. This is a genuine stored XSS: any authenticated user's posted memo (including raw HTML/script via markdown or HTML passthrough) is rendered unescaped to every other viewer of /memos.",
+        "evidence": "app/routes/memos.js:11-17 (addMemos stores req.body.memo via memosDAO.insert) and :19-33 (displayMemos renders memosList via res.render); app/data/memos-dao.js:15-24 (insert stores {memo, timestamp} raw, no encoding); app/views/memos.html:31 `{{ marked(doc.memo) }}` (unescaped HTML output of stored memo); server.js:129 `app.locals.marked = marked;` and server.js:134-141 `swig.setDefaults({ autoescape: false /* Fix for A3 - XSS, enable auto escaping */ })` confirming autoescape is off; app/routes/index.js:66-67 `app.get(\"/memos\", isLoggedIn, memosHandler.displayMemos); app.post(\"/memos\", isLoggedIn, memosHandler.addMemos);` confirming both handlers are live, reachable Express routes.",
+        "sink_centrality": 0.0,
+        "file": "app/views/memos.html",
+        "line_start": 28,
+        "line_end": 34,
+        "cwe": "CWE-79",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "REJECT",
+      "shape": "A",
+      "route": "full",
+      "text": "In app/routes/profile.js, displayProfile encodes the user-controlled 'website' profile field with encodeForHTML before rendering, but the profile template uses that same value in a URL/href attribute context -- HTML-entity encoding does not neutralize a 'javascript:' scheme, so a stored XSS via the ",
+      "file": "app/routes/profile.js",
+      "line_start": 28,
+      "line_end": 33,
+      "function": "displayProfile",
+      "cwe": "CWE-79",
+      "verdict": {
+        "lead": {
+          "index": 9,
+          "shape": "A",
+          "text": "In app/routes/profile.js, displayProfile encodes the user-controlled 'website' profile field with encodeForHTML before rendering, but the profile template uses that same value in a URL/href attribute context -- HTML-entity encoding does not neutralize a 'javascript:' scheme, so a stored XSS via the website field is plausible despite the (mis-targeted) encoding attempt, as the code's own TODO/FIXME comment states.",
+          "evidence": "CandidateFlow rank 40 (uid a22c15fefe12ccbc4af2e0c1d54861412d4d40d9, sink_category=render). Queried app/routes/profile.js lines 13-33: displayProfile calls profile.getByUserId(...) then 'doc.website = ESAPI.encoder().encodeForHTML(doc.website);' preceded by '// @TODO @FIXME // while the developer intentions were correct in encoding the user supplied input ... the context is incorrect as it is encoding ... while this same variable is also used in the context of a URL link element', then 'return res.render(\"profile\", { ...doc, environmentalScripts });'. displayProfile reachable_from_entry=true, hop=1 (app/routes/index.js registers GET /profile via sessionHandler isLoggedIn). The website field's write path (profile update) and the template's exact attribute usage were not independently re-verified in this session.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": "a22c15fefe12ccbc4af2e0c1d54861412d4d40d9",
+          "file": "app/routes/profile.js",
+          "line_start": 28,
+          "line_end": 33,
+          "function": "displayProfile",
+          "cwe": "CWE-79",
+          "path": null
+        },
+        "decision": "REJECT",
+        "reason": "The lead claims the `website` field (HTML-encoded in displayProfile) is rendered by the profile template in a URL/href attribute, making the encoding context-mismatched and exploitable via a `javascript:` URI. This is not supported by the actual source. I read app/views/profile.html in full: `website` is rendered exactly once, at line 70, as `value=\"{{website}}\"` inside a plain double-quoted `<input type=\"text\">` attribute -- never inside an `href` or any other URL attribute anywhere in the template or the rest of the repo (grep for \"website\" across the whole codebase turns up only app/routes/profile.js:28/31 and app/views/profile.html:69-70; app.json's \"website\" key is an unrelated project-metadata field). HTML-entity encoding via ESAPI.encodeForHTML IS the correct, sufficient encoding for a quoted HTML attribute-value context like this one, so there is no demonstrated context mismatch for this field in this location. Separately, `website` is also not actually user-controlled through any write path I could find: ProfileDAO.updateUser (app/data/profile-dao.js:42-92) only persists firstName/lastName/address/bankAcc/bankRouting/ssn/dob -- `website` is never read from req.body or set anywhere, and the DB seed data (artifacts/db-reset.js) has no website field either, so doc.website is effectively always undefined/static, not attacker-influenced. The cited TODO/FIXME comment (profile.js:24-27) is textually about \"the firstname\" being HTML-encoded while \"this same variable is also used in the context of a URL link element\" -- it describes a real but DIFFERENT bug: profile.js:64/67 sets `firstNameSafeString = firstName` completely unescaped in the bankRouting-validation-failure branch of handleProfileUpdate, and profile.html:78 renders it directly as `<a href=\"{{firstNameSafeString}}\">`, which is a genuine reflected (not stored) XSS on the firstName field -- unrelated to `website`. Finally, the CandidateFlow uid the analyst cited (a22c15fefe12ccbc4af2e0c1d54861412d4d40d9) does not exist as a CandidateFlow node in the graph at all; that uid is actually the CpgCall id for the `res.render(\"profile\", {...doc, environmentalScripts})` call at profile.js:33 (reachable_from_entry=false). The real rank-40 CandidateFlow (uid 6e7b445a946112d599da9f6a26c21218b0cb3391) has source_uid == sink_uid, both equal to that same single render-call node -- a degenerate self-referential pseudo-flow, not a multi-node taint path that actually demonstrates `website` reaching a URL-context sink. Given the template never places `website` in a URL/href attribute, `website` has no established user-controlled write path, and the supporting graph flow is degenerate, the specific claim is not supported by the real source or the graph.",
+        "evidence": "app/views/profile.html:69-71 shows the only use of `website` is `<input ... value=\"{{website}}\">` (plain attribute value, not href). app/views/profile.html:78 shows the actual href sink uses `{{firstNameSafeString}}`, a different variable. app/data/profile-dao.js:42-92 (ProfileDAO.updateUser) never accepts/persists a `website` field from req.body. Cypher: `MATCH (cf:CandidateFlow {scan_id:$scan_id, uid:'a22c15fefe12ccbc4af2e0c1d54861412d4d40d9'})` returns 0 rows; `MATCH (cf:CandidateFlow {scan_id:$scan_id}) WHERE cf.rank=40` returns uid 6e7b445a946112d599da9f6a26c21218b0cb3391 with source_uid == sink_uid == 'a22c15fefe12ccbc4af2e0c1d54861412d4d40d9', which is the CpgCall for `res.render(...)` at app/routes/profile.js line 33 (reachable_from_entry=false, hop_distance=-1).",
+        "sink_centrality": 0.0,
+        "file": null,
+        "line_start": null,
+        "line_end": null,
+        "cwe": null,
+        "severity": null,
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "CSRF protection is entirely absent despite being a declared dependency: 'csurf' is listed in Dependency nodes but is never required/imported or wired up as middleware anywhere in the codebase, and no '_csrf' token field appears in any call. All state-changing POST routes (/login, /signup, /profile, ",
+      "file": "server.js",
+      "line_start": 104,
+      "line_end": 113,
+      "cwe": "CWE-352",
+      "verdict": {
+        "lead": {
+          "index": 10,
+          "shape": "B",
+          "text": "CSRF protection is entirely absent despite being a declared dependency: 'csurf' is listed in Dependency nodes but is never required/imported or wired up as middleware anywhere in the codebase, and no '_csrf' token field appears in any call. All state-changing POST routes (/login, /signup, /profile, /contributions, /benefits, /memos) are exposed to cross-site request forgery.",
+          "evidence": "Query: MATCH (d:Dependency) WHERE d.scan_id=$scan_id RETURN d.name -> includes 'csurf'. Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND (c.code CONTAINS 'csurf' OR c.code CONTAINS 'csrf') -> 0 rows. Query: MATCH (c:CpgCall) WHERE c.file_path='server.js' AND c.name='require' -> lists express, serve-favicon, body-parser, express-session, consolidate, swig, mongodb, http, marked, ./app/routes, ./config/config \u2014 no csurf. Query for '_csrf' anywhere in scan -> 0 rows.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "server.js",
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-352",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently from source and graph: package.json declares \"csurf\": \"^1.8.3\" as a dependency, but in server.js the require('csurf') (line 7) and the entire app.use(csrf())/res.locals.csrftoken wiring (lines 104-113) are commented out under a \"Fix for A8 - CSRF\" block, so csrf middleware never executes. A cypher query against the CPG confirms the only live app.use(...) calls in server.js are favicon, bodyParser.json, bodyParser.urlencoded, session, and express.static \u2014 no csrf() call exists as an executed node, consistent with it being inside a /* */ comment. app/routes/index.js registers exactly the POST routes named in the claim (/login L34, /signup L38, /profile L48, /contributions L52, /benefits L56, /memos L67), each guarded only by isLoggedIn (where applicable) \u2014 no CSRF-checking middleware anywhere in the chain. Grep across all route handler files for _csrf/csrfToken returns zero matches, confirming no manual token validation exists either. Several view templates (login.html:117, profile.html:73, signup.html, contributions.html) still contain a leftover hidden _csrf input bound to {{csrftoken}}, but since res.locals.csrftoken is never set, this renders empty/undefined and is never checked server-side \u2014 it's inert scaffolding, not protection. This is the well-known intentional OWASP NodeGoat A8-CSRF lesson; it is genuinely present and unmitigated in this codebase.",
+        "evidence": "server.js:7 (require('csurf') commented out); server.js:104-113 (app.use(csrf()) and res.locals.csrftoken block fully commented out); package.json:11 (\"csurf\": \"^1.8.3\" declared dependency, unused); app/routes/index.js:34,38,48,52,56,67 (POST /login, /signup, /profile, /contributions, /benefits, /memos with no CSRF middleware); cypher MATCH (c:CpgCall) WHERE c.file_path='server.js' AND c.name='use' \u2192 only favicon/bodyParser.json/bodyParser.urlencoded/session/express.static at lines 68,71,72,78,121, no csrf call; grep for _csrf/csrfToken across app/routes/* \u2192 0 matches; app/views/login.html:117 and profile.html:73 contain inert <input type=\"hidden\" name=\"_csrf\" value=\"{{csrftoken}}\"/> fields never populated or validated.",
+        "sink_centrality": 0.0,
+        "file": "server.js",
+        "line_start": 104,
+        "line_end": 113,
+        "cwe": "CWE-352",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "Security-header hardening (helmet) is declared as a dependency but never applied: the entire helmet setup block (x-powered-by disable, frameguard/clickjacking protection, noCache, contentSecurityPolicy, hsts) is commented out inside the MongoClient.connect callback in server.js, and 'helmet' is neve",
+      "file": "server.js",
+      "line_start": 10,
+      "line_end": 65,
+      "function": "MongoClient.connect callback",
+      "cwe": "CWE-693",
+      "verdict": {
+        "lead": {
+          "index": 11,
+          "shape": "B",
+          "text": "Security-header hardening (helmet) is declared as a dependency but never applied: the entire helmet setup block (x-powered-by disable, frameguard/clickjacking protection, noCache, contentSecurityPolicy, hsts) is commented out inside the MongoClient.connect callback in server.js, and 'helmet' is never required anywhere in the code.",
+          "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND (c.code CONTAINS 'helmet') -> 1 row, which is the MongoClient.connect call in server.js whose body contains the fully commented-out block: 'app.disable(\"x-powered-by\")', 'app.use(helmet.frameguard())', 'app.use(helmet.noCache())', 'app.use(helmet.contentSecurityPolicy())', 'app.use(helmet.hsts())' all inside /* */. Query of server.js require() calls (11 rows) confirms 'helmet' is not among them.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "server.js",
+          "line_start": 30,
+          "line_end": null,
+          "function": "MongoClient.connect callback",
+          "cwe": "CWE-693",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Directly verified against real source: server.js:10 shows `// const helmet = require(\"helmet\");` is commented out (never required), and the entire hardening block inside the MongoClient.connect callback (server.js:38-65) \u2014 app.disable(\"x-powered-by\"), app.use(helmet.frameguard()), app.use(helmet.noCache()), app.use(helmet.contentSecurityPolicy()), app.use(helmet.hsts()), plus app.use(nosniff()) \u2014 is wrapped in a single /* ... */ block comment, so none of it executes. A repo-wide grep for `require(['\"]helmet['\"])` outside node_modules returns only that one commented line, confirming no other require exists. package.json:16 lists \"helmet\": \"^2.0.0\" as a declared dependency that is thus installed but completely unused. Graph query MATCH (c:CpgCall) WHERE code CONTAINS 'helmet' returns exactly 1 row (the MongoClient.connect call, uid dc1a697ac5bd20ab86703a0c74919490e29e594d, file_path server.js, line 30) whose captured code body contains the same commented-out block, matching the source read. The effect is real: the running app sends no CSP, no X-Frame-Options/clickjacking protection, no HSTS, no cache-control hardening, and still leaks the X-Powered-By header \u2014 all as the analyst described, i.e. a protection-mechanism-failure misconfiguration, not a direct injection/RCE. reachable_from_entry=false on that CpgCall node reflects the graph not linking the top-level bootstrap connect-callback to a synthetic EntryPoint, not an indication that the comment-out matters less \u2014 the code is dead by comment syntax regardless of call-graph reachability, which is confirmed purely by reading the source.",
+        "evidence": "server.js:10 `// const helmet = require(\"helmet\");` (commented, never executed); server.js:38-65 entire helmet/nosniff hardening block wrapped in /* */ inside MongoClient.connect callback (callback starts server.js:30); package.json:16 `\"helmet\": \"^2.0.0\"` present as a declared dependency; repo-wide grep for helmet require outside node_modules matches only the commented line in server.js; Cypher MATCH (c:CpgCall) WHERE scan_id=... AND c.code CONTAINS 'helmet' returned exactly 1 row (the connect call, file_path server.js, line 30) whose code text contains the identical commented-out block.",
+        "sink_centrality": 0.0,
+        "file": "server.js",
+        "line_start": 10,
+        "line_end": 65,
+        "cwe": "CWE-693",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "Output auto-escaping is explicitly disabled for the swig template engine (autoescape: false) with the secure fix (autoescape: true) commented out directly beside it, meaning every view rendered via res.render (profile, benefits, memos, contributions, dashboard, allocations, research, signup/login) e",
+      "file": "server.js",
+      "line_start": 135,
+      "line_end": 142,
+      "function": "program",
+      "cwe": "CWE-79",
+      "verdict": {
+        "lead": {
+          "index": 12,
+          "shape": "B",
+          "text": "Output auto-escaping is explicitly disabled for the swig template engine (autoescape: false) with the secure fix (autoescape: true) commented out directly beside it, meaning every view rendered via res.render (profile, benefits, memos, contributions, dashboard, allocations, research, signup/login) emits user-controlled fields without automatic HTML-encoding by the templating layer.",
+          "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.code CONTAINS 'setDefaults' -> server.js line 135: 'swig.setDefaults({ // Autoescape disabled\\n  autoescape: false\\n  /* // Fix for A3 - XSS, enable auto escaping\\n  autoescape: true // default value */\\n})'.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "server.js",
+          "line_start": 135,
+          "line_end": null,
+          "function": "program",
+          "cwe": "CWE-79",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Verified directly against source: server.js:135-142 disables swig's global autoescape (`autoescape: false`) with the secure fix commented out immediately beside it \u2014 exact match to the analyst's citation, also confirmed in the graph (CpgCall at server.js:135 with identical code body). This global setting removes automatic HTML-encoding for every swig template render. Concrete exploitable sinks fed by this config were verified in source: app/routes/profile.js's handleProfileUpdate takes `firstName, lastName, ssn, dob, address, bankAcc, bankRouting` directly from req.body and renders them via res.render(\"profile\", ...); app/views/profile.html outputs them with raw `{{ }}` interpolation (no `|escape` filter) at lines 41/45/49/53/57/61/66, relying solely on the disabled autoescape. Similarly app/routes/memos.js persists req.body.memo and app/views/memos.html renders it via `{{ marked(doc.memo) }}`. Graph EntryPoint query confirms both ProfileHandler and MemosHandler are reachable from entry, and app/routes/index.js:47-48,66-67 wires POST /profile and POST /memos to these exact handlers, so the sinks are reachable via real HTTP routes despite the setDefaults call itself (one-time startup config, not a per-request sink) showing reachable_from_entry=false.",
+        "evidence": "server.js:135-142 (read from source) matches cited code exactly; graph query MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.code CONTAINS 'setDefaults' returns file_path=server.js, line=135 with identical body. app/routes/profile.js:42-76 shows req.body fields (lastName, ssn, dob, address, bankAcc, bankRouting) passed unescaped into res.render. app/views/profile.html:41-66 shows these rendered via unescaped {{ }}. EntryPoint query confirms ProfileHandler/MemosHandler exposure=reachable; app/routes/index.js:47-48,66-67 confirms POST /profile and POST /memos route wiring.",
+        "sink_centrality": 0.0,
+        "file": "server.js",
+        "line_start": 135,
+        "line_end": 142,
+        "cwe": "CWE-79",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "Sensitive PII fields (ssn, dob, bankAcc, bankRouting) are stored and retrieved in plaintext in MongoDB \u2014 the encryption/decryption code (crypto.pbkdf2Sync-derived key, createIV, encrypt()/decrypt() helpers) is entirely commented out in profile-dao.js, and updateUser/getByUserId operate on raw fields",
+      "file": "app/data/profile-dao.js",
+      "line_start": 15,
+      "line_end": 110,
+      "function": "ProfileDAO",
+      "cwe": "CWE-311",
+      "verdict": {
+        "lead": {
+          "index": 13,
+          "shape": "B",
+          "text": "Sensitive PII fields (ssn, dob, bankAcc, bankRouting) are stored and retrieved in plaintext in MongoDB \u2014 the encryption/decryption code (crypto.pbkdf2Sync-derived key, createIV, encrypt()/decrypt() helpers) is entirely commented out in profile-dao.js, and updateUser/getByUserId operate on raw fields with no encrypt()/decrypt() calls anywhere in the live code.",
+          "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.file_path CONTAINS 'profile-dao.js' -> constructor comment block '/* Fix for A6 - Sensitive Data Exposure ... const crypto = require(\"crypto\") ... */' entirely commented out; updateUser (line 42) sets user.ssn = ssn / user.dob = dob directly with the encrypt() fix commented ('/* if(ssn){ user.ssn = encrypt(ssn); } */'); getByUserId (line 94) returns user.ssn/user.dob as-is with decrypt() fix also commented out. Query for 'crypto.'/'encrypt'/'decrypt' calls anywhere in scan -> only the commented config values (cryptoKey, cryptoAlgo in config/env/all.js) and the unused comment block, no live crypto/encrypt/decrypt call sites.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "app/data/profile-dao.js",
+          "line_start": 42,
+          "line_end": 107,
+          "function": "ProfileDAO",
+          "cwe": "CWE-311",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read the live source of app/data/profile-dao.js directly. The entire crypto helper block (crypto.pbkdf2Sync-derived key via createIV(), encrypt()/decrypt()) is wrapped in a block comment (lines 15-40). this.updateUser (line 42) assigns user.ssn = ssn / user.dob = dob / user.bankAcc = bankAcc / user.bankRouting = bankRouting directly (lines 56-66) and persists via users.update() (line 78) \u2014 the encrypt() replacement (lines 67-76) is commented out. this.getByUserId (line 94) returns the raw user doc via callback(null, user) (line 107) \u2014 the decrypt() replacement (lines 100-105) is commented out. A repo-wide grep confirms no live call site of encrypt(/decrypt( anywhere outside this dead comment block; config/env/all.js still defines cryptoKey/cryptoAlgo but they are now unused since the only consumer is commented out. Reachability: app/routes/profile.js (an EntryPoint handler, exposure=reachable per graph) calls profile.updateUser(...) with ssn/dob/bankAcc/bankRouting taken directly from req.body (handleProfileUpdate, lines 42-50, 82-90) and profile.getByUserId(...) in displayProfile (line 20), whose result (including raw ssn/dob) is spread into res.render. The graph marks this.updateUser/this.getByUserId themselves reachable_from_entry=true (line 42/94); the inner field-assignment and users.update/findOne calls show reachable_from_entry=false only because of the known arrow-function-body under-linking the instructions warned about \u2014 the real source confirms they are reached on every profile update/view. This is the classic NodeGoat OWASP A6 \"Sensitive Data Exposure\" scenario with the fix deliberately left commented out.",
+        "evidence": "app/data/profile-dao.js lines 15-40 (commented crypto/encrypt/decrypt block), 56-66 & 67-76 (plaintext assignment vs commented encrypt() fix in updateUser), 94-107 & 100-105 (plaintext return vs commented decrypt() fix in getByUserId); app/routes/profile.js lines 42-50 & 82-90 (req.body ssn/dob/bankAcc/bankRouting passed straight to updateUser) and line 20 (getByUserId result rendered); Cypher: EntryPoint nodes for 'app/routes/profile.js::program:ProfileHandler' and 'app/data/profile-dao.js::program:ProfileDAO' both exposure='reachable'; CpgCall query over profile-dao.js shows this.updateUser (line 42, reachable_from_entry=true) and this.getByUserId (line 94, reachable_from_entry=true); repo-wide grep for encrypt(/decrypt( found no live call sites.",
+        "sink_centrality": 0.0,
+        "file": "app/data/profile-dao.js",
+        "line_start": 15,
+        "line_end": 110,
+        "cwe": "CWE-311",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "Passwords are never hashed: bcrypt-nodejs is required in user-dao.js but bcrypt.hashSync/compareSync are never called \u2014 addUser stores the raw request password directly on the user document, and validateLogin's comparePassword helper does a plaintext '===' comparison; the bcrypt-based fixes are pres",
+      "file": "app/data/user-dao.js",
+      "line_start": 17,
+      "line_end": 94,
+      "function": "UserDAO",
+      "cwe": "CWE-256",
+      "verdict": {
+        "lead": {
+          "index": 14,
+          "shape": "B",
+          "text": "Passwords are never hashed: bcrypt-nodejs is required in user-dao.js but bcrypt.hashSync/compareSync are never called \u2014 addUser stores the raw request password directly on the user document, and validateLogin's comparePassword helper does a plaintext '===' comparison; the bcrypt-based fixes are present only as commented-out code.",
+          "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND (c.code CONTAINS 'bcrypt' OR c.name CONTAINS 'hash') -> 7 rows: 'const bcrypt = require(\"bcrypt-nodejs\")' (line 1), addUser's user object at line 17/20 stores 'password //received from request param' with fix comment '/* password: bcrypt.hashSync(password, bcrypt.genSaltSync()) */', and validateLogin's comparePassword at line 57/60: 'return fromDB === fromUser; /* return bcrypt.compareSync(fromDB, fromUser); */'. No call node anywhere has name hashSync/compareSync being actually invoked.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "app/data/user-dao.js",
+          "line_start": 57,
+          "line_end": 69,
+          "function": "UserDAO",
+          "cwe": "CWE-256",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read the real source at app/data/user-dao.js and independently confirmed every element of the claim: (1) bcrypt-nodejs is required at line 1 but bcrypt.hashSync/compareSync are never actually invoked anywhere in the codebase \u2014 the only occurrences of \"bcrypt.hashSync\" and \"bcrypt.compareSync\" are inside /* */ comments at lines 26-30 and 62-66; (2) addUser (line 17-47) builds the user document with the raw `password` field taken directly from the request (line 20-25, \"password //received from request param\"), with the real fix commented out; (3) validateLogin's comparePassword helper (line 57-67) does `return fromDB === fromUser;` \u2014 a plain string equality check \u2014 with the bcrypt.compareSync fix commented out directly below it. Reachability: app/routes/session.js calls userDAO.validateLogin(userName, password, ...) at line 58 inside handleLoginRequest, which destructures req.body directly, and userDAO.addUser(...) at line 220 inside the signup handler \u2014 both are Express route handlers wired to HTTP entry points. Graph query confirms: the addUser lambda assignment (user-dao.js:17) and the validateLogin lambda assignment (user-dao.js:57) both have reachable_from_entry=true, and a `validateSignup` EntryPoint (kind=handler, exposure=reachable) exists in app/routes/session.js. No CpgCall node anywhere has name hashSync or compareSync \u2014 the cypher search for bcrypt/hash only returns the require() statement and the comment text embedded in surrounding code snippets, confirming bcrypt is dead code. This matches the well-known NodeGoat \"A2 Broken Authentication\" intentional vulnerability.",
+        "evidence": "app/data/user-dao.js lines 1, 17-31, 57-67 (read directly): line 1 `const bcrypt = require(\"bcrypt-nodejs\");`; line 25 `password //received from request param` with commented fix at line 29 `password: bcrypt.hashSync(password, bcrypt.genSaltSync())`; line 61 `return fromDB === fromUser;` with commented fix at line 65 `return bcrypt.compareSync(fromDB, fromUser);`. app/routes/session.js:58 `userDAO.validateLogin(userName, password, ...)` and :220 `userDAO.addUser(userName, firstName, lastName, password, email, ...)`, both fed from req.body in route handlers. Cypher query on scan_id c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73: `MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND (c.name CONTAINS 'hashSync' OR c.name CONTAINS 'compareSync' OR c.code CONTAINS 'bcrypt')` returned 7 rows, none named hashSync/compareSync, and showed reachable_from_entry=true for the addUser (line 17) and validateLogin (line 57) function assignments. Second query confirmed an EntryPoint `app/routes/session.js::program:SessionHandler:validateSignup` with kind=handler, exposure=reachable.",
+        "sink_centrality": 0.0,
+        "file": "app/data/user-dao.js",
+        "line_start": 17,
+        "line_end": 94,
+        "cwe": "CWE-256",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "Session cookie configuration is insecure: express-session is configured with a hardcoded, non-rotatable secret ('session_cookie_secret_key_here' from config/env/all.js), saveUninitialized:true and resave:true (session-fixation-friendly defaults), and no cookie object at all \u2014 httpOnly, secure, and a",
+      "file": "server.js",
+      "line_start": 78,
+      "line_end": 102,
+      "function": "program",
+      "cwe": "CWE-614",
+      "verdict": {
+        "lead": {
+          "index": 15,
+          "shape": "B",
+          "text": "Session cookie configuration is insecure: express-session is configured with a hardcoded, non-rotatable secret ('session_cookie_secret_key_here' from config/env/all.js), saveUninitialized:true and resave:true (session-fixation-friendly defaults), and no cookie object at all \u2014 httpOnly, secure, and a non-default cookie name are all present only as commented-out fixes, so the default 'connect.sid' cookie is sent without HttpOnly/Secure flags.",
+          "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.code CONTAINS 'session(' -> server.js line 78: 'app.use(session({ secret: cookieSecret, saveUninitialized: true, resave: true /* key: \"sessionId\" */ /* cookie: { httpOnly: true // secure: true } */ }))'. Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.code CONTAINS 'cookieSecret' -> config/env/all.js line 5: 'cookieSecret: \"session_cookie_secret_key_here\"' hardcoded and flowed unchanged into the session() call.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "server.js",
+          "line_start": 78,
+          "line_end": null,
+          "function": "program",
+          "cwe": "CWE-614",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Verified directly against NodeGoat source. server.js:78-102 configures express-session with `secret: cookieSecret` where cookieSecret is imported from config/config.js -> config/env/all.js:8 (`cookieSecret: \"session_cookie_secret_key_here\"`), a hardcoded literal never overridden by development.js or production.js (both leave cookieSecret untouched, confirmed by reading all three env files). The same session() call sets `saveUninitialized: true, resave: true` with no `cookie` object, `key`, or `genid` option; the only hardening (key:\"sessionId\", cookie:{httpOnly:true, secure:true}, csrf, helmet, https) is commented out throughout the file, explicitly labeled by the app's own comments as \"Fix for A5 - Security MisConfig\" / \"Fix for A6-Sensitive Data Exposure\" / \"Fix for A3 - XSS\" \u2014 i.e. NodeGoat intentionally ships the vulnerable, unfixed version. This yields a default-named `connect.sid` cookie sent without HttpOnly/Secure, a static/guessable session-signing secret shared across all deployments (enabling cookie forgery/tampering), and resave+saveUninitialized defaults that are classic session-fixation enablers (no regeneration on auth, no genid). The server also only listens over plain HTTP (server.js:145-147, https block commented out at 149-155), so Secure would matter and is absent. The analyst's cited code/line matched verbatim what I independently read. Note: graph marks this CpgCall reachable_from_entry=false (hop_distance=-1), but that's expected and not meaningful here \u2014 this is server-bootstrap middleware configuration executed unconditionally once at process start inside the MongoClient.connect callback, not a per-request taint sink reached from an EntryPoint; it governs every session cookie the app ever issues, so the \"unreachable\" label does not diminish exploitability.",
+        "evidence": "server.js:78-102 (app.use(session({secret: cookieSecret, saveUninitialized: true, resave: true /* no cookie opts, commented-out httpOnly/secure/key */}))); config/config.js:7-10 (spreads config/env/all.js then env-specific file, env-specific never redefines cookieSecret); config/env/all.js:8 (cookieSecret: \"session_cookie_secret_key_here\"); config/env/development.js and config/env/production.js (neither overrides cookieSecret); server.js:144-147 (http.createServer, no TLS). Cypher: MATCH (c:CpgCall) WHERE c.scan_id=... AND c.code CONTAINS 'session(' returned server.js line 78 with reachable_from_entry=false, hop_distance=-1 (expected for startup-only middleware config, not a request-path sink).",
+        "sink_centrality": 0.0,
+        "file": "server.js",
+        "line_start": 78,
+        "line_end": 102,
+        "cwe": "CWE-614",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "The /benefits route (view and update of another user's benefit start date, an administrative function \u2014 the handler hardcodes user:{isAdmin:true} and calls getAllNonAdminUsers) is registered with only the isLoggedIn middleware, not the isAdminUserMiddleware that exists in the same codebase specifica",
+      "file": "app/routes/index.js",
+      "line_start": 55,
+      "line_end": 56,
+      "function": "index",
+      "cwe": "CWE-862",
+      "verdict": {
+        "lead": {
+          "index": 16,
+          "shape": "B",
+          "text": "The /benefits route (view and update of another user's benefit start date, an administrative function \u2014 the handler hardcodes user:{isAdmin:true} and calls getAllNonAdminUsers) is registered with only the isLoggedIn middleware, not the isAdminUserMiddleware that exists in the same codebase specifically to gate admin-only actions \u2014 any authenticated non-admin user can view and modify all users' benefits data.",
+          "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.file_path CONTAINS 'routes/index.js' AND c.name IN ['get','post'] -> 'app.get(\"/benefits\", isLoggedIn, benefitsHandler.displayBenefits)' and 'app.post(\"/benefits\", isLoggedIn, benefitsHandler.updateBenefits)' (lines 55-56) \u2014 neither uses 'isAdmin'. Semantic search confirms isAdminUserMiddleware is defined in session.js ('return user && user.isAdmin ? next() : res.redirect(\"/login\")') but grep of index.js shows isAdmin is never passed to any benefits/* route. Query of benefits.js shows displayBenefits/updateBenefits render with hardcoded 'user: {isAdmin: true}' and call benefitsDAO.getAllNonAdminUsers, confirming this is meant to be an admin-only management page.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "app/routes/index.js",
+          "line_start": 55,
+          "line_end": 56,
+          "function": "index",
+          "cwe": "CWE-862",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source inspection confirms: index.js:55-56 registers GET/POST /benefits with only `isLoggedIn`, while `isAdmin` (session.js's isAdminUserMiddleware, which checks user.isAdmin before next()) is defined and used elsewhere in the same file but never applied here \u2014 and index.js:57-60 contains an explicit commented-out line showing the intended admin-gated fix for exactly this route (\"Fix for A7 - checks user role to implement Function Level Access Control\"). benefits.js confirms displayBenefits/updateBenefits are admin-scoped (hardcoded `user:{isAdmin:true}`, calls getAllNonAdminUsers), and updateBenefits takes `userId`/`benefitStartDate` straight from req.body (benefits.js:30-33) into benefits-dao.js's updateBenefits, which does `usersCol.update({_id: parseInt(userId)}, {$set:{benefitStartDate: startDate}})` with zero ownership or role check. Any authenticated non-admin user can therefore view all users (minus admins) and overwrite any user's benefitStartDate by posting an arbitrary userId.",
+        "evidence": "app/routes/index.js:55-60 (benefits routes use only isLoggedIn; commented-out fix shows isAdmin was meant to gate this); app/routes/session.js:25-34 (isAdminUserMiddleware definition, checks user.isAdmin); app/routes/benefits.js:13-27,29-54 (hardcoded isAdmin:true render context, getAllNonAdminUsers, userId/benefitStartDate taken from req.body with no auth check); app/data/benefits-dao.js:23-40 (updateBenefits writes to arbitrary _id=parseInt(userId) with no ownership check).",
+        "sink_centrality": 0.0,
+        "file": "app/routes/index.js",
+        "line_start": 55,
+        "line_end": 56,
+        "cwe": "CWE-862",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "B",
+      "route": "full",
+      "text": "The /allocations/:userId route performs no ownership/authorization check: displayAllocations reads the target userId straight from req.params (URL path) rather than from the authenticated session, so any logged-in user can view any other user's financial allocation data by changing the :userId path ",
+      "file": "app/routes/allocations.js",
+      "line_start": 11,
+      "line_end": 23,
+      "function": "AllocationsHandler",
+      "cwe": "CWE-639",
+      "verdict": {
+        "lead": {
+          "index": 17,
+          "shape": "B",
+          "text": "The /allocations/:userId route performs no ownership/authorization check: displayAllocations reads the target userId straight from req.params (URL path) rather than from the authenticated session, so any logged-in user can view any other user's financial allocation data by changing the :userId path segment; the secure fix (take userId from req.session instead) is present only as a comment directly above the vulnerable code.",
+          "evidence": "Query: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.file_path CONTAINS 'routes/allocations.js' -> AllocationsHandler.displayAllocations (line 11-26): '/* Fix for A4 Insecure DOR - take user id from session instead of from URL param\\n const { userId } = req.session; */\\n const { userId } = req.params;' followed by allocationsDAO.getByUserIdAndThreshold(userId, ...) with no check that userId matches req.session.userId. Query of index.js route table confirms the route is only guarded by isLoggedIn: 'app.get(\"/allocations/:userId\", isLoggedIn, allocationsHandler.displayAllocations)' (line 63) \u2014 no per-object ownership check.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "app/routes/allocations.js",
+          "line_start": 11,
+          "line_end": 26,
+          "function": "AllocationsHandler",
+          "cwe": "CWE-639",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read the real source directly. app/routes/allocations.js:11-31 defines displayAllocations as an Express handler that destructures `userId` from `req.params` (line 16-18) \u2014 the commented-out secure version `const { userId } = req.session;` sits directly above it (lines 12-15), unused. That raw userId flows unchecked into `allocationsDAO.getByUserIdAndThreshold(userId, threshold, ...)` (line 23). In app/data/allocations-dao.js:57-84, getByUserIdAndThreshold does `parseInt(userId)` and queries the allocations collection by that id alone \u2014 no comparison to the caller's own identity anywhere in the DAO. app/routes/index.js:63 registers `app.get(\"/allocations/:userId\", isLoggedIn, allocationsHandler.displayAllocations)` \u2014 the only middleware is isLoggedIn. app/routes/session.js:36-42 shows isLoggedInMiddleware only checks `req.session.userId` is truthy (i.e., *someone* is logged in); it never compares session userId to the requested path userId. Therefore any authenticated user can supply an arbitrary :userId and retrieve another user's stocks/funds/bonds allocation data \u2014 a classic IDOR / broken object-level authorization flaw. Graph query confirms the lines/code of the comment+params destructuring exactly match source, and confirms the EntryPoint 'app/routes/allocations.js::program:AllocationsHandler' is reachable (exposure=reachable, kind=handler). The graph's static reachable_from_entry=false on the inner lines of the arrow function body is the documented graph limitation (calls nested inside an arrow function assigned to `this.displayAllocations` get no CONTAINS_CALL/FLOWS_TO edge) \u2014 the real source and the route table prove the handler body is in fact reached on every GET to /allocations/:userId by any logged-in user, so this static flag should not be used to downgrade the finding.",
+        "evidence": "app/routes/allocations.js lines 11-31 (handler body, commented secure code at 12-15, vulnerable req.params read at 16-18, unguarded DAO call at 23); app/data/allocations-dao.js lines 57-84 (getByUserIdAndThreshold has no ownership filter); app/routes/index.js line 63 (`app.get(\"/allocations/:userId\", isLoggedIn, allocationsHandler.displayAllocations)`); app/routes/session.js lines 36-42 (isLoggedInMiddleware only checks req.session.userId truthiness, no ownership comparison). Cypher query on scan_id c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73 confirms EntryPoint app/routes/allocations.js::program:AllocationsHandler has exposure=reachable, kind=handler, and CpgCall nodes in routes/allocations.js match the source verbatim (comment + req.params destructure at lines 11-28).",
+        "sink_centrality": 0.0,
+        "file": "app/routes/allocations.js",
+        "line_start": 11,
+        "line_end": 23,
+        "cwe": "CWE-639",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "C",
+      "route": "full",
+      "text": "server.js globally disables the swig template engine's auto-escaping (autoescape: false) with the fix (autoescape: true) written as a commented-out line right next to it, re-enabling reflected/stored XSS across every res.render() call in the app.",
+      "file": "server.js",
+      "line_start": 135,
+      "line_end": 142,
+      "function": "<module init>",
+      "cwe": "CWE-79",
+      "verdict": {
+        "lead": {
+          "index": 18,
+          "shape": "C",
+          "text": "server.js globally disables the swig template engine's auto-escaping (autoescape: false) with the fix (autoescape: true) written as a commented-out line right next to it, re-enabling reflected/stored XSS across every res.render() call in the app.",
+          "evidence": "run_cypher on CpgCall at server.js line 135 returned: swig.setDefaults({ // Autoescape disabled\\n        autoescape: false\\n        /*\\n        // Fix for A3 - XSS, enable auto escaping\\n        autoescape: true // default value\\n        */\\n    }) (uid 95083a1f8c477432a34ab0098da2c310bbbeb984). This config runs once at startup (hence reachable_from_entry=false, hop_distance=-1) but governs rendering for every subsequent request handled by any entry-point route.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "server.js",
+          "line_start": 135,
+          "line_end": 141,
+          "function": "<module init>",
+          "cwe": "CWE-79",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read server.js directly: lines 135-142 call swig.setDefaults({ autoescape: false /* ...autoescape: true... */ }), exactly matching the analyst's quoted graph snippet (uid 95083a1f8c477432a34ab0098da2c310bbbeb984) and globally disabling swig's output escaping for every app.engine(\".html\", consolidate.swig) render (set at server.js:116). I then verified real exploitability rather than trusting the claim: app/views/profile.html:45 renders a user-controlled field with no manual escape filter \u2014 value=\\\"{{lastName}}\\\" \u2014 and app/routes/profile.js handleProfileUpdate takes `lastName` straight from req.body (line 44), persists it via profile.updateUser (line 82-91), and immediately re-renders it unescaped via res.render(\\\"profile\\\", {...user,...}) (line 100). Because global autoescape is off and this template applies no filter, an attacker-supplied lastName such as \\\"><script>...</script> is stored to the DB and reflected back verbatim on both the update response and subsequent profile views (displayProfile, line 33), i.e. a genuine stored+reflected XSS enabled directly by this config. This is the well-known intentional OWASP NodeGoat A3 lesson; it's an app-config issue (not a versioned-library CVE), so exploit_search is not applicable here.",
+        "evidence": "server.js:135-142 (`swig.setDefaults({ // Autoescape disabled\\n autoescape: false /* ... autoescape: true // default value */ });`), consumed by app.engine(\\\".html\\\", consolidate.swig) at server.js:116; sink template app/views/profile.html:45 (`value=\\\"{{lastName}}\\\"`, no escape filter); tainted source app/routes/profile.js:44 (`const { firstName, lastName, ... } = req.body;`) flowing to app/routes/profile.js:100 (`return res.render(\\\"profile\\\", {...user, environmentalScripts});`) after DB persistence at line 82.",
+        "sink_centrality": 0.0,
+        "file": "server.js",
+        "line_start": 135,
+        "line_end": 142,
+        "cwe": "CWE-79",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "C",
+      "route": "full",
+      "text": "server.js configures express-session without httpOnly/secure cookie flags; the fix block setting cookie: { httpOnly: true /* secure: true */ } for A3-XSS is present but commented out, leaving the session cookie readable by injected JS and sendable over plain HTTP.",
+      "file": "server.js",
+      "line_start": 78,
+      "line_end": 102,
+      "function": "<module init>",
+      "cwe": "CWE-1004",
+      "verdict": {
+        "lead": {
+          "index": 19,
+          "shape": "C",
+          "text": "server.js configures express-session without httpOnly/secure cookie flags; the fix block setting cookie: { httpOnly: true /* secure: true */ } for A3-XSS is present but commented out, leaving the session cookie readable by injected JS and sendable over plain HTTP.",
+          "evidence": "run_cypher on CpgCall at server.js line 78 returned: app.use(session({ secret: cookieSecret, saveUninitialized: true, resave: true /* // Fix for A5 - Security MisConfig // Use generic cookie name key: \"sessionId\", */ /* // Fix for A3 - XSS // TODO: Add \"maxAge\" cookie: { httpOnly: true // Remember to start an HTTPS server to get this working // secure: true } */ })) (uid 779a9e757cfae9f6fb06afc7fb304017564dfd58).",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "server.js",
+          "line_start": 78,
+          "line_end": 101,
+          "function": "<module init>",
+          "cwe": "CWE-1004",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Direct read of the real source confirms the claim exactly. server.js configures express-session (lines 78-102) with only secret/saveUninitialized/resave; the intended hardening block that would set cookie:{httpOnly:true, secure:true} (A3-XSS fix) and key:\"sessionId\" (A5 fix) is present but wrapped in a /* ... */ block comment, so it never executes. No cookie option is passed to express-session at all, meaning the session cookie is issued with default (non-HttpOnly, non-Secure) attributes -- readable via document.cookie by any injected script and transmissible over plain HTTP. The graph's CpgCall uid 779a9e757c... matches this exact code verbatim. reachable_from_entry=false on this node is not meaningful here: this is module-bootstrap code (inside the MongoClient.connect callback that wires up the Express app at startup, not behind any route/entry-point call chain), so it executes unconditionally every time the server starts -- the entry-reachability model for route handlers doesn't apply to app-initialization middleware registration.",
+        "evidence": "File read of /home/lutherleo/orion-bench/fixtures/NodeGoat/server.js lines 78-102: `app.use(session({ secret: cookieSecret, saveUninitialized: true, resave: true /* Fix for A5 ... key: \"sessionId\", */ /* Fix for A3 - XSS ... cookie: { httpOnly: true // secure: true } */ }))` -- the cookie block is inside a block comment and not part of the object literal passed to session(). Confirmed identical via run_cypher: MATCH (c:CpgCall {scan_id, uid:\"779a9e757cfae9f6fb06afc7fb304017564dfd58\"}) returned c.code matching this source verbatim, c.file_path=\"server.js\", c.line=78, c.reachable_from_entry=false, c.hop_distance=-1.",
+        "sink_centrality": 0.0,
+        "file": "server.js",
+        "line_start": 78,
+        "line_end": 102,
+        "cwe": "CWE-1004",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "C",
+      "route": "full",
+      "text": "server.js has an entire helmet-based security header stack (disable x-powered-by, frameguard/clickjacking, noCache, contentSecurityPolicy, hsts) plus dont-sniff-mimetype and csurf (CSRF) written as the 'Fix for A5 - Security MisConfig' but the whole block is commented out and the corresponding requi",
+      "file": "server.js",
+      "line_start": 7,
+      "line_end": 113,
+      "function": "<module init>",
+      "cwe": "CWE-693",
+      "verdict": {
+        "lead": {
+          "index": 20,
+          "shape": "C",
+          "text": "server.js has an entire helmet-based security header stack (disable x-powered-by, frameguard/clickjacking, noCache, contentSecurityPolicy, hsts) plus dont-sniff-mimetype and csurf (CSRF) written as the 'Fix for A5 - Security MisConfig' but the whole block is commented out and the corresponding require() calls for helmet/nosniff/csurf at the top of the file are also commented out, so none of these protections are ever applied to the running app.",
+          "evidence": "run_cypher on CpgCall at server.js line 30 (MongoClient.connect callback) returned the full commented block: '/* // Fix for A5 - Security MisConfig ... app.disable(\"x-powered-by\"); app.use(helmet.frameguard()); app.use(helmet.noCache()); app.use(helmet.contentSecurityPolicy()); app.use(helmet.hsts()); ... app.use(nosniff()); */' (uid dc1a697ac5bd20ab86703a0c74919490e29e594d, substring confirmed via second run_cypher). Semantic search additionally surfaced the top-of-file commented requires '// const csrf = require(\"csurf\");' and '// const helmet = require(\"helmet\");' and '//const nosniff = require(\"dont-sniff-mimetype\");'.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "server.js",
+          "line_start": 30,
+          "line_end": 62,
+          "function": "<module init>",
+          "cwe": "CWE-693",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read the real source of server.js directly and it exactly matches the claim. At top of file the three security-related requires are commented out: line 7 `// const csrf = require('csurf');`, line 10 `// const helmet = require(\"helmet\");`, line 14 `//const nosniff = require('dont-sniff-mimetype');`. Inside the MongoClient.connect callback, lines 38-65 contain a block comment titled \"// Fix for A5 - Security MisConfig\" that wraps app.disable(\"x-powered-by\"), app.use(helmet.frameguard()), app.use(helmet.noCache()), app.use(helmet.contentSecurityPolicy()), app.use(helmet.hsts()), and app.use(nosniff()) \u2014 all inert inside /* ... */. Separately, lines 104-113 contain another block comment \"// Fix for A8 - CSRF\" wrapping app.use(csrf()) and the res.locals.csrftoken middleware \u2014 also fully commented out. Since the require() calls are commented, `helmet`, `nosniff`, and `csrf` are never even bound as variables, so even if the comment markers were accidentally removed the app would throw ReferenceError; as written today none of these protections execute. Confirmed on the graph side too: run_cypher on CpgCall in server.js shows the CpgCall node dc1a697ac5bd20ab86703a0c74919490e29e594d (name=\"connect\", line=30) whose `code` property embeds the literal commented-out helmet block text verbatim, and there are no separate CpgCall nodes for helmet.frameguard/noCache/contentSecurityPolicy/hsts/nosniff/csrf anywhere in server.js (consistent with them never being parsed as live statements). All calls in server.js, including this one, show reachable_from_entry=false in the graph, but that reflects the graph's general lack of EntryPoint-linkage for this init callback, not evidence against the finding \u2014 the source itself proves the protections are disabled regardless of reachability. This is NodeGoat's intentional \"Fix for A5/A8\" teaching vulnerability.",
+        "evidence": "server.js lines 7,10,14 (commented requires for csurf/helmet/dont-sniff-mimetype); lines 38-65 (commented helmet.frameguard/noCache/contentSecurityPolicy/hsts + app.disable(\"x-powered-by\") + nosniff(), inside /* */); lines 104-113 (commented app.use(csrf()) + res.locals.csrftoken middleware, inside /* */). Graph: run_cypher scan_id=c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73 on CpgCall WHERE file_path CONTAINS 'server.js' returns uid dc1a697ac5bd20ab86703a0c74919490e29e594d at line 30 (name=\"connect\") whose code field embeds the commented helmet block verbatim, and shows no CpgCall nodes for helmet.*/csrf()/nosniff() elsewhere in the 97 server.js calls returned.",
+        "sink_centrality": 0.0,
+        "file": "server.js",
+        "line_start": 7,
+        "line_end": 113,
+        "cwe": "CWE-693",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "C",
+      "route": "full",
+      "text": "user-dao.js comparePassword does a plaintext '===' string comparison of passwords instead of bcrypt.compareSync; the bcrypt-based fix for 'A2-Broken Auth' is written as a comment directly below the insecure comparison but is not active.",
+      "file": "app/data/user-dao.js",
+      "line_start": 60,
+      "line_end": 67,
+      "function": "validateLogin.comparePassword",
+      "cwe": "CWE-916",
+      "verdict": {
+        "lead": {
+          "index": 21,
+          "shape": "C",
+          "text": "user-dao.js comparePassword does a plaintext '===' string comparison of passwords instead of bcrypt.compareSync; the bcrypt-based fix for 'A2-Broken Auth' is written as a comment directly below the insecure comparison but is not active.",
+          "evidence": "run_cypher on CpgCall at app/data/user-dao.js line 60-61 returned: 'const comparePassword = (fromDB, fromUser) => { return fromDB === fromUser; /* // Fix for A2-Broken Auth // compares decrypted password stored in this.addUser() return bcrypt.compareSync(fromDB, fromUser); */ }' (uids 62f4b0bf..., 9e6a4cd5...). This call has reachable_from_entry=true, hop_distance=1, confirming it sits directly on an attacker-reachable path from the login entry point.",
+          "confidence": "HIGH",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "app/data/user-dao.js",
+          "line_start": 60,
+          "line_end": 61,
+          "function": "validateLogin.comparePassword",
+          "cwe": "CWE-916",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source and graph both confirm the lead. In app/data/user-dao.js, comparePassword (lines 60-67) performs `return fromDB === fromUser;` (the actual equality operator call is at line 61) while an inactive block comment (lines 62-66) shows the intended fix `return bcrypt.compareSync(fromDB, fromUser);` labeled \"Fix for A2-Broken Auth\". Traced the reachability chain in source: app/routes/index.js:34 `app.post(\"/login\", sessionHandler.handleLoginRequest)` -> app/routes/session.js:53-58 `handleLoginRequest` takes req.body.userName/password and calls `userDAO.validateLogin` -> user-dao.js:75 calls `comparePassword(password, user.password)`. This is an unauthenticated, directly attacker-reachable path. Graph query on CpgCall confirms the `<operator>.equals` node `fromDB === fromUser` at user-dao.js:61 with reachable_from_entry=true, hop_distance=1, and comparePassword itself is registered as its own EntryPoint/handler with exposure=reachable. Also noted addUser (line 17-31) stores passwords in plaintext with its own bcrypt.hashSync fix likewise commented out, confirming there is no password hashing anywhere in this app's credential flow, consistent with the disabled comparison fix.",
+        "evidence": "app/data/user-dao.js:60-67 (source, read directly) shows comparePassword using `fromDB === fromUser` with the bcrypt.compareSync fix commented out; run_cypher on CpgCall (scan_id c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73) returned uid 9e6a4cd5ab10ef7627e06f567d5a66f8cc8def73, name `<operator>.equals`, code `fromDB === fromUser`, line 61, reachable_from_entry=true, hop_distance=1; EntryPoint query shows `app/data/user-dao.js::program:UserDAO:<lambda>4:comparePassword` with exposure=reachable; app/routes/index.js:34 and app/routes/session.js:53-58 (source) trace the unauthenticated POST /login path into comparePassword.",
+        "sink_centrality": 0.0,
+        "file": "app/data/user-dao.js",
+        "line_start": 60,
+        "line_end": 67,
+        "cwe": "CWE-916",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "C",
+      "route": "full",
+      "text": "session.js validateSignup enforces a weak password policy (PASS_RE = /^.{1,20}$/, any 1-20 chars) while a stronger regex requiring digits + upper + lower + min 8 chars ('Fix for A2-2 - Broken Authentication') is present only as a commented-out alternate declaration.",
+      "file": "app/routes/session.js",
+      "line_start": 144,
+      "line_end": 171,
+      "function": "validateSignup",
+      "cwe": "CWE-521",
+      "verdict": {
+        "lead": {
+          "index": 22,
+          "shape": "C",
+          "text": "session.js validateSignup enforces a weak password policy (PASS_RE = /^.{1,20}$/, any 1-20 chars) while a stronger regex requiring digits + upper + lower + min 8 chars ('Fix for A2-2 - Broken Authentication') is present only as a commented-out alternate declaration.",
+          "evidence": "run_cypher/semantic_search on app/routes/session.js returned: 'const PASS_RE = /^.{1,20}$/; /* //Fix for A2-2 - Broken Authentication - requires stronger password //(at least 8 characters with numbers and both lowercase and uppercase letters.) const PASS_RE =/^(?=.*\\\\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/; */' and the live call 'PASS_RE.test(password)' at line 171 (uid 51af647b4c16faaf69427511c6c2b310085701a0, reachable_from_entry=true, hop_distance=1).",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "app/routes/session.js",
+          "line_start": 171,
+          "line_end": 171,
+          "function": "validateSignup",
+          "cwe": "CWE-521",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Source review confirms the claim exactly: in app/routes/session.js, validateSignup defines PASS_RE = /^.{1,20}$/ (line 144) \u2014 matches any 1 to 20 character string, enforcing no complexity (no digit/upper/lower/min-length-8 requirement). The stronger password policy regex /^(?=.*\\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/, explicitly labeled 'Fix for A2-2 - Broken Authentication', is present only inside a /* */ block comment at lines 145-149 and is never executed. The weak regex is the one actually used at line 171: `if (!PASS_RE.test(password))`. This is reachable from external input: app/routes/index.js:38 wires `app.post(\"/signup\", sessionHandler.handleSignup)`, handleSignup (session.js:189) calls validateSignup(session.js:206) with the user-supplied password from req.body, which calls the weak PASS_RE.test at line 171. Graph query confirms uid 51af647b4c16faaf69427511c6c2b310085701a0 at session.js:171 with code \"PASS_RE.test(password)\", reachable_from_entry=true, hop_distance=1, matching the analyst's cited evidence exactly. Additionally, validateSignup itself appears as an EntryPoint node with exposure=\"reachable\". This is the well-known intentionally-vulnerable NodeGoat A2-2 \"Broken Authentication\" weak-password-policy lesson.",
+        "evidence": "app/routes/session.js:140-149 (USER_RE/PASS_RE definitions, weak PASS_RE=/^.{1,20}$/ at line 144, commented-out strong regex at 145-149); line 171 `if (!PASS_RE.test(password))`; app/routes/index.js:38 `app.post(\"/signup\", sessionHandler.handleSignup)`; Cypher query on scan_id c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73 returning CpgCall uid 51af647b4c16faaf69427511c6c2b310085701a0, name=\"test\", code=\"PASS_RE.test(password)\", line=171, reachable_from_entry=true, hop_distance=1; EntryPoint query showing \"app/routes/session.js::program:SessionHandler:validateSignup\" with exposure=\"reachable\", kind=\"handler\".",
+        "sink_centrality": 0.0,
+        "file": "app/routes/session.js",
+        "line_start": 144,
+        "line_end": 171,
+        "cwe": "CWE-521",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "C",
+      "route": "full",
+      "text": "server.js never starts an HTTPS listener -- it calls http.createServer(app).listen(...) in cleartext -- while the HTTPS setup (loading TLS key/cert via fs.readFileSync, requiring the 'https' module) for the 'A6-Sensitive Data Exposure' fix is written at the top of the file but entirely commented out",
+      "file": "server.js",
+      "line_start": 144,
+      "line_end": 155,
+      "function": "<module init>",
+      "cwe": "CWE-319",
+      "verdict": {
+        "lead": {
+          "index": 23,
+          "shape": "C",
+          "text": "server.js never starts an HTTPS listener -- it calls http.createServer(app).listen(...) in cleartext -- while the HTTPS setup (loading TLS key/cert via fs.readFileSync, requiring the 'https' module) for the 'A6-Sensitive Data Exposure' fix is written at the top of the file but entirely commented out, so session cookies, passwords, SSNs and bank account/routing numbers handled by this app (see profile.js/contributions.js) travel over plaintext HTTP.",
+          "evidence": "semantic_search on server.js top-of-file chunk returned: '/* // Fix for A6-Sensitive Data Exposure // Load keys for establishing secure HTTPS connection const fs = require(\"fs\"); const https = require(\"https\"); const path = require(\"path\"); const httpsOptions = { key: fs.readFileSync(...\"./artifacts/cert/server.key\"), cert: fs.readFileSync(...\"./artifacts/cert/server.crt\") }; */'. run_cypher on CpgCall confirmed the live listener at server.js line 145: 'http.createServer(app).listen(port, () => {...})' (uid 92f3c72bfae23fef2a1878c589abdb3fce033889).",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": "server.js",
+          "line_start": 18,
+          "line_end": 28,
+          "function": "<module init>",
+          "cwe": "CWE-319",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Read server.js directly: the A6 HTTPS fix (fs/https requires + httpsOptions loading TLS key/cert, lines 18-28) and the alternative https.createServer(...).listen(...) call (lines 149-155) are both wrapped in /* */ block comments and never execute. The only active listener is http.createServer(app).listen(port, ...) at lines 144-147, explicitly labeled '// Insecure HTTP connection' in the source itself. Cypher query confirmed the analyst's cited call node (uid 92f3c72bfae23fef2a1878c589abdb3fce033889) is exactly this http.createServer(app) call at server.js:145. reachable_from_entry=false is not disqualifying here since this is unconditional server-bootstrap code inside the MongoClient.connect callback, not a request-path sink \u2014 it runs on every process start by inspection of the source, independent of the taint-flow reachability metric. Confirmed via app/routes/profile.js (lines 42-50, 78-90) that SSN, bank account, and bank routing numbers are read from req.body and persisted through handleProfileUpdate, and the session cookie (secret cookieSecret, secure flag also commented out at lines 92-100) is set via this same app \u2014 all of it transits in cleartext because no TLS listener is ever started.",
+        "evidence": "server.js:18-28 (commented-out fs/https requires + httpsOptions key/cert loading); server.js:144-147 (active http.createServer(app).listen(port,...) with comment '// Insecure HTTP connection'); server.js:149-155 (commented-out https.createServer(httpsOptions, app).listen(...)); Cypher: MATCH (c:CpgCall {scan_id:'c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73', uid:'92f3c72bfae23fef2a1878c589abdb3fce033889'}) returned name=createServer, code='http.createServer(app)', line=145, file_path=server.js; app/routes/profile.js:42-50,78-90 shows ssn, bankAcc, bankRouting destructured from req.body and passed to profile.updateUser.",
+        "sink_centrality": 0.0,
+        "file": "server.js",
+        "line_start": 144,
+        "line_end": 155,
+        "cwe": "CWE-319",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "D",
+      "route": "full",
+      "text": "Dependency 'marked' is pinned to version 0.3.5, a release line with a publicly documented ReDoS vulnerability in its inline-lexer/markdown-link parsing regexes (catastrophic backtracking on crafted Markdown input, CVE-2017-1000427 class of issues fixed in later 0.3.x/0.4.x releases). If any route re",
+      "file": "app/views/memos.html",
+      "line_start": 31,
+      "line_end": 31,
+      "cwe": "CWE-1333",
+      "verdict": {
+        "lead": {
+          "index": 24,
+          "shape": "D",
+          "text": "Dependency 'marked' is pinned to version 0.3.5, a release line with a publicly documented ReDoS vulnerability in its inline-lexer/markdown-link parsing regexes (catastrophic backtracking on crafted Markdown input, CVE-2017-1000427 class of issues fixed in later 0.3.x/0.4.x releases). If any route renders user-supplied Markdown through this library, a crafted payload could hang the event loop.",
+          "evidence": "Cypher: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version -> row {\"name\":\"marked\",\"version\":\"0.3.5\"} present in the 36-row dependency list for this scan.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": null,
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-1333",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently of the analyst. (1) package.json:17 pins \"marked\": \"0.3.5\", confirmed both on disk and in the graph (Dependency{name:'marked',version:'0.3.5'}). (2) The installed node_modules/marked/lib/marked.js:455-472 contains exactly the vulnerable link-parsing construction the CVE/advisory describes: inline.link is built from inline._inside (/(?:\\[[^\\]]*\\]|[^\\[\\]]|\\](?=[^\\[]*\\]))*/) and inline._href (/\\s*<?([\\s\\S]*?)>?(?:\\s+['\"]([\\s\\S]*?)['\"])?\\s*/) \u2014 nested ambiguous quantifiers over the same character classes, the classic catastrophic-backtracking shape fixed in later 0.3.x/0.4.x releases (post-0.3.5). (3) A genuine, unsanitized source->sink path exists in real app code (which the CPG misses because it lives inside a Swig template, exactly the omission the brief warns about): app/routes/memos.js:13 stores req.body.memo verbatim (memosDAO.insert(req.body.memo,...)) with zero validation; app/data/memos-dao.js:26-35 getAllMemos() returns memos from ALL users (find({}), no per-user filter); app/views/memos.html:31 renders `{{ marked(doc.memo) }}` directly on that stored user text via the `marked` instance exposed globally at server.js:129 (app.locals.marked = marked). server.js:126 does set `marked.setOptions({sanitize:true})`, but `sanitize` only strips/escapes HTML in the *output* renderer \u2014 it does not change the regex-based inline lexer that performs the backtracking-prone matching, so it does not mitigate ReDoS. EntryPoint nodes for the memos handler are marked exposure:'reachable' in the graph, and POST /memos only requires isLoggedIn (any self-registered account), so any authenticated user can plant a crafted-link payload that hangs the single Node.js event loop for every user who subsequently loads /memos. The graph's CpgCall nodes for 'marked' (require/setOptions, server.js:13/126/129) show reachable_from_entry=false, but that's an artifact of the require/setup calls being module-init code and of the actual marked() invocation sitting inside a non-JS template file the CPG doesn't parse \u2014 the real source confirms the sink is reachable from the POST/GET /memos routes. Exploit-reference check: mcp__orion__exploit_search's catalog returned \"not indexed\" (corpus unavailable) for this session, so no Metasploit-module corroboration could be obtained; this does not weaken the finding since it rests on the actual vulnerable regex construction and the real reachable code path, not on an external reference.",
+        "evidence": "package.json:17 \"marked\": \"0.3.5\"; graph: Dependency{scan_id, name:'marked', version:'0.3.5'}; node_modules/marked/lib/marked.js:450-472 (inline.link/_inside/_href regex construction); app/routes/memos.js:13 memosDAO.insert(req.body.memo,...) with no sanitization; app/data/memos-dao.js:26-35 getAllMemos() does find({}) with no owner filter (memo feed is global, not per-user); app/views/memos.html:31 `{{ marked(doc.memo) }}`; server.js:13,124-129 require(\"marked\"), marked.setOptions({sanitize:true}) (XSS-only mitigation, no ReDoS protection), app.locals.marked = marked; graph EntryPoint rows for app/routes/memos.js::program:MemosHandler and app/data/memos-dao.js::program:MemosDAO both exposure='reachable'.",
+        "sink_centrality": 0.0,
+        "file": "app/views/memos.html",
+        "line_start": 31,
+        "line_end": 31,
+        "cwe": "CWE-1333",
+        "severity": "HIGH",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "D",
+      "route": "full",
+      "text": "Dependency 'underscore' is pinned to ^1.8.3, which resolves within the vulnerable range for the publicly documented arbitrary-code-execution/template-injection issue in underscore's `template` function (CVE-2021-23358), not fixed until 1.12.1.",
+      "file": "package.json",
+      "line_start": 23,
+      "line_end": 23,
+      "cwe": "CWE-937",
+      "verdict": {
+        "lead": {
+          "index": 25,
+          "shape": "D",
+          "text": "Dependency 'underscore' is pinned to ^1.8.3, which resolves within the vulnerable range for the publicly documented arbitrary-code-execution/template-injection issue in underscore's `template` function (CVE-2021-23358), not fixed until 1.12.1.",
+          "evidence": "Cypher: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version -> row {\"name\":\"underscore\",\"version\":\"^1.8.3\"} present in the dependency list for this scan.",
+          "confidence": "MEDIUM",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": null,
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-1104",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently of the analyst. (1) Graph: Dependency node confirms name='underscore', version='^1.8.3' for this scan_id. (2) Source: package.json:23 declares \"underscore\": \"^1.8.3\" as a direct (non-dev) dependency \u2014 matching the graph exactly, and the manifest itself labels this dependency block with a comment \"a9 insecure components\" (NodeGoat intentionally seeds OWASP A9 - known-vulnerable-component lessons here). (3) The resolved install in node_modules/underscore/package.json pins the concrete version to 1.9.1, which satisfies ^1.8.3 and is well inside the publicly documented vulnerable range for CVE-2021-23358 (all 1.x < 1.12.1). (4) The installed underscore.js source still has the pre-fix vulnerable pattern: _.template() (lines 1557-1601) builds a JS function body and at line 1597 calls `render = new Function(settings.variable || 'obj', '_', source)` using settings.variable directly as a function-parameter name with no identifier validation \u2014 this is exactly the sink the 1.12.1 patch added validation for. This confirms the vulnerable code shape is physically present, not just a version-string match. Caveat lowering confidence in live exploitability (not in the dependency-presence claim itself): grep across app/ and a CpgCall query (name='template' or code CONTAINS '.template(') found zero call sites in NodeGoat's own code, and server.js:116 wires the view engine to consolidate.swig, not consolidate.underscore (the only in-tree caller of underscore's template() found, in node_modules/consolidate/lib/consolidate.js:752-762, is unused). So the known exploit path (attacker-controlled `variable` option reaching _.template) is not demonstrated as reachable in this app's current wiring \u2014 this is a valid SCA/known-vulnerable-dependency finding, not a confirmed live taint flow. exploit_search was unavailable in this environment (\"exploit corpus unavailable: not indexed\") so the advisory cross-check could not be run; decision rests on the version/source evidence above.",
+        "evidence": "package.json:23 `\"underscore\": \"^1.8.3\"` (direct dependency, matches graph row {name:'underscore', version:'^1.8.3'}); node_modules/underscore/package.json:18 resolved version '1.9.1' (<1.12.1 fix for CVE-2021-23358); node_modules/underscore/underscore.js:1589-1597, specifically line 1597 `render = new Function(settings.variable || 'obj', '_', source);` with no validation of settings.variable \u2014 the unpatched vulnerable pattern. No reachable call site: grep of app/ for 'underscore' = no matches; Cypher `MATCH (c:CpgCall {scan_id:...}) WHERE c.name='template' OR c.code CONTAINS '.template('` = 0 rows; server.js:116 sets `app.engine(\".html\", consolidate.swig)`, not consolidate.underscore.",
+        "sink_centrality": 0.0,
+        "file": "package.json",
+        "line_start": 23,
+        "line_end": 23,
+        "cwe": "CWE-937",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "REJECT",
+      "shape": "D",
+      "route": "full",
+      "text": "Dependency 'bcrypt-nodejs' is pinned at version 0.0.3 \u2014 this package has been unmaintained/deprecated for years and is documented to have a weak fallback RNG path for salt generation when native crypto isn't available, making it unsuitable for password hashing; it should be replaced with maintained ",
+      "file": "app/data/user-dao.js",
+      "line_start": 17,
+      "line_end": 31,
+      "cwe": "CWE-1104",
+      "verdict": {
+        "lead": {
+          "index": 26,
+          "shape": "D",
+          "text": "Dependency 'bcrypt-nodejs' is pinned at version 0.0.3 \u2014 this package has been unmaintained/deprecated for years and is documented to have a weak fallback RNG path for salt generation when native crypto isn't available, making it unsuitable for password hashing; it should be replaced with maintained 'bcrypt' or 'bcryptjs'.",
+          "evidence": "Cypher: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version -> row {\"name\":\"bcrypt-nodejs\",\"version\":\"0.0.3\"} present in the dependency list for this scan.",
+          "confidence": "LOW",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": null,
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-1104",
+          "path": null
+        },
+        "decision": "REJECT",
+        "reason": "The one factual part of the lead (version pin) is true, but the actual vulnerability mechanism claimed \u2014 \"a weak fallback RNG path for salt generation when native crypto isn't available\" \u2014 does not exist in this package's real source, and the only code that would use bcrypt-nodejs for password hashing is dead/commented-out code that never executes. I read the installed bcrypt-nodejs 0.0.3 source (node_modules/bcrypt-nodejs/bCrypt.js): gensalt() always calls Node's crypto.randomBytes(BCRYPT_SALT_LEN) and on failure just rethrows the exception \u2014 there is no Math.random or other weak fallback anywhere in the file (grep for 'Math.random' returns zero hits). That documented-fallback behavior belongs to the unrelated 'bcryptjs' package's browser build, not to 'bcrypt-nodejs' \u2014 the analyst appears to have conflated the two libraries. Separately, in app/data/user-dao.js the calls `bcrypt.hashSync(...)` and `bcrypt.compareSync(...)` are literally inside /* ... */ comment blocks (lines 26-30 and 62-66); the live code stores `password` in plaintext (line 25) and compares with `fromDB === fromUser` (line 61). The CPG confirms this: querying for CpgCall nodes with name/code containing 'bcrypt' returns only the `require(\"bcrypt-nodejs\")` call (reachable_from_entry:false) and text blobs of the surrounding comment \u2014 no bcrypt.hashSync/compareSync call nodes exist in the graph at all, because they were never parsed as live calls. So the dependency is present but functionally inert for password hashing in this codebase; the described weak-RNG password-hashing risk is not substantiated by the real source or the graph, and the analyst's own confidence was already LOW.",
+        "evidence": "package.json:8 pins \"bcrypt-nodejs\": \"0.0.3\" (matches Dependency node d.name='bcrypt-nodejs', d.version='0.0.3'). node_modules/bcrypt-nodejs/bCrypt.js lines 543-564 (gensalt): salt always comes from `crypto.randomBytes(BCRYPT_SALT_LEN)` with no weak fallback; grep for 'Math.random' in that file returns no matches. app/data/user-dao.js lines 17-31 and 57-67: bcrypt.hashSync/compareSync appear only inside /* */ comments; live code uses plaintext password field and `fromDB === fromUser` comparison. Cypher MATCH (c:CpgCall {scan_id}) WHERE c.name CONTAINS 'bcrypt' OR c.code CONTAINS 'bcrypt' returns only the require() call (reachable_from_entry:false) and surrounding-text blobs \u2014 no actual bcrypt.hashSync/compareSync call nodes exist in the CPG.",
+        "sink_centrality": 0.0,
+        "file": "app/data/user-dao.js",
+        "line_start": 17,
+        "line_end": 31,
+        "cwe": "CWE-1104",
+        "severity": "LOW",
+        "route": "full"
+      }
+    },
+    {
+      "decision": "CONFIRM",
+      "shape": "D",
+      "route": "full",
+      "text": "Several other declared dependencies are very old major/pre-1.0 releases with multiple publicly known CVEs patched in later versions and should be flagged for upgrade as components-with-known-vulnerabilities: express ^4.13.4 (several CVEs fixed in 4.17+/4.19+, e.g. open-redirect and ReDoS fixes), exp",
+      "file": "package.json",
+      "line_start": 8,
+      "line_end": 23,
+      "cwe": "CWE-1104",
+      "verdict": {
+        "lead": {
+          "index": 27,
+          "shape": "D",
+          "text": "Several other declared dependencies are very old major/pre-1.0 releases with multiple publicly known CVEs patched in later versions and should be flagged for upgrade as components-with-known-vulnerabilities: express ^4.13.4 (several CVEs fixed in 4.17+/4.19+, e.g. open-redirect and ReDoS fixes), express-session ^1.13.0, body-parser ^1.15.1, helmet ^2.0.0 (current major is 7+, missing many later protections), csurf ^1.8.3 (package itself deprecated by maintainers), swig ^1.4.2 (templating engine unmaintained/deprecated since 2016), and mongodb driver ^2.1.18 (ancient driver predating many client-side fixes).",
+          "evidence": "Cypher: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version ORDER BY d.name -> full 36-row list includes express ^4.13.4, express-session ^1.13.0, body-parser ^1.15.1, helmet ^2.0.0, csurf ^1.8.3, swig ^1.4.2, mongodb ^2.1.18.",
+          "confidence": "LOW",
+          "source_uid": null,
+          "sink_uid": null,
+          "file": null,
+          "line_start": null,
+          "line_end": null,
+          "function": null,
+          "cwe": "CWE-1104",
+          "path": null
+        },
+        "decision": "CONFIRM",
+        "reason": "Re-derived independently from both the graph and the real source. The Dependency nodes in the graph (scan_id-scoped query) exactly match the declared ranges in /home/lutherleo/orion-bench/fixtures/NodeGoat/package.json (lines 8-23): body-parser ^1.15.1, csurf ^1.8.3, express ^4.13.4, express-session ^1.13.0, helmet ^2.0.0, mongodb ^2.1.18, swig ^1.4.2 \u2014 the package.json even carries the author's own annotation `\"comments\": {\"//\": \"a9 insecure components\"}`, confirming this NodeGoat app intentionally ships OWASP-A9 \"known-vulnerable component\" examples. I additionally checked the actually-installed node_modules versions (what really executes): express 4.16.4, express-session 1.15.6, body-parser 1.18.3, helmet 2.3.0, csurf 1.9.0, swig 1.4.2, mongodb 2.2.36 \u2014 all still old majors/minors, consistent with the claim (installed express 4.16.4 predates the 4.19.2 open-redirect fix and later ReDoS fixes; csurf and swig are indeed long-deprecated/unmaintained packages; helmet 2.x long predates the current 7/8 major with its added protections; mongodb driver 2.x long predates the current 6.x driver). I confirmed real usage in code: server.js actively `require()`s and wires up express, express-session, body-parser, swig (used as the view engine via consolidate.swig, lines 9/116/135) and mongodb (MongoClient, line 11/30) \u2014 so these are live, exercised dependencies, not dead declarations. helmet and csurf are declared/installed but their usage in server.js is commented out (lines 7, 10, 45-61) as part of NodeGoat's intentional \"insecure by default\" teaching setup; they are still real outdated dependencies present in the install, just not currently wired into the active middleware chain. This is a dependency-hygiene/SCA-type finding (not a specific source\u2192sink taint flow), so CpgCall reachable_from_entry does not directly apply; the relevant \"reachability\" is dependency declaration + require()/usage, which I verified directly. exploit_search was unavailable in this environment (\"exploit corpus unavailable: not indexed\"), so I could not pin a specific weaponized Metasploit module/CVE-version match; this is noted as a gap, not as contrary evidence.",
+        "evidence": "Cypher (scan_id=c4ed116c66f5ba10096f05bfe2d3ae62e1c54a73): MATCH (d:Dependency {scan_id:$scan_id}) WHERE d.name IN [...] RETURN d.name,d.version -> body-parser ^1.15.1, csurf ^1.8.3, express ^4.13.4, express-session ^1.13.0, helmet ^2.0.0, mongodb ^2.1.18, swig ^1.4.2. Source: package.json lines 8-23 (same values + \"a9 insecure components\" comment). Installed node_modules/*/package.json versions: express 4.16.4, express-session 1.15.6, body-parser 1.18.3, helmet 2.3.0, csurf 1.9.0, swig 1.4.2, mongodb 2.2.36. server.js lines 3-16 require() these modules; swig used as view engine at lines 9, 116, 135; helmet/csurf usage commented out at lines 7, 10, 45-61.",
+        "sink_centrality": 0.0,
+        "file": "package.json",
+        "line_start": 8,
+        "line_end": 23,
+        "cwe": "CWE-1104",
+        "severity": "MEDIUM",
+        "route": "full"
+      }
+    }
+  ],
+  "decisions": {
+    "CONFIRM": 26,
+    "INCONCLUSIVE": 0,
+    "REJECT": 2,
+    "ERROR": 0
+  },
+  "options": {
+    "verify_routing": false,
+    "shortlists": false,
+    "semantic_mode": "vector"
+  }
+}

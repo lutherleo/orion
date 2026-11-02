@@ -1,0 +1,184 @@
+{
+  "findings": [
+    {
+      "file": "app/data/allocations-dao.js",
+      "function": "AllocationsDAO.getByUserIdAndThreshold",
+      "line_start": 57,
+      "line_end": 84,
+      "cwe": "CWE-943",
+      "title": "NoSQL injection via unsanitized $where clause in allocations threshold filter",
+      "explanation": "The 'threshold' query parameter is concatenated, unescaped, directly into a MongoDB '$where' JavaScript expression ('this.userId == ${parsedUserId} && this.stocks > '${threshold}''). '$where' causes MongoDB to execute the string as JavaScript on the server, so an attacker can close the quote and inject arbitrary JS (e.g. to always evaluate true, exfiltrate other users' data, or run expensive code causing DoS: \"'; return true; var x='\" or \"' || '1'=='1\"). There is no type coercion/validation of 'threshold' before it reaches the query.",
+      "path": [
+        { "file": "app/views/allocations.html", "function": "threshold form field", "line": 22, "role": "source" },
+        { "file": "app/routes/allocations.js", "function": "AllocationsHandler.displayAllocations", "line": 19, "role": "source" },
+        { "file": "app/routes/allocations.js", "function": "AllocationsHandler.displayAllocations", "line": 23, "role": "propagator" },
+        { "file": "app/data/allocations-dao.js", "function": "AllocationsDAO.getByUserIdAndThreshold", "line": 78, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/routes/contributions.js",
+      "function": "ContributionsHandler.handleContributionsUpdate",
+      "line_start": 124,
+      "line_end": 135,
+      "cwe": "CWE-94",
+      "title": "Remote code execution via eval() of user-supplied contribution values",
+      "explanation": "req.body.preTax, req.body.afterTax and req.body.roth are passed directly to JavaScript's eval(). Since eval() runs with the full lexical scope of the enclosing module (including 'require'), an authenticated attacker can submit a payload such as preTax=require('child_process').execSync('id') to execute arbitrary OS commands/Node.js code on the server, not merely arithmetic.",
+      "path": [
+        { "file": "app/views/contributions.html", "function": "preTax/afterTax/roth form fields", "line": 67, "role": "source" },
+        { "file": "app/routes/contributions.js", "function": "ContributionsHandler.handleContributionsUpdate", "line": 128, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/routes/research.js",
+      "function": "ResearchHandler.displayResearch",
+      "line_start": 446,
+      "line_end": 463,
+      "cwe": "CWE-918",
+      "title": "Server-Side Request Forgery via unrestricted outbound request in stock research feature",
+      "explanation": "The handler builds a target URL by concatenating req.query.url and req.query.symbol, both fully attacker-controlled, and passes the result directly to needle.get() with no allow-list or scheme/host validation. An attacker can supply an arbitrary internal or external URL (e.g. http://169.254.169.254/latest/meta-data/ or an internal admin service) and the server will fetch it and reflect the response body back to the attacker, enabling SSRF against internal infrastructure.",
+      "path": [
+        { "file": "app/views/research.html", "function": "url/symbol form fields", "line": 17, "role": "source" },
+        { "file": "app/routes/research.js", "function": "ResearchHandler.displayResearch", "line": 449, "role": "propagator" },
+        { "file": "app/routes/research.js", "function": "ResearchHandler.displayResearch", "line": 450, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/routes/index.js",
+      "function": "index (route registration for /learn)",
+      "line_start": 265,
+      "line_end": 268,
+      "cwe": "CWE-601",
+      "title": "Open redirect via unvalidated 'url' query parameter",
+      "explanation": "The /learn endpoint passes req.query.url directly into res.redirect() without validating that it points to an allow-listed host. An attacker can craft a link like /learn?url=https://evil.example/phish that, when clicked by an authenticated victim on the trusted domain, redirects them to an arbitrary external site, enabling phishing or OAuth token theft.",
+      "path": [
+        { "file": "app/routes/index.js", "function": "index (route registration for /learn)", "line": 267, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/routes/allocations.js",
+      "function": "AllocationsHandler.displayAllocations",
+      "line_start": 11,
+      "line_end": 31,
+      "cwe": "CWE-639",
+      "title": "Insecure Direct Object Reference: allocations for any user viewable via URL parameter",
+      "explanation": "The user whose allocations are displayed is taken from req.params.userId (the URL path) instead of the authenticated user's session ID. The intended fix (reading from req.session) is present only as a comment. Any logged-in user can view any other employee's financial allocation data simply by changing the :userId segment of the URL, with no ownership check performed.",
+      "path": [
+        { "file": "app/routes/allocations.js", "function": "AllocationsHandler.displayAllocations", "line": 18, "role": "source" },
+        { "file": "app/routes/allocations.js", "function": "AllocationsHandler.displayAllocations", "line": 23, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/routes/index.js",
+      "function": "index (route registration for /benefits)",
+      "line_start": 249,
+      "line_end": 255,
+      "cwe": "CWE-862",
+      "title": "Missing function-level access control on benefits endpoints",
+      "explanation": "The /benefits GET and POST routes are only protected by 'isLoggedIn', not by the 'isAdmin' middleware that is defined and available (commented out in the source). benefitsHandler.updateBenefits additionally takes an arbitrary 'userId' from the request body (app/routes/benefits.js:30-36) and updates that user's record. Combined, any authenticated non-admin employee can view every other employee's benefits data and modify any employee's benefitStartDate by posting a different userId, which is a privilege-escalation / broken access control flaw.",
+      "path": [
+        { "file": "app/routes/index.js", "function": "index (route registration for /benefits)", "line": 251, "role": "sink" },
+        { "file": "app/routes/benefits.js", "function": "BenefitsHandler.updateBenefits", "line": 30, "role": "source" },
+        { "file": "app/data/benefits-dao.js", "function": "BenefitsDAO.updateBenefits", "line": 23, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/views/layout.html",
+      "function": "layout template (navbar user display)",
+      "line_start": 75,
+      "line_end": 75,
+      "cwe": "CWE-79",
+      "title": "Stored XSS via unescaped firstName/lastName rendered in every authenticated page",
+      "explanation": "profile.js handleProfileUpdate stores req.body.firstName/lastName verbatim (no sanitization) through profile-dao.js updateUser. Swig's autoescape is explicitly disabled in server.js ('autoescape: false'), and layout.html — included on every authenticated page — outputs '{{firstName}} {{lastName}}' raw. An attacker can set their first name to a payload like '<script>...</script>' via POST /profile, and the script will execute in the browser of anyone who views a page rendered with that session (including the victim themselves and, since the value is attacker-controlled and persistent, it is a stored XSS affecting every subsequent page load).",
+      "path": [
+        { "file": "app/routes/profile.js", "function": "ProfileHandler.handleProfileUpdate", "line": 363, "role": "source" },
+        { "file": "app/data/profile-dao.js", "function": "ProfileDAO.updateUser", "line": 42, "role": "propagator" },
+        { "file": "server.js", "function": "MongoClient.connect callback (swig.setDefaults)", "line": 136, "role": "propagator" },
+        { "file": "app/views/layout.html", "function": "layout template (navbar user display)", "line": 75, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/views/profile.html",
+      "function": "profile template (Google search link)",
+      "line_start": 78,
+      "line_end": 78,
+      "cwe": "CWE-79",
+      "title": "Reflected XSS via firstName injected unescaped into href attribute",
+      "explanation": "In ProfileHandler.handleProfileUpdate, when the bankRouting regex check fails, the variable 'firstNameSafeString' is set to the raw, unescaped req.body.firstName and rendered back into profile.html as the href of a link ('<a href=\"{{firstNameSafeString}}\">'). Because autoescape is disabled, an attacker can submit a profile update with an intentionally invalid bankRouting and a firstName of e.g. 'javascript:alert(document.cookie)' or '\"><script>...</script>', producing an immediate reflected XSS in the response, despite the variable name implying it was sanitized.",
+      "path": [
+        { "file": "app/routes/profile.js", "function": "ProfileHandler.handleProfileUpdate", "line": 363, "role": "source" },
+        { "file": "app/routes/profile.js", "function": "ProfileHandler.handleProfileUpdate", "line": 385, "role": "propagator" },
+        { "file": "app/views/profile.html", "function": "profile template (Google search link)", "line": 78, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/views/memos.html",
+      "function": "memos template (memo list)",
+      "line_start": 31,
+      "line_end": 31,
+      "cwe": "CWE-79",
+      "title": "Stored XSS via shared memo board rendered as raw HTML",
+      "explanation": "MemosHandler.addMemos stores req.body.memo verbatim (no server-side sanitization) and displayMemos renders every stored memo to every logged-in user via '{{ marked(doc.memo) }}' with Swig autoescape disabled, so whatever HTML the markdown renderer produces is injected into the page unescaped. The memo board is shared/global (memosCol.find({}) with no per-user scoping), so any authenticated user can post a memo containing an HTML/markdown payload (e.g. an image or link using a javascript: URI, or raw HTML) that executes in the browser of every other user who views the page, including administrators.",
+      "path": [
+        { "file": "app/views/memos.html", "function": "memos form", "line": 18, "role": "source" },
+        { "file": "app/routes/memos.js", "function": "MemosHandler.addMemos", "line": 13, "role": "propagator" },
+        { "file": "app/data/memos-dao.js", "function": "MemosDAO.insert", "line": 15, "role": "propagator" },
+        { "file": "app/views/memos.html", "function": "memos template (memo list)", "line": 31, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/views/login.html",
+      "function": "login template (username field)",
+      "line_start": 110,
+      "line_end": 110,
+      "cwe": "CWE-79",
+      "title": "Reflected XSS via unescaped userName on failed login",
+      "explanation": "SessionHandler.handleLoginRequest re-renders the login page with the raw req.body.userName whenever authentication fails, and login.html outputs it unescaped into an HTML attribute ('value=\"{{userName}}\"') while Swig autoescape is disabled. An attacker can submit userName='\"><script>alert(document.cookie)</script>' to a victim (e.g. via a self-submitting form or CSRF'd POST), causing the script to execute in the victim's browser on the login page.",
+      "path": [
+        { "file": "app/routes/session.js", "function": "SessionHandler.handleLoginRequest", "line": 527, "role": "source" },
+        { "file": "app/routes/session.js", "function": "SessionHandler.handleLoginRequest", "line": 556, "role": "propagator" },
+        { "file": "app/views/login.html", "function": "login template (username field)", "line": 110, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/views/signup.html",
+      "function": "signup template (form fields)",
+      "line_start": 75,
+      "line_end": 102,
+      "cwe": "CWE-79",
+      "title": "Reflected XSS via unescaped signup fields on validation failure",
+      "explanation": "SessionHandler.handleSignup re-renders the signup page with the raw userName/firstName/lastName/email submitted whenever client-supplied validation fails, and signup.html outputs each value unescaped into HTML attributes while Swig autoescape is disabled. An attacker can submit a crafted value (e.g. firstName='\"><script>...</script>') together with any other field that fails validation (e.g. a mismatched password confirmation) to obtain an immediate reflected XSS response.",
+      "path": [
+        { "file": "app/routes/session.js", "function": "SessionHandler.handleSignup", "line": 663, "role": "source" },
+        { "file": "app/routes/session.js", "function": "SessionHandler.handleSignup", "line": 723, "role": "propagator" },
+        { "file": "app/views/signup.html", "function": "signup template (form fields)", "line": 80, "role": "sink" }
+      ]
+    },
+    {
+      "file": "app/data/user-dao.js",
+      "function": "UserDAO.validateLogin",
+      "line_start": 57,
+      "line_end": 94,
+      "cwe": "CWE-256",
+      "title": "Passwords stored and compared in plaintext",
+      "explanation": "UserDAO.addUser stores req.body.password directly on the user document with no hashing (the bcrypt-based fix is present only as a comment), and validateLogin's comparePassword performs a plain '===' string comparison instead of a secure hash comparison. Any compromise of the database (e.g. via the NoSQL injection or backup exposure) immediately exposes every user's real password in cleartext, and timing differences in the '===' comparison can also aid password guessing.",
+      "path": [
+        { "file": "app/routes/session.js", "function": "SessionHandler.handleSignup", "line": 694, "role": "source" },
+        { "file": "app/data/user-dao.js", "function": "UserDAO.addUser", "line": 17, "role": "propagator" },
+        { "file": "app/data/user-dao.js", "function": "UserDAO.validateLogin", "line": 60, "role": "sink" }
+      ]
+    },
+    {
+      "file": "config/env/all.js",
+      "function": "module.exports (default app configuration)",
+      "line_start": 5,
+      "line_end": 13,
+      "cwe": "CWE-798",
+      "title": "Hard-coded session cookie secret and crypto key",
+      "explanation": "The Express session middleware is configured in server.js with 'cookieSecret' hard-coded to the literal string \"session_cookie_secret_key_here\" (and a similarly hard-coded 'cryptoKey'). Since this value is committed to source control and identical across every deployment of the application, anyone with access to the repository can forge valid session cookies (session fixation/hijacking) for any deployment that has not overridden it, and can derive any data encrypted with the static crypto key.",
+      "path": [
+        { "file": "config/env/all.js", "function": "module.exports (default app configuration)", "line": 8, "role": "source" },
+        { "file": "server.js", "function": "MongoClient.connect callback (session middleware setup)", "line": 78, "role": "sink" }
+      ]
+    }
+  ]
+}

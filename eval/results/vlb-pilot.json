@@ -1,0 +1,987 @@
+{
+ "benchmark": "vlb",
+ "keys_status": "files: VLB's own ground truth; fix sites: proposed (derived by eval.vlb, unsigned)",
+ "run_no": 1,
+ "tasks": [
+  "0bCRIkhJ",
+  "TOhqi6Al",
+  "NXIHKkeO",
+  "JqAIZxnS",
+  "laTh1BVj"
+ ],
+ "evidence": "dev (pre-cutoff benchmark, proposed keys, small N)",
+ "arms": {
+  "plain-sonnet5": {
+   "summary": {
+    "n": 5,
+    "l1": 3,
+    "l2": 3,
+    "n_tight": 5,
+    "l1_tight": 3,
+    "mean_file_f1_all": 0.7333,
+    "mean_file_f1_cwe": 0.5333,
+    "mean_file_f1_cwe_existing": 0.5333,
+    "n_paired": 5,
+    "silent": 5,
+    "pair_correct": 3
+   },
+   "missing": [],
+   "cost": {
+    "calls": 10,
+    "uncached_in": 35986,
+    "cache_read": 8901943,
+    "cache_write": 652947,
+    "out": 194045,
+    "tokens": 9784921,
+    "cli_cost_usd": 6.4046,
+    "wall_s": 2360.7
+   },
+   "orion_commits": [
+    "3e46ac2de90896c5c28ef78dbe78f7d4839c9038"
+   ],
+   "incomplete_runs": 0,
+   "rows": [
+    {
+     "task": "0bCRIkhJ",
+     "scope": "in",
+     "n_findings": 2,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "TOhqi6Al",
+     "scope": "in",
+     "n_findings": 1,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "NXIHKkeO",
+     "scope": "in",
+     "n_findings": 2,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    },
+    {
+     "task": "JqAIZxnS",
+     "scope": "in",
+     "n_findings": 3,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "laTh1BVj",
+     "scope": "in",
+     "n_findings": 1,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    }
+   ]
+  },
+  "plain-opus5": {
+   "summary": {
+    "n": 5,
+    "l1": 3,
+    "l2": 3,
+    "n_tight": 5,
+    "l1_tight": 3,
+    "mean_file_f1_all": 0.6133,
+    "mean_file_f1_cwe": 0.5333,
+    "mean_file_f1_cwe_existing": 0.5333,
+    "n_paired": 5,
+    "silent": 5,
+    "pair_correct": 3
+   },
+   "missing": [],
+   "cost": {
+    "calls": 10,
+    "uncached_in": 36163,
+    "cache_read": 16243012,
+    "cache_write": 972058,
+    "out": 286598,
+    "tokens": 17537831,
+    "cli_cost_usd": 25.1879,
+    "wall_s": 4012.6
+   },
+   "orion_commits": [
+    "3e46ac2de90896c5c28ef78dbe78f7d4839c9038"
+   ],
+   "incomplete_runs": 0,
+   "rows": [
+    {
+     "task": "0bCRIkhJ",
+     "scope": "in",
+     "n_findings": 4,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "TOhqi6Al",
+     "scope": "in",
+     "n_findings": 2,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 0.5,
+      "recall": 1.0,
+      "file_f1": 0.6667
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "NXIHKkeO",
+     "scope": "in",
+     "n_findings": 6,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    },
+    {
+     "task": "JqAIZxnS",
+     "scope": "in",
+     "n_findings": 3,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 0.3333,
+      "recall": 0.5,
+      "file_f1": 0.4
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "laTh1BVj",
+     "scope": "in",
+     "n_findings": 1,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    }
+   ]
+  },
+  "orion-sonnet5": {
+   "summary": {
+    "n": 5,
+    "l1": 3,
+    "l2": 2,
+    "n_tight": 5,
+    "l1_tight": 3,
+    "mean_file_f1_all": 0.3905,
+    "mean_file_f1_cwe": 0.3333,
+    "mean_file_f1_cwe_existing": 0.3333,
+    "n_paired": 5,
+    "silent": 5,
+    "pair_correct": 3
+   },
+   "missing": [],
+   "cost": {
+    "calls": 103,
+    "uncached_in": 2134,
+    "cache_read": 35294612,
+    "cache_write": 3476166,
+    "out": 1116677,
+    "tokens": 39889589,
+    "cli_cost_usd": 32.5848,
+    "wall_s": 5524.0
+   },
+   "orion_commits": [
+    "3e46ac2de90896c5c28ef78dbe78f7d4839c9038"
+   ],
+   "incomplete_runs": 0,
+   "rows": [
+    {
+     "task": "0bCRIkhJ",
+     "scope": "in",
+     "n_findings": 0,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    },
+    {
+     "task": "TOhqi6Al",
+     "scope": "in",
+     "n_findings": 1,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "NXIHKkeO",
+     "scope": "in",
+     "n_findings": 5,
+     "l1": true,
+     "l2": false,
+     "file_all": {
+      "precision": 0.5,
+      "recall": 1.0,
+      "file_f1": 0.6667
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "JqAIZxnS",
+     "scope": "in",
+     "n_findings": 6,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 0.2,
+      "recall": 0.5,
+      "file_f1": 0.2857
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "laTh1BVj",
+     "scope": "in",
+     "n_findings": 6,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    }
+   ]
+  },
+  "orion-sonnet5:leads": {
+   "summary": {
+    "n": 5,
+    "l1": 3,
+    "l2": 2,
+    "n_tight": 5,
+    "l1_tight": 3,
+    "mean_file_f1_all": 0.5,
+    "mean_file_f1_cwe": 0.3333,
+    "mean_file_f1_cwe_existing": 0.3333,
+    "n_paired": 5,
+    "silent": 5,
+    "pair_correct": 3
+   },
+   "missing": [],
+   "cost": {
+    "calls": 0,
+    "uncached_in": null,
+    "cache_read": null,
+    "cache_write": null,
+    "out": null,
+    "tokens": 0,
+    "cli_cost_usd": null,
+    "wall_s": 0
+   },
+   "orion_commits": [
+    "3e46ac2de90896c5c28ef78dbe78f7d4839c9038"
+   ],
+   "incomplete_runs": 0,
+   "rows": [
+    {
+     "task": "0bCRIkhJ",
+     "scope": "in",
+     "n_findings": 4,
+     "l1": true,
+     "l2": false,
+     "file_all": {
+      "precision": 0.5,
+      "recall": 1.0,
+      "file_f1": 0.6667
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "TOhqi6Al",
+     "scope": "in",
+     "n_findings": 3,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "NXIHKkeO",
+     "scope": "in",
+     "n_findings": 7,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 0.3333,
+      "recall": 1.0,
+      "file_f1": 0.5
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    },
+    {
+     "task": "JqAIZxnS",
+     "scope": "in",
+     "n_findings": 7,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 0.25,
+      "recall": 0.5,
+      "file_f1": 0.3333
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "laTh1BVj",
+     "scope": "in",
+     "n_findings": 9,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    }
+   ]
+  },
+  "orion-opus5": {
+   "summary": {
+    "n": 5,
+    "l1": 4,
+    "l2": 3,
+    "n_tight": 5,
+    "l1_tight": 4,
+    "mean_file_f1_all": 0.65,
+    "mean_file_f1_cwe": 0.5333,
+    "mean_file_f1_cwe_existing": 0.5333,
+    "n_paired": 5,
+    "silent": 5,
+    "pair_correct": 4
+   },
+   "missing": [],
+   "cost": {
+    "calls": 180,
+    "uncached_in": 3646,
+    "cache_read": 59717123,
+    "cache_write": 6306018,
+    "out": 2387493,
+    "tokens": 68414280,
+    "cli_cost_usd": 153.7726,
+    "wall_s": 10262.9
+   },
+   "orion_commits": [
+    "3e46ac2de90896c5c28ef78dbe78f7d4839c9038"
+   ],
+   "incomplete_runs": 0,
+   "rows": [
+    {
+     "task": "0bCRIkhJ",
+     "scope": "in",
+     "n_findings": 3,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "TOhqi6Al",
+     "scope": "in",
+     "n_findings": 3,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "NXIHKkeO",
+     "scope": "in",
+     "n_findings": 8,
+     "l1": true,
+     "l2": false,
+     "file_all": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "JqAIZxnS",
+     "scope": "in",
+     "n_findings": 11,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 0.1667,
+      "recall": 0.5,
+      "file_f1": 0.25
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "laTh1BVj",
+     "scope": "in",
+     "n_findings": 5,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    }
+   ]
+  },
+  "orion-opus5:leads": {
+   "summary": {
+    "n": 5,
+    "l1": 3,
+    "l2": 3,
+    "n_tight": 5,
+    "l1_tight": 3,
+    "mean_file_f1_all": 0.48,
+    "mean_file_f1_cwe": 0.5333,
+    "mean_file_f1_cwe_existing": 0.5333,
+    "n_paired": 5,
+    "silent": 3,
+    "pair_correct": 2
+   },
+   "missing": [],
+   "cost": {
+    "calls": 0,
+    "uncached_in": null,
+    "cache_read": null,
+    "cache_write": null,
+    "out": null,
+    "tokens": 0,
+    "cli_cost_usd": null,
+    "wall_s": 0
+   },
+   "orion_commits": [
+    "3e46ac2de90896c5c28ef78dbe78f7d4839c9038"
+   ],
+   "incomplete_runs": 0,
+   "rows": [
+    {
+     "task": "0bCRIkhJ",
+     "scope": "in",
+     "n_findings": 11,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 0.5,
+      "recall": 1.0,
+      "file_f1": 0.6667
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": false,
+     "pair_correct": false
+    },
+    {
+     "task": "TOhqi6Al",
+     "scope": "in",
+     "n_findings": 8,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 0.5,
+      "recall": 1.0,
+      "file_f1": 0.6667
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "file_f1": 1.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "NXIHKkeO",
+     "scope": "in",
+     "n_findings": 15,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 0.5,
+      "recall": 1.0,
+      "file_f1": 0.6667
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": false
+    },
+    {
+     "task": "JqAIZxnS",
+     "scope": "in",
+     "n_findings": 19,
+     "l1": true,
+     "l2": true,
+     "file_all": {
+      "precision": 0.25,
+      "recall": 1.0,
+      "file_f1": 0.4
+     },
+     "file_cwe": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "file_cwe_existing": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "file_f1": 0.6667
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": true,
+     "pair_correct": true
+    },
+    {
+     "task": "laTh1BVj",
+     "scope": "in",
+     "n_findings": 18,
+     "l1": false,
+     "l2": false,
+     "file_all": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "file_cwe_existing": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "file_f1": 0.0
+     },
+     "site_level": true,
+     "broad": false,
+     "silent": false,
+     "pair_correct": false
+    }
+   ]
+  }
+ }
+}
