@@ -605,6 +605,18 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
   index backfills existing chunks, so no re-index is needed. If the model or vector index is missing,
   hybrid answers keyword-only with a `note` on the first row. `config.set_semantic_mode` also sets the
   env var, because the agents' MCP server is a subprocess that reads it.
+- **Embedding out-of-memory fallback** (2026-11-01, `embed._encode`): the model reads up to 8192 tokens
+  and pads each batch of 16 to its longest chunk; its remote code builds a dense [16, 12, L, L] fp32
+  attention bias, 48 GiB at L = 8192 (web3.py's bytecode-string modules; gctoolkit's regex walls hit
+  12.9 GiB). `index` still makes the ONE plain `model.encode(texts, batch_size=16)` call, so a run that
+  fits is byte-identical; only if it raises an allocation error (CUDA / MPS / CPU) are the longest-first
+  batches redone, a failing batch one chunk at a time, a lone chunk that still fails on the CPU (then
+  the model moves back); a chunk too big even there raises as before. Reported as a `build`/`warn`
+  event (stderr without `on_warn`). One 8192-token chunk alone costs ~76 s and ~13-14 GiB (GPU spill
+  or CPU, measured on the WSL T1200). `tests/test_embed_oom.py` pins it with a fake model. Proof: the
+  RepoQA re-run now indexes both repos (web3.py 1 of 197 batches split, 6,532 s; gctoolkit 1 of 61,
+  2,144 s; 0 chunks on the CPU), so all 30 RepoQA repos score. Slow but complete; an opt-in token cap
+  is the unbuilt speed lever. Write-up: `docs/notes/embed-oom.md`.
 - **Measuring Orion itself:** `python bench/prove.py` (on a box with Neo4j + Joern + fixtures + a
   Claude login; `--dry-run` = token-free preflight) runs arm **O** (Orion + Claude, `research_eval
   --arm O --label O-<model>`) for sonnet and opus on NodeGoat and PyGoat through the same matcher and
