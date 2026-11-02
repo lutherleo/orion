@@ -4,8 +4,8 @@
 microsoft/gctoolkit, the two repos that lost their semantic index in the RepoQA pilot, now index and score. All
 30 repos score, with 0 of 300 needles missing.
 
-The fix is commit 24497c9 on branch `claude/happy-meninsky-ac2c8a`. It is **not pushed, and not in `main` or
-`Kullervo`**.
+The fix is commit 24497c9 on branch `claude/happy-meninsky-ac2c8a`. When this was written it was **not merged into
+`main` or `Kullervo`**.
 
 What this means in practice:
 
@@ -215,8 +215,8 @@ To split it, log each encode call's device, batch size, longest chunk and second
 
 ## What's left
 
-1. **Land the fix.** It exists only on `claude/happy-meninsky-ac2c8a`. Without it, web3.py and gctoolkit run out of
-   memory again on a 4 GB GPU.
+1. **Land the fix.** Until `claude/happy-meninsky-ac2c8a` merges, web3.py and gctoolkit run out of memory again on a
+   4 GB GPU.
 2. **Split the time by cause**, as above. Until then nobody knows how much a token cap would save.
 3. **Token cap**, if the slow runs matter. It would need a RepoQA measurement before it could become a default.
 4. **`tests/test_embed_spans.py`:** two Neo4j tests fail instead of skipping when `fixtures/NodeGoat` is missing, as
