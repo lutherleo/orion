@@ -4,7 +4,17 @@ import stat
 import subprocess
 
 
-def _retry_writable(func, path, _exc) -> None:
+_WINDOWS = os.name == "nt"
+
+
+def _retry_writable(func, path, exc) -> None:
+    """Windows refuses to delete a read-only file or folder: clear the flag and try once more. Nothing else is
+    retried: rmtree reports other calls too (os.open needs more than a path), a POSIX refusal comes from the folder
+    and not the file, and chmod can follow a link to a target outside the tree."""
+    if not (_WINDOWS and func in (os.unlink, os.rmdir) and isinstance(exc, PermissionError)):
+        return
+    if os.path.islink(path) or os.path.isjunction(path):
+        return
     try:
         os.chmod(path, stat.S_IWRITE)
         func(path)
