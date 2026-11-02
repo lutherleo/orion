@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
 import subprocess
 import time
 
@@ -43,6 +44,19 @@ def _dir_bytes(path: str) -> int:
     return total
 
 
+def remove_tree(path: str) -> None:
+    """`shutil.rmtree(path, ignore_errors=True)` that also deletes a git clone on Windows, which refuses to
+    delete a read-only file (git's object files are read-only). Never raises; POSIX is unchanged."""
+    def clear_readonly(func, p, exc):
+        if os.name == "nt" and func is os.unlink and isinstance(exc, PermissionError) and not os.path.islink(p):
+            try:
+                os.chmod(p, stat.S_IWRITE)
+                os.unlink(p)
+            except OSError:
+                pass
+    shutil.rmtree(path, onexc=clear_readonly)
+
+
 def fetch(repo_url: str, sha: str, dest: str, *, globs: list[str], run=None,
           timeout: float = CLONE_TIMEOUT_S) -> dict:
     """Clone `repo_url` partially into `dest`, sparse-checkout `globs`, check out `sha`.
@@ -50,7 +64,7 @@ def fetch(repo_url: str, sha: str, dest: str, *, globs: list[str], run=None,
     Returns {ok, seconds, bytes (size of dest on disk, None on failure), error (head of the failure
     text, None on success)}. Any existing `dest` is removed first, and a failed fetch removes what it created, so a retry starts clean."""
     run = run or _default_run
-    shutil.rmtree(dest, ignore_errors=True)   # dest is a runner-owned work dir; a stale one (hard kill) is replaced
+    remove_tree(dest)   # dest is a runner-owned work dir; a stale one (hard kill) is replaced
     t0 = time.monotonic()
     try:
         run(["git", "clone", "--filter=blob:none", "--no-checkout", "--quiet", "--", repo_url, dest],
@@ -58,7 +72,7 @@ def fetch(repo_url: str, sha: str, dest: str, *, globs: list[str], run=None,
         run(["git", "-C", dest, "sparse-checkout", "set", "--no-cone", *globs], timeout=timeout)
         run(["git", "-C", dest, "checkout", "--quiet", sha], timeout=timeout)
     except Exception as exc:  # noqa: BLE001 - reported, never raised
-        shutil.rmtree(dest, ignore_errors=True)
+        remove_tree(dest)
         return {"ok": False, "seconds": time.monotonic() - t0, "bytes": None,
                 "error": f"timeout after {timeout:g} s" if isinstance(exc, subprocess.TimeoutExpired)
                 else _head(exc)}

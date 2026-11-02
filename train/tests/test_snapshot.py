@@ -1,3 +1,5 @@
+import os
+import stat
 import subprocess
 
 import pytest
@@ -96,3 +98,17 @@ def test_fetch_replaces_a_stale_dest(tmp_path, repo):
     (snap / "junk" / "f").write_text("stale")
     out = snapshot.fetch(f"file://{src.path}", c1, str(snap), globs=["*.py"])
     assert out["ok"] and (snap / "a.py").read_text() == "v1\n" and not (snap / "junk").exists()
+
+
+def test_a_clone_with_read_only_git_objects_can_be_replaced_and_removed(tmp_path, repo):
+    """Windows refuses to delete a read-only file and git's object files are read-only, so
+    rmtree(ignore_errors=True) alone silently left the whole clone behind, and the next fetch failed on it."""
+    src, c1, _ = repo
+    snap = tmp_path / "snap"
+    url = f"file://{src.path}"
+    assert snapshot.fetch(url, c1, str(snap), globs=["*.py"])["ok"]
+    assert any(not os.stat(os.path.join(d, f)).st_mode & stat.S_IWUSR for d, _, fs in os.walk(snap) for f in fs)
+    assert snapshot.fetch(url, c1, str(snap), globs=["*.py"])["ok"]       # over the stale clone
+    snapshot.remove_tree(str(snap))
+    assert not snap.exists()
+    snapshot.remove_tree(str(snap))                                       # already gone: no error

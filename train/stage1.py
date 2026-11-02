@@ -39,7 +39,6 @@ import json
 import os
 import posixpath
 import random
-import shutil
 import signal
 import subprocess
 import sys
@@ -577,7 +576,7 @@ def build(pairs: list[dict], splits: dict[str, str], *, work_root: str, out_json
                                                             seconds_network=first_fetch)
                         record(pair, row, examples)
                 finally:
-                    shutil.rmtree(dest, ignore_errors=True)
+                    snapshot.remove_tree(dest)
                 if stop["flag"]:
                     break
     except KeyboardInterrupt:   # no handler installed (non-main thread) or raised outside a pair

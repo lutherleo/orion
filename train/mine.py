@@ -255,7 +255,7 @@ def build(raw: str, work: str, out: str, *, cache_path: str = enrich_gh.DEFAULT_
                                                     if d["reason"] == "post_cutoff_repo").most_common(15))
     st["sizes_bytes"] = {f: os.path.getsize(os.path.join(out, f)) for f in ("pairs.json", "dropped.json")}
     _dump(os.path.join(work, "build_stats.json"), st)
-    with open(os.path.join(work, "tables.md"), "w") as f:
+    with open(os.path.join(work, "tables.md"), "w", encoding="utf-8") as f:
         f.write(tables(st))
     log(tables(st))
     return st
@@ -335,6 +335,7 @@ def main(argv=None) -> int:
             p.add_argument("--out", default="train/data")
             p.add_argument("--cache", default=enrich_gh.DEFAULT_CACHE)
     args = ap.parse_args(argv)
+    sys.stdout.reconfigure(encoding="utf-8")   # build prints tables holding "≤"; a redirected stdout may be cp1252
     log = lambda *a: print(*a, flush=True)  # noqa: E731
     if args.cmd == "collect":
         collect(args.raw, args.work, log=log)
