@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -672,28 +673,134 @@ def resolve_language(repo_path: str | Path, language: str | None = None) -> tupl
     return frontend, _DISPLAY_LANG.get(frontend, frontend)
 
 
-def ensure_cpg(repo_path: str | Path, language: str | None = None) -> Path:
-    """Parse `repo` to a cpg.bin and return its path WITHOUT exporting -- the streaming producer reads
-    cpg.bin directly, so the whole-graph joern-export (the 85x GraphSON blob) is skipped entirely.
-    Reuses a prebuilt `<repo>/cpg.bin` when present (the eval fixtures ship one); otherwise runs
-    joern-parse into a temp dir. This is the parse half of `export_repo`, with `_run_export` removed."""
-    repo = Path(repo_path).resolve()
-    cpg_bin = repo / "cpg.bin"
-    if cpg_bin.exists():
-        return cpg_bin
-    env = _ensure_greadlink(dict(os.environ))
-    env.setdefault("JAVA_HOME", os.environ.get("JAVA_HOME", ""))
+# ─────────────────────────────── python src layout ───────────────────────────────
+# Joern names an imported function by its import path (`pkg/sub.py:<module>.f`), so an absolute import
+# binds to the real method only when the parse root makes that path the file's own. A src-layout repo is
+# therefore parsed from a temp copy with `src/` taken off the paths, and restore_paths puts the
+# repo-relative names back before normalize. Same parse as a scan started from `src/`, without losing the
+# files outside it.
+_ROOT_FILES = "__orion_repo_root__"   # where a root file displaced by a same-path src/ file sits in the view
+_IMPORT_HEAD = re.compile(r"^[ \t]*(?:from|import)[ \t]+([A-Za-z_]\w*)", re.M)
+
+
+def _python_files(repo: Path) -> list[str]:
+    """Every .py file under `repo` (repo-relative), as joern-parse finds them: hidden folders and symlinked
+    files count; only .git is skipped."""
+    found = []
+    for folder, dirs, files in os.walk(repo):
+        dirs[:] = sorted(d for d in dirs if d != ".git")
+        for name in sorted(files):
+            p = Path(folder) / name
+            if name.endswith(".py") and p.is_file():
+                found.append(p.relative_to(repo).as_posix())
+    return found
+
+
+def is_python_src_layout(repo_path: str | Path) -> bool:
+    """True when the code imports what is under `src/` by name more often than through `src.` itself. A
+    `src/__init__.py`, or code that says `from src.x import y`, already resolves from the repo root, and a
+    package using only relative imports resolves from either, so those keep the plain parse."""
+    repo = Path(repo_path)
+    src = repo / "src"
+    if not src.is_dir() or (src / "__init__.py").exists():
+        return False
+    files = _python_files(repo)
+    inside = {f.split("/")[1].removesuffix(".py") for f in files if f.startswith("src/")}
+    by_name = by_src = 0
+    for f in files:
+        try:
+            text = (repo / f).read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for head in _IMPORT_HEAD.findall(text):
+            by_src += head == "src"
+            by_name += head in inside
+    return by_name > by_src
+
+
+def _lift_src(repo: Path, dest: Path) -> dict[str, str]:
+    """Copy the repo's .py files to `dest` with `src/` taken off; returns {view path: repo path} for every
+    file that moved. An unreadable file is skipped, as joern-parse would skip it."""
+    files = _python_files(repo)
+    lifted = {f[len("src/"):] for f in files if f.startswith("src/")}
+    paths: dict[str, str] = {}
+    for f in files:
+        view = f[len("src/"):] if f.startswith("src/") else (f"{_ROOT_FILES}/{f}" if f in lifted else f)
+        target = dest / view
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.copyfile(repo / f, target)
+        except (PermissionError, FileNotFoundError):
+            continue
+        if view != f:
+            paths[view] = f
+    return paths
+
+
+def restore_paths(envelope: dict, paths: dict[str, str]) -> dict:
+    """Put a lifted parse's repo-relative paths back into an envelope. A name changes only when the path
+    before its first ":" is a moved file, so `os.py:<module>.system` and other stubs stay as they are.
+    No moved files: the envelope comes back untouched."""
+    if not paths:
+        return envelope
+
+    def back(name):
+        if not isinstance(name, str):
+            return name
+        head, sep, tail = name.partition(":")
+        return paths[head] + sep + tail if head in paths else name
+
+    keys = {"FILE": ("NAME",), "METHOD": ("FULL_NAME", "FILENAME"), "CALL": ("METHOD_FULL_NAME", "file_path"),
+            "METHOD_PARAMETER_IN": ("method_full_name",)}
+    nodes = []
+    for n in envelope["nodes"]:
+        props = dict(n["props"])
+        for k in keys.get(n["label"], ()):
+            if k in props:
+                props[k] = back(props[k])
+        nodes.append({**n, "props": props})
+    return {**envelope, "nodes": nodes, "source_root": "src",
+            "entry_methods": sorted(back(m) for m in envelope.get("entry_methods", []))}
+
+
+def _parse(repo: Path, language: str | None, out_cpg: Path, env: dict) -> dict[str, str]:
+    """joern-parse `repo` to `out_cpg`; returns the paths the parse moved ({} for all but a Python src layout).
+    Raises on failure (never a silent empty graph)."""
     parse = _joern_bin("joern-parse")
     if not parse.exists():
         raise RuntimeError(f"joern-parse not found under {config.JOERN_HOME} (set JOERN_HOME)")
-    out_cpg = Path(tempfile.mkdtemp(prefix="orion_cpg_")) / "cpg.bin"
-    r = subprocess.run(
-        [str(parse), *_jvm_flags(), str(repo),
-         "--language", language or _guess_language(repo), "--output", str(out_cpg)],
-        capture_output=True, text=True, env=env)
+    frontend = language or _guess_language(repo)
+    tree, view, paths = repo, None, {}
+    try:
+        if frontend == "pythonsrc" and is_python_src_layout(repo):
+            view = Path(tempfile.mkdtemp(prefix="orion_view_"))
+            paths = _lift_src(repo, view)
+            tree = view
+        r = subprocess.run(
+            [str(parse), *_jvm_flags(), str(tree), "--language", frontend, "--output", str(out_cpg)],
+            capture_output=True, text=True, env=env)
+    finally:
+        if view is not None:
+            shutil.rmtree(view, ignore_errors=True)
     if r.returncode != 0 or not out_cpg.exists():
         raise RuntimeError(f"joern-parse failed (rc={r.returncode}):\n{r.stdout}\n{r.stderr}")
-    return out_cpg
+    return paths
+
+
+def ensure_cpg(repo_path: str | Path, language: str | None = None) -> tuple[Path, dict[str, str]]:
+    """Parse `repo` to a cpg.bin and return (its path, the moved paths for `restore_paths`) WITHOUT
+    exporting -- the streaming producer reads cpg.bin directly, so the whole-graph joern-export (the 85x
+    GraphSON blob) is skipped entirely. Reuses a prebuilt `<repo>/cpg.bin` when present (the eval fixtures
+    ship one; nothing moved); otherwise runs joern-parse into a temp dir. This is the parse half of
+    `export_repo`, with `_run_export` removed."""
+    repo = Path(repo_path).resolve()
+    cpg_bin = repo / "cpg.bin"
+    if cpg_bin.exists():
+        return cpg_bin, {}
+    env = _ensure_greadlink(dict(os.environ))
+    env.setdefault("JAVA_HOME", os.environ.get("JAVA_HOME", ""))
+    out_cpg = Path(tempfile.mkdtemp(prefix="orion_cpg_")) / "cpg.bin"
+    return out_cpg, _parse(repo, language, out_cpg, env)
 
 
 def export_repo(repo_path: str | Path, language: str | None = None, profile=None) -> dict:
@@ -711,17 +818,9 @@ def export_repo(repo_path: str | Path, language: str | None = None, profile=None
         if cpg_bin.exists():
             return _run_export(cpg_bin, tmp / "export", env, profile)
 
-        parse = _joern_bin("joern-parse")
-        if not parse.exists():
-            raise RuntimeError(f"joern-parse not found under {config.JOERN_HOME} (set JOERN_HOME)")
         out_cpg = tmp / "cpg.bin"
-        r = subprocess.run(
-            [str(parse), *_jvm_flags(), str(repo),
-             "--language", language or _guess_language(repo), "--output", str(out_cpg)],
-            capture_output=True, text=True, env=env)
-        if r.returncode != 0 or not out_cpg.exists():
-            raise RuntimeError(f"joern-parse failed (rc={r.returncode}):\n{r.stdout}\n{r.stderr}")
-        return _run_export(out_cpg, tmp / "export", env, profile)
+        paths = _parse(repo, language, out_cpg, env)
+        return restore_paths(_run_export(out_cpg, tmp / "export", env, profile), paths)
     finally:
         # The 54MB GraphSON export is fully consumed into memory by _run_export; never leave the
         # temp workdir behind (a per-build leak fills the disk fast).

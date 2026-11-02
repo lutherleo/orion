@@ -168,16 +168,21 @@ def build(repo_path: str, language: str | None = None,
         from pathlib import Path
         from .graph import stream_build
         # parse or reuse cpg.bin, NO export
-        cpg_bin, _ = _timed(on_event, "parse (cpg.bin)",
-                            lambda: joern_adapter.ensure_cpg(repo_path, frontend))
+        (cpg_bin, moved), _ = _timed(on_event, "parse (cpg.bin)",
+                                     lambda: joern_adapter.ensure_cpg(repo_path, frontend))
         work = Path(tempfile.mkdtemp(prefix="orion_stream_"))
         envelope, _ = _timed(
             on_event, "consume (stream envelope)",
-            lambda: stream_build.build_envelope(str(cpg_bin), work, profile, queue_size=queue_size,
-                                                mem_stats_path=mem_stats_path))
+            lambda: joern_adapter.restore_paths(
+                stream_build.build_envelope(str(cpg_bin), work, profile, queue_size=queue_size,
+                                            mem_stats_path=mem_stats_path), moved))
     else:
         envelope, _ = _timed(on_event, "parse+export (legacy)",
                              lambda: joern_adapter.export_repo(repo_path, frontend, profile))
+    if on_event is not None and envelope.get("source_root"):
+        on_event(_event("build", "timing",
+                        detail=f"python src layout: parsed with {envelope['source_root']}/ as the import root, "
+                               f"paths stay repo-relative"))
     dependencies = deps.parse_dependencies(repo_path)
     batch, _ = _timed(
         on_event, "normalize",

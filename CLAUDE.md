@@ -455,6 +455,17 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
   the pick, and `orion scan --language <frontend>` overrides. GOTCHA: Joern's Go id is `golang`, NOT
   `gosrc` (verify with `joern-parse --list-languages`; a wrong id fails the build immediately).
   Single-marker repos are unchanged, so NodeGoat still resolves jssrc and PyGoat still pythonsrc.
+- **A src-layout Python repo parses from a lifted copy** (2026-11-02, `joern_adapter._parse`): Joern names
+  an imported function by its import path (`pkg/sub.py:<module>.f`), so an absolute import binds to the real
+  method only when the parse root makes that path the file's own. From the repo root those calls stayed on
+  external stubs (call recall: black 0.51, poetry 0.75). When `is_python_src_layout` says so (a `src/` folder,
+  no `src/__init__.py`, the code imports what is under `src/` by name more often than through `src.`), the
+  `.py` files are copied to a temp view with `src/` taken off, joern-parse runs there, and `restore_paths`
+  puts the repo-relative names back in the envelope before normalize, so `file_path`s and uids stay what a
+  repo-root scan gives. Same result as a scan from `src/` plus the files outside it (0.92 / 0.89; FLOWS_TO
+  3156 -> 3513 / 9291 -> 9985). Re-binding stubs after the build was measured and rejected: same call recall,
+  none of the FLOWS_TO. A prebuilt `cpg.bin` is never lifted. Not handled: monorepos (`packages/a/src/a`),
+  other roots (`lib/ansible`), re-exports (`from pkg import f` stays a stub from any root).
 - **Verifier/discovery resilience**: `claude_cli.run_agent` salvages stdout+stderr on a non-zero
   exit (failures are never blind) and retries a TRANSIENT failure with exponential backoff on a
   FRESH `--session-id` (`verify` retries=2, `discover` retries=1). A crashed call is `ERROR`, never
