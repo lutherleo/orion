@@ -18,6 +18,13 @@ jobs:
       - run: pip install -e ".[dev]" numpy
       - run: pytest -m "not slow" -q
       - run: pytest eval/tests -q
+      # Stage 1 and Stage 2 skip without tree-sitter. These are the pins from the `lm` extra in pyproject.toml,
+      # only these five: the rest of that extra is model runtime (47 packages, and no MLX on Linux anyway).
+      # Installed after the steps above so they keep running without it.
+      - run: >-
+          pip install tree-sitter==0.26.0 tree-sitter-javascript==0.25.0 tree-sitter-typescript==0.23.2
+          tree-sitter-python==0.25.0 tree-sitter-java==0.23.5
+      - run: pytest train/tests -m "not slow" -q
 
   # The same suite against a real Neo4j, so the graph-backed tests (server-enforced read-only,
   # persist indexes, runtime writeback) run instead of skipping.
