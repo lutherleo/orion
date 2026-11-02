@@ -88,6 +88,11 @@ class Profile:
     # One line describing how request handlers / entry points are wired in this stack.
     entrypoint_hint: str = ""
 
+    # --- flow ranking only (pathfind._classify_flow_sink): regexes over a real call's WHOLE text, for
+    # sinks its name alone can't say (`shell=True`, a `$where` key). Not in the discovery prompt, and
+    # not in Orion-LM's code-only sink lines (orion/lm/sinks.py), which C1 was trained on.
+    flow_sinks: dict[str, tuple[SinkPattern, ...]] = field(default_factory=dict)
+
     # --- shape-B checklist (graph/shortlists.py): the protections an app on this stack should have,
     # ordered most to least important (the order is the shortlist's tie-break rank).
     controls: tuple[Control, ...] = ()
@@ -106,9 +111,15 @@ EXPRESS = Profile(
         "nosql": ("find", "findOne", "$where"),
         "redirect": ("redirect",),
         "render": ("render", "send"),
-        "log": ("log",),
+        # `log` as a word (console.log, logger.info, logError, auditLog, LOG.warn), not a substring:
+        # /login, isLoggedIn, validateLogin and dialog are no log sinks (2026-11-02).
+        "log": (SinkPattern("log", r"(?<![A-Za-z\d_$])LOG(?:GER)?(?![A-Za-z\d_$])"
+                                   r"|(?:(?<![A-Za-z\d_$])log|(?<![A-Z])Log)(?:ger|ging)?"
+                                   r"(?!In\b|Out\b|On\b)(?![a-z\d_$])"),),
     },
     entrypoint_hint="Express route handlers registered via app.get/post/put/delete/use(path, handler).",
+    # A `$where` key is the sink whichever query call carries it (count, deleteMany, aggregate, ...).
+    flow_sinks={"nosql": (SinkPattern("$where", r"\$where"),)},
     controls=(
         Control("output escaping in templates", "CWE-79",
                 present=(r"autoescape\s*:\s*true",),
@@ -147,6 +158,14 @@ GENERIC = Profile(
         "calls (call-graph roots) — request handlers, exported API, main. Their parameters are the "
         "untrusted inputs."
     ),
+    # Anchored, so a call with one of these in its arguments is not filed as the sink. `Popen` runs a
+    # command with or without a shell; subprocess's other helpers only count with `shell=True` (Joern
+    # renders it `shell = True`), since a list of args with no shell is the safe way to call them.
+    flow_sinks={"code_exec": (
+        SinkPattern("Popen", r"^(?:[\w.]+\.)?[Pp]open\s*\("),
+        SinkPattern("subprocess shell=True", r"^[\w.]*subprocess\.(?:run|call|check_call|check_output)\s*\("
+                                             r"[\s\S]*\bshell\s*=\s*True\b"),
+    )},
     controls=(
         Control("output escaping in templates", "CWE-79",
                 disabled=(r"autoescape\s*[=:]\s*false", r"\bmark_safe\(", r"\|\s*safe\b",

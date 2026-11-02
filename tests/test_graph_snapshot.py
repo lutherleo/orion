@@ -23,6 +23,15 @@ pygoat_default is unchanged by the rules (byte-identical before/after). pygoat_l
 170 flows, prototype_pollution 283 -> 1) but was not re-recorded: the PyGoat goldens depend on the
 Joern build (WSL's CPG differs from the Mac's by 38 taint edges, 1076 vs 1075), so re-record it on
 the machine that made it:  python -m tests.test_graph_snapshot pygoat lm
+
+Re-recorded 2026-11-02 for sink rules pathfind.SINK_RULES (a real call judged by its own name and
+callee, not its arguments; Profile.flow_sinks; EXPRESS `log` a word): nodegoat_default and nodegoat_lm
+(111 -> 73 flows each) were recorded in WSL, whose NodeGoat CPG matched the old goldens row for row;
+FLOWS_TO unchanged. Both PyGoat goldens change too (default 98 -> 93, lm 170 -> 161 on WSL's CPG, with
+the four subprocess.Popen sinks) and were NOT re-recorded, for the reason above, so both fail until
+they are, on the Mac:
+  python -m tests.test_graph_snapshot pygoat default
+  python -m tests.test_graph_snapshot pygoat lm
 """
 from __future__ import annotations
 
