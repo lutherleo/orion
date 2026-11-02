@@ -49,9 +49,9 @@ def test_build_launcher_dispatches_exports_and_cleans_up(tmp_path, monkeypatch):
     tree = _tree(tmp_path, "plain-opus5", _meta("c1"))
     assert called["exports"][0] == ("/m", "c1", tree)
     assert kw1["repo_dir"] == tree
-    assert kw1["usage_log"] == f"{run_dir}/usage.jsonl"
+    assert kw1["usage_log"] == os.path.join(run_dir, "usage.jsonl")
     assert not os.path.exists(tree) and not os.path.exists(os.path.dirname(tree))   # work dir deleted
-    assert res1.findings_path == f"{run_dir}/findings.json"  # findings kept in the run dir
+    assert res1.findings_path == os.path.join(run_dir, "findings.json")  # findings kept in the run dir
     assert os.path.exists(res1.findings_path)
     assert res3.findings_path == str(tmp_path / "eval/runs/plain-gpt/r1/c1/_/1.a2/findings.json")
     for kw in called["plain"]:

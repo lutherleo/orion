@@ -1,5 +1,7 @@
 import sys
 
+import pytest
+
 from train import convert
 
 
@@ -45,7 +47,7 @@ def _fake_base(tmp_path):
 def test_merge_lora_folds_the_delta_unquantized_and_copies_the_rest(tmp_path):
     import json
 
-    import mlx.core as mx
+    mx = pytest.importorskip("mlx.core")
     base, ad, w = _fake_base(tmp_path)
     out = convert.merge_lora(str(base), str(ad), str(tmp_path / "out"))
 
@@ -64,8 +66,7 @@ def test_merge_lora_folds_the_delta_unquantized_and_copies_the_rest(tmp_path):
 
 
 def test_merge_lora_refuses_an_existing_out_dir_and_unknown_modules(tmp_path):
-    import mlx.core as mx
-    import pytest
+    mx = pytest.importorskip("mlx.core")
     base, ad, _ = _fake_base(tmp_path)
     (tmp_path / "taken").mkdir()
     with pytest.raises(FileExistsError):

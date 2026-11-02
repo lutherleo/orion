@@ -1,6 +1,8 @@
 import os
 import sys
 
+import pytest
+
 from train import guard
 
 SWAP = "total = 4096.00M  used = 3235.62M  free = 860.38M  (encrypted)"
@@ -59,6 +61,7 @@ def test_heavy_jobs_finds_builds_and_training_but_not_itself():
     assert [pid for pid, _ in guard.heavy_jobs(ps, skip={104})] == [101, 102, 103]
 
 
+@pytest.mark.skipif(os.name == "nt", reason="train.guard stops a POSIX process group (killpg, SIGKILL)")
 def test_run_kills_the_whole_process_group(tmp_path):
     """The MLX worker is a spawned grandchild; killing only the direct child would leave it running."""
     pidfile = tmp_path / "grandchild.pid"

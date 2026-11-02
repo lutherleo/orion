@@ -14,6 +14,9 @@ from train.tests._git import GitRepo, bare_mirror
 
 pytestmark = pytest.mark.usefixtures("hermetic_git")
 
+# build_pair's memory probe imports `resource`; the session test needs sh, ps and process groups.
+posix_only = pytest.mark.skipif(os.name == "nt", reason="train.build's memory probe and process sessions are POSIX-only")
+
 PKG = json.dumps({"name": "app", "dependencies": {"express": "^4.0.0"}})
 VULN = "app.get('/', (req, res) => res.send(eval(req.query.x)));\n"
 FIXED = "app.get('/', (req, res) => res.send(String(req.query.x)));\n"
@@ -92,6 +95,7 @@ def _pair(fix, **kw):
     return p
 
 
+@posix_only
 def test_build_pair_forces_stream_explicit_language_and_lm_profile(tmp_path, js_repo):
     """Both commits are built in order, each with stream=True, the Joern frontend passed explicitly
     and the lm-sink profile, on a .git-free tree of the right commit with no stray cpg.bin; guards
@@ -120,6 +124,7 @@ def test_build_pair_forces_stream_explicit_language_and_lm_profile(tmp_path, js_
     assert (out["vulnerable_scan_id"], out["patched_scan_id"]) == ("GHSA-abcd:vulnerable", "GHSA-abcd:patched")
 
 
+@posix_only
 def test_build_pair_records_joern_failure_instead_of_raising(tmp_path, js_repo):
     """A joern-parse RuntimeError becomes status=build_failed with the reason kept, and the patched
     side is not attempted; guards against one bad repo crashing an overnight run."""
@@ -137,6 +142,7 @@ def test_build_pair_records_joern_failure_instead_of_raising(tmp_path, js_repo):
     assert calls == ["GHSA-abcd:vulnerable"]
 
 
+@posix_only
 def test_build_pair_cleans_temp_dirs_and_keeps_cpg_only_when_asked(tmp_path, js_repo):
     """orion_cpg_*/orion_stream_* temp dirs and exported trees are removed after each side; with
     keep_cpg_dir each commit's cpg.bin is moved there as <id>.<side>.cpg.bin and its real size is
@@ -180,6 +186,7 @@ class StubDB:
         return {"rows": [{"c": sum(self.counts.values())}], "row_count": 1, "query_type": "r"}
 
 
+@posix_only
 def test_build_pair_timings_come_from_builder_events_and_missing_ones_are_null(tmp_path, js_repo):
     """Stage timings, node/edge counts and the Neo4j node count are copied from what graph_build and
     the DB actually report; a stage the builder never reported is null; guards against estimating or
@@ -207,6 +214,7 @@ def test_build_pair_timings_come_from_builder_events_and_missing_ones_are_null(t
     assert out2["sides"]["vulnerable"]["neo4j_nodes"] is None          # no DB -> null, not 0
 
 
+@posix_only
 def test_children_run_outside_the_terminal_process_group():
     """Subprocesses started inside a build (joern-parse, the stream producer) get their own session,
     so a terminal Ctrl-C reaches only the orchestrator; guards against Ctrl-C killing Joern mid-side
@@ -254,6 +262,7 @@ def _recorder(calls, fail=None, sigint_on=None, kbi_on=None):
     return builder
 
 
+@posix_only
 def test_build_all_skips_pairs_already_in_ledger(tmp_path, multi):
     """A rerun skips every pair whose ledger line is final and appends exactly one line per newly
     finished pair; guards against redoing hours of Joern work after a restart."""
@@ -268,6 +277,7 @@ def test_build_all_skips_pairs_already_in_ledger(tmp_path, multi):
     assert [(x["id"], x["status"]) for x in rows] == [("P2", "ok"), ("P1", "ok")]
 
 
+@posix_only
 def test_build_all_dataflow_first_order_and_progress_lines(tmp_path, multi):
     """order='dataflow_first' (the default) builds cwe_class=dataflow pairs first, keeping the input
     order within each group, and prints '[i/N] <id> <side> ... <s>s' per side; guards against the
@@ -281,6 +291,7 @@ def test_build_all_dataflow_first_order_and_progress_lines(tmp_path, multi):
     assert any(re.match(r"^\[4/4\] P3 patched .* \d+\.\ds$", x) for x in lines)
 
 
+@posix_only
 def test_build_all_keeps_going_after_a_build_failure(tmp_path, multi):
     """A pair whose Joern build fails is written to the ledger as build_failed and the run moves on to
     the next pair; guards against one failure stopping the batch."""
@@ -294,6 +305,7 @@ def test_build_all_keeps_going_after_a_build_failure(tmp_path, multi):
     assert "rc=137" in rows[0]["reason"]
 
 
+@posix_only
 def test_build_all_sigint_finishes_current_side_writes_ledger_and_stops(tmp_path, multi):
     """Ctrl-C (SIGINT) mid-side lets that side finish, writes the pair's ledger line as 'interrupted',
     starts nothing else, returns normally and restores the old handler; the next run rebuilds that pair
@@ -318,6 +330,7 @@ def test_build_all_sigint_finishes_current_side_writes_ledger_and_stops(tmp_path
     assert _ledger(tmp_path / "b.jsonl")[-1]["status"] == "ok"
 
 
+@posix_only
 def test_build_all_keyboardinterrupt_still_writes_ledger_line(tmp_path, multi):
     """A KeyboardInterrupt raised inside a build (e.g. a second Ctrl-C) is caught: the side is
     'interrupted', the ledger line is still written and build_all returns cleanly; guards against

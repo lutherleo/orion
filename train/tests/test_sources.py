@@ -266,7 +266,7 @@ COMMIT;
 
 def test_cvefixes_parses_sqlite_dump_without_executing_it(tmp_path):
     f = tmp_path / "dump.sql.gz"
-    with gzip.open(f, "wt") as g:
+    with gzip.open(f, "wt", newline="\n") as g:   # LF like the real dump; Windows text mode would write CRLF
         g.write(_DUMP)
     rows = {r["id"]: r for r in sources.cvefixes(str(f))}
     a = rows["CVE-2019-1"]

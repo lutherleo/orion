@@ -39,11 +39,11 @@ class StubDB:
         s = self.scans.get(scan_id, {})
         if "CandidateFlow" in query:
             rows = s.get("flows", [])
-        elif "CpgMethod" in query:
-            rows = s.get("methods", [])
-        elif "c.uid IN" in query:
+        elif "c.uid IN" in query:      # before CpgMethod: flow_slice's query also names the calling method
             rows = [{k: c[k] for k in ("uid", "file", "function", "line", "code")}
                     for c in s.get("calls", []) if f"'{c['uid']}'" in query]
+        elif "CpgMethod" in query:
+            rows = s.get("methods", [])
         elif "AS code" in query:       # the template queries of the trace tests
             rows = s.get("other", [])
         elif "CpgCall" in query:
@@ -70,7 +70,7 @@ def graph(patched_flows=True):
 
 
 @pytest.fixture
-def trees(tmp_path):
+def trees(tmp_path, needs_tree_sitter):
     vt, pt = tmp_path / "vt", tmp_path / "pt"
     for t, a in ((vt, VULN_A), (pt, PATCHED_A)):
         t.mkdir()
@@ -217,7 +217,7 @@ def xgraph():
         "flows": [_flow("fl0", ["vs0", "vk0"], 0)]}})
 
 
-def test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink(tmp_path):
+def test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink(tmp_path, needs_tree_sitter):
     from eval import match
     vt = tmp_path / "vt"
     vt.mkdir()
@@ -345,7 +345,7 @@ def read(path):
     return [json.loads(ln) for ln in open(path)] if os.path.exists(path) else []
 
 
-def test_build_writes_examples_one_ledger_line_and_evicts_both_scans(tmp_path):
+def test_build_writes_examples_one_ledger_line_and_evicts_both_scans(tmp_path, needs_tree_sitter):
     db = graph()
     totals, calls, a = run_build(tmp_path, db)
     rows = read(a["out_jsonl"])
@@ -358,7 +358,7 @@ def test_build_writes_examples_one_ledger_line_and_evicts_both_scans(tmp_path):
     assert not os.path.exists(os.path.join(a["work_root"], "stage2_trees"))      # trees removed
 
 
-def test_build_with_templates_adds_traces_carrying_pair_id_and_split(tmp_path):
+def test_build_with_templates_adds_traces_carrying_pair_id_and_split(tmp_path, needs_tree_sitter):
     db = graph()
     db.scans["P:vulnerable"]["other"] = [{"code": "exec(x)"}]
     db.scans["P:patched"]["other"] = [{"code": "exec(clean(x))"}]
@@ -423,7 +423,7 @@ def test_build_reconciles_rows_of_a_pair_that_crashed_before_its_ledger_line(tmp
     assert [r["pair_id"] for r in read(str(out))] == ["DONE"]
 
 
-def test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts(tmp_path):
+def test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts(tmp_path, needs_tree_sitter):
     """The single-step row (target: final) and the trace's first step (target: run_cypher) of the same
     case have the same prompt and different targets; only the trace may be written for such a case."""
     from train import examples
@@ -448,7 +448,7 @@ def test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conf
     assert all(len(t) == 1 for t in targets.values())
 
 
-def test_a_case_whose_trace_is_dropped_keeps_its_single_step_row(tmp_path):
+def test_a_case_whose_trace_is_dropped_keeps_its_single_step_row(tmp_path, needs_tree_sitter):
     db = graph()      # no "other" rows for the template -> rows empty but no error; force an error instead
     orig = db.run_cypher
 

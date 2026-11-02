@@ -18,6 +18,7 @@ import os
 import shutil
 import subprocess
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -58,6 +59,14 @@ def needs_joern() -> None:
     problem = joern_problem()
     if problem:
         pytest.skip(problem)
+
+
+@pytest.fixture
+def needs_nodegoat() -> None:
+    """Request this fixture in a test that builds fixtures/NodeGoat from source. `fixtures/` is gitignored,
+    so a fresh worktree has none: without this, joern-parse raises instead of the test skipping."""
+    if not Path("fixtures/NodeGoat").exists():
+        pytest.skip("fixtures/NodeGoat not present (gitignored)")
 
 
 def _require_neo4j() -> None:

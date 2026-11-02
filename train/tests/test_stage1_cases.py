@@ -1,5 +1,9 @@
+import pytest
+
 from orion.lm import codeindex as ci, cases
 from train import stage1
+
+pytestmark = pytest.mark.usefixtures("needs_tree_sitter")   # every case here is cut from indexed spans
 
 VULN = ("def view(r):\n    q = 'SELECT ' + r\n    return db.execute(q)\n\n"
         "def other(a):\n    log(a)\n    x = a\n    y = x\n    return y\n\n"
@@ -103,7 +107,6 @@ def test_unchanged_patched_function_gets_no_patched_example(tmp_path):
 
 
 # --- fix round 1: reviewer probes ---
-import pytest
 from train import diffs
 from train.tests._git import GitRepo
 

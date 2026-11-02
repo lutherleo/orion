@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from train import unsloth_data
 
 ROW = {"messages": [{"role": "system", "content": "S"}, {"role": "user", "content": "U"}],
@@ -57,7 +59,7 @@ def test_tokenized_render_carries_meta_and_keeps_none_for_over_length():
 
 def test_main_tokenized_writes_meta_in_input_order(tmp_path, monkeypatch):
     """The balanced export's order IS the training order, so --tokenized must keep it (and the meta with it)."""
-    import transformers
+    transformers = pytest.importorskip("transformers")
 
     import train.sft_encode as se
     monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained", lambda *a, **k: object())

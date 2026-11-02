@@ -1,0 +1,2 @@
+# Executed by bash, including from WSL on a Windows checkout (autocrlf): a CRLF shebang cannot run.
+eval/shim/claude text eol=lf
