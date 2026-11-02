@@ -335,6 +335,7 @@ def main(argv=None) -> int:
             p.add_argument("--out", default="train/data")
             p.add_argument("--cache", default=enrich_gh.DEFAULT_CACHE)
     args = ap.parse_args(argv)
+    sys.stdout.reconfigure(encoding="utf-8")   # build prints tables holding "≤"; a redirected stdout may be cp1252
     log = lambda *a: print(*a, flush=True)  # noqa: E731
     if args.cmd == "collect":
         collect(args.raw, args.work, log=log)

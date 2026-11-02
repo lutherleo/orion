@@ -34,7 +34,7 @@ def _count(db: GraphDB, scan_id: str, query: str) -> int:
     return res["rows"][0]["c"]
 
 
-def test_build_nodegoat(needs_joern):
+def test_build_nodegoat(needs_joern, needs_nodegoat):
     _db_or_skip().close()
     scan_id = build("fixtures/NodeGoat")
     db = GraphDB()
@@ -53,7 +53,7 @@ def test_build_nodegoat(needs_joern):
         db.close()
 
 
-def test_call_file_attribution(needs_joern):
+def test_call_file_attribution(needs_joern, needs_nodegoat):
     """B3: every CALL is stamped with its owning file_path (via AST-ancestry to the enclosing
     method), so file attribution never depends on the fragile CONTAINS_CALL edge. The eval()
     calls in contributions.js are the canonical case."""
