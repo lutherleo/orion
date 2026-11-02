@@ -313,7 +313,8 @@ def _run_scan(args: argparse.Namespace) -> int:
         on_event(_event("build", "start", detail="indexing semantic embeddings"
                         + (" (concurrent with persist)" if concurrent else "")))
         try:
-            embed.index(args.repo, scan_id, batch=batch)
+            embed.index(args.repo, scan_id, batch=batch,
+                        on_warn=lambda msg: on_event(_event("build", "warn", detail=msg)))
             on_event(_event("build", "done", detail="semantic index complete"))
         except Exception as exc:  # noqa: BLE001 -- embedding is best-effort, never fatal
             on_event(_event(

@@ -18,12 +18,15 @@ below with a clear NotImplementedError.
 
 Embeddings: `config.EMBED_MODEL` (jinaai/jina-embeddings-v2-base-code) via sentence-transformers,
 loaded locally (no API key, `trust_remote_code=True`), 768-dim vectors, lazy module-level singleton
-so the ~300MB model loads once per process.
+so the ~300MB model loads once per process. A batch that runs out of memory (long chunks: the model
+reads up to 8192 tokens) is redone in smaller pieces, the CPU last (`_encode`); a run that fits is
+unchanged.
 """
 from __future__ import annotations
 
 import os
 import re
+import sys
 import threading
 
 from neo4j import GraphDatabase
@@ -34,6 +37,8 @@ EMBED_DIM = 768
 VECTOR_INDEX_NAME = "chunk_embedding_index"
 METHOD_LINE_WINDOW = 40
 FALLBACK_BLOCK_LINES = 60
+ENCODE_BATCH = 16
+_OOM_MARKERS = ("out of memory", "can't allocate memory", "not enough memory")
 
 # The GLOBAL exploit-reference corpus (not scan_id-scoped, like get_schema): a dedicated label +
 # vector index so it never mixes with per-scan Chunk nodes. See orion/exploit_corpus.py.
@@ -310,7 +315,112 @@ def _spans_from_batch(batch) -> tuple[list[dict], list[str]]:
     return methods, sorted(files)
 
 
-def index(repo_path: str, scan_id: str, *, batch=None) -> None:
+def _is_oom(exc: BaseException) -> bool:
+    """An allocation failure -- CUDA (`torch.cuda.OutOfMemoryError` is a RuntimeError saying "CUDA out
+    of memory"), MPS ("MPS backend out of memory") or the CPU allocator -- and nothing else."""
+    if isinstance(exc, MemoryError):
+        return True
+    return isinstance(exc, RuntimeError) and any(m in str(exc).lower() for m in _OOM_MARKERS)
+
+
+def _free_device_memory() -> None:
+    """Hand the cached blocks of a failed batch back, so the next, smaller attempt starts clean."""
+    import gc
+    gc.collect()
+    try:
+        import torch
+    except ImportError:
+        return
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    mps = getattr(torch, "mps", None)
+    if mps is not None and torch.backends.mps.is_available():
+        mps.empty_cache()
+
+
+def _encode_or_none(model, texts: list[str]):
+    """`texts` as ONE batch, or None if it ran out of memory (any other error raises)."""
+    try:
+        return model.encode(texts, batch_size=len(texts), show_progress_bar=False, convert_to_numpy=True)
+    except Exception as exc:  # noqa: BLE001 -- re-raised unless it is an allocation failure
+        if not _is_oom(exc):
+            raise
+    _free_device_memory()       # outside the except: its traceback no longer pins the batch's tensors
+    return None
+
+
+def _encode_on_cpu(model, texts: list[str]) -> list:
+    """One chunk at a time on the CPU, then the model goes back where it was. A chunk that does not
+    fit even here raises: there is nowhere left to go."""
+    back = model.device
+    _free_device_memory()
+    model.to("cpu")
+    try:
+        return [model.encode([t], batch_size=1, show_progress_bar=False, convert_to_numpy=True)[0]
+                for t in texts]
+    finally:
+        model.to(back)
+
+
+def _encode_split(model, texts: list[str], batch_size: int):
+    """The out-of-memory fallback: longest-first batches of `batch_size`, sorted the way
+    sentence-transformers sorts str inputs (-len), each tried whole; a batch that runs out of memory is
+    redone one chunk at a time; a chunk that runs out alone on the GPU/MPS goes to the CPU. Same chunks,
+    same truncation (model.max_seq_length), so the vectors are the ones the plain call gives on a bigger
+    machine, up to float rounding. Returns (vectors in input order, what happened)."""
+    import numpy as np
+    order = [int(i) for i in np.argsort([-len(t) for t in texts])]
+    out: list = [None] * len(texts)
+    split, cpu = 0, []
+    on_cpu = str(model.device) == "cpu"
+    for start in range(0, len(order), batch_size):
+        group = order[start:start + batch_size]
+        vecs = _encode_or_none(model, [texts[i] for i in group])
+        if vecs is not None:
+            for i, v in zip(group, vecs):
+                out[i] = v
+            continue
+        split += 1
+        for i in group:
+            if on_cpu:      # the plain call already ran on the CPU: a lone chunk that fails here raises
+                out[i] = model.encode([texts[i]], batch_size=1, show_progress_bar=False, convert_to_numpy=True)[0]
+                continue
+            v = _encode_or_none(model, [texts[i]])
+            if v is None:
+                cpu.append(i)
+            else:
+                out[i] = v[0]
+    if cpu:
+        for i, v in zip(cpu, _encode_on_cpu(model, [texts[i] for i in cpu])):
+            out[i] = v
+    batches = (len(texts) + batch_size - 1) // batch_size
+    return np.stack(out), {"split_batches": split, "batches": batches, "cpu_chunks": len(cpu)}
+
+
+def _encode(model, texts: list[str], batch_size: int = ENCODE_BATCH, on_warn=None):
+    """Embed `texts` exactly as `index` always has: one `model.encode(texts, batch_size=16)`. Only when
+    that call runs out of memory -- a 40-line window can hold thousands of tokens (compiled bytecode in
+    a string, a wall of regexes), and the model's attention for a batch of 16 padded to L tokens is
+    16 x 12 x L^2 floats, 48 GiB at its 8192 cap -- does `_encode_split` redo it in smaller pieces. So a
+    run that fits is byte-identical to before; one that did not used to fail outright."""
+    try:
+        return model.encode(texts, batch_size=batch_size, show_progress_bar=False, convert_to_numpy=True)
+    except Exception as exc:  # noqa: BLE001 -- re-raised unless it is an allocation failure
+        if not _is_oom(exc):
+            raise
+        why = f"{exc.__class__.__name__}: {str(exc).splitlines()[0][:160]}"
+    _free_device_memory()
+    vectors, did = _encode_split(model, texts, batch_size)
+    msg = (f"embedding ran out of memory ({why}); re-embedded {did['split_batches']} of {did['batches']} "
+           f"batches one chunk at a time, {did['cpu_chunks']} chunk(s) on the CPU")
+    if on_warn is not None:
+        on_warn(msg)
+    else:
+        print(f"orion embed: {msg}", file=sys.stderr, flush=True)
+    return vectors
+
+
+def index(repo_path: str, scan_id: str, *, batch=None, on_warn=None) -> None:
     """Chunk `repo_path`'s code (per the graph for `scan_id`), embed each chunk locally, and store
     the vectors as Chunk nodes so `search` can retrieve them for this scan. Idempotent: clears this
     scan's existing Chunk nodes first, then writes fresh ones.
@@ -318,7 +428,8 @@ def index(repo_path: str, scan_id: str, *, batch=None) -> None:
     `batch` (a `schema.Batch`) is the item-4 overlap hook: when given, the code spans come from the
     in-memory batch (`_spans_from_batch`) rather than a graph query, so indexing does not wait on
     persist and can run concurrently with it. When None (the --scan-id path), spans are read from the
-    already-persisted graph."""
+    already-persisted graph. `on_warn(message)` hears about an out-of-memory fallback (`_encode`);
+    without it the message goes to stderr."""
     _require_neo4j_backend()
     if not os.path.isdir(repo_path):
         raise ValueError(f"repo_path does not exist or is not a directory: {repo_path}")
@@ -341,7 +452,7 @@ def index(repo_path: str, scan_id: str, *, batch=None) -> None:
             return  # scan cleared above; nothing to embed (e.g. empty repo) — not an error
 
         texts = [c["text"] for c in chunks]
-        vectors = model.encode(texts, batch_size=16, show_progress_bar=False, convert_to_numpy=True)
+        vectors = _encode(model, texts, on_warn=on_warn)
 
         rows = [
             {"file": c["file"], "span": c["span"], "text": c["text"], "embedding": vec.tolist()}
