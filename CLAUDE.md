@@ -417,9 +417,28 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
   NodeGoat lm 201 -> 111 (prototype_pollution 115 -> 0; redirects from rank 120 -> 20), PyGoat lm
   300 -> 170 (prototype_pollution 283 -> 1; SQL in the top 50 0 -> 26), PyGoat default unchanged,
   FLOWS_TO unchanged. Orion-LM's code-only sink lines (C1's training format) are unchanged -- pinned
-  by `tests/test_sink_rules.py`. The plain `log` hint still matches "login"/"dialog" (lowest
-  severity; not changed). GOTCHA: the PyGoat goldens depend on the Joern build; `pygoat_lm` needs
-  re-recording on the Mac: `python -m tests.test_graph_snapshot pygoat lm`.
+  by `tests/test_sink_rules.py`. GOTCHA: the PyGoat goldens depend on the Joern build.
+- **Sink rules 2026-11-02** (found by the graph-as-memory Q&A pilot; flows only, `_classify_flow_sink`):
+  a real call is judged by its name and its text up to the first "(", not its arguments, so
+  `comments.objects.create(name='System')` is no longer code_exec and `print(sql_query)` no longer sql
+  (each nested call has its own row); an operator call keeps its whole text (NodeGoat's only `$where` sink
+  is `_tmp_5.$where`). New `Profile.flow_sinks`, regexes over a real call's whole text, flow ranking
+  only: GENERIC `Popen`/`popen` always and subprocess `run`/`call`/`check_call`/`check_output` with
+  `shell=True`, as code_exec; EXPRESS `$where`, so it is not lost in a `count({$where: x})`. EXPRESS `log`
+  is a `SinkPattern` that matches the word (console.log, logger, logError, auditLog, not /login,
+  isLoggedIn, dialog). Measured in WSL on cpg.bin, all sinks by category:
+  NodeGoat default and lm 111 -> 73 (render 30 -> 21, redirect 8 -> 5, log 60 -> 34; code_exec 3, nosql 10
+  unchanged), PyGoat default 98 -> 93 (code_exec 9 -> 12: +4 Popen incl. `cmd_lab` and `command_out`, -1
+  `'System'`; sql 26 -> 18), PyGoat lm 170 -> 161 (the same, and path 54 -> 50: the Popens were `open(`
+  path rows). FLOWS_TO unchanged (217; 1076 on WSL's PyGoat CPG). Every discovery prompt is byte-identical
+  to before. `_classify_sink` keeps the old rule for `orion/lm/sinks.py`, so C1's code-only lines are
+  unchanged (`subprocess.Popen(` there is still `path`, pinned by `tests/test_sink_rules.py`). The effect
+  on what scans FIND is not measured: that needs `bench/prove.py` on the Mac. Still loose, not changed:
+  operator rows match hints anywhere in their text, so `comment_obj = ... 'System'` stays code_exec
+  (rank 3 on PyGoat) and handler assignments keep the category of their body (kept on purpose: FLOWS_TO
+  doesn't cross callbacks, so that row is often the only pointer to the sink); `console.log`
+  fieldAccess rows repeat the call. GOTCHA: both PyGoat goldens now need re-recording on the Mac:
+  `python -m tests.test_graph_snapshot pygoat default` and `... pygoat lm`.
 - PyGoat fixture pinned: `fixtures/pygoat` at `19d17cc8874861142b330636d068bbde54e86b85`
   (`tests/test_stream_build.py::test_stream_flows_parity_pygoat`, slow; fails on another commit).
   Golden outputs live in `tests/golden/`.

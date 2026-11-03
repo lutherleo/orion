@@ -48,26 +48,19 @@ def _severity(category: str) -> int:
 # never name-matched (`assign` hit every `<operator>.assignment`, `log` every `<operator>.logicalAnd`),
 # and a profiles.SinkPattern hint matches by regex. Orion-LM's code-only sink lines (orion/lm/sinks.py)
 # match code only (name ""), so they are unchanged -- C1's training rows still match what it sees.
-SINK_RULES = "2026-10-28"
+# "2026-11-02": flows use `_classify_flow_sink` (a real call is judged by its own name and callee, not
+# by its arguments, plus `Profile.flow_sinks`), and EXPRESS's `log` hint matches `log` as a word.
+SINK_RULES = "2026-11-02"
 _OPERATOR = "<operator>"
 
 
-def _classify_sink(props: dict, profile) -> str | None:
-    """The highest-severity sink category whose hint appears in this call's name or code, else None.
-    Matching is substring + case-insensitive on `name`/`code` -- deliberately generous (this is a
-    candidate list a verifier re-checks), but ranked so `eval` outranks `log`. Two exceptions: a
-    Joern operator call (`<operator>.assignment`, `.logicalAnd`, ...) is never matched on its NAME,
-    which is Joern's, not the code's; and a `profiles.SinkPattern` hint matches by its regex."""
-    if profile is None:
-        return None
-    raw_name = str(props.get("name") or "")
-    raw_code = str(props.get("code") or "")
-    if raw_name.startswith(_OPERATOR):
-        raw_name = ""
+def _best_hint(hints_by_category: dict, raw_name: str, raw_code: str) -> str | None:
+    """The highest-severity category with a hint in this name or code, else None. A plain hint is a
+    case-insensitive substring; a `profiles.SinkPattern` hint matches by its regex."""
     name, code = raw_name.lower(), raw_code.lower()
     best: str | None = None
     best_sev = -1
-    for category, hints in profile.sink_hints.items():
+    for category, hints in hints_by_category.items():
         for hint in hints:
             rx = getattr(hint, "rx", None)
             if rx is not None:
@@ -81,6 +74,41 @@ def _classify_sink(props: dict, profile) -> str | None:
                     best, best_sev = category, sev
                 break
     return best
+
+
+def _classify_sink(props: dict, profile) -> str | None:
+    """The highest-severity sink category whose hint appears in this call's name or code, else None.
+    Matching is substring + case-insensitive on `name`/`code` -- deliberately generous (this is a
+    candidate list a verifier re-checks), but ranked so `eval` outranks `log`. Two exceptions: a
+    Joern operator call (`<operator>.assignment`, `.logicalAnd`, ...) is never matched on its NAME,
+    which is Joern's, not the code's; and a `profiles.SinkPattern` hint matches by its regex.
+
+    This is the rule for a line of code with no call around it (orion/lm/sinks.py, C1's training
+    format, frozen by decision D4). A graph flow's sink goes through `_classify_flow_sink`."""
+    if profile is None:
+        return None
+    raw_name = str(props.get("name") or "")
+    if raw_name.startswith(_OPERATOR):
+        raw_name = ""
+    return _best_hint(profile.sink_hints, raw_name, str(props.get("code") or ""))
+
+
+def _classify_flow_sink(props: dict, profile) -> str | None:
+    """The sink category of a CpgCall in the graph. A real call is judged by its name and its text up
+    to the first "(" (kept, for hints like `open(`): a call inside its arguments has a row of its own,
+    so `profile.updateUser(res.render(...))` and `comments.create(name='System')` are not that sink.
+    `profile.flow_sinks` are the exception, read over the call's whole text. An operator call keeps
+    its whole text: `x = eval(y)` and `_tmp_5.$where` have no callee to read."""
+    if profile is None:
+        return None
+    raw_name = str(props.get("name") or "")
+    raw_code = str(props.get("code") or "")
+    if raw_name.startswith(_OPERATOR):
+        return _best_hint(profile.sink_hints, "", raw_code)
+    callee, paren, _args = raw_code.partition("(")
+    named = _best_hint(profile.sink_hints, raw_name, callee + paren)
+    whole = _best_hint(profile.flow_sinks, "", raw_code)
+    return max(filter(None, (named, whole)), key=_severity, default=None)
 
 
 def _index_and_edges(batch: schema.Batch):
@@ -189,7 +217,7 @@ def pathfind(batch: schema.Batch, profile) -> dict:
     # Every reached call that classifies as a sink is a candidate flow.
     raw: list[tuple[int, float, int, str, str, str, list[str]]] = []
     for uid in dist:
-        category = _classify_sink(call_props.get(uid, {}), profile)
+        category = _classify_flow_sink(call_props.get(uid, {}), profile)
         if category is None:
             continue
         centrality = float(call_props.get(uid, {}).get("centrality") or 0.0)

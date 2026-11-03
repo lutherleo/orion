@@ -1958,7 +1958,7 @@
 [
 "app/data/allocations-dao.js:11",
 "log",
-51,
+39,
 [
 "app/data/allocations-dao.js:11:console.log(\"Warning: AllocationsDAO constructor called without 'new' operator\")"
 ]
@@ -1966,7 +1966,7 @@
 [
 "app/data/allocations-dao.js:11",
 "log",
-66,
+48,
 [
 "app/data/allocations-dao.js:11:console.log"
 ]
@@ -1974,7 +1974,7 @@
 [
 "app/data/allocations-dao.js:18",
 "log",
-71,
+53,
 [
 "app/data/allocations-dao.js:18:this.update = (userId, stocks, funds, bonds, callback) => {\n        const parsedUserId = parseInt(userId);\n\n        // Create allocations document\n        const allocations = {\n            userId: userId,\n            stocks: stocks,\n            funds: funds,\n            bonds: bonds\n        };\n\n        allocationsCol.update({\n            userId: parsedUserId\n        }, allocations, {\n            upsert: true\n        }, err => {\n\n            if (!err) {\n\n                console.log(\"Updated allocations\");\n\n                userDAO.getUserById(userId, (err, user) => {\n\n                    if (err) return callback(err, null);\n\n                    // add user details\n                    allocations.userId = userId;\n                    allocations.userName = user.userName;\n                    allocations.firstName = user.firstName;\n                    allocations.lastName = user.lastName;\n\n                    return callback(null, allocations);\n                });\n            }\n\n         ..."
 ]
@@ -2014,7 +2014,7 @@
 [
 "app/data/benefits-dao.js:23",
 "log",
-76,
+55,
 [
 "app/data/benefits-dao.js:23:this.updateBenefits = (userId, startDate, callback) => {\n        usersCol.update({\n                _id: parseInt(userId)\n            }, {\n                $set: {\n                    benefitStartDate: startDate\n                }\n            },\n            (err, result) => {\n                if (!err) {\n                    console.log(\"Updated benefits\");\n                    return callback(null, result);\n                }\n\n                return callback(err, null);\n            }\n        );\n    }"
 ]
@@ -2022,7 +2022,7 @@
 [
 "app/data/benefits-dao.js:9",
 "log",
-58,
+40,
 [
 "app/data/benefits-dao.js:9:console.log(\"Warning: BenefitsDAO constructor called without 'new' operator\")"
 ]
@@ -2030,7 +2030,7 @@
 [
 "app/data/benefits-dao.js:9",
 "log",
-75,
+54,
 [
 "app/data/benefits-dao.js:9:console.log"
 ]
@@ -2038,7 +2038,7 @@
 [
 "app/data/contributions-dao.js:10",
 "log",
-59,
+41,
 [
 "app/data/contributions-dao.js:10:console.log(\"Warning: ContributionsDAO constructor called without 'new' operator\")"
 ]
@@ -2046,7 +2046,7 @@
 [
 "app/data/contributions-dao.js:10",
 "log",
-77,
+56,
 [
 "app/data/contributions-dao.js:10:console.log"
 ]
@@ -2054,7 +2054,7 @@
 [
 "app/data/contributions-dao.js:17",
 "log",
-81,
+60,
 [
 "app/data/contributions-dao.js:17:this.update = (userId, preTax, afterTax, roth, callback) => {\n        const parsedUserId = parseInt(userId);\n\n        // Create contributions document\n        const contributions = {\n            userId: parsedUserId,\n            preTax: preTax,\n            afterTax: afterTax,\n            roth: roth\n        };\n\n        contributionsDB.update({\n            userId\n            },\n            contributions, {\n                upsert: true\n            },\n            err => {\n                if (!err) {\n                    console.log(\"Updated contributions\");\n                    // add user details\n                    userDAO.getUserById(parsedUserId, (err, user) => {\n\n                        if (err) return callback(err, null);\n\n                        contributions.userName = user.userName;\n                        contributions.firstName = user.firstName;\n                        contributions.lastName = user.lastName;\n                        contributions.userId = userId;\n\n              ..."
 ]
@@ -2078,7 +2078,7 @@
 [
 "app/data/memos-dao.js:9",
 "log",
-60,
+42,
 [
 "app/data/memos-dao.js:9:console.log(\"Warning: MemosDAO constructor called without 'new' operator\")"
 ]
@@ -2086,7 +2086,7 @@
 [
 "app/data/memos-dao.js:9",
 "log",
-78,
+57,
 [
 "app/data/memos-dao.js:9:console.log"
 ]
@@ -2094,7 +2094,7 @@
 [
 "app/data/profile-dao.js:9",
 "log",
-61,
+43,
 [
 "app/data/profile-dao.js:9:console.log(\"Warning: ProfileDAO constructor called without 'new' operator\")"
 ]
@@ -2102,7 +2102,7 @@
 [
 "app/data/profile-dao.js:9",
 "log",
-79,
+58,
 [
 "app/data/profile-dao.js:9:console.log"
 ]
@@ -2118,7 +2118,7 @@
 [
 "app/data/research-dao.js:13",
 "log",
-68,
+50,
 [
 "app/data/research-dao.js:13:this.getBySymbol = (symbol, callback) => {\n\n        const searchCriteria = () => {\n\n            if (symbol) {\n                console.log(\"in if symbol\");\n                return {\n                    symbol\n                };\n            }\n        };\n    }"
 ]
@@ -2126,7 +2126,7 @@
 [
 "app/data/research-dao.js:18",
 "log",
-69,
+51,
 [
 "app/data/research-dao.js:18:console.log(\"in if symbol\")"
 ]
@@ -2134,7 +2134,7 @@
 [
 "app/data/research-dao.js:18",
 "log",
-80,
+59,
 [
 "app/data/research-dao.js:18:console.log"
 ]
@@ -2142,7 +2142,7 @@
 [
 "app/data/research-dao.js:9",
 "log",
-62,
+44,
 [
 "app/data/research-dao.js:9:console.log(\"Warning: ResearchDAO constructor called without 'new' operator\")"
 ]
@@ -2150,7 +2150,7 @@
 [
 "app/data/research-dao.js:9",
 "log",
-67,
+49,
 [
 "app/data/research-dao.js:9:console.log"
 ]
@@ -2174,7 +2174,7 @@
 [
 "app/data/user-dao.js:11",
 "log",
-63,
+45,
 [
 "app/data/user-dao.js:11:console.log(\"Warning: UserDAO constructor called without 'new' operator\")"
 ]
@@ -2182,7 +2182,7 @@
 [
 "app/data/user-dao.js:11",
 "log",
-82,
+61,
 [
 "app/data/user-dao.js:11:console.log"
 ]
@@ -2190,25 +2190,9 @@
 [
 "app/data/user-dao.js:17",
 "log",
-83,
+62,
 [
 "app/data/user-dao.js:17:this.addUser = (userName, firstName, lastName, password, email, callback) => {\n\n        // Create user document\n        const user = {\n            userName,\n            firstName,\n            lastName,\n            benefitStartDate: this.getRandomFutureDate(),\n            password //received from request param\n            /*\n            // Fix for A2-1 - Broken Auth\n            // Stores password  in a safer way using one way encryption and salt hashing\n            password: bcrypt.hashSync(password, bcrypt.genSaltSync())\n            */\n        };\n\n        // Add email if set\n        if (email) {\n            user.email = email;\n        }\n\n        this.getNextSequence(\"userId\", (err, id) => {\n            if (err) {\n                return callback(err, null);\n            }\n            console.log(typeof(id));\n\n            user._id = id;\n            usersCol.insert(user, (err, result) => !err ? callback(null, result.ops[0]) : callback(err, null));\n        });\n    }"
-]
-],
-[
-"app/data/user-dao.js:57",
-"log",
-84,
-[
-"app/data/user-dao.js:57:this.validateLogin"
-]
-],
-[
-"app/data/user-dao.js:57",
-"log",
-85,
-[
-"app/data/user-dao.js:57:this.validateLogin = (userName, password, callback) => {\n\n        // Helper function to compare passwords\n        const comparePassword = (fromDB, fromUser) => {\n            return fromDB === fromUser;\n            /*\n            // Fix for A2-Broken Auth\n            // compares decrypted password stored in this.addUser()\n            return bcrypt.compareSync(fromDB, fromUser);\n            */\n        };\n\n        // Callback to pass to MongoDB that validates a user document\n        const validateUserDoc = (err, user) => {\n\n            if (err) return callback(err, null);\n\n            if (user) {\n                if (comparePassword(password, user.password)) {\n                    callback(null, user);\n                } else {\n                    const invalidPasswordError = new Error(\"Invalid password\");\n                    // Set an extra field so we can distinguish this from a db error\n                    invalidPasswordError.invalidPassword = true;\n                    callback(invali..."
 ]
 ],
 [
@@ -2228,17 +2212,9 @@
 ]
 ],
 [
-"app/routes/allocations.js:23",
-"render",
-29,
-[
-"app/routes/allocations.js:23:allocationsDAO.getByUserIdAndThreshold(userId, threshold, (err, allocations) => {\n            if (err) return next(err);\n            return res.render(\"allocations\", {\n                userId,\n                allocations,\n                environmentalScripts\n            });\n        })"
-]
-],
-[
 "app/routes/allocations.js:25",
 "render",
-30,
+28,
 [
 "app/routes/allocations.js:25:res.render(\"allocations\", {\n                userId,\n                allocations,\n                environmentalScripts\n            })"
 ]
@@ -2260,14 +2236,6 @@
 ]
 ],
 [
-"app/routes/benefits.js:35",
-"render",
-31,
-[
-"app/routes/benefits.js:35:benefitsDAO.updateBenefits(userId, benefitStartDate, (error) => {\n\n            if (error) return next(error);\n\n            benefitsDAO.getAllNonAdminUsers((error, users) => {\n                if (error) return next(error);\n\n                const data = {\n                    users,\n                    user: {\n                        isAdmin: true\n                    },\n                    updateSuccess: true,\n                    environmentalScripts\n                };\n\n                return res.render(\"benefits\", data);\n            });\n        })"
-]
-],
-[
 "app/routes/contributions.js:12",
 "render",
 17,
@@ -2276,17 +2244,9 @@
 ]
 ],
 [
-"app/routes/contributions.js:17",
-"render",
-32,
-[
-"app/routes/contributions.js:17:contributionsDAO.getByUserId(userId, (error, contrib) => {\n            if (error) return next(error);\n\n            contrib.userId = userId; //set for nav menu items\n            return res.render(\"contributions\", {\n                ...contrib,\n                environmentalScripts\n            });\n        })"
-]
-],
-[
 "app/routes/contributions.js:21",
 "render",
-33,
+29,
 [
 "app/routes/contributions.js:21:res.render(\"contributions\", {\n                ...contrib,\n                environmentalScripts\n            })"
 ]
@@ -2318,7 +2278,7 @@
 [
 "app/routes/contributions.js:50",
 "render",
-34,
+30,
 [
 "app/routes/contributions.js:50:res.render(\"contributions\", {\n                updateError: \"Invalid contribution percentages\",\n                userId,\n                environmentalScripts\n            })"
 ]
@@ -2326,23 +2286,15 @@
 [
 "app/routes/contributions.js:58",
 "render",
-35,
+31,
 [
 "app/routes/contributions.js:58:res.render(\"contributions\", {\n                updateError: \"Contribution percentages cannot exceed 30 %\",\n                userId,\n                environmentalScripts\n            })"
 ]
 ],
 [
-"app/routes/contributions.js:65",
-"render",
-36,
-[
-"app/routes/contributions.js:65:contributionsDAO.update(userId, preTax, afterTax, roth, (err, contributions) => {\n\n            if (err) return next(err);\n\n            contributions.updateSuccess = true;\n            return res.render(\"contributions\", {\n                ...contributions,\n                environmentalScripts\n            });\n        })"
-]
-],
-[
 "app/routes/error.js:10",
 "render",
-21,
+20,
 [
 "app/routes/error.js:10:res.render"
 ]
@@ -2350,177 +2302,17 @@
 [
 "app/routes/error.js:10",
 "render",
-37,
+32,
 [
 "app/routes/error.js:10:res.render(\"error-template\", {\n        error: err\n    })"
 ]
 ],
 [
-"app/routes/index.js:24",
-"log",
-100,
-[
-"app/routes/index.js:24:sessionHandler.isLoggedInMiddleware"
-]
-],
-[
-"app/routes/index.js:24",
-"log",
-99,
-[
-"app/routes/index.js:24:const isLoggedIn = sessionHandler.isLoggedInMiddleware"
-]
-],
-[
-"app/routes/index.js:33",
-"log",
-101,
-[
-"app/routes/index.js:33:sessionHandler.displayLoginPage"
-]
-],
-[
-"app/routes/index.js:33",
-"log",
-72,
-[
-"app/routes/index.js:33:app.get(\"/login\", sessionHandler.displayLoginPage)"
-]
-],
-[
-"app/routes/index.js:34",
-"log",
-102,
-[
-"app/routes/index.js:34:sessionHandler.handleLoginRequest"
-]
-],
-[
-"app/routes/index.js:34",
-"log",
-104,
-[
-"app/routes/index.js:34:app.post(\"/login\", sessionHandler.handleLoginRequest)"
-]
-],
-[
-"app/routes/index.js:41",
-"log",
-103,
-[
-"app/routes/index.js:41:sessionHandler.displayLogoutPage"
-]
-],
-[
-"app/routes/index.js:41",
-"log",
-73,
-[
-"app/routes/index.js:41:app.get(\"/logout\", sessionHandler.displayLogoutPage)"
-]
-],
-[
-"app/routes/index.js:44",
-"log",
-74,
-[
-"app/routes/index.js:44:app.get(\"/dashboard\", isLoggedIn, sessionHandler.displayWelcomePage)"
-]
-],
-[
-"app/routes/index.js:47",
-"log",
-52,
-[
-"app/routes/index.js:47:app.get(\"/profile\", isLoggedIn, profileHandler.displayProfile)"
-]
-],
-[
-"app/routes/index.js:48",
-"log",
-105,
-[
-"app/routes/index.js:48:app.post(\"/profile\", isLoggedIn, profileHandler.handleProfileUpdate)"
-]
-],
-[
-"app/routes/index.js:51",
-"log",
-53,
-[
-"app/routes/index.js:51:app.get(\"/contributions\", isLoggedIn, contributionsHandler.displayContributions)"
-]
-],
-[
-"app/routes/index.js:52",
-"log",
-106,
-[
-"app/routes/index.js:52:app.post(\"/contributions\", isLoggedIn, contributionsHandler.handleContributionsUpdate)"
-]
-],
-[
-"app/routes/index.js:55",
-"log",
-54,
-[
-"app/routes/index.js:55:app.get(\"/benefits\", isLoggedIn, benefitsHandler.displayBenefits)"
-]
-],
-[
-"app/routes/index.js:56",
-"log",
-107,
-[
-"app/routes/index.js:56:app.post(\"/benefits\", isLoggedIn, benefitsHandler.updateBenefits)"
-]
-],
-[
-"app/routes/index.js:63",
-"log",
-55,
-[
-"app/routes/index.js:63:app.get(\"/allocations/:userId\", isLoggedIn, allocationsHandler.displayAllocations)"
-]
-],
-[
-"app/routes/index.js:66",
-"log",
-56,
-[
-"app/routes/index.js:66:app.get(\"/memos\", isLoggedIn, memosHandler.displayMemos)"
-]
-],
-[
-"app/routes/index.js:67",
-"log",
-108,
-[
-"app/routes/index.js:67:app.post(\"/memos\", isLoggedIn, memosHandler.addMemos)"
-]
-],
-[
-"app/routes/index.js:70",
-"redirect",
-20,
-[
-"app/routes/index.js:70:app.get(\"/learn\", isLoggedIn, (req, res) => {\n        // Insecure way to handle redirects by taking redirect url from query string\n        return res.redirect(req.query.url);\n    })"
-]
-],
-[
 "app/routes/index.js:72",
 "redirect",
-38,
+33,
 [
 "app/routes/index.js:72:res.redirect(req.query.url)"
-]
-],
-[
-"app/routes/index.js:76",
-"log",
-57,
-[
-"app/routes/index.js:76:app.get(\"/research\", isLoggedIn, researchHandler.displayResearch)"
 ]
 ],
 [
@@ -2534,7 +2326,7 @@
 [
 "app/routes/memos.js:27",
 "render",
-39,
+34,
 [
 "app/routes/memos.js:27:res.render(\"memos\", {\n                memosList: docs,\n                userId: userId,\n                environmentalScripts\n            })"
 ]
@@ -2542,7 +2334,7 @@
 [
 "app/routes/profile.js:100",
 "render",
-43,
+37,
 [
 "app/routes/profile.js:100:res.render(\"profile\", {\n                    ...user,\n                    environmentalScripts\n                })"
 ]
@@ -2556,18 +2348,9 @@
 ]
 ],
 [
-"app/routes/profile.js:20",
-"render",
-50,
-[
-"app/routes/profile.js:20:parseInt(userId)",
-"app/routes/profile.js:20:profile.getByUserId(parseInt(userId), (err, doc) => {\n            if (err) return next(err);\n            doc.userId = userId;\n\n            // @TODO @FIXME\n            // while the developer intentions were correct in encoding the user supplied input so it\n            // doesn't end up as an XSS attack, the context is incorrect as it is encoding the firstname for HTML\n            // while this same variable is also used in the context of a URL link element\n            doc.website = ESAPI.encoder().encodeForHTML(doc.website);\n            // fix it by replacing the above with another template variable that is used for \n            // the context of a URL in a link header\n            // doc.website = ESAPI.encoder().encodeForURL(doc.website)\n\n            return res.render(\"profile\", {\n                ...doc,\n                environmentalScripts\n            });\n        })"
-]
-],
-[
 "app/routes/profile.js:33",
 "render",
-40,
+35,
 [
 "app/routes/profile.js:33:res.render(\"profile\", {\n                ...doc,\n                environmentalScripts\n            })"
 ]
@@ -2575,17 +2358,9 @@
 [
 "app/routes/profile.js:65",
 "render",
-41,
+36,
 [
 "app/routes/profile.js:65:res.render(\"profile\", {\n                updateError: \"Bank Routing number does not comply with requirements for format specified\",\n                firstNameSafeString,\n                lastName,\n                ssn,\n                dob,\n                address,\n                bankAcc,\n                bankRouting,\n                environmentalScripts\n            })"
-]
-],
-[
-"app/routes/profile.js:82",
-"render",
-42,
-[
-"app/routes/profile.js:82:profile.updateUser(\n            parseInt(userId),\n            firstName,\n            lastName,\n            ssn,\n            dob,\n            address,\n            bankAcc,\n            bankRouting,\n            (err, user) => {\n\n                if (err) return next(err);\n\n                // WARN: Applying any sting specific methods here w/o checking type of inputs could lead to DoS by HPP\n                //firstName = firstName.trim();\n                user.updateSuccess = true;\n                user.userId = userId;\n\n                return res.render(\"profile\", {\n                    ...user,\n                    environmentalScripts\n                });\n            }\n        )"
 ]
 ],
 [
@@ -2598,32 +2373,16 @@
 ],
 [
 "app/routes/session.js:121",
-"log",
-89,
-[
-"app/routes/session.js:121:this.displayLogoutPage"
-]
-],
-[
-"app/routes/session.js:121",
 "redirect",
-25,
+24,
 [
 "app/routes/session.js:121:this.displayLogoutPage = (req, res) => {\n        req.session.destroy(() => res.redirect(\"/\"));\n    }"
 ]
 ],
 [
-"app/routes/session.js:122",
-"redirect",
-45,
-[
-"app/routes/session.js:122:req.session.destroy(() => res.redirect(\"/\"))"
-]
-],
-[
 "app/routes/session.js:125",
 "render",
-26,
+25,
 [
 "app/routes/session.js:125:this.displaySignupPage = (req, res) => {\n        res.render(\"signup\", {\n            userName: \"\",\n            password: \"\",\n            passwordError: \"\",\n            email: \"\",\n            userNameError: \"\",\n            emailError: \"\",\n            verifyError: \"\",\n            environmentalScripts\n        });\n    }"
 ]
@@ -2631,31 +2390,15 @@
 [
 "app/routes/session.js:189",
 "render",
-27,
+26,
 [
 "app/routes/session.js:189:this.handleSignup = (req, res, next) => {\n\n        const {\n            email,\n            userName,\n            firstName,\n            lastName,\n            password,\n            verify\n        } = req.body;\n\n        // set these up in case we have an error case\n        const errors = {\n            \"userName\": userName,\n            \"email\": email\n        };\n\n        if (validateSignup(userName, firstName, lastName, password, verify, email, errors)) {\n\n            userDAO.getUserByUserName(userName, (err, user) => {\n\n                if (err) return next(err);\n\n                if (user) {\n                    errors.userNameError = \"User name already in use. Please choose another\";\n                    return res.render(\"signup\", {\n                        ...errors,\n                        environmentalScripts\n                    });\n                }\n\n                userDAO.addUser(userName, firstName, lastName, password, email, (err, user) => {\n\n                    if (err) return ne..."
 ]
 ],
 [
-"app/routes/session.js:220",
-"render",
-46,
-[
-"app/routes/session.js:220:userDAO.addUser(userName, firstName, lastName, password, email, (err, user) => {\n\n                    if (err) return next(err);\n\n                    //prepare data for the user\n                    prepareUserData(user, next);\n                    /*\n                    sessionDAO.startSession(user._id, (err, sessionId) => {\n                        if (err) return next(err);\n                        res.cookie(\"session\", sessionId);\n                        req.session.userId = user._id;\n                        return res.render(\"dashboard\", { ...user, environmentalScripts });\n                    });\n                    */\n                    req.session.regenerate(() => {\n                        req.session.userId = user._id;\n                        // Set userId property. Required for left nav menu links\n                        user.userId = user._id;\n\n                        return res.render(\"dashboard\", {\n                            ...user,\n                            environment..."
-]
-],
-[
-"app/routes/session.js:234",
-"render",
-47,
-[
-"app/routes/session.js:234:req.session.regenerate(() => {\n                        req.session.userId = user._id;\n                        // Set userId property. Required for left nav menu links\n                        user.userId = user._id;\n\n                        return res.render(\"dashboard\", {\n                            ...user,\n                            environmentalScripts\n                        });\n                    })"
-]
-],
-[
 "app/routes/session.js:25",
 "redirect",
-22,
+21,
 [
 "app/routes/session.js:25:this.isAdminUserMiddleware = (req, res, next) => {\n        if (req.session.userId) {\n            return userDAO.getUserById(req.session.userId, (err, user) => {\n               return user && user.isAdmin ? next() : res.redirect(\"/login\");\n            });\n        }\n        console.log(\"redirecting to login\");\n        return res.redirect(\"/login\");\n\n    }"
 ]
@@ -2663,63 +2406,31 @@
 [
 "app/routes/session.js:256",
 "redirect",
-28,
+27,
 [
 "app/routes/session.js:256:this.displayWelcomePage = (req, res, next) => {\n        let userId;\n\n        if (!req.session.userId) {\n            console.log(\"welcome: Unable to identify user...redirecting to login\");\n            return res.redirect(\"/login\");\n        }\n\n        userId = req.session.userId;\n\n        userDAO.getUserById(userId, (err, doc) => {\n            if (err) return next(err);\n            doc.userId = userId;\n            return res.render(\"dashboard\", {\n                ...doc,\n                environmentalScripts\n            });\n        });\n    }"
 ]
 ],
 [
-"app/routes/session.js:266",
-"render",
-48,
-[
-"app/routes/session.js:266:userDAO.getUserById(userId, (err, doc) => {\n            if (err) return next(err);\n            doc.userId = userId;\n            return res.render(\"dashboard\", {\n                ...doc,\n                environmentalScripts\n            });\n        })"
-]
-],
-[
 "app/routes/session.js:269",
 "render",
-49,
+38,
 [
 "app/routes/session.js:269:res.render(\"dashboard\", {\n                ...doc,\n                environmentalScripts\n            })"
 ]
 ],
 [
-"app/routes/session.js:27",
-"redirect",
-44,
-[
-"app/routes/session.js:27:userDAO.getUserById(req.session.userId, (err, user) => {\n               return user && user.isAdmin ? next() : res.redirect(\"/login\");\n            })"
-]
-],
-[
-"app/routes/session.js:36",
-"log",
-86,
-[
-"app/routes/session.js:36:this.isLoggedInMiddleware"
-]
-],
-[
 "app/routes/session.js:36",
 "redirect",
-23,
+22,
 [
 "app/routes/session.js:36:this.isLoggedInMiddleware = (req, res, next) => {\n        if (req.session.userId) {\n            return next();\n        }\n        console.log(\"redirecting to login\");\n        return res.redirect(\"/login\");\n    }"
 ]
 ],
 [
 "app/routes/session.js:44",
-"log",
-87,
-[
-"app/routes/session.js:44:this.displayLoginPage"
-]
-],
-[
-"app/routes/session.js:44",
 "render",
-24,
+23,
 [
 "app/routes/session.js:44:this.displayLoginPage = (req, res, next) => {\n        return res.render(\"login\", {\n            userName: \"\",\n            password: \"\",\n            loginError: \"\",\n            environmentalScripts\n        });\n    }"
 ]
@@ -2727,31 +2438,15 @@
 [
 "app/routes/session.js:53",
 "log",
-88,
-[
-"app/routes/session.js:53:this.handleLoginRequest"
-]
-],
-[
-"app/routes/session.js:53",
-"log",
-98,
+71,
 [
 "app/routes/session.js:53:this.handleLoginRequest = (req, res, next) => {\n        const {\n            userName,\n            password\n        } = req.body;\n        userDAO.validateLogin(userName, password, (err, user) => {\n            const errorMessage = \"Invalid username and/or password\";\n            const invalidUserNameErrorMessage = \"Invalid username\";\n            const invalidPasswordErrorMessage = \"Invalid password\";\n            if (err) {\n                if (err.noSuchUser) {\n                    console.log(\"Error: attempt to login with invalid user: \", userName);\n\n                    // Fix for A1 - 3 Log Injection - encode/sanitize input for CRLF Injection\n                    // that could result in log forging:\n                    // - Step 1: Require a module that supports encoding\n                    // const ESAPI = require('node-esapi');\n                    // - Step 2: Encode the user input that will be logged in the correct context\n                    // following are a few examples:\n        ..."
 ]
 ],
 [
-"app/routes/session.js:58",
-"log",
-109,
-[
-"app/routes/session.js:58:userDAO.validateLogin(userName, password, (err, user) => {\n            const errorMessage = \"Invalid username and/or password\";\n            const invalidUserNameErrorMessage = \"Invalid username\";\n            const invalidPasswordErrorMessage = \"Invalid password\";\n            if (err) {\n                if (err.noSuchUser) {\n                    console.log(\"Error: attempt to login with invalid user: \", userName);\n\n                    // Fix for A1 - 3 Log Injection - encode/sanitize input for CRLF Injection\n                    // that could result in log forging:\n                    // - Step 1: Require a module that supports encoding\n                    // const ESAPI = require('node-esapi');\n                    // - Step 2: Encode the user input that will be logged in the correct context\n                    // following are a few examples:\n                    // console.log('Error: attempt to login with invalid user: %s',\n                    //     ESAPI.encoder().encodeForHTML(user..."
-]
-],
-[
 "app/routes/session.js:64",
 "log",
-110,
+72,
 [
 "app/routes/session.js:64:console.log(\"Error: attempt to login with invalid user: \", userName)"
 ]
@@ -2759,7 +2454,7 @@
 [
 "artifacts/db-reset.js:40",
 "log",
-70,
+52,
 [
 "artifacts/db-reset.js:40:new Promise((resolve, reject) => {\n        db.dropCollection(name, (err, data) => {\n            if (!err) {\n                console.log(`Dropped collection: ${name}`);\n            }\n            resolve(undefined);\n        });\n    })"
 ]
@@ -2767,7 +2462,7 @@
 [
 "artifacts/db-reset.js:52",
 "log",
-90,
+63,
 [
 "artifacts/db-reset.js:52:console.log(\"ERROR:\")"
 ]
@@ -2775,7 +2470,7 @@
 [
 "artifacts/db-reset.js:52",
 "log",
-93,
+66,
 [
 "artifacts/db-reset.js:52:console.log"
 ]
@@ -2783,7 +2478,7 @@
 [
 "artifacts/db-reset.js:53",
 "log",
-91,
+64,
 [
 "artifacts/db-reset.js:53:console.log(comm)"
 ]
@@ -2791,7 +2486,7 @@
 [
 "artifacts/db-reset.js:53",
 "log",
-94,
+67,
 [
 "artifacts/db-reset.js:53:console.log"
 ]
@@ -2799,7 +2494,7 @@
 [
 "artifacts/db-reset.js:54",
 "log",
-64,
+46,
 [
 "artifacts/db-reset.js:54:console.log(JSON.stringify(err))"
 ]
@@ -2807,7 +2502,7 @@
 [
 "artifacts/db-reset.js:54",
 "log",
-95,
+68,
 [
 "artifacts/db-reset.js:54:console.log"
 ]
@@ -2815,7 +2510,7 @@
 [
 "artifacts/db-reset.js:57",
 "log",
-92,
+65,
 [
 "artifacts/db-reset.js:57:console.log(comm)"
 ]
@@ -2823,7 +2518,7 @@
 [
 "artifacts/db-reset.js:57",
 "log",
-96,
+69,
 [
 "artifacts/db-reset.js:57:console.log"
 ]
@@ -2831,7 +2526,7 @@
 [
 "artifacts/db-reset.js:58",
 "log",
-65,
+47,
 [
 "artifacts/db-reset.js:58:console.log(JSON.stringify(res))"
 ]
@@ -2839,7 +2534,7 @@
 [
 "artifacts/db-reset.js:58",
 "log",
-97,
+70,
 [
 "artifacts/db-reset.js:58:console.log"
 ]
