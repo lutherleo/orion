@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "file": "zipp/__init__.py",
+      "function": "_ancestry",
+      "line_start": 53,
+      "line_end": 56,
+      "cwe": "CWE-835",
+      "title": "Infinite loop on zip member names beginning with repeated separators",
+      "explanation": "The loop guard only stops on the empty string and on a single '/' (`while path and path != posixpath.sep`), but `posixpath.split('//')` returns `('//', '')` - the path never shrinks. Any member name whose leading component is two or more slashes (e.g. '//a', '///x', '//b//d') therefore drives this generator forever. The name comes straight out of the untrusted archive's central directory: `CompleteDirs.namelist()` feeds every member name through `_implied_dirs` -> `_parents` -> `_ancestry`, and `namelist()`/`_name_set()` is reached from nearly every public method. Verified against this tree: a well-formed single-entry zip containing the member '//a' parses fine with stdlib zipfile, but `zipp.Path(zf).exists()`, `.iterdir()`, `.joinpath()`, `.is_file()` and `.read_text()` all hang indefinitely at 100% CPU (only `.glob()`, which reads `root.filelist` directly, escapes). An attacker who can supply an archive to any service that inspects it with zipp pins a worker thread permanently, with no size or recursion limit to bound it - a single ~150-byte zip is enough. Fixing the guard to `while path.rstrip(posixpath.sep):` (treating runs of separators as one) terminates correctly.",
+      "path": [
+        {"file": "zipp/__init__.py", "function": "CompleteDirs.namelist", "line": 107, "role": "source"},
+        {"file": "zipp/__init__.py", "function": "CompleteDirs.namelist", "line": 108, "role": "propagator"},
+        {"file": "zipp/__init__.py", "function": "CompleteDirs._implied_dirs", "line": 102, "role": "propagator"},
+        {"file": "zipp/__init__.py", "function": "_parents", "line": 34, "role": "propagator"},
+        {"file": "zipp/__init__.py", "function": "_ancestry", "line": 54, "role": "sink"}
+      ]
+    },
+    {
+      "file": "zipp/glob.py",
+      "function": "Translator.replace",
+      "line_start": 63,
+      "line_end": 68,
+      "cwe": "CWE-1333",
+      "title": "Glob-to-regex translation emits unbounded backtracking quantifiers (ReDoS)",
+      "explanation": "Each '**' path segment is translated into a bare, non-atomic `.*`, so a pattern of N recursive segments compiles to `.*/.*/.*/.../target`. Python's backtracking engine must try every way of splitting the subject across those N greedy groups, which is exponential when the overall match fails. Measured on this tree with `Translator(seps='/')`: matching a ~56-character name takes 0.009s at N=16 and grows by a clean factor of 4.0 for every two extra segments (0.153s at N=20, 2.478s at N=24), so N=34 is roughly 40 minutes of uninterruptible CPU from a ~100-byte pattern. Confirmed through the public API: `zipp.Path(zf).glob('**/'*24 + 'nomatch')` against a zip holding a single deep entry burns 2.9s, and `Path.rglob` prepends a further '**/' to whatever it is given. Any application that lets a user supply the search pattern for an archive (archive browsers, package/resource search endpoints) is a one-request CPU exhaustion target; the pattern is never length- or complexity-limited, and `Path.glob` compiles and runs it against every member. CPython's own `fnmatch.translate`/`glob.translate` avoid this by emitting atomic groups (`(?>.*?...)`), which this translator does not. Relatedly, `separate` (zipp/glob.py:106) copies bracket-expression contents into the compiled regex verbatim, so pattern metacharacters are not confined to glob semantics - e.g. the pattern '[\\\\]' leaves the class unterminated, swallows the appended '\\Z' and surfaces a raw re.PatternError rather than a glob error.",
+      "path": [
+        {"file": "zipp/__init__.py", "function": "Path.glob", "line": 401, "role": "source"},
+        {"file": "zipp/glob.py", "function": "Translator.translate", "line": 31, "role": "propagator"},
+        {"file": "zipp/glob.py", "function": "Translator.translate_core", "line": 57, "role": "propagator"},
+        {"file": "zipp/glob.py", "function": "Translator.replace", "line": 65, "role": "propagator"},
+        {"file": "zipp/__init__.py", "function": "Path.glob", "line": 407, "role": "sink"}
+      ]
+    }
+  ]
+}

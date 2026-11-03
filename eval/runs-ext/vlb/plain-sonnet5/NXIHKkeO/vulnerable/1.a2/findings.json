@@ -1,0 +1,37 @@
+{
+  "findings": [
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "_list_globals",
+      "line_start": 282,
+      "line_end": 342,
+      "cwe": "CWE-693",
+      "title": "FRAME opcode desynchronizes memo tracking, letting dangerous GLOBAL/STACK_GLOBAL imports be reported as merely \"suspicious\" (scanner bypass, exit code 0)",
+      "explanation": "When _list_globals builds its own shadow 'memo' table for MEMOIZE/PUT/BINPUT/LONG_BINPUT opcodes, it blindly assumes the value being memoized is the argument of the immediately preceding opcode: `memo[len(memo)] = ops[n-1][1]` (line 288) / `memo[op_value] = ops[n-1][1]` (line 290). This assumption is false for any opcode that does not affect the pickle VM stack, most notably FRAME (protocol >= 4), which can legally appear between a string-push opcode (e.g. SHORT_BINUNICODE) and the MEMOIZE that records it, without changing what is actually on top of the stack. A hand-crafted pickle can insert a FRAME opcode right before the MEMOIZE that stores a dangerous module name (e.g. 'os'); the real CPython unpickler still memoizes the string 'os' (FRAME is a no-op for the stack), but picklescan's heuristic instead stores FRAME's 8-byte length argument (an integer) in its memo table. When that memo slot is later retrieved via GET/BINGET/LONG_BINGET to resolve a STACK_GLOBAL module/name pair, the code only checks `memo_key not in memo` (line 311) and otherwise casts whatever is stored to a string (line 319-323) instead of flagging it as 'unknown'. The resulting Global therefore has a module value that is just a digit string (e.g. '22') instead of 'os', which matches neither _safe_globals nor _unsafe_globals and does not contain the literal substring 'unknown', so _build_scan_result_from_raw_globals (line 390) classifies it as SafetyLevel.Suspicious instead of Dangerous and does NOT increment issues_count. Verified end-to-end: a crafted pickle built as PROTO4 + SHORT_BINUNICODE('os') + FRAME(<len>) + MEMOIZE + SHORT_BINUNICODE('system') + MEMOIZE + BINGET(0) + BINGET(1) + STACK_GLOBAL + <command string> + TUPLE1 + REDUCE + STOP is reported by `picklescan -p evil.pkl` as 'Infected files: 0', 'Dangerous globals: 0' (exit code 0, i.e. clean), while loading the exact same bytes with plain `pickle.loads()` executes `os.system(<command>)`. This is a complete bypass of the tool's core malware-detection mechanism: a file that genuinely achieves arbitrary command execution on unpickling is reported as safe.",
+      "path": [
+        {"file": "src/picklescan/scanner.py", "function": "_list_globals", "line": 273, "role": "source"},
+        {"file": "src/picklescan/scanner.py", "function": "_list_globals", "line": 288, "role": "propagator"},
+        {"file": "src/picklescan/scanner.py", "function": "_list_globals", "line": 317, "role": "propagator"},
+        {"file": "src/picklescan/scanner.py", "function": "_list_globals", "line": 342, "role": "propagator"},
+        {"file": "src/picklescan/scanner.py", "function": "_build_scan_result_from_raw_globals", "line": 390, "role": "sink"},
+        {"file": "src/picklescan/cli.py", "function": "main", "line": 76, "role": "sink"}
+      ]
+    },
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "scan_7z_bytes",
+      "line_start": 424,
+      "line_end": 434,
+      "cwe": "CWE-22",
+      "title": "Path traversal when extracting and re-reading entries from an untrusted 7z archive",
+      "explanation": "scan_7z_bytes lists raw entry names from an attacker-supplied 7z archive via archive.getnames() (line 425), filters them only by file extension (line 426, no rejection of '..' segments or absolute paths), passes them straight to archive.extract(path=tmpdir, targets=targets) (line 429), and then reconstructs the on-disk path for each target with `os.path.join(tmpdir, file_name)` (line 431) before opening it with scan_file_path (line 434). Neither step verifies that the resulting path stays inside tmpdir. If a crafted archive contains an entry whose name is an absolute path (e.g. '/etc/cron.d/evil.pkl') or contains traversal sequences (e.g. '../../../../home/user/.ssh/evil.pkl'), `os.path.join` with an absolute second argument discards tmpdir entirely, and a relative '..'-laden name resolves outside the temporary directory. Depending on how far the extraction step itself follows the same unsanitized name, this allows writing/overwriting a file outside the intended temporary directory during extraction and then reading back whatever file ends up at that attacker-chosen path (including a pre-existing sensitive file on the host, or a file planted outside tmpdir by the extraction step), rather than being confined to the archive's own temporary scanning sandbox.",
+      "path": [
+        {"file": "src/picklescan/scanner.py", "function": "scan_7z_bytes", "line": 425, "role": "source"},
+        {"file": "src/picklescan/scanner.py", "function": "scan_7z_bytes", "line": 426, "role": "propagator"},
+        {"file": "src/picklescan/scanner.py", "function": "scan_7z_bytes", "line": 429, "role": "propagator"},
+        {"file": "src/picklescan/scanner.py", "function": "scan_7z_bytes", "line": 431, "role": "propagator"},
+        {"file": "src/picklescan/scanner.py", "function": "scan_7z_bytes", "line": 434, "role": "sink"}
+      ]
+    }
+  ]
+}

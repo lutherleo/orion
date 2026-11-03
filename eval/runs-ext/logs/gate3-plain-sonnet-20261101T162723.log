@@ -1,0 +1,25 @@
+  MISSING  `claude` is not logged in -- run `claude` once and log in (or set ANTHROPIC_API_KEY)
+
+preflight: 1 prerequisite(s) missing -- nothing was run.
+
+**nodegoat** (eval matcher: L1 file + function or line +/-10, L2 + CWE family, one-to-one; keys proposed, NOT signed: dev evidence on draft keys)
+
+| Arm | L1 caught (location only) | L2 caught (+ CWE) | missed (L1) | duplicates | unmatched | no CWE | unlocated |
+|---|---|---|---|---|---|---|---|
+| C | 15 / 15 | 0 / 15 | - | 3 | 3 | 21 | 0 of 21 |
+| D | 5 / 15 | 0 / 15 | A1-2, A1-3, A2-2, A4, A6, A7, A8, A9, SSRF, ReDoS | 10 | 20 | 35 | 1 of 35 |
+| P-plain-sonnet5 | 0 / 15 | 0 / 15 | A1-1, A1-2, A1-3, A2-1, A2-2, A3, A4, A5, A6, A7, A8, A9, A10, SSRF, ReDoS | 0 | 0 | 0 | 0 of 0 |
+| O-sonnet | 15 / 15 | 15 / 15 | - | 7 | 4 | 0 | 0 of 26 |
+
+L1 does not check the bug TYPE: with many keys in one repo, a finding of another class near a fix site is credited. Only L2 checks the type, and a finding without a CWE can never reach it.
+
+**pygoat** (eval matcher: L1 file + function or line +/-10, L2 + CWE family, one-to-one; keys proposed, NOT signed: dev evidence on draft keys)
+
+| Arm | L1 caught (location only) | L2 caught (+ CWE) | missed (L1) | duplicates | unmatched | no CWE | unlocated |
+|---|---|---|---|---|---|---|---|
+| C | 15 / 16 | 0 / 16 | COMPONENTS | 9 | 6 | 30 | 0 of 30 |
+| D | 13 / 16 | 0 / 16 | XSS, LOGGING, COMPONENTS | 39 | 83 | 135 | 5 of 135 |
+| P-plain-sonnet5 | 0 / 16 | 0 / 16 | SQLI, CMDI, XSS, SSRF, SSTI, XXE, DESER-PICKLE, DESER-YAML, IDOR, CRYPTO, MISCONFIG, AUTHZ, DESIGN-OTP, LOGGING, CODEEXEC, COMPONENTS | 0 | 0 | 0 | 0 of 0 |
+| O-sonnet | 12 / 16 | 12 / 16 | XXE, AUTHZ, DESIGN-OTP, LOGGING | 12 | 2 | 0 | 0 of 26 |
+
+L1 does not check the bug TYPE: with many keys in one repo, a finding of another class near a fix site is credited. Only L2 checks the type, and a finding without a CWE can never reach it.

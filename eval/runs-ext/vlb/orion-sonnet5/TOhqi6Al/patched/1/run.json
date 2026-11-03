@@ -1,0 +1,82 @@
+{
+ "benchmark": "vlb",
+ "task": "TOhqi6Al",
+ "repo": "abodelot/jquery.json-viewer",
+ "snapshot": "patched",
+ "ref": "fe890813fc3980e60d5ba0f41834c8581b3e6361",
+ "commit": "fe890813fc3980e60d5ba0f41834c8581b3e6361",
+ "arm": "orion-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 745.6,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 7,
+  "uncached_in": 138,
+  "cache_read": 1810402,
+  "cache_write": 225993,
+  "out": 117732,
+  "tokens": 2154265,
+  "cli_cost_usd": 2.4616
+ },
+ "status": "ok",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": null,
+ "usage": [
+  {
+   "uncached_in": 26,
+   "cache_read": 371485,
+   "cache_write": 39702,
+   "out": 11912,
+   "cli_cost_usd": 0.35659761999999995
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 249014,
+   "cache_write": 39094,
+   "out": 13467,
+   "cli_cost_usd": 0.344544545
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 215039,
+   "cache_write": 31335,
+   "out": 18520,
+   "cli_cost_usd": 0.355926795
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 259689,
+   "cache_write": 48462,
+   "out": 30453,
+   "cli_cost_usd": 0.553376545
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 144629,
+   "cache_write": 12165,
+   "out": 5975,
+   "cli_cost_usd": 0.13854467
+  },
+  {
+   "uncached_in": 22,
+   "cache_read": 264444,
+   "cache_write": 15700,
+   "out": 5693,
+   "cli_cost_usd": 0.17433566999999997
+  },
+  {
+   "uncached_in": 22,
+   "cache_read": 306102,
+   "cache_write": 39535,
+   "out": 31712,
+   "cli_cost_usd": 0.538322395
+  }
+ ],
+ "orion_run_dir": ".orion/runs/17be478417dcb2c9b163a78cc0e765b45e748207/20261031T193904Z",
+ "scan_id": "17be478417dcb2c9b163a78cc0e765b45e748207",
+ "graph": "cleared"
+}

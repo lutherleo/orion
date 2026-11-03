@@ -1,0 +1,36 @@
+new-step_02.xml 75 skipped
+   40  Neo4j not reachable
+   18  could not import 'tree_sitter': No module named 'tree_sitter'
+    5  Joern not installed (no joern-parse under $HOME/joern/joern-cli set JOERN_HOME)
+    3  writes to the shared Neo4j: set ORION_LIVE_NEO4J=1 to run it
+    2  NodeGoat fixture not present
+    1  real MSF metadata fixture not present (gitignored); run fetch_metadata() to enable
+    1  Qwen3.5 tokenizer unavailable: No module named 'transformers'
+    1  could not import 'outlines_core': No module named 'outlines_core'
+    1  Windows job objects
+    1  could not import 'keyring.backends.fail': No module named 'keyring'
+    1  could not import 'keyring.errors': No module named 'keyring'
+    1  drive-qualified path parts exist only on Windows
+new-step_03.xml 3 skipped
+    1  could not import 'tree_sitter': No module named 'tree_sitter'
+    1  fixtures/NodeGoat not checked out here
+    1  fixtures/pygoat not checked out here
+new-step_05.xml 3 skipped
+    2  could not import 'mlx.core': No module named 'mlx'
+    1  could not import 'transformers': No module named 'transformers'
+diag-notree-train.xml 50 skipped
+   47  could not import 'tree_sitter': No module named 'tree_sitter'
+    2  could not import 'mlx.core': No module named 'mlx'
+    1  could not import 'transformers': No module named 'transformers'
+diag-tree-tests.xml 57 skipped
+   40  Neo4j not reachable
+    5  Joern not installed (no joern-parse under $HOME/joern/joern-cli set JOERN_HOME)
+    3  writes to the shared Neo4j: set ORION_LIVE_NEO4J=1 to run it
+    2  NodeGoat fixture not present
+    1  real MSF metadata fixture not present (gitignored); run fetch_metadata() to enable
+    1  Qwen3.5 tokenizer unavailable: No module named 'transformers'
+    1  could not import 'outlines_core': No module named 'outlines_core'
+    1  Windows job objects
+    1  could not import 'keyring.backends.fail': No module named 'keyring'
+    1  could not import 'keyring.errors': No module named 'keyring'
+    1  drive-qualified path parts exist only on Windows

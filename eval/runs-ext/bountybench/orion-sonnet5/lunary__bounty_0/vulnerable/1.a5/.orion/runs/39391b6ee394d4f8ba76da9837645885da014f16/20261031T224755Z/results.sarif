@@ -1,0 +1,697 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1333",
+              "name": "CWE1333",
+              "shortDescription": {
+                "text": "CWE-1333"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1333"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1333.html"
+            },
+            {
+              "id": "CWE-287",
+              "name": "CWE287",
+              "shortDescription": {
+                "text": "CWE-287"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-287"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/287.html"
+            },
+            {
+              "id": "CWE-693",
+              "name": "CWE693",
+              "shortDescription": {
+                "text": "CWE-693"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-693"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/693.html"
+            },
+            {
+              "id": "CWE-862",
+              "name": "CWE862",
+              "shortDescription": {
+                "text": "CWE-862"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-862"
+                ],
+                "security-severity": "9.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/862.html"
+            },
+            {
+              "id": "CWE-863",
+              "name": "CWE863",
+              "shortDescription": {
+                "text": "CWE-863"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-863"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/863.html"
+            },
+            {
+              "id": "CWE-942",
+              "name": "CWE942",
+              "shortDescription": {
+                "text": "CWE-942"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-942"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/942.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-1333",
+          "level": "error",
+          "message": {
+            "text": "Attacker-controlled regex pattern reaches new RegExp() and is executed against run text with no validation, enabling ReDoS (Regular Expression Denial of Service). Chain: POST /v1/checklists (packages/backend/src/api/v1/checklists.ts, checklists.post('/')) stores `data: FilterLogic` from ctx.request.body verbatim into the `checklist.data` column with zero schema validation (comment literally says 'TODO: full zod'). A checklist entry can be `{id:'regex', params:{regex:'<attacker pattern>', field:'output', type:'contains'}}`. Later, POST /v1/evaluations/run (packages/backend/src/api/v1/evaluations/index.ts, evaluations.post('/run')) reads that checklist's `data` as `checks`, builds `virtualRun` directly from the SAME request body's `input`/`output` fields, and calls `runChecksOnRun(virtualRun, checks)` (packages/backend/src/api/v1/evaluations/utils.ts:81, confirmed reachable_from_entry=true, hop_distance=1). Because the 'regex' check has an `evaluator` (not `.sql`), `hasNonSQLFilter` routes it through `checkRun` -> `runner.evaluator!(run, params)` (packages/backend/src/checks/runChecks.ts:98) which dispatches to the CHECK_RUNNERS 'regex' entry in packages/backend/src/checks/index.ts: `const re = new RegExp(regex); const has = re.test(lastMsg(run[field]))`. Both the evil regex AND the text it's matched against (`output`/`input`) are fully attacker-controlled in a single request, so a catastrophic-backtracking pattern (e.g. `(a+)+$`) with a crafted non-matching string will hang the Node.js event loop. A second, independently-confirmed trigger path exists via POST /v1/radars (packages/backend/src/api/v1/radars.ts, radars.post('/')) which stores `checks: any[]` equally unvalidated into `radar.checks`; the background job packages/backend/src/jobs/radar.ts (`runRadarChecksOnRun`) later calls `runChecksOnRun(run, checks, true)` (line 12, reachable_from_entry=true, hop_distance=1) which reaches the exact same `new RegExp(regex)` call (uid 3659ddc82e888cddad2a6d02f4f1412c3809d923, reachable_from_entry=true, hop_distance=1) against real logged run data.\n\nVerifier (CONFIRM): Independently re-derived the full source\u2192sink chain from the real source tree (not from the analyst's say-so):\n(1) packages/backend/src/api/v1/checklists.ts:33-52 `checklists.post(\"/\")` destructures `data` straight from `ctx.request.body` with only a type assertion (no zod/validation anywhere in the file's POST route) and inserts it verbatim as `checklist.data`.\n(2) packages/backend/src/api/v1/evaluations/index.ts:102-159 `evaluations.post(\"/run\")` reads `checklist`/`input`/`output` from the SAME request body, fetches the stored checklist by slug, sets `const checks = checklistData.data` (line 122), builds `virtualRun` whose `input`/`output` fields are the raw request body values (lines 124-146), and calls `runChecksOnRun(virtualRun, checks)` at line 153 \u2014 with zero sanitization of either the regex pattern or the text it's tested against.\n(3) packages/backend/src/checks/runChecks.ts: `hasNonSQLFilter` (lines 12-27) flags any check whose CHECK_RUNNERS entry has an `evaluator`; `checkRun` (lines 83-98) dispatches to `runner.evaluator!(run, params)` at line 98 for such checks.\n(4) packages/backend/src/checks/index.ts lines 95-113, the `regex` CHECK_RUNNERS entry: `const re = new RegExp(regex)` (line 100) then `re.test(lastMsg(run[field]))` (line 102) \u2014 both the pattern (`params.regex`) and the subject text (`run[field]`, i.e. attacker-supplied `output`/`input`) are fully attacker controlled within one authenticated request. A catastrophic-backtracking pattern (e.g. `(a+)+$`) against a crafted non-matching string will block Node's single-threaded event loop for the whole process (classic ReDoS, CWE-1333), impacting all tenants sharing that backend instance, not just the caller's own project.\nAlso verified the second independent trigger: packages/backend/src/api/v1/radars.ts:217-241 `radars.post(\"/\")` stores `checks: any[]` from the request body unvalidated into `radar.checks`; packages/backend/src/jobs/radar.ts:9-23 `runRadarChecksOnRun` reads `radar.checks` and calls `runChecksOnRun(run, checks, true)` at line 12, reaching the identical `new RegExp(regex)` sink against real logged run data from a background job (no request-time rate limit).\nGraph queries against scan_id 39391b6ee394d4f8ba76da9837645885da014f16 corroborate the sink's reachability: CpgCall uid 3659ddc82e888cddad2a6d02f4f1412c3809d923 (`new RegExp(regex)`, checks/index.ts:100) has reachable_from_entry=true, hop_distance=1, matching the analyst's citation exactly; the `runner.evaluator!(run, params)` call (runChecks.ts:98) is also reachable_from_entry=true, hop_distance=1. The backend Koa `.post()` route-handler methods themselves (checklists.ts/evaluations/index.ts/radars.ts) show reachable_from_entry=false in the graph, but this is the documented static-CPG gap for dynamically-registered Koa router callbacks (router.post(path, handler) isn't modeled as a static call edge) \u2014 confirmed these ARE real, mounted HTTP routes by reading packages/backend/src/api/v1/index.ts (radars/evaluations/checklists routers all mounted via `v1.use(...)`), so the graph's reachable_from_entry=false on the route lambdas does not undermine the finding; the sink itself being marked reachable_from_entry=true/hop_distance=1 (from runChecksOnRun's internal call graph) is the stronger and corroborating signal. No zod/schema validation exists on any of the three POST bodies (grep for zod/validate/schema across packages/backend/src/api/v1 found none applied to checklists.ts POST, evaluations/index.ts, or radars.ts)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/checks/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 95,
+                  "endLine": 113
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "CHECK_RUNNERS['regex'].evaluator",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "b35d8442f82033ec62db8e7cd8501f4d8a75eaee"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-942",
+          "level": "error",
+          "message": {
+            "text": "Koa CORS middleware (patchedCors / @koa/cors config) reflects the request's Origin header back as Access-Control-Allow-Origin ('ctx.get(\"Origin\") || \"*\"') while also setting Access-Control-Allow-Credentials: true. The expected control here -- a fixed allow-list of trusted origins -- is absent; any third-party site can issue credentialed cross-origin requests (with the caller's bearer token/cookies) and read the response, defeating the same-origin policy for the whole API.\n\nVerifier (CONFIRM): Verified directly against source and graph. packages/backend/src/utils/cors.ts defines patchedCors, which for OPTIONS requests sets `Access-Control-Allow-Origin: ctx.get(\"Origin\") || \"*\"` and `Access-Control-Allow-Credentials: true` (lines 7,9), and for all other methods delegates to @koa/cors with `origin(ctx){ return ctx.get(\"Origin\") || \"*\" }, credentials: true` (lines 17-24) \u2014 i.e. it reflects whatever Origin the caller sends and simultaneously allows credentialed cross-origin requests, with no allow-list check anywhere. This middleware is not dead code: packages/backend/src/index.ts:33 does `app.use(corsMiddleware)` globally, ahead of `authMiddleware`/routes, and the Orion graph confirms the calls inside patchedCors (lines 6-22) are `reachable_from_entry=true` at `hop_distance=1`. A repo-wide grep for helmet/CSP/X-Frame-Options/csrf/allowlist-style constants in the backend returned nothing, corroborating that no compensating origin-allow-list or other control exists. This is a genuine CWE-942 misconfiguration. One nuance I verified that tempers severity vs. the analyst's framing: the app's auth is pure Bearer-JWT stored in browser localStorage and attached manually via the `Authorization` header (packages/frontend/utils/fetcher.ts, auth/utils.ts) \u2014 there is no cookie-based session anywhere in the backend (`ctx.cookies`/Set-Cookie grep returned 0 hits) \u2014 so a malicious third-party page cannot have the browser *automatically* attach a victim's credential the way the classic cookie+CORS attack requires; exploiting the authenticated endpoints via this hole alone would still need the attacker to already possess the bearer token (e.g. via XSS) rather than relying purely on ambient browser credentials. The misconfiguration itself, and its applicability to any unauthenticated/public endpoints plus any future cookie-based auth, is still real and should be fixed with a strict origin allow-list."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/utils/cors.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 5,
+                  "endLine": 25
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "patchedCors",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "5d2308bcd1a8fbdb1bdc122f6fd6b12a277ce3df"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "projects.patch('/:projectId') updates the project's name using only the :projectId URL param, with no check that the project belongs to the caller's ctx.state.orgId. Any authenticated user from any org can rename an arbitrary other org's project just by guessing/enumerating a project id.\n\nVerifier (CONFIRM): Read the real source and traced the auth middleware myself. packages/backend/src/api/v1/projects/index.ts:91-106 defines `projects.patch(\"/:projectId\", ...)`, which destructures `projectId` only from `ctx.params` (the URL path param) and runs `update project set name = ${name} where id = ${projectId}` with no `org_id`/`ctx.state.orgId` predicate anywhere in the handler. This is an exact mirror of the sibling `projects.delete(\"/:projectId\")` handler's `projectId` source, but unlike `delete` (which at least queries by `org_id` for an unrelated count check) and `projects.post(\"/\")` (which always sets `orgId` on insert via `ctx.state`), the PATCH handler never reads `ctx.state.orgId` at all. I then checked the only org-scoping guard in the request pipeline: `authMiddleware` in packages/backend/src/api/v1/auth/utils.ts (applied globally via `app.use(authMiddleware)` in src/index.ts, before `v1.routes()`). That middleware sets `ctx.state.orgId` from the JWT and only validates org ownership of `ctx.state.projectId`, which it populates solely from `ctx.request.query.projectId` (the query string) or a bearer-token-as-UUID case for public routes (lines 82, 92, 102, 121) \u2014 it never inspects `ctx.params.projectId` (the route param used by the projects router). So for `PATCH /v1/projects/:projectId`, the only org check in the whole stack is skipped entirely: any authenticated user from any org, holding a valid JWT (so not from a public/unauthenticated route \u2014 `/v1/projects/*` is not in `publicRoutes`), can PATCH an arbitrary project id belonging to a different org and rename it. Graph query confirms the static CPG marks this handler (and its get/post/delete siblings in the same file) as `reachable_from_entry=false` uniformly \u2014 consistent with the documented limitation that koa-router `.verb()` arrow-function callbacks are under-linked by the static graph, not with the route actually being dead code (it is wired up live via `v1.use(projects.routes())` \u2192 `app.use(v1.routes())`)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/projects/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 91,
+                  "endLine": 106
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "projects.patch(\"/:projectId\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "7722afa62884014886483666c1ba1bd77a760100"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "projects.delete('/:projectId') only checks that the CALLER's own org (ctx.state.orgId) has more than one project before deleting; it never verifies that the target :projectId actually belongs to ctx.state.orgId. A user in Org A with >1 project can delete any other org's project by supplying its id.\n\nVerifier (CONFIRM): Read the real source directly: in packages/backend/src/api/v1/projects/index.ts the DELETE \"/:projectId\" handler (lines 70-89) takes `projectId` from ctx.params (attacker-controlled route param) and `orgId` from ctx.state (the caller's own org, set from their JWT in authMiddleware). It runs `select count(*)::int from project where org_id = ${orgId}` \u2014 counting the CALLER's own org's projects \u2014 and if that count > 1, runs `delete from project where id = ${projectId}` with NO `org_id` predicate at all. The count check and the delete operate on disjoint row sets: the former never establishes that `projectId` belongs to `orgId`. I also checked the auth middleware (api/v1/auth/utils.ts:81-138): it only validates project ownership when `ctx.state.projectId` is set, and that field is populated from `ctx.request.query.projectId` (line 82), NOT from the route's `ctx.params.projectId`. Since this DELETE route supplies projectId via the URL path param, ctx.state.projectId stays undefined and the ownership check at utils.ts:117-126 is skipped entirely \u2014 there is no other gate anywhere in the request path that ties the target project to the caller's org. Route is mounted via v1.use(projects.routes()) under prefix /v1 (api/v1/index.ts) and is not in the authMiddleware publicRoutes allowlist (auth/utils.ts:62-78), so it requires only a valid bearer token for ANY org, not special privilege. Net effect: any authenticated user whose own org has >1 project can delete an arbitrary project belonging to a different org by supplying that project's id \u2014 a cross-tenant IDOR on a destructive action. (Additional aggravating note: project.id is also used as the project's public API key \u2014 see projects/index.ts:53-57 \u2014 so target project ids are often discoverable via public-facing artifacts, lowering the bar to exploit further.) Graph query showed reachable_from_entry=false/hop_distance=-1 for every call in this handler, but that's the documented static-analysis blind spot for calls inside arrow-function callbacks passed as router handler arguments (e.g. projects.delete(path, asyncFn) never gets linked) \u2014 source and mount-chain confirm real HTTP reachability, so I do not weigh the false reachable_from_entry flag against the finding."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/projects/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 70,
+                  "endLine": 89
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "projects.delete(\"/:projectId\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "bc8f910bb8df709dec5ae3f4546536a75ee41871"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "versions.patch('/:id') (template_version) updates content/extra/testValues/isDraft for an arbitrary template_version id with no project ownership check at all -- unlike templates.patch('/:id') and templates.delete('/:id') in the sibling file which both filter by 'project_id = ${ctx.state.projectId}'. Any authenticated caller can overwrite any other project's prompt template content by id.\n\nVerifier (CONFIRM): Verified directly against source (not the analyst's claim). packages/backend/src/api/v1/templateVersions.ts:57-77 defines versions.patch(\"/:id\"), which runs `update template_version set content=..., extra=..., test_values=..., is_draft=... where id = ${ctx.params.id} returning *` \u2014 the WHERE clause only filters on the caller-supplied `id`; `ctx.state.projectId` never appears in this handler. By contrast, the sibling file templates.ts filters every mutating route by project: templates.delete(\"/:id\") (line 79: `delete from template where project_id = ${ctx.state.projectId} and id = ...`) and templates.patch(\"/:id\") (line 95: `update template set ... where project_id = ${ctx.state.projectId} and id = ...`). I also checked the auth layer (api/v1/auth/utils.ts authMiddleware, applied globally in src/index.ts before v1 routes): it requires a valid JWT bearer token for any non-public path (template_versions PATCH is not in the publicRoutes list, only `/v1/template_versions/latest` GET is), and it only validates project ownership `if (ctx.state.projectId)` is present as a query param and belongs to the caller's org \u2014 it never ties the authorization check to the `:id` path parameter used by this route. So any authenticated user of any org can PATCH /v1/template_versions/<arbitrary-id> and overwrite another project's template_version row with attacker-controlled content/extra/testValues/isDraft, with the full updated row echoed back. This is a textbook IDOR / missing object-level authorization (CWE-862). Graph query of CpgCall nodes in templateVersions.ts shows reachable_from_entry=false/hop_distance=-1 for every call in the file (and EntryPoint nodes list only named handler functions, not the anonymous arrow callbacks passed to router.patch/get/post), confirming this is the documented CPG limitation (arrow-function route handlers aren't linked to entry points) rather than evidence the route is actually unreachable \u2014 the route is demonstrably wired up and reachable via `v1.use(templateVersions.routes())` in index.ts and the global authMiddleware/app.use(v1.routes()) chain in src/index.ts."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/templateVersions.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 57,
+                  "endLine": 77
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "versions.patch(\"/:id\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "0a6d4523b95e00aa4fdf07744d4033861de988d3"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "versions.get('/:id') (template_version) fetches the full template_version row by id BEFORE any ownership check, then separately queries 'template where project_id = ... and id = version.templateId' only to attach a (possibly undefined) 'template' field. The version's own content/extra is placed in ctx.body regardless of whether the ownership query matched, so a caller from a different project still receives the full template_version content (an authorization bypass via incomplete check), and if the ownership query returns nothing the code additionally throws on 'version.extra' uncamel on an undefined row only in the no-row case -- in the row-exists case content leaks unconditionally.\n\nVerifier (CONFIRM): Read the live source at packages/backend/src/api/v1/templateVersions.ts:43-55. The handler `versions.get(\"/:id\", ...)` runs `select * from template_version where id = ${ctx.params.id}` with no project/org scoping whatsoever, then unconditionally does `ctx.body = { ...version, template }` where `template` comes from a *separate* query (`select * from template where project_id = ${ctx.state.projectId} and id = ${version.templateId}`) that is only used to attach an optional `template` field \u2014 its result (even if empty/undefined) never gates whether `version`'s own fields (content, extra, test_values, etc.) are returned. So the full template_version row is returned regardless of the caller's project.  I confirmed this route is actually mounted and reachable: it's registered via `v1.use(templateVersions.routes())` in packages/backend/src/api/v1/index.ts, and `authMiddleware` (packages/backend/src/api/v1/auth/utils.ts) only requires a valid JWT (any org/user) \u2014 `ctx.state.projectId` is taken from an optional query string param and, if present, is merely checked to belong to the caller's own org; it is never required to match the template_version being fetched, and this route doesn't even use it on the primary lookup. I also checked packages/db/init.sql:162-163: `template_version` uses `id serial primary key` \u2014 a plain sequential integer, not a UUID \u2014 so cross-tenant IDs are trivially enumerable (id=1,2,3,...), making the bypass practical, not merely theoretical. The CpgCall graph marks this entire file's calls (including the clearly-live `/latest` route) as `reachable_from_entry=false` and no EntryPoint node matches 'template' \u2014 this is the known static-graph gap for koa-router `.get()`/`.patch()` registrations, not evidence the route is dead; source-level wiring proves it is a live, authenticated API endpoint. The analyst's secondary remark (that `version.extra = unCamelObject(version.extra)` throws when no row matches the id) is also accurate for the case the *version* query misses \u2014 `version` would be undefined and assigning `.extra` on it throws \u2014 but that's a minor side detail; the core unconditional-leak claim is the confirmed finding."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/templateVersions.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 43,
+                  "endLine": 55
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "versions.get(\"/:id\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "796653e1404007165e9298f3019f0637d215bd0a"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "templates.post('/:id/versions') inserts a new template_version row with template_id = ctx.params.id taken directly from the URL, with no check that this template belongs to ctx.state.projectId -- unlike templates.get/patch/delete('/:id') in the same file which all filter by 'project_id = ${ctx.state.projectId}'. Any authenticated user can add arbitrary version content to any other project's template by guessing its id.\n\nVerifier (CONFIRM): templates.post('/:id/versions') inserts into template_version using ctx.params.id as template_id with no project_id scoping anywhere in the handler, unlike the sibling GET/PATCH/DELETE '/:id' handlers in the same file which all filter by `project_id = ${ctx.state.projectId}`. authMiddleware only verifies that the caller-supplied projectId belongs to the caller's own org; it never checks that the template id in the path belongs to that project. Any authenticated user from any org can therefore insert a new version row into a template owned by a different project/org. Severity is amplified because template.id and template_version.id are Postgres `serial` (sequential integers), not UUIDs, making target ids trivially enumerable."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/templates.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 113,
+                  "endLine": 131
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "templates.post(\"/:id/versions\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "83da300d2b95695e4f8beff775f9ac70bf9c868b"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "datasets.delete('/:id') deletes a dataset by id with no project ownership check at all, while the PATCH handler for the exact same route pattern (defined immediately above it in the same file) correctly scopes its UPDATE with 'and project_id = ${projectId}'. Any authenticated user (any valid project/org bearer token) can delete another project's dataset by id.\n\nVerifier (CONFIRM): Verified directly against the real source. In packages/backend/src/api/v1/datasets/index.ts, the PATCH handler for \"/:id\" (lines 96-109) correctly scopes its UPDATE with `where id = ${id} and project_id = ${projectId}` using ctx.state.projectId. The very next handler, DELETE \"/:id\" (lines 111-117), destructures only `id` from ctx.params and runs `await sql\\`delete from dataset where id = ${id}\\`` with zero project/org scoping \u2014 any valid id deletes that dataset regardless of owning project. Confirmed via graph query (CpgCall nodes at datasets/index.ts lines 111-116) that the call body matches source exactly, and via api/v1/index.ts that this router is mounted globally (v1.use(datasets.routes())) with no additional per-route ownership middleware. I additionally found the vulnerability is more severe than the analyst stated: src/index.ts applies authMiddleware (api/v1/auth/utils.ts) globally, and that middleware's `publicRoutes` array contains `new RegExp('/v1/datasets/.+')` (comment: \"getDataSets in SDKs\"). Because this regex matches ctx.path for ANY method including DELETE /v1/datasets/:id, the route is treated as public: if no bearer token is sent, or the bearer token is merely UUID-shaped, the middleware calls next() without any JWT verification or org/project membership check at all \u2014 so the DELETE endpoint is reachable fully unauthenticated, not just by \"any authenticated user\" as claimed. reachable_from_entry=false on these CpgCall nodes is the documented graph limitation for router.method('/:path', arrowFn) registrations (GET/POST/PATCH handlers in the same file show the identical false/-1 pattern despite being obviously live Koa routes), so it does not weigh against exploitability here \u2014 confirmed live by source and router-mounting evidence instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/datasets/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 111,
+                  "endLine": 117
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "datasets.delete(\"/:id\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "2c68e80f9c2165258f06dab528d0c5a6eb76a2a0"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "CRITICAL",
+            "security-severity": "9.5"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "All dataset-prompt and dataset-variation sub-resource routes (GET/PATCH/DELETE /prompts/:id, GET/DELETE /variations/:id, PATCH /variations/:variationId) operate purely on the URL id with no join/filter back to ctx.state.projectId, so any authenticated caller can read, modify or delete another project's prompt/variation rows by id -- contrast with the project-scoped dataset list/create routes ('datasets.get(\"/\")', 'datasets.post(\"/\")') in the same file.\n\nVerifier (CONFIRM): Read the real source (not just the graph) at packages/backend/src/api/v1/datasets/index.ts. All six prompt/variation sub-resource routes build their SQL solely from the URL param, with no project_id predicate and no join through the parent `dataset` row: GET /prompts/:id (149-163, queries `dataset_prompt where id=${id}` and `dataset_prompt_variation where prompt_id=${id}`), DELETE /prompts/:id (166-173, `delete from dataset_prompt where id=${id}` / `delete from dataset_prompt_variation where prompt_id=${id}`), PATCH /prompts/:id (176-186, `update dataset_prompt set messages=... where id=${id}`), GET /variations/:id (188-200, `select * from dataset_prompt_variation where id=${id}`), DELETE /variations/:id (202-208, `delete from dataset_prompt_variation where id=${id}`), PATCH /variations/:variationId (211-240, `update dataset_prompt_variation set ... where id=${variationId}`). This exactly matches the analyst's citations. By contrast the sibling routes in the same file correctly scope by project: GET /datasets/ (line 17, `where project_id=${projectId}`) and PATCH /datasets/:id (line 105, `where id=${id} and project_id=${projectId}`), and utils.ts's getDatasetById/getDatasetBySlug join `dataset_prompt`/`dataset_prompt_variation` back to `dataset.project_id` (utils.ts:4-21,24-45) -- proving the codebase's established pattern for these child tables is to scope via the dataset's project_id, which the six routes above skip entirely. Checked the graph: every route handler in this file (including the correctly-scoped ones) shows reachable_from_entry=false and no EntryPoint targets koa-router .get/.post/.patch/.delete registrations at all (EntryPoint sample only lists named function handlers) -- confirming this is a uniform static-analysis blind spot for router-style registration, not a real signal that these routes are unreachable; they are live, mounted routes (v1/index.ts:39 `v1.use(datasets.routes())`, src/index.ts:34 `app.use(authMiddleware)` then the v1 router). I additionally found the vulnerability is worse than claimed: auth/utils.ts's authMiddleware publicRoutes list (line 76) includes `new RegExp('/v1/datasets/.+')`, matching all of these sub-resource paths, so they require NO authentication at all (a bearer token, if present and a bare UUID, is merely substituted as projectId with no ownership/JWT verification) -- so the exposure is not just cross-project IDOR for authenticated users but fully unauthenticated read/modify/delete of any tenant's prompt and variation rows."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/datasets/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 149,
+                  "endLine": 240
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "datasets.delete/patch/get (\"/prompts/:id\", \"/variations/:id\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "11072afb33288f52090ed9d61f2201e9bb595a5d"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "CRITICAL",
+            "security-severity": "9.5"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "evaluations.get('/result/:evaluationId') returns all evaluation_result rows (joined with prompt/variation content) for an arbitrary evaluationId with no project ownership check, unlike the sibling evaluations.get('/:id') route in the same file which filters by 'and project_id = ${projectId}'. Any authenticated caller can read another project's evaluation results (including prompt content) by guessing the evaluation id.\n\nVerifier (CONFIRM): Verified against the real source: packages/backend/src/api/v1/evaluations/index.ts line 72-89 defines `evaluations.get(\"/result/:evaluationId\", ...)` which destructures only `evaluationId` from `ctx.params` (line 73) and runs `select *, p.id as prompt_id, p.messages as prompt_content ... from evaluation_result er left join dataset_prompt p ... left join dataset_prompt_variation pv ... where er.evaluation_id = ${evaluationId}` (lines 75-86) with no `project_id` predicate anywhere, then returns the raw rows as `ctx.body` (line 88). This contrasts directly with the sibling `evaluations.get(\"/:id\", ...)` handler at lines 57-70 in the same file, which reads `ctx.state.projectId` (line 58) and filters `where id = ${id} and project_id = ${projectId}` (line 62). I confirmed via the code graph (CpgCall nodes filtered to file_path='packages/backend/src/api/v1/evaluations/index.ts') that these are the exact statements present at those lines, matching the analyst's citation verbatim. I further checked the authorization layer: the router is mounted globally via `v1.use(evaluations.routes())` in packages/backend/src/api/v1/index.ts, and the global `authMiddleware` (packages/backend/src/api/v1/auth/utils.ts) only requires a valid JWT bearer token for any user in any org \u2014 `/v1/evaluations/result/:evaluationId` is not in the `publicRoutes` allowlist but also has no project-ownership enforcement baked into the middleware (it only validates ctx.state.projectId, which the result-route handler never reads or uses). Therefore any authenticated user of any project/org can call this endpoint with another project's evaluationId (if known/guessed) and receive that project's evaluation_result rows plus joined prompt content \u2014 a textbook IDOR / missing authorization check (CWE-862), exactly as the analyst described. The graph marks these calls reachable_from_entry=false, but this is the known static under-approximation for Koa router method registrations (`router.get(path, handler)` callbacks aren't linked to entrypoints in this CPG) \u2014 the source and routing wire-up prove it is a live, externally-reachable HTTP route."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/evaluations/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 72,
+                  "endLine": 89
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "evaluations.get(\"/result/:evaluationId\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "2017b30f9b97aad2ae938d2daad1539757d5fcb4"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "external-users GET '/:id' returns a full external_user row by id with no org/project ownership filter, unlike the sibling list route 'users.get(\"/\")' in the same file which scopes by ctx.state.projectId. Any authenticated caller from any project can fetch another project's end-user PII (name/email/etc.) by guessing an external_user id.\n\nVerifier (CONFIRM): Re-derived directly from source: external-users.ts GET \"/:id\" queries `select * from external_user where id = ${id} limit 1` with no project_id/org scoping and returns the full row, while the sibling GET \"/\" in the same file and GET \"/:id\" in templates.ts (same repo) both correctly scope by `project_id`, establishing the intended pattern this route breaks. The global authMiddleware (src/index.ts + api/v1/auth/utils.ts) only requires a valid JWT and checks project ownership solely when a `projectId` query param is explicitly present \u2014 this route never reads one \u2014 so any authenticated user from any org/project can call it. external_user.id is a small sequential serial primary key (init.sql), making ids trivially enumerable, and the row contains project_id, external_id, props (jsonb, app-defined PII) and last_seen. Graph reachable_from_entry=false for every call in the file (even the unambiguously-live sibling GET \"/\") confirms this is a static-linking artifact of Koa arrow-handler router.get() calls, not evidence of non-exploitability, per the scan's own caveat."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/external-users.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 70,
+                  "endLine": 77
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "users.get(\"/:id\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "b47e6dbe25812a8f14f930d104781e2d5d7782c6"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-693",
+          "level": "error",
+          "message": {
+            "text": "No security-headers middleware (helmet, Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, etc.) is present anywhere in the backend -- the only header-setting code found is the CORS middleware. For an API that also redirects browsers (e.g. ctx.redirect to NEXT_PUBLIC_APP_URL in the email-verification route) and serves JSON that could be rendered, the absence of these baseline response-hardening headers is a missing control across the whole app.\n\nVerifier (CONFIRM): Independently verified via source review and graph query. The Koa middleware stack in packages/backend/src/index.ts (lines 28-37) registers requestHandler, tracingMiddleWare, errorMiddleware, logger(), corsMiddleware, authMiddleware, ratelimit, bodyParser(), setDefaultBody \u2014 no helmet/security-headers middleware anywhere. utils/cors.ts is the only place that calls ctx.set(...) for response headers, and it only sets CORS headers (Access-Control-Allow-Origin/Methods/Credentials/Headers). A scoped Cypher query for CpgCall.code containing helmet/X-Frame/Content-Security-Policy/X-Content-Type-Options/Strict-Transport-Security returned 0 rows, matching the analyst's claim. A grep of packages/backend/package.json for helmet/csp/frameguard/hsts found nothing, confirming no such dependency is even installed. A repo-wide grep for any other ctx.set/setHeader call in the backend found only CORS headers and two Content-Type/Content-Disposition headers for CSV/JSONL file exports (runs/export.ts) \u2014 nothing security-hardening related. I also confirmed the cited redirect: packages/backend/src/api/v1/users.ts:123 does `ctx.redirect(process.env.NEXT_PUBLIC_APP_URL!)` in the email-verification route, as the analyst described (the target is an env var, not user input, so it is not itself an open-redirect, but it does show the API responds to browsers, not just API clients). I found no HTML-rendering responses anywhere in the backend (grep for text/html / ctx.type found none), so this is a pure JSON API plus a few redirects \u2014 which caps real-world impact of the missing headers (no XSS/clickjacking sink was found to combine with the missing CSP/X-Frame-Options), but the control gap itself is real and verified, not a graph artifact."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 23,
+                  "endLine": 37
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "89ad097ddbfb06a3c42eedec9b8290794aa53e9b"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-863",
+          "level": "error",
+          "message": {
+            "text": "In authMiddleware (packages/backend/src/api/v1/auth/utils.ts), a bearer token on a 'public' route is first checked against validateUUID() before being trusted as ctx.state.projectId (lines 89-93), but immediately below it a second, redundant `if (isPublicRoute)` block (lines 95-102) re-extracts the same bearer token and sets ctx.state.projectId = bearerToken whenever it is merely `typeof bearerToken === 'string'` -- with no UUID/format validation at all. Any request to a public route (matched via the publicRoutes list, e.g. the regexes `/v1/datasets/.+`, `/v1/runs/.+/public`, `/v1/runs/.+/feedback`, or string routes like `/v1/runs/ingest`, `/v1/template_versions/latest`) whose Authorization header is a non-UUID string falls through the first guard (since `!bearerToken` is false and `validateUUID(bearerToken)` is false) and lands in the second block, which accepts the raw token as the project scope unchecked. This looks like a validation fix (the UUID check) that was added in one branch while the old, unguarded code path was left intact directly beneath it -- a classic half-reverted protection. Downstream handlers (e.g. packages/backend/src/api/v1/templates.ts, templateVersions.ts) use ctx.state.projectId directly as the tenant-scoping key in SQL queries, so an attacker who can reach any publicRoutes-matched path can set projectId to an arbitrary string and potentially access/mutate data belonging to another project/org.\n\nVerifier (CONFIRM): Re-derived independently from the real source (not the analyst's say-so). Read packages/backend/src/api/v1/auth/utils.ts directly: lines 88-106 contain exactly the two blocks described -- `if (isPublicRoute && (!bearerToken || validateUUID(bearerToken)))` (90-96), which only sets ctx.state.projectId = bearerToken when validateUUID() passes (line 91-92), followed immediately by a second `if (isPublicRoute)` (98-106) that re-reads the same header and sets ctx.state.projectId = bearerToken whenever `typeof bearerToken === \"string\"`, with zero format check. Traced the control flow by hand: when isPublicRoute=true and bearerToken is a non-empty, non-UUID string, the first condition (90) evaluates isPublicRoute(true) && (false || false) = false, so the block is skipped; isPublicRoute is still true, so the second block (98) unconditionally executes and assigns the raw attacker string to ctx.state.projectId. Confirmed validateUUID in packages/backend/src/utils/misc.ts:20-24 is a real zod `.uuid()` format check. Confirmed reachability via the code graph (scan_id 39391b6ee394d4f8ba76da9837645885da014f16): CpgMethod authMiddleware has reachable_from_entry=true, hop_distance=0; the specific sink call at line 102 (`ctx.state.projectId = bearerToken`, uid 98f80f4a4fa73d35f0ac105c66210427ae129fab) has reachable_from_entry=true, hop_distance=1 -- this is live, reachable code, not dead code. Confirmed downstream sinks in templates.ts (lines 15, 71, 79, 95) and templateVersions.ts (line 51) use ctx.state.projectId directly as `project_id = ${ctx.state.projectId}` in parameterized SQL, and that `/v1/template_versions/latest` is itself in the publicRoutes list, so this path is reachable from a public, unauthenticated route. However, I also checked packages/db/init.sql and every project_id column referenced by these sinks (project.id, template.project_id, dataset.project_id, run.project_id, external_user.project_id, log.project_id) is declared `uuid` type. Because the `postgres` driver (packages/backend/src/utils/db.ts) binds these as inferred/untyped parameters against a uuid column, a non-UUID garbage string reaching these queries would fail Postgres's UUID parse at bind time (invalid input syntax for type uuid) rather than successfully matching or mutating another tenant's row -- so the specific \"attacker sets projectId to an arbitrary string and reads/writes another org's data\" narrative is not substantiated by any sink I could find; the demonstrated effect of this bug is an unvalidated value reaching a security-relevant SQL parameter and most likely causing a query error for malformed tokens, not a proven cross-tenant data breach. The underlying flaw (inconsistent/redundant validation letting a security-relevant state variable bypass its intended format check) is real and reachable, so I confirm the defect, but at reduced severity versus the analyst's implied HIGH/CRITICAL, since no sink I inspected demonstrates actual unauthorized data exposure from this specific bypass (a well-formed UUID bypasses the format check too, but that is the pre-existing, apparently intentional \"project id acts as public key\" design of these public routes, not something newly introduced by the redundant block)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/auth/utils.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 90,
+                  "endLine": 106
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "authMiddleware",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "3e8cc159905ac33ea528329d16746533e25ae4de"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-287",
+          "level": "error",
+          "message": {
+            "text": "Email-ownership verification can be fully disabled via the `SKIP_EMAIL_VERIFY` environment flag: in the `/auth/signup` handler (packages/backend/src/api/v1/auth/index.ts, line 62) a newly-created account's `verified` field is set from `process.env.SKIP_EMAIL_VERIFY ? true : false`, and `sendVerifyEmail` (packages/backend/src/utils/emails.ts, line 9-10) early-returns without sending any verification email whenever the same flag is set: `if (process.env.SKIP_EMAIL_VERIFY) { return }`. If this flag is left set (e.g. carried over from a dev/test environment into production), every new signup is marked verified without ever proving control of the email address, undermining the email-verification control. Confidence is lower because the only enforcement of `verified` found in this sweep is a frontend UI nag banner (packages/frontend/components/Layout/Navbar.tsx), not a hard backend authorization gate, so the blast radius of this bypass is unclear without deeper access-control analysis.\n\nVerifier (CONFIRM): Re-derived directly from source (not from the analyst's claim). In packages/backend/src/api/v1/auth/index.ts, `auth.post(\"/signup\", ...)` (line 14) is mounted live and unauthenticated via `app.use(auth.routes())` in packages/backend/src/index.ts:42 \u2014 this is a real, reachable public endpoint, not a hypothetical. Inside the \"signup\" branch, the new account object built at lines 56-63 sets `verified: process.env.SKIP_EMAIL_VERIFY ? true : false` (line 62) \u2014 a self-asserted \"verified\" flag with zero proof of email ownership whenever the env var is truthy. `sendVerifyEmail` in packages/backend/src/utils/emails.ts lines 9-12 independently early-returns and never sends the confirmation email under the same condition, so the bypass is total (no email sent, account marked verified). I confirmed via grep across the whole backend that `verified` is never used as an access-control gate anywhere outside the signup/verify-email code itself (packages/backend/src/api/v1/users.ts only reads it back for display and for the already-verified short-circuit in `/users/verify-email`; packages/backend/src/api/v1/orgs.ts only selects the column) and the only consumer outside the backend is the frontend nag banner (Navbar.tsx:125) \u2014 matching the analyst's \"unclear blast radius\" caveat. I found two things the analyst did not: (1) .env.example ships `SKIP_EMAIL_VERIFY=true` by default with the comment \"Set to false to enable email verification\" \u2014 but since process.env values are always strings and any non-empty string is truthy in JS, setting it to the literal string \"false\" does NOT disable the bypass (only unsetting/deleting the var does) \u2014 this is a real footgun that makes the misconfiguration more likely to survive into production than the comment implies; and (2) the \"join\" signup branch (line 124) sets `verified: true` unconditionally regardless of the flag, confirming `verified` was never treated as a hard security boundary in this codebase even by its own authors. Graph query confirmed both cited CpgCall nodes exist with the exact code/line (uid 32f9690e..., line 62; uid 24c9e4d1..., line 9) but `reachable_from_entry=false` for both \u2014 I attribute this to the known graph gap for calls nested inside arrow-function arguments passed to router methods (e.g. `auth.post(\"/signup\", async (ctx) => {...})`), since no EntryPoint/ENTERS_AT edge exists for this file at all in the graph, yet the source and the app bootstrap unambiguously prove it is a live mounted route. I down-weight severity relative to a hard auth-bypass because no backend code was found that denies unverified accounts any capability \u2014 the practical impact is limited to defeating the \"prove you own this email\" trust signal (enabling email squatting/impersonation and disabling the verification email) rather than a direct privilege escalation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/auth/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 56,
+                  "endLine": 62
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "auth.post(\"/signup\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "27d465c0a565dcc76a24bceda1ae711617666c62"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1333",
+          "level": "error",
+          "message": {
+            "text": "In the LLM-run 'checks' evaluation engine, the 'regex' check type builds a RegExp directly from a fully attacker-supplied pattern string (params.regex) with no validation, size limit, or safe-regex guard, then runs it with .test()/.match() against run message content inside the reachable EntryPoint method `evaluator` (packages/backend/src/checks/index.ts). Because the attacker controls the ENTIRE pattern (not just a fixed literal), they can submit a catastrophic-backtracking pattern (e.g. `(a+)+$`) as a saved check/radar filter and trigger a Regular Expression Denial of Service (ReDoS) that blocks the Node.js event loop whenever that check runs against any matching run text -- and since these checks can be persisted as recurring 'Radar' jobs (packages/backend/src/jobs/radar.ts calls runRadarChecksOnRun -> runChecksOnRun -> evaluator), the DoS can repeat automatically against the whole dataset.\n\nVerifier (CONFIRM): Verified end-to-end in source (not graph alone). The 'regex' CHECK_RUNNERS entry builds `new RegExp(regex)` from `params.regex` with zero validation/size-limit/safe-regex guard, then runs `.test()`/`.match()` on it (checks/index.ts:96-113). `params` reaches here via checks/runChecks.ts:83-98 (`checkRun` -> `runner.evaluator!(run, params)`), called from `runChecksOnRun`. Two independent attacker-controlled persistence paths feed this: (1) `POST /v1/radars` (api/v1/radars.ts:217-241) stores an unvalidated `checks` array from the request body as `radar.checks`; the always-running background loop `runRadarJob`/`radarJob` (jobs/radar.ts:46-105, started from src/radar.ts) repeatedly calls `runRadarChecksOnRun` -> `runChecksOnRun` against batches of up to 300 runs, so a saved catastrophic-backtracking pattern (e.g. `(a+)+$`) re-triggers automatically and repeatedly. (2) `POST /v1/checklists` (api/v1/checklists.ts:33-52) stores an unvalidated `data` (FilterLogic) blob; `POST /v1/evaluations/run` (api/v1/evaluations/index.ts:102-159) loads that data and calls `runChecksOnRun` SYNCHRONOUSLY inside the main API request handler, making this directly, synchronously reachable from an authenticated HTTP request, not just a side job. A repo-wide grep confirms the only dynamic, fully-attacker-supplied `new RegExp()` call in the backend is this one; all others are fixed literals, and no safe-regex/timeout wrapper exists anywhere. The analyst's graph-derived claim that these calls belong to a CpgMethod 'evaluator' at line 471 is itself incorrect -- line 471 is the unrelated 'toxicity' evaluator; the CPG appears to collapse multiple same-named arrow/async 'evaluator' functions into one mislabeled symbol. This graph artifact doesn't undermine the finding since I verified the real code and full data-flow directly from source."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/checks/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 96,
+                  "endLine": 113
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "evaluator",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "087cb7d379c68a0730f9bed9f7b5cad15d00ac14"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

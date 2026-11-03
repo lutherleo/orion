@@ -1,0 +1,424 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1104",
+              "name": "CWE1104",
+              "shortDescription": {
+                "text": "CWE-1104"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1104"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1104.html"
+            },
+            {
+              "id": "CWE-208",
+              "name": "CWE208",
+              "shortDescription": {
+                "text": "CWE-208"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-208"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/208.html"
+            },
+            {
+              "id": "CWE-345",
+              "name": "CWE345",
+              "shortDescription": {
+                "text": "CWE-345"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-345"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/345.html"
+            },
+            {
+              "id": "CWE-347",
+              "name": "CWE347",
+              "shortDescription": {
+                "text": "CWE-347"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-347"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/347.html"
+            },
+            {
+              "id": "CWE-937",
+              "name": "CWE937",
+              "shortDescription": {
+                "text": "CWE-937"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-937"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/937.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-208",
+          "level": "error",
+          "message": {
+            "text": "jose/jwe.py:_decrypt_and_auth verifies the JWE Authenticated-Encryption (CBC+HMAC) auth tag with a plain Python `!=` comparison instead of a constant-time comparison, unlike the equivalent HMAC-signature check elsewhere in the same codebase (jose/backends/native.py uses hmac.compare_digest). This is a missing timing-safe-comparison control on a security-critical MAC verification.\n\nVerifier (CONFIRM): Verified directly in source: jose/jwe.py's _decrypt_and_auth (def at line 215) computes the expected CBC+HMAC authentication tag via _auth_tag(...) HMAC (line 239) and then validates it at line 247 with a plain Python `if auth_tag != auth_tag_check:` \u2014 a bytes `!=` comparison, which in CPython short-circuits on length mismatch and on the first differing byte, leaking timing information about how many leading bytes matched. By contrast, jose/backends/native.py:69 performs the equivalent HMAC signature check correctly with `hmac.compare_digest(sig, self.sign(msg))`, confirming the safe pattern is known/used elsewhere in this codebase but omitted for the JWE auth-tag check. This logic only matters for the CBC+HMAC path (ALGORITHMS.HMAC_AUTH_TAG); for GCM, auth_tag_check is just set equal to auth_tag (line 242) since GCM's AEAD tag check happens inside encryption_key.decrypt, so the vulnerable branch is specifically the CBC+HMAC verification the lead describes. Reachability is also confirmed, not just claimed: the public API `decrypt()` (jose/jwe.py, an EntryPoint of kind 'handler', reachable_from_entry=true) calls `_decrypt_and_auth` at line 185, and the graph shows the line-247 `<operator>.notEquals` call itself has reachable_from_entry=true, hop_distance=1 \u2014 i.e. this is on the live path of the library's primary JWE-decrypt entry point, not a dead branch."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jwe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 247,
+                  "endLine": 248
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_decrypt_and_auth",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "7da55daa8c3536fbb8346d247ae12f8ef9ad9fc8"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-347",
+          "level": "error",
+          "message": {
+            "text": "JWS signature verification does not bind the declared `alg` header (fully attacker-controlled, taken from the untrusted token) to the actual type/intent of the key material supplied by the caller. jws.py:_sig_matches_keys calls jwk.construct(key, alg) for any `key` that is not already a jose Key instance, and jwk.construct (jose/jwk.py lines 63-79) picks the Key class purely from the `alg` string via get_key(), with no check that raw key bytes/PEM/dict actually correspond to that algorithm family. Combined with _verify_signature only enforcing an algorithm whitelist when the caller explicitly supplies `algorithms` (`algorithms is not None and alg not in algorithms` at line 258 \u2014 skipped entirely when algorithms is None/omitted), this is the classic JWT 'algorithm confusion' gap: a caller who stores an RSA/EC public key as raw PEM/dict and does not pass a restrictive `algorithms` allow-list can have an attacker-forged HS256 token (using the public PEM bytes as the HMAC secret) accepted as valid.\n\nVerifier (CONFIRM): Read jose/jws.py and jose/jwk.py directly and reproduced the analyst's mechanism exactly: `_verify_signature` (jws.py:253-268) only rejects a disallowed `alg` when the caller explicitly passes `algorithms` (\"algorithms is not None and alg not in algorithms\" at line 258) \u2014 if `algorithms` is None/omitted (which is the default for both `jws.verify`'s signature and `jwt.decode(token, key, algorithms=None, ...)` in jwt.py:59/145), that check is skipped entirely. It then calls `_sig_matches_keys(keys, signing_input, signature, alg)` (line 263) with `alg` taken verbatim, attacker-controlled, from the unverified header (line 254: `alg = header.get(\"alg\")`). `_sig_matches_keys` (jws.py:209-218) does `jwk.construct(key, alg)` (line 212) for any key that isn't already a `Key` instance, and `jwk.construct` (jwk.py:63-79) picks the Key subclass purely via `get_key(algorithm)` (line 76) and instantiates it (line 79) with no check that the supplied key material actually matches that algorithm family \u2014 i.e. nothing binds the header's claimed `alg` to the real type of the caller-supplied key. This is a verified textbook JWT \"algorithm confusion\" design gap, not merely a theoretical reading of the code: a confirmed scan_id-scoped Cypher query shows every line in this chain (254-264 in `_verify_signature`, 209-218 in `_sig_matches_keys`) has `reachable_from_entry=true`, `hop_distance=1`. I also checked for mitigations the analyst didn't mention: `HMACKey.__init__` in both backends (native.py:39-50, cryptography_backend.py:558-569) does block raw RSA-PEM-public/x509-cert/\"ssh-rsa\" strings from being used as an HMAC secret, and dict-shaped JWKs are blocked unless `kty==\"oct\"` \u2014 so the classic \"feed the RSA PEM public key in as the HS256 secret\" case is explicitly guarded in this codebase. However that blocklist is incomplete: it does not cover OpenSSH-wire-format EC public keys (e.g. \"ecdsa-sha2-nistp256 AAAA...\") or ssh-ed25519 strings, nor raw DER bytes \u2014 so the confusion attack is still live whenever a caller's key is in one of those uncovered forms and `algorithms` is omitted. This matches the installed version (jose/__init__.py: `__version__ = \"3.3.0\"`), which is the exact version range affected by the published python-jose algorithm-confusion advisory for this gap. Net: the design flaw is real, confirmed in source and graph, and remains exploitable in concrete, non-hypothetical scenarios \u2014 not fully closed by the existing partial guard."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jws.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 209,
+                  "endLine": 268
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_verify_signature",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "522a0c1e450d7b49c4730eee551eaff8962aa0a2"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-347",
+          "level": "error",
+          "message": {
+            "text": "The same missing algorithm/key-type binding exists on the JWE decryption path: jose/jwe.py decrypt() builds the content-encryption/key-wrap key via `jwk.construct(key, alg)` at line 108 using the attacker-controlled `alg` header value from the untrusted JWE token, with no check that the caller-supplied `key` object was intended for that algorithm (e.g. an attacker could flip the header's alg from an asymmetric key-wrap algorithm to 'dir' to force the server's key bytes to be reinterpreted directly as the content-encryption key).\n\nVerifier (CONFIRM): Verified directly against jose/jwe.py source (not just graph claims). decrypt() reads `alg = header[\"alg\"]` (line 97) straight from the attacker-supplied/untrusted JWE header, validates it only against the library-wide `ALGORITHMS.SUPPORTED` set (line 99) \u2014 not against any caller-specified allowlist or any property of the `key` object the caller passed in \u2014 and then immediately does `key = jwk.construct(key, alg)` (line 108), letting the untrusted `alg` value pick which Key subclass (DIRKey/AESKey/RSAKey/HMACKey/...) wraps the caller's raw key material. If `alg == ALGORITHMS.DIR` (line 127), the code skips any unwrap step and uses `_get_key_bytes_from_key(key)` (line 138) to feed the caller's raw key bytes directly in as the content-encryption key \u2014 confirmed in backends/base.py's DIRKey, whose constructor just does `self._key = ensure_binary(key_data)` with no type/algorithm compatibility check at all. This is a real, unmitigated gap: I compared it to jose/jws.py in the same codebase, where the equivalent signature-verification path (`jws.verify`/`jws._verify_signature`, lines 52-77/253-259) takes a mandatory `algorithms` allowlist and rejects any `alg` not in it \u2014 the documented fix pattern for the library's own JWS algorithm-confusion history (CVE-2024-33663-class issue). `jwe.decrypt` has no such allowlist param and `jwt.py` only wires the allowlist through to `jws.verify`, never to `jwe`. Graph query confirms every token on this path (lines 97, 99, 108, 127) is `reachable_from_entry=true` with `jwe.decrypt` itself registered as a reachable EntryPoint handler. Exploitability still depends on how an embedding application uses jwe.decrypt (e.g., reusing one key across algorithms, or passing asymmetric key material that could coerce into a usable symmetric CEK) \u2014 the analyst's own LOW confidence and my inability to prove a concrete forged-plaintext/confidentiality-bypass chain without a specific calling application reflects that conditionality \u2014 but the structural defect (attacker-controlled alg header drives key-type reinterpretation with zero binding check) is real, present, and reachable, so I confirm the finding at reduced severity rather than reject or stay inconclusive."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jwe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 97,
+                  "endLine": 138
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "decrypt",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "525b0ce601183fd577624fbf17694b57d9b2ba28"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-208",
+          "level": "error",
+          "message": {
+            "text": "jose/jwt.py:_validate_at_hash compares the token's `at_hash` claim against the locally computed expected hash with a plain `!=` rather than a constant-time comparison, a smaller-scale instance of the same missing-timing-safe-comparison pattern found in the JWE auth-tag check.\n\nVerifier (CONFIRM): Verified directly against source: jose/jwt.py's _validate_at_hash computes expected_hash = calculate_at_hash(access_token, ALGORITHMS.HASHES[algorithm]) (line 452) and then checks `if claims[\"at_hash\"] != expected_hash:` (line 457), raising JWTClaimsError at line 458. Both expected_hash and claims[\"at_hash\"] are plain Python str objects, and `!=` on str performs a short-circuiting, length/prefix-dependent comparison -- not constant-time. This is a real inconsistency with the rest of the codebase: jose/backends/native.py:69 correctly uses `hmac.compare_digest(sig, self.sign(msg))` for HMAC signature verification, showing the project knows to use constant-time comparison for security-sensitive equality checks but did not apply it here. Graph confirms the call `claims[\"at_hash\"] != expected_hash` (uid 331d2690a550822fa95a1ca02d8b6b7638d708b6) has reachable_from_entry=true, hop_distance=1, and is reached from EntryPoint jose/jwt.py:<module>.decode (decode() calls jws.verify() then _validate_claims() -> _validate_at_hash() when verify_at_hash is set and access_token is supplied). However, exploitability is limited: decode() verifies the JWS signature (line 145) before this check is ever reached, so an attacker without the signing key cannot cheaply generate the many distinct validly-signed tokens needed to probe the timing oracle byte-by-byte, and expected_hash is a one-way SHA-2 hash (not a MAC/secret), so even a perfect timing oracle wouldn't let an attacker forge a matching access_token without a hash preimage. This is a genuine but minor info-leak pattern (CWE-208), matching the analyst's own LOW-confidence rating; I'm confirming the code pattern exists exactly as cited, with low practical severity."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jwt.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 457,
+                  "endLine": 458
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_validate_at_hash",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "7ca3200e72133b43ff75bb36ce180f52c09986c5"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-345",
+          "level": "error",
+          "message": {
+            "text": "No code anywhere in the codebase implements the JWS/JWE 'crit' (critical header parameter) extension check required by RFC 7515 \u00a74.1.11 / RFC 7516 \u2014 an implementation MUST reject a JOSE object that declares a 'crit' header naming an extension it does not understand. This control is entirely absent, so jws.py/jwe.py will silently process tokens carrying unrecognized critical header extensions instead of rejecting them.\n\nVerifier (CONFIRM): Independently verified by reading the full source: jose/jws.py (all 269 lines) never references 'crit' at all \u2014 sign(), verify()/_verify_signature() (lines 253-269) only check the 'alg' header and never inspect or reject on any other header field, let alone a 'crit' list naming unsupported extensions. jose/jwe.py's decrypt() (lines 60-105) contains an RFC-7516-derived comment at lines 88-92 stating the implementation \"must... process all fields... required by... the 'crit' Header Parameter\", but the code immediately following only extracts and checks 'alg'/'enc' \u2014 no crit-array read, no lookup against a supported-extensions set, no rejection path. jose/jwt.py decode() (lines 144-168) calls jws.verify() and jws.get_unverified_header() but likewise does zero crit-related validation; it only validates alg + registered claims (exp/aud/iss/etc.). A codebase-wide Cypher query for any CpgCall whose code contains 'crit' returned 0 rows, matching the analyst's own finding. So the control described by RFC 7515 \u00a74.1.11 / RFC 7516 is genuinely and completely absent \u2014 a JOSE object with e.g. {\"crit\":[\"someExt\"]} naming an extension this library doesn't implement will be processed/verified normally rather than rejected. Reachability: jws.verify and jwe.decrypt are both reachable_from_entry=true with hop_distance=0 in the graph (they are the library's public API), so any caller feeding attacker-controlled tokens into jwt.decode/jws.verify/jwe.decrypt hits this gap directly. Severity is kept LOW because this is a spec-conformance/defense-in-depth gap rather than a demonstrated direct auth-bypass: the library implements no crit-dependent extensions itself (no x5c/jku/b64-unencoded-payload handling), so there is no concrete extension today whose semantics get silently skipped to produce a signature-verification bypass; impact would materialize only if/when an application-specific or future JOSE extension relies on 'crit' being enforced."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jws.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 253,
+                  "endLine": 269
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "d7b1ad894123ed87209b25a44e19bdec31497aa4"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-937",
+          "level": "error",
+          "message": {
+            "text": "Declared dependency ecdsa with version constraint \"!= 0.15\" (i.e. any other version is accepted) is the python-ecdsa package, which upstream has acknowledged is NOT resistant to the Minerva timing side-channel attack against ECDSA signing/verification (CVE-2024-23342). The version spec only excludes 0.15 and does not pin to a patched/mitigated release, so a vulnerable version can be installed. This is a components-with-known-vulnerabilities issue (CWE-937/CWE-208) independent of any request flow, consistent with jose/backends/ecdsa_backend.py using this library for signature operations.\n\nVerifier (CONFIRM): Verified independently from source and graph. (1) setup.cfg:36 (`install_requires = ecdsa != 0.15 ...`) and requirements.txt:3 (`ecdsa != 0.15`) both show the declared constraint only excludes version 0.15 and does not pin a minimum/patched version \u2014 matching the graph's Dependency node exactly. (2) jose/backends/ecdsa_backend.py genuinely uses the PyPI `ecdsa` (python-ecdsa) package: it does `import ecdsa` and uses its real API (ecdsa.SigningKey/VerifyingKey, ecdsa.curves.NIST256p/384p/521p, ecdsa.util.sigencode_string) to implement sign() (lines 98-101) and verify() (lines 103-109) for ES256/384/512. (3) This backend is not a dead/test-only file \u2014 jose/backends/__init__.py:17-20 wires `ECDSAECKey` from ecdsa_backend as the fallback `ECKey` implementation whenever the optional `cryptography` package isn't importable, so the vulnerable library is on a real signing/verification code path, not merely declared. (4) CVE-2024-23342 (GHSA-wj6h-64fc-37mp, the \"Minerva\" timing side-channel) is a real, published advisory against python-ecdsa stating the library is not constant-time and the maintainers have not released \u2014 and do not plan to release \u2014 a code fix, since it would require a ground-up rewrite; they instead advise side-channel-sensitive users to switch to pyca/cryptography. Because no patched version exists, a version spec that only excludes 0.15 cannot exclude the vulnerability \u2014 every installable version remains affected. This matches CWE-937 (use of a component with a known, unresolved vulnerability), with the underlying weakness class being CWE-208 (observable timing discrepancy). Caveat: mcp__orion__exploit_search returned \"exploit corpus unavailable: not indexed\" when queried for this CVE, so I could not corroborate via a Metasploit-style module; Minerva-class timing attacks are academic/statistical (requiring many signature timing samples) rather than typical weaponized network exploits, so absence from that catalog is expected and not evidence against the finding."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/backends/ecdsa_backend.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 98,
+                  "endLine": 109
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "d214c96c548c07ff68d9b4053b41dacd921d4be6"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1104",
+          "level": "error",
+          "message": {
+            "text": "Declared dependency cryptography is pinned to ==42.0.4, a release from February 2024. As of the scan date (Oct 2026) this pin is roughly two and a half years stale, predating multiple subsequent `cryptography` security releases; the project should be upgraded and re-audited for CVEs fixed after 42.0.4.\n\nVerifier (CONFIRM): Re-derived independently of the analyst. Graph query `MATCH (d:Dependency {scan_id:$scan_id}) WHERE toLower(d.name) CONTAINS 'crypto' RETURN d.name, d.version` returns exactly `{\"name\":\"cryptography\",\"version\":\"==42.0.4\"}`, and the real source confirms this: `requirements-dev.txt` line 5 pins `cryptography==42.0.4` verbatim. This is not an incidental/unused dependency \u2014 `jose/backends/cryptography_backend.py` imports and actively uses it (`cryptography.hazmat.primitives.asymmetric.{ec,rsa,padding}`, `ciphers`, `keywrap`, `x509`, etc.) to implement RSA/EC signing, AES-GCM/CBC encryption and key wrapping for this JOSE/JWT library \u2014 i.e. it backs real cryptographic operations, not a peripheral tool. `cryptography` 42.0.4 is a genuine Feb-2024 release (it was itself a security point-release, fixing CVE-2024-26130), so against an Oct-2026 scan date the \"~2.5 years stale\" framing is accurate, and the package has shipped numerous security releases since (43.x, 44.x, 45.x lines), so re-audit is a reasonable, well-hedged recommendation. One correction to the analyst's framing: this exact `==42.0.4` pin lives only in `requirements-dev.txt` (the repo's own dev/CI install); the library's actual published runtime contract in `setup.cfg` (`[options.extras_require] cryptography = cryptography >=3.4.0`) is unpinned, so downstream consumers of python-jose are not forced onto 42.0.4 \u2014 only this repo's own test/dev environment is. The claim is otherwise a correctly-scoped, verifiable dependency-hygiene/staleness finding (CWE-1104), not a demonstrated exploit; exploit_search corpus was unavailable in this environment (\"not indexed\"), so no specific CVE-exploit match could be checked, and none is required for this advisory-level claim."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements-dev.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 5,
+                  "endLine": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "a2cbe3689ded789e7b8f224ed52c7f9bb07ed206"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-1104",
+          "level": "error",
+          "message": {
+            "text": "Declared dependency docopt is pinned to ==0.6.2, the last release of a project that has been unmaintained since 2014. It is an end-of-life component with no security support; any future vulnerability in it will never be patched upstream.\n\nVerifier (CONFIRM): Re-derived independently: the dependency graph confirms a single Dependency node name='docopt', version='==0.6.2' for this scan, and the real source pins it identically at requirements-dev.txt line 6 (\"docopt==0.6.2\"). Docopt's 0.6.2 release (Feb 2014) is indeed its final published release -- the upstream project has had no subsequent release since, so the \"unmaintained since 2014 / EOL / no future patches\" characterization is accurate. This supports a CWE-1104 (Use of Unmaintained Third-Party Components) classification. That said, I found no `import docopt` / `from docopt` usage anywhere in the tree (grep across the whole source tree for \"docopt\" returns only the requirements-dev.txt declaration line) -- it is a dev-only, apparently unused/transitive pin, not something exercised by the shipped library's runtime code path. exploit_search could not be checked (exploit corpus not indexed in this environment), and no specific CVE is being claimed by the analyst -- the claim is purely about maintenance status, which I verified true. Given it's dev-only and unreferenced in actual source, severity is low and this is a hygiene/SCA finding rather than an active exploitable vulnerability."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements-dev.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 6,
+                  "endLine": 6
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "1c72d0311165d1b35416f830f57c9455dcf2bbfd"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-1104",
+          "level": "error",
+          "message": {
+            "text": "Declared dependency PyYAML is pinned to ==5.4.1 (released 2021), an outdated version relative to current releases. No call to yaml.load/yaml.safe_load was found anywhere in the scanned source, so this appears to be a transitive/dev-only dependency rather than something exercised by application code -- flagged for completeness as an outdated declared component, not as an active code-execution sink.\n\nVerifier (CONFIRM): Re-derived independently: the Dependency node shows PyYAML pinned to ==5.4.1, and grepping the real source tree for yaml usage (import yaml, yaml.load, yaml.safe_load, yaml.full_load, yaml.unsafe_load) returns zero matches anywhere in the codebase, confirming the CpgCall query result of 0 rows. Further inspection of the manifest files shows PyYAML==5.4.1 appears only in requirements-dev.txt (alongside pytest, coverage, coveralls, pytest-cov \u2014 clearly dev/test tooling), and is absent from requirements.txt (the production dependency file) and pyproject.toml. This corroborates the analyst's claim: PyYAML is a dev-only/test-tooling dependency, not exercised by any application code path, so there is no active yaml deserialization sink to exploit. The lead is accurately characterized as a low-severity, informational \"outdated declared component\" finding (CWE-1104) rather than an exploitable vulnerability \u2014 exactly as the analyst framed it with LOW confidence."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements-dev.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1,
+                  "endLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "b4e7442090995a57ee2576d0bf1c852426a12412"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

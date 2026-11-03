@@ -1,0 +1,34 @@
+{
+  "findings": [
+    {
+      "file": "jose/jws.py",
+      "function": "_verify_signature",
+      "line_start": 253,
+      "line_end": 268,
+      "cwe": "CWE-347",
+      "title": "JWT/JWS algorithm confusion when caller does not restrict `algorithms`",
+      "explanation": "_verify_signature() only rejects an attacker-chosen 'alg' header when the caller explicitly passed an `algorithms` allow-list: `if algorithms is not None and alg not in algorithms: raise ...`. Both jws.verify() and jwt.decode() default `algorithms` to None, so when an application (very common usage pattern, e.g. `jwt.decode(token, key)`) does not pass this parameter, the header's 'alg' value is fully attacker-controlled and unconstrained. An attacker who knows a verifier's RSA/EC public key (which is by definition public) can craft a token with header `{\"alg\": \"HS256\"}` and sign it by HMAC-ing with that public key text as the secret. `_sig_matches_keys` -> `jwk.construct(key, 'HS256')` will happily build an HMACKey out of the same key material the application passed in to verify asymmetric signatures, so the forged token passes verification, letting the attacker mint arbitrary valid tokens (full authentication bypass). This is the classic JWT 'alg confusion' attack (tracked upstream as CVE-2024-33663) and is not mitigated anywhere else in the decode path.",
+      "path": [
+        {"file": "jose/jwt.py", "function": "decode", "line": 59, "role": "source"},
+        {"file": "jose/jwt.py", "function": "decode", "line": 145, "role": "propagator"},
+        {"file": "jose/jws.py", "function": "verify", "line": 77, "role": "propagator"},
+        {"file": "jose/jws.py", "function": "_verify_signature", "line": 258, "role": "sink"},
+        {"file": "jose/jws.py", "function": "_verify_signature", "line": 263, "role": "sink"}
+      ]
+    },
+    {
+      "file": "jose/backends/native.py",
+      "function": "HMACKey.__init__",
+      "line_start": 23,
+      "line_end": 52,
+      "cwe": "CWE-347",
+      "title": "Incomplete denylist lets asymmetric public keys in non-PEM formats be used as HMAC secrets",
+      "explanation": "As a defense against algorithm-confusion, HMACKey (and its cryptography-backend twin CryptographyHMACKey in jose/backends/cryptography_backend.py, lines 542-571) refuses to use a string/bytes key as an HMAC secret if it contains one of a few hard-coded substrings: '-----BEGIN PUBLIC KEY-----', '-----BEGIN RSA PUBLIC KEY-----', '-----BEGIN CERTIFICATE-----', or 'ssh-rsa'. This denylist is incomplete: it does not recognize OpenSSH-formatted EC keys ('ecdsa-sha2-nistp256/384/521 ...'), OpenSSH Ed25519 keys ('ssh-ed25519 ...'), SEC1 EC public keys ('-----BEGIN EC PUBLIC KEY-----'), or any raw/hex/base64 public-key encoding that lacks these exact markers. When combined with the missing `algorithms` enforcement in jose/jws.py (_verify_signature), an application that verifies tokens using a public key in any of these unlisted formats is fully exploitable via algorithm confusion: the attacker-supplied 'alg': 'HS256' header causes the public key text to be accepted unmodified as `self.prepared_key`, i.e. the HMAC secret, enabling signature forgery even though a superficial 'reject asymmetric keys' safeguard was intended to exist.",
+      "path": [
+        {"file": "jose/jws.py", "function": "_sig_matches_keys", "line": 212, "role": "propagator"},
+        {"file": "jose/jwk.py", "function": "construct", "line": 76, "role": "propagator"},
+        {"file": "jose/backends/native.py", "function": "HMACKey.__init__", "line": 46, "role": "sink"}
+      ]
+    }
+  ]
+}

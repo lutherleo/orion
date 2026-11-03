@@ -1,0 +1,682 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-113",
+              "name": "CWE113",
+              "shortDescription": {
+                "text": "CWE-113"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-113"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/113.html"
+            },
+            {
+              "id": "CWE-20",
+              "name": "CWE20",
+              "shortDescription": {
+                "text": "CWE-20"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-20"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/20.html"
+            },
+            {
+              "id": "CWE-444",
+              "name": "CWE444",
+              "shortDescription": {
+                "text": "CWE-444"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-444"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/444.html"
+            },
+            {
+              "id": "CWE-770",
+              "name": "CWE770",
+              "shortDescription": {
+                "text": "CWE-770"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-770"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/770.html"
+            },
+            {
+              "id": "CWE-807",
+              "name": "CWE807",
+              "shortDescription": {
+                "text": "CWE-807"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-807"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/807.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-444",
+          "level": "error",
+          "message": {
+            "text": "HTTP request smuggling (CWE-444) in Message.set_body_reader: the header loop accepts Transfer-Encoding and Content-Length simultaneously without rejecting the conflict, and silently IGNORES every Transfer-Encoding value that is not exactly \"chunked\". Line 134-136 is `elif name == \"TRANSFER-ENCODING\": if value.lower() == \"chunked\": chunked = True` with NO else-branch that raises. Then line 139 `if chunked:` -> ChunkedReader, line 140 `elif content_length is not None:` -> LengthReader. Two concrete desyncs: (a) CL.TE -- a request with both `Content-Length: 6` and `Transfer-Encoding: chunked` is accepted; gunicorn frames the body with ChunkedReader while a front-end proxy honoring Content-Length frames it differently, so trailing bytes become a smuggled pipelined request; (b) TE obfuscation -- `Transfer-Encoding: chunked, identity` / `xchunked` / `chunked ` fails the exact `== \"chunked\"` test, so gunicorn ignores TE entirely and falls back to Content-Length, while a proxy that substring-matches or last-token-matches \"chunked\" uses chunked framing. Request.set_body_reader (line 357) overrides this but adds ONLY an EOFReader->LengthReader(0) substitution (line 359-360), so it introduces no TE/CL conflict validation.\n\nVerifier (CONFIRM): Re-derived from source. gunicorn/http/message.py:125-154 (Message.set_body_reader) performs body framing with two confirmed RFC 7230 \u00a73.3.3 violations. (a) The header loop (129-136) collects Content-Length and Transfer-Encoding independently and NEVER rejects their co-presence; line 138 `if chunked:` unconditionally wins, so `Content-Length: 6` + `Transfer-Encoding: chunked` is accepted and the CL value is silently dropped without even reaching the numeric/negative validation at 142-150 (it lives in the unreached `elif`). A front-end honoring CL and gunicorn honoring TE desync, and the residual bytes are parsed as a pipelined request by RequestParser.__next__ (parser.py:42) on the keep-alive connection. (b) Line 135 is an exact `value.lower() == \"chunked\"` match with no else-branch raise, so `chunked, identity`, `identity, chunked`, `xchunked`, `chunked;q=1` leave chunked=False and gunicorn falls back to LengthReader while a proxy that substring/last-token matches \"chunked\" uses chunked framing \u2014 the reverse desync. I confirmed no compensating validation exists anywhere: a repo-wide grep for request-side Transfer-Encoding handling yields exactly one hit, message.py:134 (wsgi.py:312 is the response path, util.py:46 is the hop-by-hop name list). Request.set_body_reader (357-360) only swaps EOFReader for LengthReader(0) and adds no conflict check. Reachability is genuine, not just a graph label: set_body_reader() is invoked unconditionally from Message.__init__ (message.py:57) for every request a worker parses; the graph concurs (all 4 set_body_reader nodes reachable_from_entry=true, hop_distance=0). Version pinned to gunicorn 21.2.0 (gunicorn/__init__.py:6; news.rst top entry 21.2.0 - 2023-07-19, release HEAD, no backport), which predates the upstream TE-validation fix in 22.0.0 (CVE-2024-1135) \u2014 advisory only, since exploit_search returned \"corpus unavailable: not indexed\" and I could not verify an affected range from a module. One analyst sub-claim is wrong and I discard it: the `\"chunked \"` trailing-space bypass does NOT work, because parse_headers applies `value = ''.join(value).rstrip()` at message.py:106. The analyst's line range 125-152 is also short by two lines; the function ends at 154. The core finding stands on the remaining vectors."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/message.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 125,
+                  "endLine": 154
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "Message.set_body_reader",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "14cbd371b0aa6b08aa8ee3c11c6ccdc43342979a"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-444",
+          "level": "error",
+          "message": {
+            "text": "HTTP request smuggling (CWE-444) via non-RFC chunk sizes in ChunkedReader.parse_chunk_size: line 88 computes `chunk_size = line.split(b\";\",1)[0].strip()` and line 90 parses it with `int(chunk_size, 16)`, whose only guard is `except ValueError` (line 92). Python's int(x,16) accepts forms that RFC 7230 chunk-size forbids: a leading sign (`int(b\"-1\",16) == -1`), an explicit `0x` prefix (`int(b\"0x10\",16) == 16`), and PEP-515 underscores (`int(b\"1_0\",16) == 16`). There is NO `chunk_size < 0` check -- line 94 only tests `if chunk_size == 0:` (which is the branch that consumes trailers and returns (0,None)), so a negative size falls through to line 100 `return (chunk_size, rest_chunk)`. In parse_chunked the loop head is line 59 `while size > 0:`, so a negative size exits the loop immediately and the body generator terminates WITHOUT ever validating a terminating 0-length chunk; the unconsumed socket bytes stay buffered in the unreader and are parsed as the next pipelined request on the keep-alive connection. Attack: send `Transfer-Encoding: chunked` with a first chunk-size line of `-1` (or `0x10`/`1_0`), followed by a smuggled request -- any front-end proxy that rejects or differently interprets these forms desynchronizes from gunicorn.\n\nVerifier (CONFIRM): Independently verified in the real source (gunicorn 21.2.0). gunicorn/http/body.py:88-100 parses the chunk-size with `int(chunk_size, 16)` guarded only by `except ValueError`, with no hexdigit-only validation (repo-wide grep for `0123456789abcdef|hexdigits|CHUNK_SIZE|chunk_size` found no validator; the only other hits are response-side writers util.py:291 and wsgi.py:372). Python's int(x,16) accepts forms RFC 9112 S7.1 (`chunk-size = 1*HEXDIG`) forbids: a leading sign (`-1` -> -1), an explicit `0x` prefix (`0x10` -> 16), and PEP-515 underscores (`1_0` -> 16); `.strip()` on line 88 additionally eats \\t\\r\\n\\x0b\\x0c. Line 94 tests only `chunk_size == 0`, so a negative value falls through to line 100 `return (chunk_size, rest_chunk)`. In parse_chunked the loop head at line 59 is `while size > 0:`, so size=-1 skips the body entirely: the chunk terminator check (lines 71-72 `rest[:2] != b'\\r\\n'` -> ChunkMissingTerminator) and the 0-chunk/trailer path (94-99) never run, and no exception is raised. Body.read (177-224) -> ChunkedReader.read (19-39) gets StopIteration on the first next() and returns b\"\", so the request is served as a well-formed body-less request. gunicorn/http/parser.py:34-42 then drains the (empty) body and parses the NEXT request off the SAME unreader/socket, and message.py:156-165 should_close() returns False for HTTP/1.1 without Connection: close -- a textbook TE-desync primitive against any front-end that forwards or interprets these non-RFC chunk-size forms differently. Reach confirmed: message.py:134-139 builds ChunkedReader for any `Transfer-Encoding: chunked`, and the graph reports parse_chunk_size and parse_chunked with reachable_from_entry=true, hop_distance=1. Two corrections to the analyst: (1) the already-recv'd bytes in `rest_chunk` are DISCARDED, not re-buffered -- parse_chunked never calls unreader.unread(rest) when the loop is skipped -- so prefix injection requires the smuggled request to land past the 8192-byte SocketUnreader read boundary (unreader.py:58), which is attacker-paddable and routine when a proxy writes headers and body separately; (2) the default sync worker force_closes every connection (sync.py:173), so the back-end second-request path needs gthread/gevent/eventlet keepalive (base_async.py:39-48, gthread.py:329-332). Neither voids the defect. exploit_search returned \"exploit corpus unavailable: not indexed\", so severity is derived from the code, not from a matched Metasploit module; version is pinned exactly at 21.2.0 (gunicorn/__init__.py:6 `version_info = (21, 2, 0)`; docs/source/news.rst:5 \"21.2.0 - 2023-07-19\" is the newest entry), i.e. this tree predates the upstream 22.0.0 request-smuggling hardening and contains no chunk-size allowlist."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/body.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 88,
+                  "endLine": 100
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "ChunkedReader.parse_chunk_size",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "47ba2007e3fdb43512ee3b4b03a51925ca00295d"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-807",
+          "level": "error",
+          "message": {
+            "text": "Client-controlled SCRIPT_NAME request header is trusted into the WSGI environ, and also yields an unhandled IndexError remote DoS. In wsgi.create() the loop over req.headers at line 127-128 does `elif hdr_name == \"SCRIPT_NAME\": script_name = hdr_value` -- hdr_name is the request header name uppercased by message.py:92 (`name = name.upper()`), so any client sending a header literally named `Script_Name:` / `SCRIPT_NAME:` sets it. HEADER_RE (message.py:24) is a blocklist `[\\x00-\\x1F\\x7F()<>@,;:\\[\\]={} \\t\\\\\\\"]` that does NOT contain underscore, so the underscore name passes header-name validation. The value then reaches `environ['SCRIPT_NAME'] = script_name` (line 185), controlling the WSGI app's mount-point/routing and URL generation. Critically, line 183 computes `path_info = path_info.split(script_name, 1)[1]`: if script_name is not a substring of req.path, split returns a 1-element list and the `[1]` index raises IndexError, an unhandled exception in request setup -- e.g. `GET / HTTP/1.1` with `Script_Name: /nomatch` gives `\"/\".split(\"/nomatch\",1)` == `[\"/\"]` -> IndexError. I verified there is NO trust gating on this path: a query for any forwarded_allow_ips / peer_addr / secure_scheme reference anywhere in gunicorn/http/wsgi.py returned 0 rows, so unlike the scheme headers (gated in message.py:70-75) and PROXY protocol (gated by proxy_allow_ips in message.py:280-283), SCRIPT_NAME is accepted from any peer.\n\nVerifier (CONFIRM): Core claim re-derived from source and confirmed; one sub-claim corrected. CONFIRMED: an unauthenticated client can set the WSGI mount point. wsgi.py:127-128 does `elif hdr_name == \"SCRIPT_NAME\": script_name = hdr_value`; header names are only uppercased (message.py:92) with no hyphen->underscore normalization, so a header literally named `Script_Name:` produces `SCRIPT_NAME` and matches, and HEADER_RE (message.py:24) is a blocklist that omits underscore (\\x5F) so the name passes validation at message.py:93-94. The value reaches `environ['SCRIPT_NAME'] = script_name` (wsgi.py:185) and truncates PATH_INFO via `path_info.split(script_name, 1)[1]` (wsgi.py:183) where path_info is the client URI path (message.py:347). I independently verified there is NO trust gating: my own grep for `forwarded_allow_ips` across gunicorn/ returns hits only in config.py:1259 and message.py:72-74 and ZERO in wsgi.py, so unlike the scheme headers (peer-gated at message.py:72-75) SCRIPT_NAME is honored from any peer. Graph confirms reachability: the line 128/183/185 calls are reachable_from_entry=true, hop_distance=1. Impact: `GET /public/admin` with `Script_Name: /public` yields SCRIPT_NAME=/public and PATH_INFO=/admin, so the app sees a path the fronting proxy never authorized (path-ACL bypass), and attacker-controlled SCRIPT_NAME poisons framework URL generation (Flask url_for / Django reverse) enabling open redirect and cache poisoning. CWE-807 (reliance on untrusted input in a security decision) is the tighter fit, within the analyst's CWE-20 class. CORRECTED: the analyst's \"unhandled IndexError remote DoS\" is FALSE. The IndexError at wsgi.py:183 is real (e.g. \"/\".split(\"/nomatch\",1) == [\"/\"], so [1] raises), but it is caught by every worker -- sync.py:157-158, gthread.py:308-309, base_async.py:85-86 all `except Exception` -> handle_error, and base.py:251-271 writes a 500 and returns without re-raising. The worker stays alive, so this is a per-request 500, not a crash or DoS. Severity therefore rests on the mount-point/PATH_INFO control, not availability. Mitigating factors keep this at MEDIUM rather than HIGH: the behavior is documented as intended at docs/source/faq.rst:13-14 (\"The value could be set by setting SCRIPT_NAME in the environment or as an HTTP header\"), nginx drops underscore headers by default (underscores_in_headers off) so it chiefly affects directly-exposed gunicorn or proxies that forward underscore names, and the concrete consequence depends on the hosted app. Version pinned to gunicorn 21.2.0 (gunicorn/__init__.py:6, newest news.rst entry at line 5); exploit_search returned \"exploit corpus unavailable: not indexed\", so there is no exploit-reference signal confirming or patching this -- the verdict rests entirely on source evidence I gathered."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/wsgi.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 127,
+                  "endLine": 185
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "create",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "9fbac3c2bad1540fd90b1fcddcf40598b7cd2a6e"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-444",
+          "level": "error",
+          "message": {
+            "text": "Proxy-header spoofing via underscore/dash collision when building the WSGI environ (CWE-444 inconsistent interpretation). wsgi.create() line 136 computes `key = 'HTTP_' + hdr_name.replace('-', '_')`, and lines 137-139 MERGE a repeated key by concatenation: `if key in environ: hdr_value = \"%s,%s\" % (environ[key], hdr_value)` then `environ[key] = hdr_value`. Because HEADER_RE (message.py:24) does not blocklist underscore, a request header named `X_Forwarded_For` is a valid header name and maps to the SAME environ key `HTTP_X_FORWARDED_FOR` as the dashed `X-Forwarded-For`. A front-end proxy that strips/overwrites only the dashed spelling will not touch the underscored one, so the attacker's value is comma-merged into the trusted header the application reads for client-IP/ACL decisions -- letting the attacker prepend or append arbitrary entries to X-Forwarded-For (and equivalently to any other HTTP_* header the app trusts). No deduplication or underscore rejection exists on this path.\n\nVerifier (CONFIRM): Re-derived from source. gunicorn/http/message.py:24 defines HEADER_RE as a blocklist of control chars, DEL and HTTP separators; underscore (\\x5F) is absent, and message.py:93-94 is the ONLY header-name validation on the parse path, so a header literally named `X_Forwarded_For` is accepted and uppercased (message.py:90/92) to `X_FORWARDED_FOR`. gunicorn/http/wsgi.py:136 then computes `key = 'HTTP_' + hdr_name.replace('-', '_')`, which maps BOTH `X_FORWARDED_FOR` and `X-FORWARDED-FOR` to the identical environ key `HTTP_X_FORWARDED_FOR`, and lines 137-139 comma-MERGE the collision (`hdr_value = \"%s,%s\" % (environ[key], hdr_value)`) instead of rejecting or deduplicating it. default_environ/base_environ (wsgi.py:68-91) seed no HTTP_* keys, so the merge is purely between the proxy-supplied dashed header and the attacker-supplied underscored one. A front-end proxy that strips or overwrites only the dashed spelling leaves the underscored spelling intact, so the attacker injects an arbitrary entry into the comma-list the application parses -- client-IP spoofing for ACLs, rate limits and logging (and the same trick applies to any other HTTP_* header the app trusts). Reachability is established independently of the graph: wsgi.create() is called on the primary request path of every worker (workers/sync.py:168, workers/gthread.py:319, workers/base_async.py:96); the graph agrees (all calls at wsgi.py:136-139 have reachable_from_entry=true, hop_distance=1). No mitigation exists in this tree: a case-insensitive grep for `underscore|header_map|header-map` across the entire repo returns zero matches, i.e. the later --header-map (drop/refuse/dangerous) hardening is absent from this build, which is pinned at gunicorn 21.2.0 (gunicorn/__init__.py:6). Note gunicorn's own secure_scheme_headers lookup (message.py:111) uses the raw dashed name, so gunicorn's internal scheme decision is not directly flipped -- the impact lands on the WSGI application downstream, which is why severity is MEDIUM rather than HIGH and why exploitability is conditioned on a proxy-fronted deployment whose app trusts a forwarded header. Exploit-reference check could not be performed: exploit_search returned \"exploit corpus unavailable: not indexed\", so no published module/CVE/version-range comparison backs or refutes this; the verdict rests entirely on the source and graph evidence above."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/wsgi.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 136,
+                  "endLine": 139
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "create",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "35ebf7a71299c40781ad802375ad8611b2f50205"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-20",
+          "level": "error",
+          "message": {
+            "text": "Request method is effectively unvalidated past its first few characters, flowing to environ['REQUEST_METHOD'] and the access log (CWE-20). message.py:25 defines `METH_RE = re.compile(r\"[A-Z0-9$-_.]{3,20}\")` and line 336 tests it with `if not METH_RE.match(bits[0])`. Two compounding defects: (1) the pattern has NO end anchor (`$`/`\\Z`) and `re.match` anchors only at the start, so once the first 3 characters match the class the ENTIRE remainder of the token is unchecked and arbitrary -- `bits[0]` is only bounded by the whitespace split at line 331 (`line_bytes.split(None, 2)`); (2) the character class contains `$-_`, which Python parses as a RANGE from \\x24 to \\x5F, silently admitting `%&'()*+,-./0123456789:;<=>?@`, `[`, `\\`, `]` and `^` rather than the intended literal `$`, `-`, `_`. The value is then stored at line 338 (`self.method = bits[0].upper()`) and propagated to `environ[\"REQUEST_METHOD\"] = req.method` (wsgi.py:83/86) and into the access-log atoms 'm' and 'r' (glogging.py:297-303), so a downstream app, proxy or log consumer that treats the method differently from gunicorn can be desynchronized or injected into.\n\nVerifier (CONFIRM): Re-derived independently from source. Both defects the lead describes are real and present. (1) message.py:25 defines METH_RE = re.compile(r\"[A-Z0-9$-_.]{3,20}\") with no end anchor, and message.py:336 validates with METH_RE.match(bits[0]) -- I grepped the entire package and lines 25/336 are the ONLY uses of METH_RE, with no fullmatch/TOKEN_RE/METHOD_BADCHAR_RE anywhere, so once the first 3 chars fall in the class the whole remainder of the token is unchecked and the {3,20} length cap is silently void (bounded only by limit_request_line, default 4094, via read_line at message.py:239-250). (2) Inside the class, `$`(\\x24) and `_`(\\x5F) are bare literals flanking `-`, so Python compiles a RANGE \\x24-\\x5F that subsumes A-Z/0-9 and additionally admits %&'()*+,-./:;<=>?@[\\]^ -- a 3-char method of `[\\]` or `@@@` is accepted. Because message.py:331 splits on whitespace and bytes_to_str is str(b,'latin1') (util.py:647-650), CR/LF/space cannot appear, but NUL (\\x00), ESC (\\x1b), DEL and 0x80-0xFF all can in the unchecked tail. The value is stored at message.py:338 and propagates to environ[\"REQUEST_METHOD\"] (wsgi.py:86 -- correcting the lead's \"83\", which is the env.update({ line) and into access-log atoms 'r' (glogging.py:302-304) and 'm' (glogging.py:306), emitted unsanitized at glogging.py:363 with no escaping of atom values. Reachability is established both ways: the graph marks Request.parse_request_line (line 330) as an EntryPoint handler with exposure='reachable' and the calls at 331/336/338 as reachable_from_entry=true, hop_distance=1; the source chain is Parser.__next__ -> Message.__init__:55 -> Request.parse:208 -> parse_request_line. Author intent is proven by the project's own test tests/requests/invalid/003.http (\"-blargh /foo HTTP/1.1\" expected to raise InvalidRequestMethod) which passes only by accident -- \"-BLargh\" or \"GETfoo\" would be accepted. I calibrate severity to MEDIUM rather than HIGH: no CR/LF/space can reach bits[0], so this is not self-contained request smuggling; the demonstrated impact is RFC 9110 token-validation bypass creating a gunicorn-vs-intermediary parser discrepancy plus control-char/ANSI-escape injection into the access log. Version pinned to gunicorn 21.2.0 (gunicorn/__init__.py:6); exploit_search returned \"exploit corpus unavailable: not indexed\", so no exploit-reference grounding was used."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/message.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 336,
+                  "endLine": 338
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "Request.parse_request_line",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "fd2b564661ecbb4cf1e90d90882c0215b0d0ea38"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-113",
+          "level": "error",
+          "message": {
+            "text": "Response status line is written without the CRLF/control-character validation that gunicorn applies to every other response header (CWE-113 response splitting). Response.start_response stores the app-supplied status verbatim at wsgi.py:233 (`self.status = status`); the only subsequent operation is line 239 `self.status_code = int(self.status.split()[0])`, whose failure is swallowed into `self.status_code = None` at line 241. default_headers then interpolates it straight into the status line at line 304-306: `\"HTTP/%s.%s %s\\r\\n\" % (self.req.version[0], self.req.version[1], self.status)`, and send_headers (line 318-319) emits it. By contrast process_headers validates header NAMES with HEADER_RE (line 252-253) and header VALUES with `HEADER_VALUE_RE = re.compile(r'[\\x00-\\x1F\\x7F]')` (wsgi.py:21, checked at line 258-259) -- status bypasses both. A WSGI application that places request-derived text into its status reason-phrase (a pattern that is safe on servers which validate status) therefore permits header/body injection into the response. This is second-order: it needs the hosted app to pass attacker-influenced status, so it is a missing-defense gap rather than a directly reachable flow -- ranked lowest for that reason.\n\nVerifier (CONFIRM): Re-derived from source: Response.start_response stores the app-supplied status string verbatim (gunicorn/http/wsgi.py:233) with no type/CRLF/control-character validation; the only use before dispatch is `int(self.status.split()[0])` (239), whose failure is swallowed to None (241) and which yields \"200\" for \"200 OK\\r\\nX: y\", so it provides no incidental protection. The value is then interpolated directly into the status line `\"HTTP/%s.%s %s\\r\\n\" % (..., self.status)` (304-306) and written to the socket latin-1 encoded (315-322), which passes \\r and \\n through unchanged. By contrast the sibling input is validated: process_headers rejects header names via HEADER_RE (252-253) and header values via HEADER_VALUE_RE = re.compile(r'[\\x00-\\x1F\\x7F]') (wsgi.py:21, checked 258-259). The asymmetry the lead describes is real and present. Reachability is real, not just graph-asserted: every worker hands this exact callable to the application (workers/sync.py:178, workers/gthread.py:334, workers/base_async.py:108 `respiter = self.wsgi(environ, resp.start_response)`), and the graph marks start_response/process_headers/default_headers/send_headers all reachable_from_entry=true. I confirmed there is no first-order injection inside gunicorn itself: the only in-tree writer of resp.status (workers/base.py:264) builds it from hard-coded reason literals and that Response is used only for the access log, while the real error bytes go through util.write_error (util.py:314-334). So this is a genuine missing-defense gap (CWE-113) whose exploitation requires the hosted app to place attacker-influenced text in the status reason-phrase (a pattern frameworks permit, e.g. an unvalidated Django reason_phrase) - hence LOW severity rather than a directly exploitable flow. Exploit-reference grounding was not possible: the Metasploit corpus returned \"exploit corpus unavailable: not indexed\", and I could not establish whether upstream later added status validation, so I neither claim a weaponized exploit nor claim this is patched here; version is pinned exactly at 21.2.0 (gunicorn/__init__.py:6)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/wsgi.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 233,
+                  "endLine": 306
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "Response.start_response",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "d7ddd8a7bdcbc9e3d61f283956d1a13c980581d6"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-444",
+          "level": "error",
+          "message": {
+            "text": "Message.set_body_reader (gunicorn/http/message.py:125) recognizes a Transfer-Encoding header ONLY when the value is exactly \"chunked\" (`if value.lower() == \"chunked\": chunked = True`, lines 134-136). There is NO `else: raise InvalidHeader(\"TRANSFER-ENCODING\")` branch \u2014 any other TE value (`identity`, `chunked, chunked`, `xchunked`, `chunked;a=b`, ` chunked`) is silently DISCARDED and the request then falls through to the Content-Length branch at line 140. RFC 7230 requires an origin server to reject a request with an unrecognized Transfer-Encoding with 501/400. Missing control => HTTP request smuggling (TE.CL desync) whenever a front-end proxy honors a TE form gunicorn ignores.\n\nVerifier (CONFIRM): Re-derived independently from the real source. gunicorn/http/message.py:134-136 recognizes Transfer-Encoding only when the full value equals \"chunked\" and has NO else-branch rejecting unrecognized values, so any other TE form (identity, \"chunked, chunked\", xchunked, \"chunked;a=b\") is silently discarded and control falls through to the Content-Length branch at line 140, framing the body with LengthReader. All four raises in set_body_reader (132, 145, 147, 150) are InvalidHeader(\"CONTENT-LENGTH\"); none covers TRANSFER-ENCODING. A repo-wide grep shows message.py:134-136 is the ONLY request-side TE handling in the package (util.py:46 is just a hop-by-hop ignore list, wsgi.py is response-side), and the Request.set_body_reader override at 357-360 only swaps EOFReader->LengthReader(0), adding no validation. Reachability is genuine rather than an arrow-function artifact: set_body_reader() is invoked unconditionally from Message.__init__ (line 57) for every parsed request, and the graph reports Message.set_body_reader reachable_from_entry=true, hop_distance=0 with all 46 call nodes in lines 129-152 reachable_from_entry=true. The graph independently confirms the gap: between the chunked=True assignment (136) and Body(ChunkedReader(...)) (139) there are zero nodes - no <operator>.raise and no InvalidHeader. Desync is completable because parser.py:42 reuses the same unreader across keep-alive requests, so bytes past Content-Length are parsed as the next request line (TE.CL smuggling whenever a front-end honors a TE form gunicorn drops). RFC 7230 requires an origin server to answer an unrecognized Transfer-Encoding with 501/400. Version pinned at 21.2.0 (gunicorn/__init__.py:6), which predates the 22.0.0 strict-TE hardening (CVE-2024-1135); note that exploit_search returned \"exploit corpus unavailable: not indexed\", so this version conclusion rests on the source/version boundary, not a catalog hit. One correction to the analyst: its example \" chunked\" (leading space) IS actually accepted, because parse_headers lstrips (line 96) and rstrips (line 106) the value - this does not affect the core claim."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/message.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 134,
+                  "endLine": 136
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "set_body_reader",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "0a817da9565a53afa086feb748448ff952ef9b19"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-113",
+          "level": "error",
+          "message": {
+            "text": "Request header VALUES are never validated for control characters. In gunicorn/http/message.py the only regex validation applied during request parsing is `HEADER_RE.search(name)` at line 93 \u2014 the header NAME. A `HEADER_VALUE_RE` control does exist in this codebase but ONLY on the response path (gunicorn/http/wsgi.py:21 `re.compile(r'[\\x00-\\x1F\\x7F]')`, applied at wsgi.py:258); there is no counterpart on the request path. Because parse_headers splits exclusively on CRLF (line 67 `data.split(b\"\\r\\n\")`) and request framing uses `b\"\\r\\n\\r\\n\"` (lines 214/218), a bare LF, bare CR, NUL or vertical-tab embedded in a header value survives verbatim into the header list and the WSGI environ. Missing control => request smuggling against any peer that splits headers on bare LF (e.g. `X-Foo: a\\nTransfer-Encoding: chunked` is one header to gunicorn, two to a lenient proxy), plus access-log injection since these same values are fed to the access log at glogging.py:330.\n\nVerifier (CONFIRM): Re-derived from source: gunicorn/http/message.py parse_headers validates ONLY the header name (line 93 `HEADER_RE.search(name)`); the value is split off at line 88, lstrip/rstrip'd at 96/106 and appended at line 121 with no character validation. A repo-wide grep shows the only control-char value filter, HEADER_VALUE_RE, exists solely on the RESPONSE path (wsgi.py:21 def, wsgi.py:258 applied in Response.process_headers) with no request-path counterpart. Framing is CRLF-exclusive (line 67 `data.split(b\"\\r\\n\")`, lines 214/218 `data.find(b\"\\r\\n\\r\\n\")`) and util.bytes_to_str (util.py:647-650) decodes latin1, so a bare LF/CR/NUL/VT embedded in a value is byte-preserved into a single (name, value) tuple. Concretely `X-Foo: a\\nTransfer-Encoding: chunked\\r\\n\\r\\n` yields name \"X-FOO\" (passes HEADER_RE) and value \"a\\nTransfer-Encoding: chunked\" \u2014 one header to gunicorn, two to any peer that terminates lines on bare LF. The one-sidedness is sharpened by set_body_reader (lines 129-137), which honors TE only on an exact `value.lower() == \"chunked\"`, so a smuggled `Transfer-Encoding: chunked\\nX-Pad: 1` is silently ignored by gunicorn while visible to the lenient peer (CL is incidentally guarded by isnumeric() at line 142; TE is not). The tainted values reach real sinks: WSGI environ at wsgi.py:120-139 and access-log atoms at glogging.py:330, emitted unescaped through access_log.info at glogging.py:363 (log injection). Graph confirms reachability: Message.parse_headers, wsgi.create and Logger.atoms all have reachable_from_entry=true, hop_distance=0, and the only regex calls in message.py are lines 93/336/352 (name, method, version) \u2014 never `value`. Same parse_headers is reused for chunked trailers (body.py:54). Version is pinned at 21.2.0 (gunicorn/__init__.py:6), predating the 22.0.0 request-path header-value hardening; the Metasploit corpus is NOT indexed in this environment (exploit_search returned \"exploit corpus unavailable\"), so no module/CVE-backed exploitability claim is made and the verdict rests only on the source evidence. Severity HIGH rather than CRITICAL because the smuggling impact is deployment-dependent (needs a peer that splits on bare LF), though the access-log injection is unconditional."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/message.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 93,
+                  "endLine": 121
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parse_headers",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "fc2391870b627a616b0610abb5433a985ff5fd9d"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-444",
+          "level": "error",
+          "message": {
+            "text": "parse_headers accepts obs-fold / header line folding: lines 98-105 implement `while lines and lines[0].startswith((\" \", \"\\t\")): curr = lines.pop(0); ...; value.append(curr)`, joining continuation lines into the value. RFC 7230 \u00a73.2.4 requires an origin server to reject (or replace with SP) obs-fold in a request. The missing rejection interacts with the exact-match Transfer-Encoding test at line 135: a folded `Transfer-Encoding:\\r\\n\\tchunked` yields the joined value `\"\\tchunked\"` (continuation whitespace is preserved \u2014 only the FIRST segment is lstripped at line 96 and the joined result is only rstripped at line 106), so `value.lower() == \"chunked\"` is False and gunicorn frames the request by Content-Length while a proxy that unfolds correctly sees chunked => TE.CL desync.\n\nVerifier (CONFIRM): Re-derived independently from the real source. gunicorn/http/message.py:98-105 implements HTTP header line folding (obs-fold) by popping continuation lines and appending them to the value list, with no rejection and no replacement of the fold with SP as RFC 7230  3.2.4 requires of an origin server; the only raise in that branch is the unrelated LimitRequestHeaders size check (L102-104). The whitespace claim is exact: only the first segment is lstripped (L96, `[value.lstrip()]`) and only the joined result is rstripped (L106, `''.join(value).rstrip()`), so interior continuation whitespace survives. I traced `Transfer-Encoding:\\r\\n\\tchunked`: L67 split yields lines [..., \"Transfer-Encoding:\\r\\n\", \"\\tchunked\\r\\n\"]; L96 gives value=[\"\"] (since \"\\r\\n\".lstrip()==\"\"); L99 \"\\tchunked\\r\\n\".startswith(\"\\t\") is True so L105 appends it; L106 produces the value \"\\tchunked\". At the exact-match sink L135, \"\\tchunked\".lower() != \"chunked\", so chunked stays False and gunicorn frames the body by Content-Length (L140-152, LengthReader), while a proxy that correctly unfolds obs-fold sees Transfer-Encoding: chunked and uses chunked framing => TE.CL request-smuggling desync. I verified by grep that L134-136 is the ONLY request-path Transfer-Encoding handling in the whole package: there is no rejection of non-chunked TE values and no TE+CL conflict check, and the Request.set_body_reader override (L357-360) only calls super() and swaps EOFReader for LengthReader(0), adding no validation. Reachability is established in both source and graph: Message.__init__ L55-57 calls parse() then set_body_reader(), Request.parse L233 calls parse_headers(data[:idx]); the graph reports parse_headers and set_body_reader at reachable_from_entry=true, hop_distance=0, and the L96/99/100/105/106/135 calls all reachable_from_entry=true, hops=1. Version pinned exactly to 21.2.0 (gunicorn/__init__.py:6, version_info=(21,2,0)), which is not past the upstream hardening of this parser, so nothing rules it out as already patched. exploit_search was unavailable in this environment (\"exploit corpus unavailable: not indexed\"), so I cite no exploit module and the verdict rests only on source and graph evidence. The required precondition (a front-end proxy that unfolds obs-fold differently than gunicorn) is the standard precondition for any CWE-444 finding and matches gunicorn's recommended behind-a-reverse-proxy deployment."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/message.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 98,
+                  "endLine": 106
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parse_headers",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "1bef4d83e3d7538f4fb5150860547331aaf45283"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-770",
+          "level": "error",
+          "message": {
+            "text": "No bound is enforced on the buffer accumulated while scanning for a chunk-size line or for chunked trailers. ChunkedReader.parse_chunk_size (gunicorn/http/body.py:75) loops `while idx < 0: self.get_data(unreader, buf)` appending socket data into an unbounded io.BytesIO until a CRLF appears, and parse_trailers (body.py:41) does the same until `\\r\\n\\r\\n`. The configured `limit_request_line` / `limit_request_field_size` / `max_buffer_headers` guards that protect the request-line and header block (message.py:199, 224, 102/108) are never consulted in body.py. Missing control => a client sending `Transfer-Encoding: chunked` followed by an endless stream containing no CRLF drives unbounded per-connection memory growth (memory-exhaustion DoS).\n\nVerifier (CONFIRM): Independently re-derived and confirmed. ChunkedReader.parse_chunk_size (body.py:80-83) runs `while idx < 0: self.get_data(unreader, buf)` with no size test, and get_data (body.py:102-106) appends up to 8192 bytes per iteration from sock.recv (unreader.py:63-64), raising NoMoreData only at EOF -- so a client streaming bytes that contain no CRLF grows the per-connection io.BytesIO without bound. parse_trailers (body.py:47-50) has the identical unbounded loop scanning for \\r\\n\\r\\n. The claimed asymmetry is exact: every LimitRequest* enforcement site in the package is in message.py (lines 81, 103, 109, 224-225, 247, 250) and NONE is in body.py; config.py defines only limit_request_line/limit_request_fields/limit_request_field_size, so no limit_request_body knob exists for an operator to mitigate with. Reachability is confirmed in source, not just the graph: message.py:138-139 builds Body(ChunkedReader(...)) on `Transfer-Encoding: chunked`, wsgi.py:84 exposes it as environ['wsgi.input'], and an app read drives Body.read (215) -> ChunkedReader.read (28-30) -> next(parser) -> parse_chunked (58) -> parse_chunk_size; the graph independently marks parse_chunk_size/parse_trailers/get_data reachable_from_entry=true, hop_distance=0. Two aggravating facts the analyst missed: (1) gevent/eventlet workers call notify() from an independent 1s greenlet loop (ggevent.py:86-88, geventlet.py:171-173), so murder_workers (arbiter.py:489-498) never reaps a handler stuck in the loop -- no time bound there, and worker_connections (default 1000) multiplies it per process; the default sync worker IS reaped after `timeout` (~30s), which caps one connection but still permits a multi-GB spike plus worker churn. (2) Line 83 re-runs buf.getvalue().find() each iteration, copying the whole buffer, giving O(n^2) memcpy so CPU exhaustion arrives before memory exhaustion. Severity HIGH rather than CRITICAL: remote, unauthenticated, no config mitigation, but availability-only impact with partial sync-worker reaping. Note: the exploit-reference check could not be performed -- the Metasploit corpus returned \"exploit corpus unavailable: not indexed\" -- so despite pinning the exact version (21.2.0, gunicorn/__init__.py:6) I assert neither patched nor catalog-exploitable; this verdict rests solely on the source evidence."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/body.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 80,
+                  "endLine": 83
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parse_chunk_size",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "c031eae45f861cf44fe4473b558d466a7a418837"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-444",
+          "level": "error",
+          "message": {
+            "text": "Header names containing underscores are not rejected, and the environ builder conflates underscore with dash, so a proxy's header filtering can be bypassed. HEADER_RE (gunicorn/http/message.py:24) blacklists `[\\x00-\\x1F\\x7F()<>@,;:\\[\\]={} \\t\\\\\"]` \u2014 `_` is NOT in that set, so `X_Forwarded_For` passes validation at line 93. Response/environ construction at gunicorn/http/wsgi.py:136 then computes `key = 'HTTP_' + hdr_name.replace('-', '_')`, mapping both `X-Forwarded-For` and `X_Forwarded_For` onto the same `HTTP_X_FORWARDED_FOR` key, and lines 137-139 merge duplicates with a comma. The absent control is the equivalent of nginx's `underscores_in_headers off` (drop underscore headers). Missing control => an attacker injects `X_Forwarded_For: <spoofed>` which a front-end that only strips the dash form forwards untouched, letting the WSGI app read a spoofed client IP / trust marker.\n\nVerifier (CONFIRM): Re-derived independently from source. (1) gunicorn/http/message.py:24 defines HEADER_RE = re.compile(r\"[\\x00-\\x1F\\x7F()<>@,;:\\[\\]={} \\t\\\\\\\"]\") \u2014 underscore is NOT in the character class, and line 93-94 (`if HEADER_RE.search(name): raise InvalidHeaderName(name)`) is the only header-name validation, so `X_Forwarded_For` is accepted. (2) gunicorn/http/wsgi.py:136 computes `key = 'HTTP_' + hdr_name.replace('-', '_')`, collapsing `X-Forwarded-For` and `X_Forwarded_For` onto the identical WSGI key `HTTP_X_FORWARDED_FOR`; lines 137-139 then comma-merge the duplicate, splicing the attacker-controlled value into the same list as the proxy-supplied trusted value. Apps using the standard leftmost-is-original-client convention read the spoofed entry. (3) Reachability is real, not an arrow-function graph artifact: graph reports reachable_from_entry=true / hop_distance=1 for all of lines 136-139, and in source `wsgi.create()` is called per-request from workers/sync.py:168, workers/gthread.py:319 and workers/base_async.py:96. (4) The claimed missing control is genuinely missing: a case-insensitive tree-wide grep for `underscore|header_map` yields zero hits under gunicorn/ \u2014 there is no equivalent of nginx `underscores_in_headers off` / the later `header_map` drop|refuse setting. Version pinned to 21.2.0 at gunicorn/__init__.py:6 (`version_info = (21, 2, 0)`), which predates that control. Scope correction limiting severity to MEDIUM: secure_scheme_headers matching at message.py:111 compares dash-form names (config.py:1231-1233), so the underscore variant cannot directly flip req.scheme; impact is confined to application-level trust of HTTP_X_FORWARDED_* and other HTTP_* trust markers, and requires a front-end that forwards underscore headers (nginx drops them by default, Apache/HAProxy/many ALBs do not). Exploit-reference grounding was attempted but mcp__orion__exploit_search returned \"exploit corpus unavailable: not indexed\", so no exploit evidence was used either way. CWE corrected from the analyst's CWE-290 to CWE-444, since the root cause is a proxy/server inconsistent-interpretation mismatch (header-filter bypass); IP/trust-marker spoofing (CWE-290) is the downstream effect."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/wsgi.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 136,
+                  "endLine": 139
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "create",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "35ebf7a71299c40781ad802375ad8611b2f50205"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-20",
+          "level": "error",
+          "message": {
+            "text": "METH_RE = re.compile(r\"[A-Z0-9$-_.]{3,20}\") in gunicorn/http/message.py:25 has TWO compounding defects in the literal/usage pair, and it is the only validation applied to the attacker-supplied HTTP request method. (1) `$-_` inside the character class is parsed by Python's re as a RANGE 0x24-0x5F, not three literal chars, so the class silently admits `% & ' ( ) * + , - . / 0-9 : ; < = > ? @ A-Z [ \\ ] ^ _` -- e.g. a method of `@@@` or `///` or `<<<` passes. (2) It is applied with `.match()` (line 336), which anchors only at the START and has no trailing `$`/`fullmatch`, so the `{3,20}` upper bound is never enforced and arbitrary trailing bytes are accepted: `METH_RE.match(\"GET\" + <anything>)` succeeds on the 3-char prefix. Because bits[0] comes from `bytes_to_str` = `str(b,'latin1')` (gunicorn/util.py:650), every raw byte 0x00-0xFF reaches this check 1:1. The accepted token is then stored verbatim as `self.method = bits[0].upper()` (line 338) and forwarded as REQUEST_METHOD, so a reverse proxy and gunicorn can disagree on where the method token ends -> request smuggling / method confusion. parse_request_line is an :EntryPoint handler (hop_distance 0).\n\nVerifier (CONFIRM): Both claimed defects in the literal/usage pair are real and I re-derived each from the source. (1) In `[A-Z0-9$-_.]` the `$-_` sequence is parsed by Python `re` as a character RANGE 0x24-0x5F (the `-` is between two literals, not escaped, not class-final; Python errors only on reversed ranges, and 0x24<=0x5F so it compiles silently). The effective class collapses to exactly 0x24-0x5F = `$ % & ' ( ) * + , - . / 0-9 : ; < = > ? @ A-Z [ \\ ] ^ _`, which admits 14 RFC 9110 S5.6.2 delimiters forbidden in a method token, so `@@@`, `///`, `<<<`, `:::` all validate, while legitimate tchars (`! # ' * ^ ` | ~`) and lowercase are rejected. (2) It is applied with `.match()` (line 336), which anchors only at position 0 and never requires consuming the whole string, so the `{3,20}` upper bound is unenforceable and arbitrary trailing bytes pass: for `\"GET\"+\"a\"*5000` the quantifier stops at 3 reps (satisfying {3,20}) and returns a truthy match; `\"A\"*50` matches its first 20. Grep over the whole tree shows METH_RE occurs exactly twice and there is no `fullmatch`, `TOKEN_RE`, or `METHOD_BADCHAR_RE` anywhere, confirming this is the only method validation and is the pre-hardening form (version pinned 21.2.0). `bytes_to_str` = `str(b,'latin1')` maps 0x00-0xFF 1:1, so raw bytes reach the check unnormalized; the token is stored verbatim at line 338 and forwarded as REQUEST_METHOD (wsgi.py:86) unsanitized. Reachability is genuine rather than a graph artifact: parse() reads the raw request line from the socket and calls parse_request_line(line) at message.py:208, and my own Cypher query returns exposure=reachable, kind=handler, hop_distance=0, reachable_from_entry=true for the line-336 call. Security impact is concrete because `self.req.method == 'HEAD'` exact-string tests at wsgi.py:217/286 govern keep-alive and chunked framing, so a token a front-end normalizes to HEAD but gunicorn retains as `HEAD<junk>` desynchronizes response framing. Severity held at MEDIUM rather than HIGH: the validation flaw itself is certain and pre-auth, but full smuggling requires a cooperating front-end that disagrees on the token boundary, which I did not verify is deployed, and `split(None,2)` strips CR/LF so no log/header injection is available. exploit_search returned \"corpus unavailable: not indexed\", so no exploit-reference evidence was obtained in either direction and none is relied upon."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/message.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 25,
+                  "endLine": 338
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parse_request_line",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "942e6c81b09e95fba50907d16dba61b66f49fb41"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-444",
+          "level": "error",
+          "message": {
+            "text": "VERSION_RE = re.compile(r\"HTTP/(\\d+)\\.(\\d+)\") in gunicorn/http/message.py:26 is unanchored at BOTH ends and is applied with `.match()` at line 352 to the attacker-controlled HTTP-version token, so trailing garbage is silently accepted and discarded. Critically, the request line is tokenized as `line_bytes.split(None, 2)` (line 331) with maxsplit=2, so bits[2] is the entire remainder of the line and MAY CONTAIN SPACES. A request line `GET / HTTP/1.1 <arbitrary text>` yields bits[2]=\"HTTP/1.1 <arbitrary text>\", `VERSION_RE.match` matches the \"HTTP/1.1\" prefix, `match is None` is False (line 353), and `self.version = (int(match.group(1)), int(match.group(2)))` = (1,1) -- the trailing text is dropped with no error. There is no `$` / `fullmatch` and no length bound on `\\d+`, so `HTTP/0000000001.1` is also accepted. A front-end proxy that rejects or re-interprets that trailing text while gunicorn accepts it produces request-line desync / smuggling. parse_request_line is an :EntryPoint handler (hop_distance 0).\n\nVerifier (CONFIRM): Re-derived from source, every structural element of the lead is present and correct. gunicorn/http/message.py:26 defines VERSION_RE = re.compile(r\"HTTP/(\\d+)\\.(\\d+)\") with no ^/$/\\Z anchor and no bound on \\d+. parse_request_line (line 330) tokenizes with line_bytes.split(None, 2) at line 331, so bits[2] is the whole remainder of the request line and may contain spaces; the len(bits) != 3 guard at line 332 is structurally incapable of rejecting extra tokens because maxsplit=2 caps the list at 3. Line 352 then applies VERSION_RE.match(bits[2]) (prefix match, no fullmatch), so \"HTTP/1.1 arbitrary junk\" matches, line 353's `match is None` is False, and line 355 sets self.version = (1,1) while silently discarding the trailing attacker text. \"HTTP/0000000001.1\" / \"HTTP/9999999999.1\" are likewise accepted since \\d+ is unbounded. Reachability verified in real source, not just the graph: Request.parse at line 194 calls read_line (199/206, which enforces only the length limit and performs no token validation) then parse_request_line(line) at line 208; the graph agrees, with every call at lines 331/336/352/353/355 having reachable_from_entry=true and hop_distance=1. The resulting version tuple has genuine framing consequences: it drives keep-alive at message.py:165 (self.version <= (1, 0)), chunked-response framing at wsgi.py:284 (self.req.version <= (1, 0)), and is echoed verbatim into the response status line at wsgi.py:305-306, so an oversized version also forces chunked+keepalive and emits \"HTTP/9999999999.1 200 OK\" back toward the proxy. Version pinned to 21.2.0 (gunicorn/__init__.py:6), which predates the 22.0.0/23.0.0 request-parsing hardening; METH_RE at line 25 is still the old lax form, consistent with pre-fix code. Advisory exploit_search was unusable (corpus returned \"exploit corpus unavailable: not indexed\"), so no Metasploit module or fixed-version boundary is cited and no claim of a public weaponized exploit is made. Severity set to MEDIUM rather than the analyst's implied higher rating because gunicorn is documented as deployed behind a proxy and realizing smuggling requires a front-end that forwards or re-interprets the malformed request line differently; this is a lax-parsing/desync primitive, not a self-contained compromise. The analyst's claimed location (message.py:26-352, parse_request_line, CWE-444) is accurate."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/message.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 330,
+                  "endLine": 355
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parse_request_line",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "ee58b71d6ab7b94f8e4a37333355babd38f07b72"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-444",
+          "level": "error",
+          "message": {
+            "text": "Components-with-known-vulnerabilities: the scanned component is gunicorn 21.2.0, pinned by the literal `version_info = (21, 2, 0)` at gunicorn/__init__.py:6 (and consumed as setup.py's `version=__version__`). Gunicorn 21.2.0 predates the 22.0.0 security release and is the affected range for the published HTTP request-smuggling CVEs in gunicorn's own parser (CVE-2024-1135, improper Transfer-Encoding/header validation; also tracked as CVE-2024-6827). The two unanchored-regex defects reported separately in this sweep (METH_RE, VERSION_RE at gunicorn/http/message.py:25-26) are first-party corroboration that this tree still carries the pre-22.x permissive parser literals. Recommend upgrading to a currently supported gunicorn release; a verifier should confirm the exact CVE-to-21.2.0 mapping against an advisory database rather than relying on this statement.\n\nVerifier (CONFIRM): Re-derived from source. (1) The version is pinned exactly at 21.2.0: `version_info = (21, 2, 0)` (gunicorn/__init__.py:6), consumed as `version=__version__` under `name='gunicorn'` (setup.py:87-88), and the in-tree changelog's newest entry is `21.2.0 - 2023-07-19` with no 22.x entry (docs/source/news.rst:5) \u2014 so this tree is genuinely older than the 22.0.0 security release. (2) Crucially, I confirmed the vulnerable pre-22.x request parser is actually PRESENT, not merely implied by a version string: in `Message.set_body_reader` (gunicorn/http/message.py:125-154) Transfer-Encoding is honored only on an exact `value.lower() == \"chunked\"` match, so any other TE value (`chunked, identity`, `xchunked`, quoted/parameterized) is SILENTLY IGNORED instead of rejected and execution falls through to the Content-Length branch; and there is NO Content-Length + Transfer-Encoding conflict rejection anywhere in the function. That pair is precisely the CL/TE desync primitive that gunicorn 22.0.0 fixed with strict TE validation, and it yields request smuggling against any front-end proxy that interprets the lenient TE value. Corroborating permissiveness in the same parser: unanchored `METH_RE` used with `.match()` (lines 25, 336) and unanchored `VERSION_RE` used with `.match()` (lines 26, 352) both accept trailing garbage in the request line, and obs-fold continuation lines are accepted unconditionally (lines 99-106). (3) Exploitability is strong: the graph reports `Message.parse_headers`, `Message.set_body_reader`, `Request.set_body_reader`, `Request.read_line` and `Request.proxy_protocol` all with `reachable_from_entry=true, hop_distance=0` \u2014 this is the parse path for every inbound HTTP request to an internet-facing WSGI server. TWO CORRECTIONS to the analyst: (a) a `:Dependency` sweep returned only coverage, cryptography, eventlet, gevent, pytest, pytest-cov, sphinx, sphinx_rtd_theme \u2014 there is NO gunicorn dependency node, because gunicorn IS the scanned project rather than a third-party component it consumes, so the claimed CWE-1104 (\"Use of Unmaintained THIRD PARTY Components\") is the wrong class; the defect I verified in source is CWE-444 (inconsistent interpretation of HTTP requests). (b) `exploit_search` returned \"exploit corpus unavailable: not indexed\", so I cite no Metasploit module and assert no weaponized public exploit; I likewise could not reach an advisory database, so I do NOT ratify the analyst's specific CVE-ID mapping (CVE-2024-1135 / CVE-2024-6827) \u2014 I confirm the underlying defect directly from source and the pre-22.0.0 boundary from the in-tree changelog, which stands independent of CVE numbering. The analyst's own caveat that a verifier should check the CVE mapping against an advisory DB remains unresolved here; the substantive finding does not depend on it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/__init__.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 6,
+                  "endLine": 6
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "d89279aed80201e0b1f4a853413200bb6feda100"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-20",
+          "level": "error",
+          "message": {
+            "text": "HEADER_RE = re.compile(r\"[\\x00-\\x1F\\x7F()<>@,;:\\[\\]={} \\t\\\\\\\"]\") at gunicorn/http/message.py:24 is a DENYLIST (used as `if HEADER_RE.search(name): raise InvalidHeaderName(name)` at line 93) rather than an RFC-7230 token allowlist, and its character set stops at \\x7F. Request bytes reach this check through `bytes_to_str` = `str(b,'latin1')` (gunicorn/util.py:650), which maps raw bytes 0x80-0xFF 1:1 onto codepoints U+0080-U+00FF -- none of which appear in the denylist. A request header name containing any high-bit byte (e.g. `X-Foo\\xA0Bar: v`, or a name made entirely of 0x80-0xFF bytes) therefore passes validation and is admitted into self.headers, while RFC 7230 forbids those octets in a field-name. The literal also omits `/`, `?` and `'`, which are likewise non-token characters. Divergent header-name acceptance between gunicorn and a front-end proxy is the precondition for header/request smuggling. parse_headers is an :EntryPoint handler (hop_distance 0). The same HEADER_RE denylist is reused on the response path at gunicorn/http/wsgi.py:252 (Response.process_headers, centrality 7.2e-5 -- a chokepoint every response flows through).\n\nVerifier (CONFIRM): Re-derived from source. gunicorn/http/message.py:24 defines HEADER_RE as a DENYLIST character class whose highest codepoint is \\x7F, and it is the sole header-name check (message.py:93, `if HEADER_RE.search(name): raise InvalidHeaderName`). RFC 7230 specifies field-name as an allowlist (token = 1*tchar); this is its incomplete inverse. Raw request bytes reach the check via bytes_to_str = str(b,'latin1') (gunicorn/util.py:650, applied at message.py:67), mapping octets 0x80-0xFF onto U+0080-U+00FF -- none of which appear in the class -- so a header name containing any high-bit octet is admitted into self.headers. I independently found a concrete exploitation amplifier the analyst omitted: line 96 runs `name.strip()` AFTER validation at line 93, and Python's argless str.strip() removes Unicode whitespace, which in the Latin-1 range includes U+0085 (NEL) and U+00A0 (NBSP) -- both >\\x7F and thus invisible to HEADER_RE. Therefore `Transfer-Encoding\\xa0: chunked` decodes to \"Transfer-Encoding\\xa0\", uppercases (l.92), passes HEADER_RE (l.93), is then stripped to exactly \"TRANSFER-ENCODING\" (l.96), and matches set_body_reader at message.py:134, selecting the chunked reader in preference to Content-Length (l.138) -- a CL.TE desync primitive. The same validate-then-normalize window also reaches CONTENT-LENGTH (message.py:130), HOST/EXPECT/CONNECTION (wsgi.py:121-139, message.py:158) and the HTTP_ environ key (wsgi.py:136). I verified there is no other header-name validation layer between parse_headers and those consumers. Reachability is confirmed both ways: the graph reports the l.93 call (uid 8ea213bff4d02a1f568b1ddb990e26ee4f13b762) reachable_from_entry=true and Message.parse_headers as an :EntryPoint {kind:\"handler\", exposure:\"reachable\", hop_distance:0}, and the source path Request.parse -> parse_headers(data[:idx]) at message.py:233 confirms it is on the raw-socket request path. Version pinned at gunicorn/__init__.py:6 -> (21,2,0), i.e. before 22.0.0 where upstream replaced this denylist with an RFC-7230 token allowlist as a security fix. Two analyst errors corrected: (1) `'` IS a valid RFC 7230 tchar, so listing it as a missing non-token char is wrong (`/` and `?` are correctly flagged); (2) the response-path reuse at wsgi.py:252 is NOT a real issue -- send_headers latin-1 encodes (wsgi.py:322) and CR/LF are inside \\x00-\\x1F, so no response splitting is possible; I dropped it. Residual caveat on impact only, not on the defect: whether a given front-end forwards a `Transfer-Encoding\\xa0` name verbatim rather than dropping/rejecting it is deployment-dependent, and mcp__orion__exploit_search returned \"exploit corpus unavailable: not indexed\", so I cite no module/CVE version range."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/message.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 88,
+                  "endLine": 96
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parse_headers",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "1a3733baa0ceecd9eecaca628a3bb16b38ff9d78"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

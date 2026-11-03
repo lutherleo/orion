@@ -1,0 +1,59 @@
+﻿.......................................ssssssssss...ss.................. [  8%]
+........................................................................ [ 16%]
+..........s.F........................................................... [ 24%]
+..............................F..F..FF.................................. [ 33%]
+..........................s............................................. [ 41%]
+..........................s............................................. [ 49%]
+.ss..................................................................... [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 74%]
+........................................................................ [ 82%]
+........................................................................ [ 91%]
+......................................................sss............... [ 99%]
+.....                                                                    [100%]
+================================== FAILURES ===================================
+_____________________ test_collect_then_build_end_to_end ______________________
+train\tests\test_mine.py:42: in test_collect_then_build_end_to_end
+    st = mine.build(str(raw), str(work), str(out), cache_path=str(cache), log=lambda *a: None)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+train\mine.py:259: in build
+    f.write(tables(st))
+C:\Users\h\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py:19: in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   UnicodeEncodeError: 'charmap' codec can't encode character '\u2264' in position 333: character maps to <undefined>
+________________ test_build_writes_examples_ledger_and_resumes ________________
+train\tests\test_stage1_build.py:55: in test_build_writes_examples_ledger_and_resumes
+    assert not any((tmp_path / "w").iterdir())          # snapshots deleted
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: assert not True
+E    +  where True = any(<generator object Path.iterdir at 0x00000208A93BAF60>)
+E    +    where <generator object Path.iterdir at 0x00000208A93BAF60> = iterdir()
+E    +      where iterdir = (WindowsPath('C:/Users/h/AppData/Local/Temp/pytest-of-h/pytest-475/test_build_writes_examples_led0') / 'w').iterdir
+________________ test_sigint_finishes_current_pair_then_stops _________________
+train\tests\test_stage1_build.py:98: in test_sigint_finishes_current_pair_then_stops
+    assert not any((tmp_path / "w").iterdir())
+E   AssertionError: assert not True
+E    +  where True = any(<generator object Path.iterdir at 0x00000208A8D564D0>)
+E    +    where <generator object Path.iterdir at 0x00000208A8D564D0> = iterdir()
+E    +      where iterdir = (WindowsPath('C:/Users/h/AppData/Local/Temp/pytest-of-h/pytest-475/test_sigint_finishes_current_p0') / 'w').iterdir
+_______________ test_resume_reconciles_out_jsonl_after_a_crash ________________
+train\tests\test_stage1_build.py:128: in test_resume_reconciles_out_jsonl_after_a_crash
+    assert len(rows) == n and len({(r["label"], r["case"]["snippets"][0]["function"]) for r in rows}) == n
+E   assert (0 == 3)
+E    +  where 0 = len([])
+_________________ test_reconcile_keeps_rows_of_ledgered_pairs _________________
+train\tests\test_stage1_build.py:137: in test_reconcile_keeps_rows_of_ledgered_pairs
+    assert {r["pair_id"] for r in _lines(tmp_path / "out.jsonl")} == {"A", "B"}
+E   AssertionError: assert {'A'} == {'A', 'B'}
+E     
+E     Extra items in the right set:
+E     'B'
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED train/tests/test_mine.py::test_collect_then_build_end_to_end - Unicode...
+FAILED train/tests/test_stage1_build.py::test_build_writes_examples_ledger_and_resumes
+FAILED train/tests/test_stage1_build.py::test_sigint_finishes_current_pair_then_stops
+FAILED train/tests/test_stage1_build.py::test_resume_reconciles_out_jsonl_after_a_crash
+FAILED train/tests/test_stage1_build.py::test_reconcile_keeps_rows_of_ledgered_pairs
+5 failed, 844 passed, 20 skipped in 47.68s

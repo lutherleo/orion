@@ -1,0 +1,89 @@
+{
+ "benchmark": "vlb",
+ "task": "0bCRIkhJ",
+ "repo": "AhmedAdelFahim/express-xss-sanitizer",
+ "snapshot": "vulnerable",
+ "ref": "58f447a234d6ef17e8ae52300f49e0efe6c08a29",
+ "commit": "58f447a234d6ef17e8ae52300f49e0efe6c08a29",
+ "arm": "orion-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 316.5,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 8,
+  "uncached_in": 122,
+  "cache_read": 1362592,
+  "cache_write": 307493,
+  "out": 69239,
+  "tokens": 1739446,
+  "cli_cost_usd": 2.2157
+ },
+ "status": "ok",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": null,
+ "usage": [
+  {
+   "uncached_in": 14,
+   "cache_read": 168870,
+   "cache_write": 48469,
+   "out": 5648,
+   "cli_cost_usd": 0.28849352500000003
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 186042,
+   "cache_write": 36450,
+   "out": 9994,
+   "cli_cost_usd": 0.28512077
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 202920,
+   "cache_write": 41307,
+   "out": 11798,
+   "cli_cost_usd": 0.326773245
+  },
+  {
+   "uncached_in": 22,
+   "cache_read": 289677,
+   "cache_write": 56257,
+   "out": 15537,
+   "cli_cost_usd": 0.44250352000000004
+  },
+  {
+   "uncached_in": 10,
+   "cache_read": 86142,
+   "cache_write": 24890,
+   "out": 4557,
+   "cli_cost_usd": 0.16347627
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 185396,
+   "cache_write": 43535,
+   "out": 6207,
+   "cli_cost_usd": 0.27676681999999997
+  },
+  {
+   "uncached_in": 12,
+   "cache_read": 107781,
+   "cache_write": 27440,
+   "out": 6944,
+   "cli_cost_usd": 0.20181707
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 135764,
+   "cache_write": 29145,
+   "out": 8554,
+   "cli_cost_usd": 0.23077754500000003
+  }
+ ],
+ "orion_run_dir": ".orion/runs/35b809f722c102a7d9f5d507944eab50d4ab49ac/20261031T191657Z",
+ "scan_id": "35b809f722c102a7d9f5d507944eab50d4ab49ac",
+ "graph": "cleared"
+}

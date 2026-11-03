@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1022",
+              "name": "CWE1022",
+              "shortDescription": {
+                "text": "CWE-1022"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1022"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1022.html"
+            },
+            {
+              "id": "CWE-1104",
+              "name": "CWE1104",
+              "shortDescription": {
+                "text": "CWE-1104"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1104"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1104.html"
+            },
+            {
+              "id": "CWE-116",
+              "name": "CWE116",
+              "shortDescription": {
+                "text": "CWE-116"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-116"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/116.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-116",
+          "level": "error",
+          "message": {
+            "text": "In json2html's object branch, line 86 `key = htmlEscape(key)` CLOBBERS the for-in loop variable, and the two subsequent statements then index the original object with the HTML-ESCAPED key: line 92 `isCollapsable(json[key])` and line 97 `json2html(json[key], options)`. For any attacker-supplied JSON object key containing one of & < > ' \" (e.g. {\"R&D\": \"secret\"}, {\"it's\": \"secret\"}, {\"a<b\": \"secret\"}), the escaped key (\"R&amp;D\") no longer names a property of `json`, so `json[key]` evaluates to undefined. `json2html(undefined, options)` then matches NONE of the dispatch branches -- typeof!=='string'/'number'/'boolean', `undefined === null` is false (strict), not `instanceof Array`, and line 80 is `typeof json === 'object'` which is false for undefined -- so it falls through the whole if/else chain and returns the initial `var html = ''` (line 42). Net effect: the viewer silently renders the key followed by ': ' and an EMPTY value, dropping the real value, and also suppresses the collapse toggle (isCollapsable(undefined) is false). Attacker control of a single key name therefore suppresses display of that key's value. Integrity/display-fidelity defect, not code execution -- it matters where this viewer is used to review security-relevant JSON (token scopes, permission objects, audit records), because a field's value can be made invisible to the reviewer. Note it does NOT throw, precisely because line 80 is a `typeof === 'object'` guard rather than a bare `else`. Fix: keep the raw key for indexing and escape only into the display string (e.g. `var keyRepr = htmlEscape(key)` without reassigning `key`).\n\nVerifier (CONFIRM): Re-derived from source and confirmed. In json2html's object branch the loop variable is declared function-scoped at line 84 (`for (var key in json)`), then line 86 `key = htmlEscape(key)` overwrites that same binding. The only two subsequent uses of the key as an index -- line 92 `isCollapsable(json[key])` and line 97 `json2html(json[key], options)` -- therefore index the original object with the HTML-ESCAPED key. I read lines 84-104 in full: there is no saved copy of the raw key and no other assignment to `key`; `keyRepr` (line 87) is derived after the clobber so it cannot serve as the escape-for-display/raw-for-index split. htmlEscape (lines 29-35) rewrites & < > ' \" to entities, so for any key containing one of them (e.g. \"R&D\" -> \"R&amp;D\") `json[key]` is undefined. The fall-through is silent exactly as claimed: line 80 is a `typeof json === 'object'` guard rather than a bare `else`, so json2html(undefined) fails typeof string/number/boolean, fails `undefined === null` (strict), fails `instanceof Array`, and fails the typeof-object test, returning the initial `var html = ''` from line 42 with no exception; isCollapsable(undefined) is `undefined instanceof Object` -> false (line 13), suppressing the toggle. Reachability is solid, not a graph artifact: all calls in lines 84-99 carry reachable_from_entry=true, and 131 `json2html(json, options)` FLOWS_TO 137 `$(this).html(html)` off the sole public API `$.fn.jsonViewer` (line 118). Two corrections that strengthen the lead: (1) the impact is not only value-dropping but value SUBSTITUTION -- for {\"a&b\":1, \"a&amp;b\":2}, escaping \"a&b\" yields \"a&amp;b\" so json[\"a&amp;b\"] returns 2, making the row labelled a&b display the OTHER key's value, a controlled misattribution primitive; (2) the defect is structurally untested -- test/jquery.json-viewer.test.js:59-65 feeds the key '<script>alert(1)</script>' (which contains < and > and so triggers this bug) but asserts only that no <script> element exists, so the dropped value is never observed. Severity is LOW: the escaping works, so there is no XSS, code execution, or data exfiltration -- impact is confined to display fidelity, mattering only where the viewer reviews security-relevant JSON. CWE-116 is defensible but imprecise; the output encoding is correct and the real error is reusing the encoded value as a data-lookup key. Version pinned to jquery.json-viewer 1.4.0 (package.json:3); exploit_search returned \"exploit corpus unavailable: not indexed\", so there is no exploit-reference signal in either direction and I claim none."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "json-viewer/jquery.json-viewer.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 86,
+                  "endLine": 97
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "json2html",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "abf7a9adb7422c2935dbad7d3559b424b3417390"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-1022",
+          "level": "error",
+          "message": {
+            "text": "Attacker-controlled JSON string values are rendered as links with `target=\"_blank\"` and NO `rel=\"noopener noreferrer\"`. At line 45 the string is htmlEscaped, then at line 47 `options.withLinks && isUrl(json)` gates line 48: `html += '<a href=\"' + json + '\" class=\"json-string\" target=\"_blank\">' + json + '</a>'`. `withLinks` DEFAULTS TO TRUE (line 124 `_tmp_6.withLinks = true`), so this is the out-of-the-box path. When the JSON string is an absolute http(s)/ftp(s) URL accepted by isUrl's regex, the newly opened attacker page receives a live `window.opener` handle to the hosting document and can navigate it (reverse tabnabbing / phishing redirect of the opener). Secondarily, isUrl's regex makes the scheme group OPTIONAL -- `(https?:\\/\\/|ftps?:\\/\\/)?` -- so a scheme-less string such as `evil.com` also matches and is emitted as `<a href=\"evil.com\">`, a RELATIVE URL resolved against the hosting page's base, which silently mis-renders the value as a same-origin link. I verified this is NOT an XSS: `\"` is escaped to `&quot;` by htmlEscape so the attribute cannot be broken out of (entity decoding happens after attribute tokenization), and the regex cannot match a `javascript:`/`data:` URI because the host-label class `[a-z0-9%-]` excludes `:`, the only other `:` positions are a digits-only port `(:(\\d{1,5}))?` and a `/`-prefixed path. Fix: add rel=\"noopener noreferrer\" and require an explicit safe scheme.\n\nVerifier (CONFIRM): The code defect is present exactly as claimed and I re-derived it from the real source. json-viewer/jquery.json-viewer.js:48 emits `<a href=\"' + json + '\" class=\"json-string\" target=\"_blank\">` with no `rel` attribute, and `withLinks` defaults to true (lines 120-125), so this is the default path; `json2html` (line 41) is an :EntryPoint with exposure=reachable and the line-48 call node is reachable_from_entry=true (hop_distance 1). test/jquery.json-viewer.test.js:16 asserts the rel-less anchor as the expected output, independently confirming this is committed, tested behavior rather than a transient state. I also independently confirmed the lead's negative claims: htmlEscape (lines 29-35) escapes `&` first and then `\"`->&quot;, so the attribute cannot be broken out of; and the isUrl regex (line 21) cannot yield a javascript:/data: href because the scheme alternation only offers https?://|ftps?:// and, when omitted, the mandatory group ([a-z0-9%-]+\\.){1,} must match from position 0 while `:` is absent from that class (so `javascript:` fails at its first non-class char). CWE-1022 is therefore the right classification and not XSS. Two corrections to the analyst: (1) the secondary scheme-less claim is weaker than stated -- `//evil.com` does NOT match either, since a leading `/` is not in the host class, so a bare `evil.com` produces only a relative same-origin href (a mis-render, not a cross-origin redirect); (2) severity is LOW, not MEDIUM, because the version is pinned at 1.4.0 (package.json:3) and all current browsers (Chrome 88+, Firefox 79+, Safari 12.1+, Edge 88+) apply an implicit rel=\"noopener\" to target=\"_blank\", nulling window.opener and removing the reverse-tabnabbing primitive the lead leads with. The impact that survives on every browser is the missing `noreferrer`: the full hosting-page URL (potentially containing tokens or IDs) leaks as Referer to an attacker-chosen destination, plus legacy-browser-only tabnabbing. The advisory exploit-reference check was unavailable (corpus returned \"exploit corpus unavailable: not indexed\" for both queries), so I claim neither that a weaponized exploit exists nor that this is patched."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "json-viewer/jquery.json-viewer.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 47,
+                  "endLine": 48
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "json2html",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "c4abc4433334ecb7f784e7d19c8e67bbddaf939f"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-1104",
+          "level": "error",
+          "message": {
+            "text": "Components-with-known-vulnerabilities / end-of-life toolchain: all three dev dependencies in this scan are pinned to majors that are past end-of-life and no longer receive security patches -- eslint \"^7.28.0\" (ESLint 7 is EOL; 8 is also now EOL, 9.x is current), jest \"^27.0.4\" (Jest 27 is unmaintained; 29/30 current), and eslint-plugin-jest \"^24.3.6\" (several majors behind, 28+ current). These are build/test-time only and are NOT attacker-reachable at runtime (no EntryPoint or CpgCall in the scan resolves into them), so runtime exploitability is nil; the exposure is supply-chain / developer-machine and CI, via their unpatched transitive trees (Jest 27 in particular pulls an old transitive graph). VERIFIER NOTE / EXPLICIT NON-CLAIM: I am NOT asserting any specific CVE -- the graph carries only name+version strings and I did not ground an advisory lookup this session. Confirm against the lockfile and an advisory database; this is an EOL/unmaintained-component lead.\n\nVerifier (CONFIRM): The factual substrate of the lead is real and I re-derived it from the manifest, not from the analyst. package.json:25-30 declares exactly four devDependencies, three of which are end-of-life/unmaintained toolchain majors: eslint ^7.28.0 (ESLint 7 dates to Jun 2020 and is unsupported; 9.x current), jest ^27.0.4 (May 2021, unmaintained; 29/30 current), eslint-plugin-jest ^24.3.6 (2021; 28+ current). They are used only by the \"lint\"/\"test\" scripts (package.json:22-23) and by CI (.github/workflows/node.js.yml:15-18, which additionally pins EOL node-version 14.x and actions/checkout@v2). This satisfies CWE-1104 (Use of Unmaintained Third-Party Components) on cited evidence, so I do not reject it.\n\nI independently confirmed the non-reachability claim: the CPG contains exactly one CpgFile (json-viewer/jquery.json-viewer.js), zero CpgModule nodes, zero CpgCalls whose code/method_full_name mention eslint or jest, and all four EntryPoints (htmlEscape, isCollapsable, isUrl, json2html) are inside that single plugin file. Source confirms this: the plugin is a self-contained browser IIFE with no imports, and only test/jquery.json-viewer.test.js:4-5 requires anything. Runtime attacker reachability is therefore nil.\n\nThree corrections / limits that cap this at LOW and keep it a hygiene finding rather than a vulnerability: (1) The analyst's transitive-tree sub-claim (\"unpatched transitive trees; Jest 27 pulls an old transitive graph\") is UNSUBSTANTIATED and I could not verify it. No lockfile is committed (.gitignore contains only \"node_modules\"; glob for package-lock.json / yarn.lock / pnpm-lock.yaml / npm-shrinkwrap.json found nothing) and node_modules is absent, so per the version-pinning rule the EXACT installed versions cannot be pinned -- only the major is fixed while the patch floats within an EOL range at install time. Exploitability is UNKNOWN; I assert no CVE and I do not claim any transitive package is either vulnerable or patched. mcp__orion__exploit_search returned \"exploit corpus unavailable: not indexed\", so no advisory could be grounded in either direction. (2) \"all three dev dependencies in this scan\" is inaccurate -- there are four devDependencies; jquery ^3.6.0 (package.json:29) is also one and is past the 3.5.0 fix for the known jQuery htmlPrefilter XSS, so it correctly sits outside the EOL set. (3) The analyst gave no file/line at all, only \"CWE-1104\"; the location is package.json:25-30."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 25,
+                  "endLine": 30
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "5b72d6e37bbc5c04cd7453d8fa61b2e97d439c72"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

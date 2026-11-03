@@ -1,0 +1,197 @@
+{
+  "findings": [
+    {
+      "file": "jose/backends/cryptography_backend.py",
+      "function": "CryptographyHMACKey.__init__",
+      "line_start": 558,
+      "line_end": 569,
+      "cwe": "CWE-347",
+      "title": "Asymmetric public key accepted as HMAC secret (algorithm confusion)",
+      "explanation": "The guard that prevents an asymmetric key from being used as an HMAC shared secret is a blocklist of four byte strings (\"-----BEGIN PUBLIC KEY-----\", \"-----BEGIN RSA PUBLIC KEY-----\", \"-----BEGIN CERTIFICATE-----\", \"ssh-rsa\"). It does not cover OpenSSH-encoded EC or Ed25519 public keys, which begin with \"ecdsa-sha2-nistp256\" / \"ssh-ed25519\". Because the verification algorithm is taken from the attacker-controlled JWS header (jose/jws.py:254) and the key object is built with that algorithm (jose/jws.py:212 -> jose/jwk.py:262), an application that verifies tokens with a public key in OpenSSH format and accepts HS256 (either listed in `algorithms` or with `algorithms` left as the None default) will construct an HMACKey whose secret is the public key itself. The public key is not secret, so an attacker can mint arbitrary tokens: forge header {\"alg\":\"HS256\"}, choose any claims, and HMAC-SHA256 the signing input with the public key bytes. Verified empirically against this tree: jwt.decode() returned {\"sub\":\"admin\",\"role\":\"admin\"} for a token forged this way, both with algorithms=[\"ES256\",\"HS256\"] and with algorithms=None. This is a complete authentication/authorization bypass for any relying party. tests/algorithms/test_HMAC.py::test_RSA_key shows the blocklist is intended to reject exactly this misuse, so the missing formats are a gap in a security control rather than intended behavior.",
+      "path": [
+        {
+          "file": "jose/jwt.py",
+          "function": "decode",
+          "line": 145,
+          "role": "source"
+        },
+        {
+          "file": "jose/jws.py",
+          "function": "verify",
+          "line": 74,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jws.py",
+          "function": "_verify_signature",
+          "line": 254,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jws.py",
+          "function": "_sig_matches_keys",
+          "line": 212,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jwk.py",
+          "function": "construct",
+          "line": 262,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/backends/cryptography_backend.py",
+          "function": "CryptographyHMACKey.__init__",
+          "line": 565,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "jose/backends/native.py",
+      "function": "HMACKey.__init__",
+      "line_start": 39,
+      "line_end": 50,
+      "cwe": "CWE-347",
+      "title": "Asymmetric public key accepted as HMAC secret in native backend",
+      "explanation": "Identical incomplete blocklist to the cryptography backend, in the pure-python HMAC key used whenever the `cryptography` package is not installed (selected by jose/backends/__init__.py:266-269). OpenSSH-encoded EC (\"ecdsa-sha2-nistp256 ...\") and Ed25519 (\"ssh-ed25519 ...\") public keys pass the check and become the HMAC secret. Combined with the attacker-controlled `alg` header (jose/jws.py:254), an attacker who knows the relying party's public key can forge tokens with arbitrary claims by HMAC-ing the signing input with that public key, bypassing signature verification entirely. The exploit is the same as for the cryptography backend, which was confirmed to work against this tree.",
+      "path": [
+        {
+          "file": "jose/jwt.py",
+          "function": "decode",
+          "line": 145,
+          "role": "source"
+        },
+        {
+          "file": "jose/jws.py",
+          "function": "_verify_signature",
+          "line": 254,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jws.py",
+          "function": "_sig_matches_keys",
+          "line": 212,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jwk.py",
+          "function": "construct",
+          "line": 262,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/backends/native.py",
+          "function": "HMACKey.__init__",
+          "line": 46,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "jose/jws.py",
+      "function": "_verify_signature",
+      "line_start": 253,
+      "line_end": 259,
+      "cwe": "CWE-757",
+      "title": "Signature algorithm taken from untrusted header with no allow-list by default",
+      "explanation": "The signing algorithm is read from the unauthenticated JWS header (`alg = header.get(\"alg\")`) and the allow-list is only consulted when the caller supplies one: `if algorithms is not None and alg not in algorithms`. jose/jwt.py:59 declares `algorithms=None` as the default for jwt.decode, so the documented call `jwt.decode(token, key)` performs no algorithm pinning at all and lets the attacker pick the verification algorithm for the caller's key. That is the precondition that turns the HMAC blocklist gaps into a full forgery (confirmed: a token forged with alg=HS256 over an OpenSSH EC public key was accepted with algorithms=None), and it also leaves the library open to any future key/algorithm confusion pair rather than failing closed. A secondary issue at line 258 is that `alg not in algorithms` performs substring matching when a caller passes `algorithms` as a string, which the jwt.decode docstring explicitly permits (\"str or list\"); no currently supported JWS algorithm name is a substring of another, so this is latent rather than exploitable today. The fix is to require an explicit algorithm allow-list and reject the request when none is given.",
+      "path": [
+        {
+          "file": "jose/jwt.py",
+          "function": "decode",
+          "line": 59,
+          "role": "source"
+        },
+        {
+          "file": "jose/jwt.py",
+          "function": "decode",
+          "line": 145,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jws.py",
+          "function": "verify",
+          "line": 74,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jws.py",
+          "function": "_verify_signature",
+          "line": 258,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "jose/jwe.py",
+      "function": "_decrypt_and_auth",
+      "line_start": 237,
+      "line_end": 250,
+      "cwe": "CWE-203",
+      "title": "CBC padding oracle: ciphertext decrypted and unpadded before MAC verification",
+      "explanation": "For the AES-CBC-HMAC content encryption algorithms (A128CBC-HS256, A192CBC-HS384, A256CBC-HS512) the code calls `encryption_key.decrypt(...)` at line 246 -- which performs CBC decryption and PKCS7 unpadding -- and only afterwards compares the authentication tag at line 247. The two failure modes raise different, externally distinguishable errors: invalid PKCS7 padding surfaces as JWEError(\"Invalid padding bytes.\") from the unpadder, while valid padding with a bad MAC surfaces as JWEError(\"Invalid JWE Auth Tag\"). This is a classic padding oracle: an attacker who can submit modified ciphertexts and observe which error occurs recovers the plaintext byte by byte without the key. Verified empirically against this tree: flipping the last byte of the penultimate ciphertext block through all 256 values produced 254 \"Invalid padding bytes.\" responses and exactly 1 \"Invalid JWE Auth Tag\" response, cleanly separating valid from invalid padding. The same ordering also means attacker-chosen ciphertext is run through the cipher before any integrity check. Additionally, line 247 compares the tags with `!=` rather than a constant-time comparison (hmac.compare_digest), leaking tag-match progress through timing. The fix is to verify the MAC first, abort before decrypting on mismatch, use a constant-time comparison, and return a single indistinguishable error for all decryption failures.",
+      "path": [
+        {
+          "file": "jose/jwe.py",
+          "function": "decrypt",
+          "line": 86,
+          "role": "source"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "_jwe_compact_deserialize",
+          "line": 325,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "decrypt",
+          "line": 185,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "_decrypt_and_auth",
+          "line": 246,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "jose/backends/rsa_backend.py",
+      "function": "RSAKey.verify",
+      "line_start": 206,
+      "line_end": 213,
+      "cwe": "CWE-347",
+      "title": "RSA signature verification does not bind the digest to the JWS algorithm",
+      "explanation": "`sign` pins the digest to the JWS algorithm (`pyrsa.sign(msg, key, self.hash_alg)`), but `verify` calls `pyrsa.verify(msg, sig, self._prepared_key)` and discards its return value. The pure-python `rsa` library's verify accepts a PKCS#1 v1.5 signature made with any digest it supports -- including MD5 and SHA-1 -- and returns the name of the digest that matched precisely so the caller can enforce the expected one. Because that name is ignored and True is returned unconditionally, this key class treats a signature as valid for a token whose header claims RS256/RS384/RS512 regardless of the digest actually used, so the alg header is not cryptographically bound to the signature. Consequences: an RS512-declared token is accepted when the signature is really over SHA-256 (and vice versa), and an MD5 or SHA-1 PKCS#1 signature produced by the same RSA key for any other purpose is accepted as a JWT signature, which is reachable with collision attacks on those digests. Exploitation requires the pure-python backend (used when `cryptography` is absent, per jose/backends/__init__.py:248-254) and a signature over attacker-influenced data from the key holder, so it is narrower than the other findings, but the missing check is unambiguous. The fix is to compare the digest name returned by pyrsa.verify against self.hash_alg and return False on mismatch.",
+      "path": [
+        {
+          "file": "jose/jwt.py",
+          "function": "decode",
+          "line": 145,
+          "role": "source"
+        },
+        {
+          "file": "jose/jws.py",
+          "function": "_verify_signature",
+          "line": 254,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jws.py",
+          "function": "_sig_matches_keys",
+          "line": 214,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/backends/rsa_backend.py",
+          "function": "RSAKey.verify",
+          "line": 210,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

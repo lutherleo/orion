@@ -1,0 +1,36 @@
+{
+ "benchmark": "vlb",
+ "task": "TOhqi6Al",
+ "repo": "abodelot/jquery.json-viewer",
+ "snapshot": "vulnerable",
+ "ref": "71e62bbe5cb81d9581499ce89c68ed7da96d0f7f",
+ "commit": "71e62bbe5cb81d9581499ce89c68ed7da96d0f7f",
+ "arm": "plain-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 2,
+ "wall_s": 79.8,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 1,
+  "uncached_in": 3295,
+  "cache_read": 282185,
+  "cache_write": 24996,
+  "out": 6105,
+  "tokens": 316581,
+  "cli_cost_usd": 0.2241
+ },
+ "status": "ok",
+ "findings": true,
+ "usage": [
+  {
+   "uncached_in": 3295,
+   "cache_read": 282185,
+   "cache_write": 24996,
+   "out": 6105,
+   "reasoning": null,
+   "cli_cost_usd": 0.22406100000000004
+  }
+ ]
+}

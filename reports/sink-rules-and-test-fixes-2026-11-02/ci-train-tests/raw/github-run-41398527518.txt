@@ -1,0 +1,11 @@
+﻿GitHub Actions run 41398527518 on 64a8cb6 (fix/test-harness-skips), read with gh on 2026-11-02
+https://github.com/lutherleo/orion/actions/runs/41398527518
+
+conclusion=success sha=64a8cb6cb4f2260e241ffde50ac234a98ffd1975
+neo4j	UNKNOWN STEP	2026-11-02T06:13:09.5919693Z Image: ubuntu-24.04
+neo4j	UNKNOWN STEP	2026-11-02T06:13:52.5711044Z Successfully set up CPython (3.12.15)
+neo4j	UNKNOWN STEP	2026-11-02T06:15:10.6354839Z 1523 passed, 39 skipped, 62 deselected in 60.54s (0:01:00)
+unit	UNKNOWN STEP	2026-11-02T06:13:09.7962176Z Image: ubuntu-24.04
+unit	UNKNOWN STEP	2026-11-02T06:13:11.9668736Z Successfully set up CPython (3.12.15)
+unit	UNKNOWN STEP	2026-11-02T06:14:13.2067785Z 1487 passed, 75 skipped, 62 deselected in 42.09s
+unit	UNKNOWN STEP	2026-11-02T06:14:19.3043133Z 550 passed, 3 skipped in 5.40s

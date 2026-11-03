@@ -1,0 +1,732 @@
+[
+{
+"rank": 0,
+"cat": "code_exec",
+"file": "app/routes/contributions.js",
+"line": 28,
+"name": "<operator>.assignment",
+"code": "this.handleContributionsUpdate = (req, res, next) => {\n\n        /*jslint evil: true */\n        // Insecure use of eval() to parse inputs\n        const preTax = eval(req.body.preTax);\n        const afterTax = eval(req.body.afterTax);\n        const roth = eval(req.body.roth);\n\n        /*\n        //Fix for A1 -1 SSJS Injection attacks - uses alternate method to eval\n        const preTax = parseInt(req.body.preTax);\n        const afterTax = parseInt(req.body.afterTax);\n        const roth = parseInt(req.body.roth);\n        */\n        const {\n            userId\n        } = req.session;\n\n        //validate contributions\n        const validations = [isNaN(preTax), isNaN(afterTax), isNaN(roth), preTax < 0, afterTax < 0, roth < 0];\n        const isInvalid = validations.some(validation => validation);\n        if (isInvalid) {\n            return res.render(\"contributions\", {\n                updateError: \"Invalid contribution percentages\",\n                userId,\n                environmentalScr...",
+"path_len": 1,
+"uid": "e5259841484cb225833138cf5115aeb4412ca889"
+},
+{
+"rank": 1,
+"cat": "code_exec",
+"file": "app/routes/contributions.js",
+"line": 33,
+"name": "eval",
+"code": "eval(req.body.afterTax)",
+"path_len": 1,
+"uid": "c93f2b550e93a9fba198cd7799ef4187d968d129"
+},
+{
+"rank": 2,
+"cat": "code_exec",
+"file": "app/routes/contributions.js",
+"line": 34,
+"name": "eval",
+"code": "eval(req.body.roth)",
+"path_len": 1,
+"uid": "eb86dfea60fe85f8be275b32948e24e1c569784e"
+},
+{
+"rank": 3,
+"cat": "nosql",
+"file": "app/data/allocations-dao.js",
+"line": 57,
+"name": "<operator>.assignment",
+"code": "this.getByUserIdAndThreshold = (userId, threshold, callback) => {\n        const parsedUserId = parseInt(userId);\n\n        const searchCriteria = () => {\n\n            if (threshold) {\n                /*\n                // Fix for A1 - 2 NoSQL Injection - escape the threshold parameter properly\n                // Fix this NoSQL Injection which doesn't sanitze the input parameter 'threshold' and allows attackers\n                // to inject arbitrary javascript code into the NoSQL query:\n                // 1. 0';while(true){}'\n                // 2. 1'; return 1 == '1\n                // Also implement fix in allocations.html for UX.                             \n                const parsedThreshold = parseInt(threshold, 10);\n                \n                if (parsedThreshold >= 0 && parsedThreshold <= 99) {\n                    return {$where: `this.userId == ${parsedUserId} && this.stocks > ${parsedThreshold}`};\n                }\n                throw `The user supplied threshold: ${p...",
+"path_len": 1,
+"uid": "5781b081d31fc5c1e0c7eae59f50b6b20ce1f01d"
+},
+{
+"rank": 4,
+"cat": "nosql",
+"file": "app/data/allocations-dao.js",
+"line": 78,
+"name": "<operator>.fieldAccess",
+"code": "_tmp_5.$where",
+"path_len": 1,
+"uid": "4af16c88a7052a6e607c83840fa4a759eebd4baa"
+},
+{
+"rank": 5,
+"cat": "nosql",
+"file": "app/data/allocations-dao.js",
+"line": 78,
+"name": "<operator>.assignment",
+"code": "_tmp_5.$where = <operator>.formatString(\"this.userId == \", parsedUserId, \" && this.stocks > '\", threshold, \"'\")",
+"path_len": 1,
+"uid": "bcb4efdc7c33e8b8c51f56f8768a5e92c17997d1"
+},
+{
+"rank": 6,
+"cat": "nosql",
+"file": "app/data/benefits-dao.js",
+"line": 15,
+"name": "<operator>.assignment",
+"code": "this.getAllNonAdminUsers = callback => {\n        usersCol.find({\n            \"isAdmin\": {\n                $ne: true\n            }\n        }).toArray((err, users) => callback(null, users));\n    }",
+"path_len": 1,
+"uid": "d1dcdaf4ffad02b0ee698f0a1e0d5fedb9c5e266"
+},
+{
+"rank": 7,
+"cat": "nosql",
+"file": "app/data/memos-dao.js",
+"line": 26,
+"name": "<operator>.assignment",
+"code": "this.getAllMemos = (callback) => {\n\n        memosCol.find({}).sort({\n            timestamp: -1\n        }).toArray((err, memos) => {\n            if (err) return callback(err, null);\n            if (!memos) return callback(\"ERROR: No memos found\", null);\n            callback(null, memos);\n        });\n    }",
+"path_len": 1,
+"uid": "58b1538af412bcdfb50bd12abc82e5099391007c"
+},
+{
+"rank": 8,
+"cat": "nosql",
+"file": "app/data/profile-dao.js",
+"line": 94,
+"name": "<operator>.assignment",
+"code": "this.getByUserId = (userId, callback) => {\n        users.findOne({\n                _id: parseInt(userId)\n            },\n            (err, user) => {\n                if (err) return callback(err, null);\n                /*\n                // Fix for A6 - Sensitive Data Exposure\n                // Decrypt ssn and DOB values to display to user\n                user.ssn = user.ssn ? decrypt(user.ssn) : \"\";\n                user.dob = user.dob ? decrypt(user.dob) : \"\";\n                */\n\n                callback(null, user);\n            }\n        );\n    }",
+"path_len": 1,
+"uid": "09a310e0921ae5507e686df36413256f87d0db1a"
+},
+{
+"rank": 9,
+"cat": "nosql",
+"file": "app/data/contributions-dao.js",
+"line": 56,
+"name": "<operator>.assignment",
+"code": "this.getByUserId = (userId, callback) => {\n        contributionsDB.findOne({\n                userId: userId\n            },\n            (err, contributions) => {\n                if (err) return callback(err, null);\n\n                // Set defualt contributions if not set\n                contributions = contributions || {\n                    preTax: 2,\n                    afterTax: 2,\n                    roth: 2\n                };\n\n                // add user details\n                userDAO.getUserById(userId, (err, user) => {\n\n                    if (err) return callback(err, null);\n                    contributions.userName = user.userName;\n                    contributions.firstName = user.firstName;\n                    contributions.lastName = user.lastName;\n                    contributions.userId = userId;\n\n                    callback(null, contributions);\n                });\n            }\n        );\n    }",
+"path_len": 1,
+"uid": "beef4dd64c18479eb71d8e1273c9f1b28c39d8cc"
+},
+{
+"rank": 10,
+"cat": "nosql",
+"file": "app/data/user-dao.js",
+"line": 97,
+"name": "<operator>.assignment",
+"code": "this.getUserById = (userId, callback) => {\n        usersCol.findOne({\n            _id: parseInt(userId)\n        }, callback);\n    }",
+"path_len": 1,
+"uid": "1d61ebb44dbae38b62209288322ad6f0c1435e22"
+},
+{
+"rank": 11,
+"cat": "nosql",
+"file": "app/data/user-dao.js",
+"line": 103,
+"name": "<operator>.assignment",
+"code": "this.getUserByUserName = (userName, callback) => {\n        usersCol.findOne({\n            userName: userName\n        }, callback);\n    }",
+"path_len": 1,
+"uid": "a385b41b6d45b18b2776e676fca457c8a41130be"
+},
+{
+"rank": 12,
+"cat": "nosql",
+"file": "app/data/user-dao.js",
+"line": 109,
+"name": "<operator>.assignment",
+"code": "this.getNextSequence = (name, callback) => {\n        db.collection(\"counters\").findAndModify({\n                _id: name\n            }, [], {\n                $inc: {\n                    seq: 1\n                }\n            }, {\n                new: true\n            },\n            (err, data) =>  err ? callback(err, null) : callback(null, data.value.seq));\n    }",
+"path_len": 1,
+"uid": "92f4a45826041133a07fcad60de56ba28122806c"
+},
+{
+"rank": 13,
+"cat": "render",
+"file": "app/routes/allocations.js",
+"line": 11,
+"name": "<operator>.assignment",
+"code": "this.displayAllocations = (req, res, next) => {\n        /*\n        // Fix for A4 Insecure DOR -  take user id from session instead of from URL param\n        const { userId } = req.session;\n        */\n        const {\n            userId\n        } = req.params;\n        const {\n            threshold\n        } = req.query;\n\n        allocationsDAO.getByUserIdAndThreshold(userId, threshold, (err, allocations) => {\n            if (err) return next(err);\n            return res.render(\"allocations\", {\n                userId,\n                allocations,\n                environmentalScripts\n            });\n        });\n    }",
+"path_len": 1,
+"uid": "293b9191d002da0989c66e30b53e01e1f5ed9867"
+},
+{
+"rank": 14,
+"cat": "render",
+"file": "app/routes/research.js",
+"line": 12,
+"name": "<operator>.assignment",
+"code": "this.displayResearch = (req, res) => {\n\n        if (req.query.symbol) {\n            const url = req.query.url + req.query.symbol;\n            return needle.get(url, (error, newResponse, body) => {\n                if (!error && newResponse.statusCode === 200) {\n                    res.writeHead(200, {\n                        \"Content-Type\": \"text/html\"\n                    });\n                }\n                res.write(\"<h1>The following is the stock information you requested.</h1>\\n\\n\");\n                res.write(\"\\n\\n\");\n                if (body) {\n                    res.write(body);\n                }\n                return res.end();\n            });\n        }\n\n        return res.render(\"research\", {\n            environmentalScripts\n        });\n    }",
+"path_len": 1,
+"uid": "7a33f2f5d602d2d4551f3c3565a71f953f33e60e"
+},
+{
+"rank": 15,
+"cat": "render",
+"file": "app/routes/benefits.js",
+"line": 13,
+"name": "<operator>.assignment",
+"code": "this.displayBenefits = (req, res, next) => {\n\n        benefitsDAO.getAllNonAdminUsers((error, users) => {\n\n            if (error) return next(error);\n\n            return res.render(\"benefits\", {\n                users,\n                user: {\n                    isAdmin: true\n                },\n                environmentalScripts\n            });\n        });\n    }",
+"path_len": 1,
+"uid": "518f83fca4a767c0be6364466f64993293ae77f7"
+},
+{
+"rank": 16,
+"cat": "render",
+"file": "app/routes/benefits.js",
+"line": 29,
+"name": "<operator>.assignment",
+"code": "this.updateBenefits = (req, res, next) => {\n        const {\n            userId,\n            benefitStartDate\n        } = req.body;\n\n        benefitsDAO.updateBenefits(userId, benefitStartDate, (error) => {\n\n            if (error) return next(error);\n\n            benefitsDAO.getAllNonAdminUsers((error, users) => {\n                if (error) return next(error);\n\n                const data = {\n                    users,\n                    user: {\n                        isAdmin: true\n                    },\n                    updateSuccess: true,\n                    environmentalScripts\n                };\n\n                return res.render(\"benefits\", data);\n            });\n        });\n    }",
+"path_len": 1,
+"uid": "9bed7a6cc6f032502efce0299d3335d14f6f0976"
+},
+{
+"rank": 17,
+"cat": "render",
+"file": "app/routes/contributions.js",
+"line": 12,
+"name": "<operator>.assignment",
+"code": "this.displayContributions = (req, res, next) => {\n        const {\n            userId\n        } = req.session;\n\n        contributionsDAO.getByUserId(userId, (error, contrib) => {\n            if (error) return next(error);\n\n            contrib.userId = userId; //set for nav menu items\n            return res.render(\"contributions\", {\n                ...contrib,\n                environmentalScripts\n            });\n        });\n    }",
+"path_len": 1,
+"uid": "0a52e8fcd7f326d00f3c675a29dad86fb9bf11fd"
+},
+{
+"rank": 18,
+"cat": "render",
+"file": "app/routes/memos.js",
+"line": 19,
+"name": "<operator>.assignment",
+"code": "this.displayMemos = (req, res, next) => {\n\n        const {\n            userId\n        } = req.session;\n\n        memosDAO.getAllMemos((err, docs) => {\n            if (err) return next(err);\n            return res.render(\"memos\", {\n                memosList: docs,\n                userId: userId,\n                environmentalScripts\n            });\n        });\n    }",
+"path_len": 1,
+"uid": "87cbe82cc44ceb9c8ef52c4491d531287c91f47a"
+},
+{
+"rank": 19,
+"cat": "render",
+"file": "app/routes/profile.js",
+"line": 13,
+"name": "<operator>.assignment",
+"code": "this.displayProfile = (req, res, next) => {\n        const {\n            userId\n        } = req.session;\n\n\n\n        profile.getByUserId(parseInt(userId), (err, doc) => {\n            if (err) return next(err);\n            doc.userId = userId;\n\n            // @TODO @FIXME\n            // while the developer intentions were correct in encoding the user supplied input so it\n            // doesn't end up as an XSS attack, the context is incorrect as it is encoding the firstname for HTML\n            // while this same variable is also used in the context of a URL link element\n            doc.website = ESAPI.encoder().encodeForHTML(doc.website);\n            // fix it by replacing the above with another template variable that is used for \n            // the context of a URL in a link header\n            // doc.website = ESAPI.encoder().encodeForURL(doc.website)\n\n            return res.render(\"profile\", {\n                ...doc,\n                environmentalScripts\n            });\n        });\n ...",
+"path_len": 1,
+"uid": "869cbdfb40b68559d99001f65eeff36a2b451096"
+},
+{
+"rank": 20,
+"cat": "render",
+"file": "app/routes/error.js",
+"line": 10,
+"name": "<operator>.fieldAccess",
+"code": "res.render",
+"path_len": 1,
+"uid": "86bbe5db8d142f3c0b5301adbd4adfac343b5ca6"
+},
+{
+"rank": 21,
+"cat": "redirect",
+"file": "app/routes/session.js",
+"line": 25,
+"name": "<operator>.assignment",
+"code": "this.isAdminUserMiddleware = (req, res, next) => {\n        if (req.session.userId) {\n            return userDAO.getUserById(req.session.userId, (err, user) => {\n               return user && user.isAdmin ? next() : res.redirect(\"/login\");\n            });\n        }\n        console.log(\"redirecting to login\");\n        return res.redirect(\"/login\");\n\n    }",
+"path_len": 1,
+"uid": "0edd41bae8d084eb9d4a9ef3b42d29ed7dcb6b73"
+},
+{
+"rank": 22,
+"cat": "redirect",
+"file": "app/routes/session.js",
+"line": 36,
+"name": "<operator>.assignment",
+"code": "this.isLoggedInMiddleware = (req, res, next) => {\n        if (req.session.userId) {\n            return next();\n        }\n        console.log(\"redirecting to login\");\n        return res.redirect(\"/login\");\n    }",
+"path_len": 1,
+"uid": "be49604fa1b37b523c93fcd6dc5b59aabccfb538"
+},
+{
+"rank": 23,
+"cat": "render",
+"file": "app/routes/session.js",
+"line": 44,
+"name": "<operator>.assignment",
+"code": "this.displayLoginPage = (req, res, next) => {\n        return res.render(\"login\", {\n            userName: \"\",\n            password: \"\",\n            loginError: \"\",\n            environmentalScripts\n        });\n    }",
+"path_len": 1,
+"uid": "0b4f6f856aaf54f348df18864817617468b0f46b"
+},
+{
+"rank": 24,
+"cat": "redirect",
+"file": "app/routes/session.js",
+"line": 121,
+"name": "<operator>.assignment",
+"code": "this.displayLogoutPage = (req, res) => {\n        req.session.destroy(() => res.redirect(\"/\"));\n    }",
+"path_len": 1,
+"uid": "76abf63b7f4c443068578598e869b4d56e05d9ca"
+},
+{
+"rank": 25,
+"cat": "render",
+"file": "app/routes/session.js",
+"line": 125,
+"name": "<operator>.assignment",
+"code": "this.displaySignupPage = (req, res) => {\n        res.render(\"signup\", {\n            userName: \"\",\n            password: \"\",\n            passwordError: \"\",\n            email: \"\",\n            userNameError: \"\",\n            emailError: \"\",\n            verifyError: \"\",\n            environmentalScripts\n        });\n    }",
+"path_len": 1,
+"uid": "b68ade0f4675ac646439e4abe6afac53212436a3"
+},
+{
+"rank": 26,
+"cat": "render",
+"file": "app/routes/session.js",
+"line": 189,
+"name": "<operator>.assignment",
+"code": "this.handleSignup = (req, res, next) => {\n\n        const {\n            email,\n            userName,\n            firstName,\n            lastName,\n            password,\n            verify\n        } = req.body;\n\n        // set these up in case we have an error case\n        const errors = {\n            \"userName\": userName,\n            \"email\": email\n        };\n\n        if (validateSignup(userName, firstName, lastName, password, verify, email, errors)) {\n\n            userDAO.getUserByUserName(userName, (err, user) => {\n\n                if (err) return next(err);\n\n                if (user) {\n                    errors.userNameError = \"User name already in use. Please choose another\";\n                    return res.render(\"signup\", {\n                        ...errors,\n                        environmentalScripts\n                    });\n                }\n\n                userDAO.addUser(userName, firstName, lastName, password, email, (err, user) => {\n\n                    if (err) return ne...",
+"path_len": 1,
+"uid": "1e17007c381259696ff0f4f0407d851e4cccd983"
+},
+{
+"rank": 27,
+"cat": "redirect",
+"file": "app/routes/session.js",
+"line": 256,
+"name": "<operator>.assignment",
+"code": "this.displayWelcomePage = (req, res, next) => {\n        let userId;\n\n        if (!req.session.userId) {\n            console.log(\"welcome: Unable to identify user...redirecting to login\");\n            return res.redirect(\"/login\");\n        }\n\n        userId = req.session.userId;\n\n        userDAO.getUserById(userId, (err, doc) => {\n            if (err) return next(err);\n            doc.userId = userId;\n            return res.render(\"dashboard\", {\n                ...doc,\n                environmentalScripts\n            });\n        });\n    }",
+"path_len": 1,
+"uid": "ff0dd27cd33375a87676baa14255bec1e7b55d4b"
+},
+{
+"rank": 28,
+"cat": "render",
+"file": "app/routes/allocations.js",
+"line": 25,
+"name": "render",
+"code": "res.render(\"allocations\", {\n                userId,\n                allocations,\n                environmentalScripts\n            })",
+"path_len": 1,
+"uid": "a9633650a56a1e07c663e0e2f951f8ead2a75150"
+},
+{
+"rank": 29,
+"cat": "render",
+"file": "app/routes/contributions.js",
+"line": 21,
+"name": "render",
+"code": "res.render(\"contributions\", {\n                ...contrib,\n                environmentalScripts\n            })",
+"path_len": 1,
+"uid": "2ce0b1b497f1b06b4cff73eabbd8b91ddce1ce09"
+},
+{
+"rank": 30,
+"cat": "render",
+"file": "app/routes/contributions.js",
+"line": 50,
+"name": "render",
+"code": "res.render(\"contributions\", {\n                updateError: \"Invalid contribution percentages\",\n                userId,\n                environmentalScripts\n            })",
+"path_len": 1,
+"uid": "132e4a6331aa85ad7f97a6b330fafe83fa678d38"
+},
+{
+"rank": 31,
+"cat": "render",
+"file": "app/routes/contributions.js",
+"line": 58,
+"name": "render",
+"code": "res.render(\"contributions\", {\n                updateError: \"Contribution percentages cannot exceed 30 %\",\n                userId,\n                environmentalScripts\n            })",
+"path_len": 1,
+"uid": "befaafba455cf1b94f95911f0a79ddb625ba5a7f"
+},
+{
+"rank": 32,
+"cat": "render",
+"file": "app/routes/error.js",
+"line": 10,
+"name": "render",
+"code": "res.render(\"error-template\", {\n        error: err\n    })",
+"path_len": 1,
+"uid": "b39f810861a5452298fb71399e62305d4161ddc8"
+},
+{
+"rank": 33,
+"cat": "redirect",
+"file": "app/routes/index.js",
+"line": 72,
+"name": "redirect",
+"code": "res.redirect(req.query.url)",
+"path_len": 1,
+"uid": "2ca51dbc780c7d8ac91ea5e4d988ace83b8f344f"
+},
+{
+"rank": 34,
+"cat": "render",
+"file": "app/routes/memos.js",
+"line": 27,
+"name": "render",
+"code": "res.render(\"memos\", {\n                memosList: docs,\n                userId: userId,\n                environmentalScripts\n            })",
+"path_len": 1,
+"uid": "befce4cedd69abb4e0b2f5c2080c8f8bb0c2609f"
+},
+{
+"rank": 35,
+"cat": "render",
+"file": "app/routes/profile.js",
+"line": 33,
+"name": "render",
+"code": "res.render(\"profile\", {\n                ...doc,\n                environmentalScripts\n            })",
+"path_len": 1,
+"uid": "3eff71cf4409717721abc99f754a9d2450d905c8"
+},
+{
+"rank": 36,
+"cat": "render",
+"file": "app/routes/profile.js",
+"line": 65,
+"name": "render",
+"code": "res.render(\"profile\", {\n                updateError: \"Bank Routing number does not comply with requirements for format specified\",\n                firstNameSafeString,\n                lastName,\n                ssn,\n                dob,\n                address,\n                bankAcc,\n                bankRouting,\n                environmentalScripts\n            })",
+"path_len": 1,
+"uid": "d0a8c0d2b52e5946ac9186a5685fcacb22beac21"
+},
+{
+"rank": 37,
+"cat": "render",
+"file": "app/routes/profile.js",
+"line": 100,
+"name": "render",
+"code": "res.render(\"profile\", {\n                    ...user,\n                    environmentalScripts\n                })",
+"path_len": 1,
+"uid": "8f29016d1d3ae9f8bd9200881ec12dfe000409e9"
+},
+{
+"rank": 38,
+"cat": "render",
+"file": "app/routes/session.js",
+"line": 269,
+"name": "render",
+"code": "res.render(\"dashboard\", {\n                ...doc,\n                environmentalScripts\n            })",
+"path_len": 1,
+"uid": "7cafce4fce65b4d267025ff9d0482661f06e1ce6"
+},
+{
+"rank": 39,
+"cat": "log",
+"file": "app/data/allocations-dao.js",
+"line": 11,
+"name": "log",
+"code": "console.log(\"Warning: AllocationsDAO constructor called without 'new' operator\")",
+"path_len": 1,
+"uid": "6ee57a13f8512900752cfb1555f8c77b25038f30"
+},
+{
+"rank": 40,
+"cat": "log",
+"file": "app/data/benefits-dao.js",
+"line": 9,
+"name": "log",
+"code": "console.log(\"Warning: BenefitsDAO constructor called without 'new' operator\")",
+"path_len": 1,
+"uid": "3e8aa957904a3b559bf714072da611bbf8298735"
+},
+{
+"rank": 41,
+"cat": "log",
+"file": "app/data/contributions-dao.js",
+"line": 10,
+"name": "log",
+"code": "console.log(\"Warning: ContributionsDAO constructor called without 'new' operator\")",
+"path_len": 1,
+"uid": "79e13ff39bd572356db6b476382ac4280c92df60"
+},
+{
+"rank": 42,
+"cat": "log",
+"file": "app/data/memos-dao.js",
+"line": 9,
+"name": "log",
+"code": "console.log(\"Warning: MemosDAO constructor called without 'new' operator\")",
+"path_len": 1,
+"uid": "b7697827849ca72c25b05f0ce42db507499bda65"
+},
+{
+"rank": 43,
+"cat": "log",
+"file": "app/data/profile-dao.js",
+"line": 9,
+"name": "log",
+"code": "console.log(\"Warning: ProfileDAO constructor called without 'new' operator\")",
+"path_len": 1,
+"uid": "dc1da890ddf8bf03af946c247b9619cb2ed17dc6"
+},
+{
+"rank": 44,
+"cat": "log",
+"file": "app/data/research-dao.js",
+"line": 9,
+"name": "log",
+"code": "console.log(\"Warning: ResearchDAO constructor called without 'new' operator\")",
+"path_len": 1,
+"uid": "115a59ccb4484ca8fcc3d54fb2dd846b777e415b"
+},
+{
+"rank": 45,
+"cat": "log",
+"file": "app/data/user-dao.js",
+"line": 11,
+"name": "log",
+"code": "console.log(\"Warning: UserDAO constructor called without 'new' operator\")",
+"path_len": 1,
+"uid": "650e315f6ea92a99f76792adb18f411059bbb454"
+},
+{
+"rank": 46,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 54,
+"name": "log",
+"code": "console.log(JSON.stringify(err))",
+"path_len": 1,
+"uid": "f2bfb9b2671bb65477087d949115519d15978303"
+},
+{
+"rank": 47,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 58,
+"name": "log",
+"code": "console.log(JSON.stringify(res))",
+"path_len": 1,
+"uid": "1e654a6fd821d57f3a7416eb2707a88e5ac8045c"
+},
+{
+"rank": 48,
+"cat": "log",
+"file": "app/data/allocations-dao.js",
+"line": 11,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "3fb4f727cac3d41617e7a613b5c22586e2672c85"
+},
+{
+"rank": 49,
+"cat": "log",
+"file": "app/data/research-dao.js",
+"line": 9,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "380e9108b117ab394bd14c6603add4e725e90e59"
+},
+{
+"rank": 50,
+"cat": "log",
+"file": "app/data/research-dao.js",
+"line": 13,
+"name": "<operator>.assignment",
+"code": "this.getBySymbol = (symbol, callback) => {\n\n        const searchCriteria = () => {\n\n            if (symbol) {\n                console.log(\"in if symbol\");\n                return {\n                    symbol\n                };\n            }\n        };\n    }",
+"path_len": 1,
+"uid": "9c8a66d11e89c01cf9b9b770d9364b4ac7a123b8"
+},
+{
+"rank": 51,
+"cat": "log",
+"file": "app/data/research-dao.js",
+"line": 18,
+"name": "log",
+"code": "console.log(\"in if symbol\")",
+"path_len": 1,
+"uid": "379997b561745af01c92a462aaeb8ff2f0593d7a"
+},
+{
+"rank": 52,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 40,
+"name": "<operator>.new",
+"code": "new Promise((resolve, reject) => {\n        db.dropCollection(name, (err, data) => {\n            if (!err) {\n                console.log(`Dropped collection: ${name}`);\n            }\n            resolve(undefined);\n        });\n    })",
+"path_len": 1,
+"uid": "2bdeca57c4fc251935348fed711270c13b75261d"
+},
+{
+"rank": 53,
+"cat": "log",
+"file": "app/data/allocations-dao.js",
+"line": 18,
+"name": "<operator>.assignment",
+"code": "this.update = (userId, stocks, funds, bonds, callback) => {\n        const parsedUserId = parseInt(userId);\n\n        // Create allocations document\n        const allocations = {\n            userId: userId,\n            stocks: stocks,\n            funds: funds,\n            bonds: bonds\n        };\n\n        allocationsCol.update({\n            userId: parsedUserId\n        }, allocations, {\n            upsert: true\n        }, err => {\n\n            if (!err) {\n\n                console.log(\"Updated allocations\");\n\n                userDAO.getUserById(userId, (err, user) => {\n\n                    if (err) return callback(err, null);\n\n                    // add user details\n                    allocations.userId = userId;\n                    allocations.userName = user.userName;\n                    allocations.firstName = user.firstName;\n                    allocations.lastName = user.lastName;\n\n                    return callback(null, allocations);\n                });\n            }\n\n         ...",
+"path_len": 1,
+"uid": "fcbf33c47d88d70e915c9107c9513ae03bdd965c"
+},
+{
+"rank": 54,
+"cat": "log",
+"file": "app/data/benefits-dao.js",
+"line": 9,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "a86c6d5485e4b1a456c8f8c145f6d55b698f683c"
+},
+{
+"rank": 55,
+"cat": "log",
+"file": "app/data/benefits-dao.js",
+"line": 23,
+"name": "<operator>.assignment",
+"code": "this.updateBenefits = (userId, startDate, callback) => {\n        usersCol.update({\n                _id: parseInt(userId)\n            }, {\n                $set: {\n                    benefitStartDate: startDate\n                }\n            },\n            (err, result) => {\n                if (!err) {\n                    console.log(\"Updated benefits\");\n                    return callback(null, result);\n                }\n\n                return callback(err, null);\n            }\n        );\n    }",
+"path_len": 1,
+"uid": "4ca66f36ab94761b51e01d7089ebd5ea4f2cd76f"
+},
+{
+"rank": 56,
+"cat": "log",
+"file": "app/data/contributions-dao.js",
+"line": 10,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "33361684b16ce860dd564d2e1d3709890dc4cc55"
+},
+{
+"rank": 57,
+"cat": "log",
+"file": "app/data/memos-dao.js",
+"line": 9,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "58d856bdb468392fcc7773bd16469c943eab1f04"
+},
+{
+"rank": 58,
+"cat": "log",
+"file": "app/data/profile-dao.js",
+"line": 9,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "19918e9a2b919f909768e7095a774e2e2b72f0b5"
+},
+{
+"rank": 59,
+"cat": "log",
+"file": "app/data/research-dao.js",
+"line": 18,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "0e3c44dd6e3e6c15dcce6bf1750d0622faac1b2b"
+},
+{
+"rank": 60,
+"cat": "log",
+"file": "app/data/contributions-dao.js",
+"line": 17,
+"name": "<operator>.assignment",
+"code": "this.update = (userId, preTax, afterTax, roth, callback) => {\n        const parsedUserId = parseInt(userId);\n\n        // Create contributions document\n        const contributions = {\n            userId: parsedUserId,\n            preTax: preTax,\n            afterTax: afterTax,\n            roth: roth\n        };\n\n        contributionsDB.update({\n            userId\n            },\n            contributions, {\n                upsert: true\n            },\n            err => {\n                if (!err) {\n                    console.log(\"Updated contributions\");\n                    // add user details\n                    userDAO.getUserById(parsedUserId, (err, user) => {\n\n                        if (err) return callback(err, null);\n\n                        contributions.userName = user.userName;\n                        contributions.firstName = user.firstName;\n                        contributions.lastName = user.lastName;\n                        contributions.userId = userId;\n\n              ...",
+"path_len": 1,
+"uid": "42e74ca2de1540ad88be826f94b3f2feea3634fc"
+},
+{
+"rank": 61,
+"cat": "log",
+"file": "app/data/user-dao.js",
+"line": 11,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "fa0cbfca1f0accc4e85337c9ae60e768efa2efef"
+},
+{
+"rank": 62,
+"cat": "log",
+"file": "app/data/user-dao.js",
+"line": 17,
+"name": "<operator>.assignment",
+"code": "this.addUser = (userName, firstName, lastName, password, email, callback) => {\n\n        // Create user document\n        const user = {\n            userName,\n            firstName,\n            lastName,\n            benefitStartDate: this.getRandomFutureDate(),\n            password //received from request param\n            /*\n            // Fix for A2-1 - Broken Auth\n            // Stores password  in a safer way using one way encryption and salt hashing\n            password: bcrypt.hashSync(password, bcrypt.genSaltSync())\n            */\n        };\n\n        // Add email if set\n        if (email) {\n            user.email = email;\n        }\n\n        this.getNextSequence(\"userId\", (err, id) => {\n            if (err) {\n                return callback(err, null);\n            }\n            console.log(typeof(id));\n\n            user._id = id;\n            usersCol.insert(user, (err, result) => !err ? callback(null, result.ops[0]) : callback(err, null));\n        });\n    }",
+"path_len": 1,
+"uid": "a236238764d08cbe9d717aac8137e494da211190"
+},
+{
+"rank": 63,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 52,
+"name": "log",
+"code": "console.log(\"ERROR:\")",
+"path_len": 1,
+"uid": "e0d53c93fd9ad058f3d151dbfbfa4c3dec9cdad5"
+},
+{
+"rank": 64,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 53,
+"name": "log",
+"code": "console.log(comm)",
+"path_len": 1,
+"uid": "9f8dcc246841687995390ab4bf65c3cbf90e72e8"
+},
+{
+"rank": 65,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 57,
+"name": "log",
+"code": "console.log(comm)",
+"path_len": 1,
+"uid": "39d6bfe53f57b5f006155b1855047767ffa1fe1d"
+},
+{
+"rank": 66,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 52,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "b2b99e31f1364a95e14e5dcc4bfbae4d464cbb6b"
+},
+{
+"rank": 67,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 53,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "f38e7040c024a19c213fa75a935bca339bdf42ba"
+},
+{
+"rank": 68,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 54,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "9432997da0fd06c47eb983995aaa201c9398179b"
+},
+{
+"rank": 69,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 57,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "9c4aaa2fecc3ae3cf12d94f8aadc7bf17e42d136"
+},
+{
+"rank": 70,
+"cat": "log",
+"file": "artifacts/db-reset.js",
+"line": 58,
+"name": "<operator>.fieldAccess",
+"code": "console.log",
+"path_len": 1,
+"uid": "205943e8ab1a4b4fc629444e00219d9149306887"
+},
+{
+"rank": 71,
+"cat": "log",
+"file": "app/routes/session.js",
+"line": 53,
+"name": "<operator>.assignment",
+"code": "this.handleLoginRequest = (req, res, next) => {\n        const {\n            userName,\n            password\n        } = req.body;\n        userDAO.validateLogin(userName, password, (err, user) => {\n            const errorMessage = \"Invalid username and/or password\";\n            const invalidUserNameErrorMessage = \"Invalid username\";\n            const invalidPasswordErrorMessage = \"Invalid password\";\n            if (err) {\n                if (err.noSuchUser) {\n                    console.log(\"Error: attempt to login with invalid user: \", userName);\n\n                    // Fix for A1 - 3 Log Injection - encode/sanitize input for CRLF Injection\n                    // that could result in log forging:\n                    // - Step 1: Require a module that supports encoding\n                    // const ESAPI = require('node-esapi');\n                    // - Step 2: Encode the user input that will be logged in the correct context\n                    // following are a few examples:\n        ...",
+"path_len": 1,
+"uid": "a5c9be3aa3ac372d5b94421daca474ee0c44e78a"
+},
+{
+"rank": 72,
+"cat": "log",
+"file": "app/routes/session.js",
+"line": 64,
+"name": "log",
+"code": "console.log(\"Error: attempt to login with invalid user: \", userName)",
+"path_len": 1,
+"uid": "3e4f29e1cc290de9f72723699a3750d870066953"
+}
+]

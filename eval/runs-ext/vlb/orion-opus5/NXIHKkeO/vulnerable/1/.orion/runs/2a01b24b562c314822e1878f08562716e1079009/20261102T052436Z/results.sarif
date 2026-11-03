@@ -1,0 +1,430 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-184",
+              "name": "CWE184",
+              "shortDescription": {
+                "text": "CWE-184"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-184"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/184.html"
+            },
+            {
+              "id": "CWE-22",
+              "name": "CWE22",
+              "shortDescription": {
+                "text": "CWE-22"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-22"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/22.html"
+            },
+            {
+              "id": "CWE-409",
+              "name": "CWE409",
+              "shortDescription": {
+                "text": "CWE-409"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-409"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/409.html"
+            },
+            {
+              "id": "CWE-646",
+              "name": "CWE646",
+              "shortDescription": {
+                "text": "CWE-646"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-646"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/646.html"
+            },
+            {
+              "id": "CWE-693",
+              "name": "CWE693",
+              "shortDescription": {
+                "text": "CWE-693"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-693"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/693.html"
+            },
+            {
+              "id": "CWE-918",
+              "name": "CWE918",
+              "shortDescription": {
+                "text": "CWE-918"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-918"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/918.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-22",
+          "level": "error",
+          "message": {
+            "text": "Zip-Slip / path traversal in `scan_7z_bytes` (src/picklescan/scanner.py:415-436): member names taken from the attacker-supplied 7z archive via `archive.getnames()` (line 425) are filtered ONLY by a file-extension check (`f.endswith(tuple(_pickle_file_extensions))`, line 426) and then used, with no normalization, `..` rejection, or absolute-path rejection, as (a) the `targets=` argument to `archive.extract(path=tmpdir, targets=targets)` (line 429) and (b) the second component of `os.path.join(tmpdir, file_name)` (line 431), whose result reaches `os.path.isfile(file_path)` (433) and `scan_file_path(file_path)` -> `open(path, \"rb\")` (scanner.py:604). Because `os.path.join` discards the first component when the second is absolute, a 7z member named e.g. `/etc/shadow.pkl` makes `file_path` escape the TemporaryDirectory entirely and be opened/read, and a member named `../../../../home/victim/.bashrc.pkl` traverses out of `tmpdir` during `archive.extract`, giving a write outside the temp dir. Reachable from the CLI with any scanned file: `cli.py:64 scan_file_path(path)` / `cli.py:62 scan_directory_path(path)` / `cli.py:66 scan_url` -> `scan_bytes` -> `_is_7z_file(data)` (scanner.py:551) -> `scan_7z_bytes(data, file_id)` (scanner.py:552), and also via `scan_pytorch` -> `_is_7z_file` (507) -> `scan_7z_bytes` (508).\n\nVerifier (CONFIRM): Re-derived from source, not the analyst's notes. scan_7z_bytes takes attacker-controlled 7z member names from archive.getnames() (scanner.py:425), filters them ONLY by extension (:426), and then uses them unsanitized both as extract targets (:429 archive.extract(path=tmpdir, targets=targets)) and as the second component of os.path.join(tmpdir, file_name) (:431), whose result flows to os.path.isfile (:433) and scan_file_path (:434) -> open(path,\"rb\") (:604). I confirmed zero validation exists: grep for normpath/realpath/commonpath/relpath/basename/resolve across src/picklescan/ yields only the unrelated os.path.abspath(args.path) at cli.py:58. Because os.path.join discards the base when the second component is absolute, a member named /etc/x.pkl (or a/../../../../tmp/x.pkl) makes file_path escape the TemporaryDirectory and be opened. Reach is remote and real: scan_bytes dispatches on magic bytes, not extension (scanner.py:551-552), so cli.py:62/64/66/68 (scan_directory_path with .7z in _zip_file_extensions :210, scan_file_path, scan_url :611, scan_huggingface_model :568-573) all reach it; the graph marks every call at 425/426/429/431/433/434 reachable_from_entry=true and scan_7z_bytes is itself an :EntryPoint (exposure \"reachable\", hop_distance 0) as public library API. I down-rate severity versus the analyst: the read half (join->open) is bounded to a file-existence oracle plus GLOBAL-opcode disclosure rather than full content read, and the arbitrary-WRITE half at :429 depends on py7zr's internal traversal check, which I could not inspect (py7zr absent from the workspace). I pinned the version evidence I could: requirements.txt:9 py7zr==0.22.0 is newer than the CVE-2022-44900 fix boundary (<=0.20.0 affected, fixed 0.20.2), so that half is likely blocked in the dev-pinned config -- but the shipped runtime extra setup.cfg:25 \"7z=py7zr\" carries NO version floor, so an install with py7zr <0.20.2 is permitted by the spec and the write-side Zip-Slip is live. exploit_search could not corroborate (corpus returned \"not indexed\"). The weakness in picklescan's own code is unmitigated regardless; only a third-party library incidentally covers one half."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 425,
+                  "endLine": 434
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "scan_7z_bytes",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "fb1e0ec148bbb7d9406657f7ca165999634227ed"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-918",
+          "level": "error",
+          "message": {
+            "text": "Unbounded recursive redirect following in `_http_get` (src/picklescan/scanner.py:240-259) gives server-controlled SSRF plus uncontrolled recursion. The function signature is `def _http_get(url) -> bytes:` -- a single parameter, with NO redirect counter, depth limit, or host allow-list anywhere in the body. On `if response.status == 302:` (line 251) it does `return _http_get(response.headers[\"Location\"])` (line 252), where the `Location` header is entirely controlled by the remote server. The recursive call re-enters `urllib.parse.urlparse(url)` (243) and builds a brand-new connection from the NEW host: `http.client.HTTPSConnection(parsed_url.netloc)` (246) then `conn.request(\"GET\", path_and_query)` (248). Two consequences: (1) SSRF -- any host the user scans can 302-redirect picklescan to an arbitrary attacker-chosen `netloc`, including internal/loopback/link-local addresses, and the response body is then fed to `scan_bytes`; note the scheme from `Location` is discarded entirely because `HTTPSConnection` is hardcoded, so the redirect target host is always contacted over HTTPS regardless of what scheme the attacker supplies. (2) Uncontrolled recursion -- a server returning a 302 loop (or a long redirect chain) drives unbounded recursion into RecursionError / stack exhaustion. Attacker-controlled entry: `cli.py:66 scan_url(args.url)` -> `scanner.py:611 _http_get(url)`, and `cli.py:68 scan_huggingface_model(args.huggingface_model)` -> `scanner.py:561/572 _http_get(...)`.\n\nVerifier (CONFIRM): Independently re-derived from source. src/picklescan/scanner.py:240 is literally `def _http_get(url) -> bytes:` -- one parameter, and a repo-wide grep for `302|Location|redirect|allow.?list|netloc|recursion` shows the redirect logic exists ONLY at lines 251-252 with no counter, depth limit, visited-set, or host allow-list anywhere in the package. Line 251-252 does `if response.status == 302: return _http_get(response.headers[\"Location\"])`, where Location is entirely remote-server-controlled; the recursive call re-enters urlparse(url) (243) and builds a brand-new connection to the NEW host via http.client.HTTPSConnection(parsed_url.netloc) (246) + conn.request(\"GET\", path_and_query) (248). Both consequences are real: (1) SSRF -- a scanned host can 302 picklescan to an arbitrary netloc and the body is fed to scan_bytes (611, 573); (2) uncontrolled recursion (CWE-674) -- a 302 self-loop recurses without bound. Reach from attacker-influenced input is confirmed in source (cli.py:66 scan_url -> scanner.py:611 _http_get; cli.py:68 scan_huggingface_model -> 561/572) and in the graph (call at line 252 has reachable_from_entry=true, hop_distance=1; methods _http_get/scan_url/scan_huggingface_model all reachable_from_entry=true). Two refinements to the analyst's impact framing, which do not undercut the defect: (a) conn.close() is in a `finally` whose `try` encloses the recursive call, so every frame's socket stays open for the whole chain -- ~1000 concurrent connections/TLS handshakes before RecursionError, i.e. fd exhaustion as well as stack exhaustion (and RecursionError is caught at cli.py:77, so pure-CLI DoS is graceful; the exhaustion matters for library/service embedding); (b) because HTTPSConnection is hardcoded the redirect target is always contacted over TLS, so plaintext internal targets such as the 169.254.169.254:80 metadata service fail the handshake -- the analyst's \"including internal/loopback/link-local\" is broader than what actually works, though internal HTTPS services remain reachable. The redirect branch is also untested (test_scanner.py:126-130 covers only 200/400; the mock has no 302 case). Advisory exploit check: version pinned to picklescan 1.0.0 (setup.cfg:3), but exploit_search returned \"exploit corpus unavailable: not indexed\", so no module/CVE/version comparison was possible; this is a first-party code defect rather than a dependency CVE, so that check is not decisive. Rated MEDIUM rather than higher because the SSRF is blind-ish (only scan findings surface), the initial host is user-chosen, and hardcoded HTTPS narrows the reachable target set."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 251,
+                  "endLine": 252
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_http_get",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "9c10416d6d89cfb783d5cfcb22aa1617a27d939a"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-693",
+          "level": "error",
+          "message": {
+            "text": "FAIL-OPEN DEFAULT CLASSIFICATION (deny-list architecture): `_build_scan_result_from_raw_globals` in src/picklescan/scanner.py classifies a pickle GLOBAL whose module appears in NEITHER `_safe_globals` NOR `_unsafe_globals` as `SafetyLevel.Suspicious` in the terminal `else` branch, and `issues_count += 1` happens ONLY in the two `Dangerous` branches. The returned `ScanResult(globals, 1, issues_count, 1 if issues_count > 0 else 0, scan_err)` therefore reports infected_files=0, and src/picklescan/cli.py:76 computes the process exit code as `0 if scan_result.issues_count == 0 else 1`. Net effect: any attacker-chosen callable reachable via a module absent from the 57-entry `_unsafe_globals` deny-list is silently graded 'Suspicious', contributes zero to issues_count, and the scanner exits 0 ('clean'). The missing control is an allow-list (default-deny) classification \u2014 the tool's entire verdict rests on deny-list completeness with no fail-closed fallback for unknown modules.\n\nVerifier (CONFIRM): Re-derived from source. scanner.py:389-390 assigns SafetyLevel.Suspicious in the terminal else branch (module in neither _safe_globals nor _unsafe_globals) and does NOT increment issues_count; issues_count += 1 occurs only in the two Dangerous branches (382, 386). Line 393 derives infected_files solely from issues_count (1 if issues_count > 0 else 0), and cli.py:76 computes the process exit status as `0 if scan_result.issues_count == 0 else 1` (entry point registered at setup.cfg:31-32, sys.exit at cli.py:83). A repo-wide grep of src/ shows SafetyLevel.Suspicious exists at only two sites \u2014 the enum (scanner.py:27) and the assignment (scanner.py:390) \u2014 so it is never consumed by any counter, verdict, or gate; there is no --strict/fail-closed flag in cli.py. Net effect verified: a pickle whose globals are all from unlisted modules yields \"Infected files: 0 / Dangerous globals: 0\" and exit 0, which README.md:43-46 documents to the operator and to CI as \"scan did not find malware\". The deny-list's incompleteness is asserted by the project's own source: the TODO at scanner.py:190-205 names unflagged code/nested-pickle loaders (pandas.read_pickle, numpy.ctypeslib.load_library, joblib.load, torch.load), and grep confirms none of pandas/joblib/numpy.ctypeslib/importlib/multiprocessing/_functools appear in _unsafe_globals \u2014 each falls through to line 390. tests/test_scanner.py:112 codifies issues_count as the Dangerous-only count, and :346 shows a real case (torch.utils.collect_env.run_and_read_all graded Suspicious because only \"run\" is listed). Reachability confirmed: graph reports _build_scan_result_from_raw_globals at scanner.py:358 with reachable_from_entry=true, hop_distance=0. Scoped honestly: this is a protection-mechanism failure producing false-negative verdicts (CI gate bypass for a malicious model), not RCE in picklescan itself; suspicious globals remain visible with the optional -g flag. Hence MEDIUM, not HIGH. Advisory exploit lookup was unavailable (\"exploit corpus unavailable: not indexed\"); version pinned exactly at 1.0.0 (setup.cfg:3), past the 0.0.23-era blocklist-bypass fixes, so no patched-CVE claim is made either way."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 358,
+                  "endLine": 393
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_build_scan_result_from_raw_globals",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "4713b3d9a804c8317c66224ff22b38f3cd7fae14"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-184",
+          "level": "error",
+          "message": {
+            "text": "INCOMPLETE DENY-LIST \u2014 `builtins.__import__` is not blocked. The `_unsafe_globals` entries for `\"builtins\"` and `\"__builtin__\"` are the exact set {\"eval\", \"compile\", \"getattr\", \"apply\", \"exec\", \"open\", \"breakpoint\"}. `__import__` is absent, as are `setattr`, `delattr`, `globals`, `vars`, `input`, `help` and `memoryview`. Because the module key `builtins` IS present in `_unsafe_globals`, `unsafe_filter` is non-None but `\"__import__\" not in unsafe_filter`, so the parent-module \"*\" propagation never applies and control reaches the `else` branch \u2192 `SafetyLevel.Suspicious`, issues_count unchanged, CLI exit 0. A pickle containing `GLOBAL builtins __import__` (the canonical pickle RCE import primitive) is therefore reported as non-infected. Note `builtins.help` is a further gap because the `pydoc` module itself IS deny-listed with \"*\", so the alias reaches deny-listed functionality under a non-deny-listed name.\n\nVerifier (CONFIRM): Re-derived from source. The deny-list entries for \"__builtin__\" (scanner.py:101-110) and \"builtins\" (scanner.py:111-120) are exactly {eval, compile, getattr, apply, exec, open, breakpoint}; __import__, setattr, delattr, globals, vars, input, help and memoryview are all absent, while \"pydoc\": \"*\" at line 169 blocks pydoc at module level. Because the \"builtins\" key IS present, unsafe_filter is non-None at scanner.py:368, so the parent-module \"*\" propagation at 371-377 (gated on `unsafe_filter is None and \".\" in g.module`) can never fire; the name test at 383 fails, safe_filter is None (no \"builtins\" key in _safe_globals, 66-98), and control reaches the else at 390 -> SafetyLevel.Suspicious with issues_count unchanged, hence infected_files=0 (393) and CLI exit 0 (cli.py:76). The repo's own tests codify this (test_scanner.py:390,394,490 assert Global(\"builtins\",\"__import__\", SafetyLevel.Suspicious)). Reachability is sound: _build_scan_result_from_raw_globals has reachable_from_entry=true, hop_distance=0. CORRECTIONS to the analyst: (1) the defect spans lines 100-120, not 100-100; (2) the \"canonical pickle RCE primitive goes undetected\" framing is overstated -- __import__ alone only yields a module object, and the chaining primitives needed to reach execution (getattr, operator/_operator attrgetter/itemgetter/methodcaller) ARE deny-listed; the two in-repo GHSA fixtures whose first global is builtins __import__ (tests/data2/GHSA-46h3-79wf-xr6c.pkl, GHSA-955r-x9j8-7rhh.pkl) are still flagged Dangerous via their _operator globals (test_scanner.py:388-395). The stronger gap is builtins.help, unblocked while pydoc is blocked with \"*\" and commented as dangerous for pydoc.pipepager -- a non-deny-listed name aliasing explicitly deny-listed functionality. Confirmed as an incomplete-deny-list / detection-gap defect (CWE-184), severity MEDIUM rather than HIGH since no end-to-end bypass using only non-deny-listed globals was established and the global is still surfaced as Suspicious. Exploit-reference check not applicable: first-party code, no pinned component version, and the Metasploit corpus returned \"exploit corpus unavailable: not indexed\", so I claim neither exploitable-by-module nor patched."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 100,
+                  "endLine": 120
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "<module>",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "65b745d56a9fddac1c8f5dc1e16d24199a5eb4b2"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-184",
+          "level": "error",
+          "message": {
+            "text": "Detection bypass via incomplete extension allowlist literal: `.npy` is scannable and can carry a malicious pickle, but is excluded from the literal allowlists that gate directory and Hugging Face scanning. scanner.py:207-210 define four disjoint sets: `_numpy_file_extensions = {\".npy\"}`, `_pytorch_file_extensions = {\".bin\",\".pt\",\".pth\",\".ckpt\"}`, `_pickle_file_extensions = {\".pkl\",\".pickle\",\".joblib\",\".dat\",\".data\"}`, `_zip_file_extensions = {\".zip\",\".npz\",\".7z\"}`. `scan_directory_path` (scanner.py:585-590) skips any file whose extension is not in _zip_ \u222a _pickle_ \u222a _pytorch_ \u2014 `_numpy_file_extensions` is NOT consulted, so `.npy` hits `continue` and is never scanned. The identical gap exists in `scan_huggingface_model` (scanner.py:568, same three-set condition). Meanwhile `scan_bytes` (scanner.py:544) DOES route `.npy` to `scan_numpy`, so direct file scans detect it. Note `.npz` is covered (it is in _zip_file_extensions); `.npy` is the specific hole.\n\nVerifier (CONFIRM): Re-derived from source. scanner.py:207-210 defines four disjoint extension sets including `_numpy_file_extensions = {\".npy\"}`. The gate in `scan_directory_path` (scanner.py:586-591) and the identical one in `scan_huggingface_model` (scanner.py:568) consult only `_zip_`, `_pickle_` and `_pytorch_` sets, so a `.npy` file hits `continue` (line 591) and is never opened at line 594 \u2014 it is neither scanned nor counted in `scanned_files`. The CPG independently confirms only three `<operator>.notIn` operands exist inside that method (lines 587/588/589) under a single logicalAnd, with no numpy operand. Meanwhile the capability demonstrably exists elsewhere: `scan_bytes:544` routes `.npy` to `scan_numpy`, and `scan_numpy:493-494` dispatches to `scan_pickle_bytes` when `dtype.hasobject`. `.npy` is malicious-capable per the repo's own fixture: init_data_files.py:841-859 builds `data2/dns_exfiltration.npy` from a `__reduce__` payload returning `ssl.get_server_certificate`, and test_scanner.py:181 asserts it is Dangerous \u2014 but only via `scan_file_path`. No test closes the gap: test_scan_directory_path (test_scanner.py:515) walks only tests/data/, which contains zero .npy files. Reachability is genuine, not an arrow-function artifact: cli.py:61-62 sends every directory to scan_directory_path and cli.py:68 sends `-hf` to scan_huggingface_model; the graph reports both methods reachable_from_entry=true, hop_distance=0. Net effect is a silent false negative in a security scanner on its two primary bulk paths \u2014 exit code 0 and \"Infected files: 0\" for a directory or HF repo containing a weaponized .npy, which executes arbitrary code when later np.load'ed with allow_pickle=True. README.md:41 explicitly advertises .npy scanning, confirming this is an omission rather than intended scope. Advisory: version pinned to picklescan 1.0.0 (setup.cfg:3); exploit_search returned \"corpus unavailable: not indexed\", so there is no exploit-reference evidence either way and the verdict rests on source alone. Analyst's line range corrected from 585-590 to 586-591 (585 is the splitext assignment)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 586,
+                  "endLine": 591
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "scan_directory_path",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "8cc2d513e55e75df7239d650c1cbe16bba77331b"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-646",
+          "level": "error",
+          "message": {
+            "text": "COVERAGE GAP inside 7z archives \u2014 `scan_7z_bytes` only selects entries matching `_pickle_file_extensions` (`targets = [f for f in file_names if f.endswith(tuple(_pickle_file_extensions))]`), omitting `_pytorch_file_extensions` ({\".bin\", \".pt\", \".pth\", \".ckpt\"}), `_numpy_file_extensions` ({\".npy\"}) and `_zip_file_extensions`, and it applies no `_pickle_magic_bytes` content fallback at all \u2014 unlike `scan_zip_bytes`, which treats an entry as a pickle when EITHER the extension matches OR the magic bytes match. A malicious pickle stored inside a 7z archive under a name such as `model.bin`, `weights.pth` or any unlisted extension is never extracted into `targets`, never scanned, and the archive is reported clean.\n\nVerifier (CONFIRM): Re-derived from source. scan_7z_bytes (src/picklescan/scanner.py:415-436) selects entries to scan with a single filter at line 426 \u2014 `targets = [f for f in file_names if f.endswith(tuple(_pickle_file_extensions))]` \u2014 consulting only `_pickle_file_extensions` ({.pkl,.pickle,.joblib,.dat,.data}, line 209). A grep of all of src/ shows `_pytorch_file_extensions` (line 208: .bin/.pt/.pth/.ckpt), `_numpy_file_extensions` (line 207) and `_zip_file_extensions` (line 210) are never consulted in the 7z path, and `_pickle_magic_bytes` (line 213) is referenced at exactly two places \u2014 its definition and scan_zip_bytes line 453 \u2014 so there is NO content/magic-byte fallback in scan_7z_bytes. By contrast scan_zip_bytes scans an entry when EITHER the extension matches OR the magic bytes match (line 453 for pickle, line 458 for numpy), so the asymmetry is real: a pickle inside a .zip named `payload.bin` is caught by the \\x80\\x04 PROTO magic, while the identical entry inside a .7z is never even added to `targets`, never passed to archive.extract (line 429), and never reaches the scan loop (line 430). The sink is reachable, verified against source not just the graph: cli.py:64 scan_file_path -> scanner.py:605 scan_bytes -> scanner.py:551-552 `_is_7z_file` -> scan_7z_bytes; also scan_huggingface_model admits `.7z` via `_zip_file_extensions` at line 568 -> scan_bytes -> same sink; also scan_pytorch:507-508. Graph confirms scan_7z_bytes.reachable_from_entry = true. The outcome is a silent clean verdict rather than an error: `result = ScanResult([])` (line 422) with `scanned_files: int = 0` (line 41), the loop at 430 iterates an empty list, so issues_count stays 0 and cli.py:76 returns exit code 0 while print_summary reports \"Infected files: 0\". No test covers the gap \u2014 the sole 7z fixture is named `data.pkl` (tests/init_data_files.py:710-713, asserted tests/test_scanner.py:258), a name that happens to satisfy the filter. Corrections to the analyst: the defective line is 426, not 425, and the apt classification is CWE-646 (reliance on file name/extension of externally-supplied file) rather than CWE-184, since this is an incomplete allowlist gating whether content is inspected at all. Version pinned at 1.0.0 (setup.cfg:3); the Metasploit corpus is not indexed in this environment (\"exploit corpus unavailable: not indexed\"), so I assert nothing about a published module either way. This is a detection bypass in a security scanner, whose entire purpose is to flag malicious pickles, hence HIGH."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 426,
+                  "endLine": 430
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "scan_7z_bytes",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "0dbce2afe9aeece456b53e3c3e0fc9088aa4e52f"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-409",
+          "level": "error",
+          "message": {
+            "text": "MISSING DECOMPRESSION-BOMB / RESOURCE LIMITS on archive scanning. Neither `scan_zip_bytes` (scanner.py:439) nor `scan_7z_bytes` (scanner.py:415) consults `ZipInfo.file_size`/`compress_size`, enforces a compression-ratio cap, caps the number of entries iterated from `zip.namelist()`/`archive.getnames()`, or bounds total bytes extracted. A repo-wide query shows no `file_size`, `MAX`, or `limit` token anywhere under `src/`. `scan_7z_bytes` additionally extracts to disk via `archive.extract(path=tmpdir, targets=targets)` with no size budget, so a highly-compressed 7z or zip bomb exhausts memory or fills the filesystem of any host that scans an untrusted model \u2014 a denial of service against the security scanner itself.\n\nVerifier (CONFIRM): Re-derived from source: neither archive-scanning path enforces any resource bound. scan_zip_bytes (scanner.py:439-466) iterates all of zip.namelist() with no entry cap and streams each matching member in full via scan_pickle_bytes/scan_numpy without ever consulting ZipInfo.file_size/compress_size (available, since RelaxedZipFile.open calls self.getinfo(name) at relaxed_zipfile.py:54) and with no compression-ratio or total-byte budget; its only guard is `except (zipfile.BadZipFile, RuntimeError)` (line 462), which does not catch MemoryError. scan_7z_bytes (scanner.py:415-436) extracts attacker-chosen members to disk via archive.extract(path=tmpdir, targets=targets) (line 429) with no size budget, filtering targets only by filename suffix (line 426). The analyst understated the amplification: _list_globals (scanner.py:271-274) accumulates EVERY opcode of the fully decompressed stream into a live Python list (`ops.append(op)`, later indexed by `range(len(ops))` at 282), giving roughly 100 bytes of live objects per 1-byte opcode on top of the DEFLATE/LZMA ratio, so a sub-megabyte zip whose `a.pkl` member is a long run of MARK (`(`) opcodes drives resident memory into the tens of GB and OOM-kills the scanner. A repo-wide case-insensitive grep for MAX|limit|file_size|compress_size|budget|timeout|ratio|bomb under src/ yields exactly one hit, an inherited CPython docstring at relaxed_zipfile.py:33 \u2014 so the lead's \"no limits anywhere\" claim holds. Reachability verified in source, not just the graph: cli.py:62/66/68 -> scan_file_path/scan_url/scan_huggingface_model -> scan_bytes -> scan_zip_bytes (550)/scan_7z_bytes (552), plus scan_pytorch (506/508) for .pt/.bin/.ckpt; the graph independently marks the calls at 424-429 and 444-456 reachable_from_entry=true, hop_distance=1, and both functions are EntryPoint{exposure:\"reachable\"}. The threat model is the tool's own advertised use (README:20, \"Scan a malicious model on Hugging Face\"), so the input is attacker-controlled by design. Capped at MEDIUM: availability-only (process OOM / temp-filesystem exhaustion on the scanning host), no confidentiality or integrity impact, and no exploit-reference grounding was possible because exploit_search reported the corpus unavailable for the pinned version picklescan 1.0.0 (setup.cfg:3)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 439,
+                  "endLine": 466
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "scan_zip_bytes",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "ee2e53b14338ff7ee47508b8f81376230f3f55af"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-184",
+          "level": "error",
+          "message": {
+            "text": "The literal set of global-producing pickle opcodes recognised by `_list_globals` omits the extension-registry opcodes EXT1/EXT2/EXT4. The only opcode literals that add to the returned `globals` set are `(\"GLOBAL\", \"INST\")` (scanner.py:291) and `\"STACK_GLOBAL\"` (scanner.py:293); the remaining opcode literals in the function are memo bookkeeping (`[\"MEMOIZE\",\"PUT\",\"BINPUT\",\"LONG_BINPUT\"]` at 289/296, `[\"GET\",\"BINGET\",\"LONG_BINGET\"]` at 303) and string-type validation (`[\"SHORT_BINUNICODE\",\"UNICODE\",\"BINUNICODE\",\"BINUNICODE8\",\"STRING\",\"BINSTRING\",\"SHORT_BINSTRING\"]` at 325). A full enumeration of every literal collection under src/picklescan/ contains no \"EXT1\"/\"EXT2\"/\"EXT4\" string anywhere. Pickle protocol>=2 EXT1/EXT2/EXT4 resolve a callable through the copyreg extension registry by integer code without emitting any GLOBAL/INST/STACK_GLOBAL opcode, so such a stream yields an empty `globals` set, `_build_scan_result_from_raw_globals` reports issues_count=0, and cli.py:76 returns exit code 0 (clean). Caveat for the verifier: exploitability additionally requires the target code to have a populated copyreg extension registry at load time.\n\nVerifier (CONFIRM): Re-derived independently from source. `_list_globals` (src/picklescan/scanner.py:262-355) is the scanner's only opcode-inspection routine, and its if/elif dispatch on `op_name` (287-342) adds to the returned `globals` set for exactly two branches: `(\"GLOBAL\", \"INST\")` at line 291 and `\"STACK_GLOBAL\"` at 293 (add at 342). All other opcode literals are non-detecting -- memo bookkeeping at 289, 296-301, 303 and string-type validation at 325-333. There is no else/default branch, so unrecognised opcodes are silently skipped. A repo-wide case-insensitive grep for EXT1|EXT2|EXT4|add_extension|copyreg yields zero hits in src/picklescan/ or tests/, and a graph query for any CpgCall under src/picklescan/ whose code contains EXT1/EXT2/EXT4 returns row_count 0 -- so the extension-registry opcodes are entirely unhandled, as claimed. Impact chain verified: scan_pickle_bytes (396-411) forwards only that set to _build_scan_result_from_raw_globals (358-393), which increments issues_count solely per set element, so an empty set gives issues_count=0 / infected_files=0, and cli.py:76 (`0 if scan_result.issues_count == 0 else 1`) exits 0 (clean). Reachability confirmed: _list_globals, scan_pickle_bytes and _build_scan_result_from_raw_globals are all reachable_from_entry=true, hop_distance=0; cli.py:main reports reachable_from_entry=false but is the declared console entry point and the call chain is present in source (known arrow/entry under-linking). I DOWNGRADE the severity the analyst implied: per CPython's Unpickler.get_extension, EXT1/2/4 resolve codes via copyreg._inverted_registry/_extension_cache, which is empty by default and raises ValueError(\"unregistered extension code N\") for unregistered codes; the attacker cannot populate it from the same stream without emitting a GLOBAL/STACK_GLOBAL the scanner does catch. So this is a real detector-completeness gap (CWE-184) but is only exploitable against a loading process that independently called copyreg.add_extension -- not true for stock Python, torch or numpy -- hence LOW, not HIGH. Exploit-reference check was unusable (corpus not indexed), so no patched/unpatched claim is made despite the version being pinned at 1.0.0 (setup.cfg:3). No proof-of-concept pickle was constructed or executed; verdict is static-evidence only (no Bash/Write tool was available this session)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 287,
+                  "endLine": 342
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_list_globals",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "a9fbafe8a18f2fb68d1fb36ce1adc495ad46432e"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

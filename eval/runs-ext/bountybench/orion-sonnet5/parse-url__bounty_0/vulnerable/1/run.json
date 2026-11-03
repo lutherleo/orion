@@ -1,0 +1,75 @@
+{
+ "benchmark": "bountybench",
+ "task": "parse-url/bounty_0",
+ "repo": "cy-suite/parse-url",
+ "snapshot": "vulnerable",
+ "ref": "8.0.0",
+ "commit": "2373f7f942a0e01288e1e4551e0c297030ea41cf",
+ "arm": "orion-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 371.4,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 6,
+  "uncached_in": 92,
+  "cache_read": 1020354,
+  "cache_write": 125486,
+  "out": 59568,
+  "tokens": 1205500,
+  "cli_cost_usd": 1.3132
+ },
+ "status": "ok",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": null,
+ "usage": [
+  {
+   "uncached_in": 10,
+   "cache_read": 89717,
+   "cache_write": 20058,
+   "out": 4947,
+   "cli_cost_usd": 0.15003302
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 139512,
+   "cache_write": 18583,
+   "out": 4459,
+   "cli_cost_usd": 0.14900752000000003
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 238338,
+   "cache_write": 27105,
+   "out": 12760,
+   "cli_cost_usd": 0.28614159499999997
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 175959,
+   "cache_write": 22837,
+   "out": 15347,
+   "cli_cost_usd": 0.2818066699999999
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 147390,
+   "cache_write": 12549,
+   "out": 7294,
+   "cli_cost_usd": 0.153597245
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 229438,
+   "cache_write": 24354,
+   "out": 14761,
+   "cli_cost_usd": 0.29257084499999997
+  }
+ ],
+ "orion_run_dir": ".orion/runs/ab82b48df128771cf8d38a9500dd1300507aa28f/20261031T204959Z",
+ "scan_id": "ab82b48df128771cf8d38a9500dd1300507aa28f",
+ "graph": "cleared"
+}

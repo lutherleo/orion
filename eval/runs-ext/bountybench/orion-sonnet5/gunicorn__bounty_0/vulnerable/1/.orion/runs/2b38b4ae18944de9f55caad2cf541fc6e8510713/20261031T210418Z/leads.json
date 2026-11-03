@@ -1,0 +1,75 @@
+{
+  "scan_id": "2b38b4ae18944de9f55caad2cf541fc6e8510713",
+  "repo": "/tmp/workspaces/b6ef300415ad93da/tree",
+  "engine": "claude",
+  "model": "claude-sonnet-5",
+  "settings": {
+    "verify_routing": false,
+    "verify_context": false,
+    "semantic_mode": "vector",
+    "fail_on": "none",
+    "endpoint": false
+  },
+  "leads": [
+    {
+      "index": 0,
+      "shape": "A",
+      "text": "In the example gevent WebSocket WSGI app, WebSocketWSGI.__call__ (itself a registered EntryPoint/handler, hop_distance=1, reachable_from_entry=true) builds the raw HTTP 101 handshake response by directly %-interpolating attacker-controlled request headers (environ.get('HTTP_ORIGIN'), environ.get('HTTP_HOST')) and the request path (ws.path) into a string containing literal \\r\\n sequences, with no CRLF/control-character stripping or validation, then writes the result straight to the client socket. A Host/Origin header or path containing CR/LF lets an attacker inject arbitrary extra response headers or split the HTTP response (classic CRLF/header injection leading to response splitting), something the core gunicorn WSGI Response.process_headers() path explicitly guards against via HEADER_RE validation but this example bypasses by building/sending the response manually.",
+      "evidence": "Ran: MATCH (ep:EntryPoint {scan_id:$scan_id})-[:ENTERS_AT]->(m:CpgMethod) WHERE m.file_path='examples/websocket/gevent_websocket.py' -> confirmed WebSocketWSGI.__call__ (line 37) is an EntryPoint of kind 'handler'. Then MATCH (c:CpgCall {scan_id:$scan_id, file_path:'examples/websocket/gevent_websocket.py'}) WHERE c.line>=40 AND c.line<=115 -> returned: line 54 `key = environ.get('HTTP_SEC_WEBSOCKET_KEY')`, line 88 `handshake_reply += \"Sec-WebSocket-Origin: %s\\r\\n\" \"Sec-WebSocket-Location: ws://%s%s\\r\\n\"... % (environ.get('HTTP_ORIGIN'), environ.get('HTTP_HOST'), ws.path, version, ...)` all with reachable=true, hop=1. Then grep for 'sendall' in same file returned line 109 `sock.sendall(handshake_reply.encode())`. Separately confirmed core gunicorn/http/wsgi.py Response.process_headers (lines 247-256) validates header name/value via HEADER_RE and isinstance checks, which this manual response-building code never calls.",
+      "confidence": "MEDIUM",
+      "source_uid": null,
+      "sink_uid": null,
+      "file": "examples/websocket/gevent_websocket.py",
+      "line_start": 87,
+      "line_end": 109,
+      "function": "WebSocketWSGI.__call__",
+      "cwe": "CWE-113",
+      "path": null
+    },
+    {
+      "index": 1,
+      "shape": "A",
+      "text": "Same bug, duplicated in the eventlet-based example WebSocket WSGI app: WebSocketWSGI.__call__ (EntryPoint/handler, hop_distance=1, reachable_from_entry=true) concatenates environ.get('HTTP_ORIGIN'), environ.get('HTTP_HOST') and ws.path (all attacker-controlled HTTP request data) directly into the raw HTTP/1.1 101 handshake text with embedded \\r\\n, with no sanitization, and sends it unmodified via sock.sendall(handshake_reply.encode()). An attacker supplying CR/LF in the Host/Origin header or the request path can inject extra headers or split the response.",
+      "evidence": "Ran: MATCH (c:CpgCall {scan_id:$scan_id, file_path:'examples/websocket/websocket.py'}) WHERE c.line>=82 AND c.line<=100 -> returned line 88: `handshake_reply += \"Sec-WebSocket-Origin: %s\\r\\n\" \"Sec-WebSocket-Location: ws://%s%s\\r\\n\"...` and line 94-96 show `environ.get('HTTP_ORIGIN')`, `environ.get('HTTP_HOST')`, `ws.path` feeding that format string; grep for 'send'/'sendall' in the same file returned line 110 `sock.sendall(handshake_reply.encode())`. Also confirmed via MATCH (ep:EntryPoint)-[:ENTERS_AT]->(m:CpgMethod) that examples/websocket/websocket.py:<module>.WebSocketWSGI.__call__ (line 38) is a registered EntryPoint of kind 'handler', and the call-level nodes along this path have reachable_from_entry=true, hop_distance=1.",
+      "confidence": "MEDIUM",
+      "source_uid": null,
+      "sink_uid": null,
+      "file": "examples/websocket/websocket.py",
+      "line_start": 88,
+      "line_end": 110,
+      "function": "WebSocketWSGI.__call__",
+      "cwe": "CWE-113",
+      "path": null
+    },
+    {
+      "index": 2,
+      "shape": "B",
+      "text": "gunicorn's HTTP request parser (Message.set_body_reader in gunicorn/http/message.py) is missing the control that should reject ambiguous/invalid Transfer-Encoding framing. When iterating request headers it special-cases TRANSFER-ENCODING only to set chunked=True when value.lower() == \"chunked\" (lines 134-136); for any other Transfer-Encoding value (e.g. \"chunked, chunked\", \"identity\", a value with extra tokens, or any malformed value) there is no else branch raising InvalidHeader -- the header is silently treated as absent and parsing falls through to the Content-Length branch (line 140+). Likewise, when both Content-Length and Transfer-Encoding: chunked are present on the same request, nothing rejects the ambiguous combination -- chunked unconditionally wins at line 139 and content_length is simply ignored, with no raise/error for the conflicting pair. A safe HTTP parser must either reject any Transfer-Encoding value that isn't exactly 'chunked' or reject requests that carry both headers, precisely to prevent a front-end proxy and gunicorn from disagreeing on request boundaries. This control is absent here, which is the same gap behind real-world gunicorn HTTP request-smuggling advisories (CVE-2024-1135-class issue). set_body_reader is confirmed reachable_from_entry=true with hop_distance=1 from an EntryPoint, i.e. it sits directly on the attacker-facing request-parsing path.",
+      "evidence": "Ran: MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path='gunicorn/http/message.py' AND c.line>=113 AND c.line<=156 ... -> showed line 130 `name == \"CONTENT-LENGTH\"`, line 134 `name == \"TRANSFER-ENCODING\"`, line 135 `value.lower() == \"chunked\"`, line 136 `chunked = True`, with no raise/InvalidHeader call attached to the TRANSFER-ENCODING branch. Confirmed via: MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path='gunicorn/http/message.py' AND c.line>=125 AND c.line<=156 AND c.name IN ['raise','InvalidHeader'] -> returned only 4 rows, all for \"CONTENT-LENGTH\" (lines 132,145,147,150); zero raise/InvalidHeader calls tied to the TRANSFER-ENCODING check, and no check rejecting simultaneous Content-Length + Transfer-Encoding. Reachability confirmed via: MATCH (m:CpgMethod {scan_id:$scan_id}) WHERE m.file_path='gunicorn/http/message.py' AND m.line=125 RETURN m.reachable_from_entry, m.hop_distance -> reachable=true, hop=0 for the method itself, and the TRANSFER-ENCODING check call at line 134 has reachable=true, hop_distance=1.",
+      "confidence": "HIGH",
+      "source_uid": null,
+      "sink_uid": null,
+      "file": "gunicorn/http/message.py",
+      "line_start": 125,
+      "line_end": 139,
+      "function": "Message.set_body_reader",
+      "cwe": "CWE-444",
+      "path": null
+    },
+    {
+      "index": 3,
+      "shape": "C",
+      "text": "A source-text hedge comment '# fix from PR #1228' sits at gunicorn/workers/base.py line 153, inside/near Worker.load_wsgi's exception-handling block (which builds a fail-app from a caught load_wsgi() exception traceback). The precomputed detector flagged it because the word 'fix' co-occurs near the substring 'https' in the raw comment text. Investigation of the surrounding CpgCall nodes (lines 144-165 of the same file) shows no call or literal containing 'https' anywhere in the modeled CPG calls for this file, which strongly suggests the 'https' substring is just part of a GitHub PR URL embedded in the comment (e.g. a link to the PR), not an actual HTTPS/TLS-related code construct. No disabled/commented-out security check, sanitizer, or validation call was found adjacent to this comment in the CPG. This is a weak, likely-benign signal that a verifier should confirm by reading the literal source line 153 (and its immediate neighbors) in gunicorn/workers/base.py to rule out any reverted protection logic.",
+      "evidence": "Query 1: MATCH (f:CandidateFinding) WHERE f.scan_id=$scan_id RETURN f -> returned a shape='C', kind='hedge_comment' node: {file_path:'gunicorn/workers/base.py', line:153, code:'# fix from PR #1228', detail:\"hedge 'fix' near 'https'\"}. Query 2: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.file_path='gunicorn/workers/base.py' AND toLower(c.code) CONTAINS 'https' -> row_count 0 (no 'https' anywhere in modeled calls for this file). Query 3: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND c.file_path='gunicorn/workers/base.py' AND c.line>=100 AND c.line<=165 -> shows the enclosing code is Worker.load_wsgi's try/except that calls self.log.exception(e), sys.exc_info(), traceback.print_tb, util.make_fail_app \u2014 ordinary error-handling, no security check disabled. Also ran a broad hedge-language sweep (todo/fixme/disabled/insecure/temporary/workaround/vulnerable/hack/bypass/skip/xxx/nosec/noqa/legacy/backdoor/cert_none/verify=false/check_hostname/shell=true/debug/unsafe/deprecated/commented/revert/cve/security/fix/todo/skip_verif/no_verify/allow_insecure/trust_all/wildcard/permissive/allow_all) across all CpgCall.code (scan_id filtered) and CpgMethod name/full_name \u2014 all 100+ matches were legitimate gunicorn documentation/config features (e.g. disable_redirect_access_to_syslog, cert_reqs default=ssl.CERT_NONE which is a documented optional-client-cert feature, ssl_version deprecation warning) or coincidental substring matches in random test fixture strings \u2014 none showed a disabled/reverted protection sitting next to live vulnerable code.",
+      "confidence": "LOW",
+      "source_uid": null,
+      "sink_uid": null,
+      "file": "gunicorn/workers/base.py",
+      "line_start": 153,
+      "line_end": 153,
+      "function": "Worker.load_wsgi",
+      "cwe": null,
+      "path": null
+    }
+  ]
+}

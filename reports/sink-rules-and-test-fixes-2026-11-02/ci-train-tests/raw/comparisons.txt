@@ -1,0 +1,35 @@
+== tests/ on base vs on the new commit (both without tree-sitter)
+base-step_02.xml (1562) vs new-step_02.xml (1562)
+  only in first: [] | only in second: []
+  outcome changes: none
+== eval/tests on base vs on the new commit (both without tree-sitter)
+base-step_03.xml (553) vs new-step_03.xml (553)
+  only in first: [] | only in second: []
+  outcome changes: none
+== train/tests without tree-sitter vs the workflow's step
+diag-notree-train.xml (318) vs new-step_05.xml (318)
+  only in first: [] | only in second: []
+  outcome changes: {'skipped -> passed': 47}
+    skipped -> passed: test_stage1_build x5
+    skipped -> passed: test_stage1_cases x24
+    skipped -> passed: test_stage2 x18
+== tests/ in the workflow vs with tree-sitter installed first
+new-step_02.xml (1562) vs diag-tree-tests.xml (1562)
+  only in first: [] | only in second: []
+  outcome changes: {'skipped -> passed': 18}
+    skipped -> passed: test_lm_cases x7
+    skipped -> passed: test_lm_codeindex x8
+    skipped -> passed: test_lm_engine x2
+    skipped -> passed: test_lm_tools x1
+== eval/tests in the workflow vs with tree-sitter installed first
+new-step_03.xml (553) vs new-diag_3.xml (553)
+  only in first: [] | only in second: []
+  outcome changes: {'skipped -> passed': 1}
+    skipped -> passed: test_arms_lm x1
+== PyYAML: who asks for it (fresh resolve, nothing installed)
+149:pyyaml==6.0.3
+150-    # via
+151-    #   fastmcp-slim
+152-    #   jsonschema-path
+153-referencing==0.37.0
+(no numpy / tree-sitter / transformers / mlx from dev alone)

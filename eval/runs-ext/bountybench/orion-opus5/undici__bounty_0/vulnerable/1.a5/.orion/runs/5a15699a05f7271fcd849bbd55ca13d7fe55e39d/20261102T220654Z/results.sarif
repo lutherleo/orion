@@ -1,0 +1,391 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1321",
+              "name": "CWE1321",
+              "shortDescription": {
+                "text": "CWE-1321"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1321"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1321.html"
+            },
+            {
+              "id": "CWE-1333",
+              "name": "CWE1333",
+              "shortDescription": {
+                "text": "CWE-1333"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1333"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1333.html"
+            },
+            {
+              "id": "CWE-20",
+              "name": "CWE20",
+              "shortDescription": {
+                "text": "CWE-20"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-20"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/20.html"
+            },
+            {
+              "id": "CWE-200",
+              "name": "CWE200",
+              "shortDescription": {
+                "text": "CWE-200"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-200"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/200.html"
+            },
+            {
+              "id": "CWE-330",
+              "name": "CWE330",
+              "shortDescription": {
+                "text": "CWE-330"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-330"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/330.html"
+            },
+            {
+              "id": "CWE-522",
+              "name": "CWE522",
+              "shortDescription": {
+                "text": "CWE-522"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-522"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/522.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-200",
+          "level": "error",
+          "message": {
+            "text": "In lib/handler/redirect-handler.js, shouldRemoveHeader() strips cross-origin-sensitive request headers using a LENGTH GATE `header.length === 13 || header.length === 6`, which only ever matches 'authorization' (13 chars) and 'cookie' (6 chars). 'proxy-authorization' is 19 characters, so it NEVER matches and is forwarded verbatim to the new origin after a cross-origin redirect. Attacker-controlled input is the Location response header from the upstream server (returned by parseLocation() at line 184-195 from the raw `headers[i+1]`), which is parsed into a new origin at line 113 and then re-dispatched at line 171 with the uncleaned headers assigned at line 119. The same library's fetch path does strip it, proving intent: lib/web/fetch/index.js lines 1326/1329/1332/1333 delete 'authorization', 'proxy-authorization', 'cookie' AND 'host' on !sameOrigin. Reachable path: RedirectHandler.onHeaders (reachable_from_entry=true, hop_distance=2) -> cleanRequestHeaders (line 212) -> shouldRemoveHeader (line 197). A malicious or compromised HTTP server can return a 302 to its own origin and harvest the caller's proxy credentials.\n\nVerifier (CONFIRM): Independently re-derived from source. lib/handler/redirect-handler.js:197-209 shouldRemoveHeader() gates cross-origin header stripping on `header.length === 13 || header.length === 6`, which can only ever match 'authorization' (13) and 'cookie' (6). 'proxy-authorization' is 19 characters, so on a cross-origin redirect (unknownOrigin=true) it is never removed and is forwarded verbatim to the attacker-chosen origin. I grepped lib/handler/ for `length === 19` and `'proxy-authorization'` and got NO matches, confirming no stripping exists anywhere on this path.\n\nThe full chain is attacker-controlled and every node is reachable_from_entry=true per my own Cypher queries: the upstream's raw Location header is returned at :191 (`headers[i+1]`), consumed at :93 via parseLocation, parsed into a new origin at :113 (`util.parseURL(new URL(this.location, ...))`), fed to cleanRequestHeaders at :119 with `unknownOrigin = this.opts.origin !== origin`, filtered through the defective gate at :204/:206 via :216, and re-dispatched to the new origin at :171 (`this.dispatch(this.opts, this)`) with the uncleaned headers.\n\nTwo facts I established myself make this exploitable rather than theoretical. First, undici's OWN documentation (docs/docs/best-practices/proxy.md:13 and :96-98) prescribes sending `proxy-authorization` as a request header on `client.request({headers: {...}})` for Client/Pool proxying -- precisely the opts.headers object cleanRequestHeaders processes. ProxyAgent is immune because throwIfProxyAuthIsSent (lib/dispatcher/proxy-agent.js:180-186) rejects the header, but the documented Client/Pool path is not. Second, intent is proven by contrast: lib/web/fetch/index.js:1324-1333 deletes 'authorization', 'proxy-authorization', 'cookie' and 'host' on !sameOrigin, and test/fetch/redirect-cross-origin-header.js:15 asserts proxy-authorization is undefined after a cross-origin redirect -- but only for the fetch path, with no equivalent coverage for the core redirect handler.\n\nVersion pinned to undici 6.11.0 (package.json:3). NOTE: the required exploit-reference check could not be completed -- mcp__orion__exploit_search returned \"exploit corpus unavailable: not indexed (run `orion index-exploits`)\" -- so I performed no catalog version-range comparison and my CONFIRM rests solely on the primary source evidence above, not on any exploit module. This pattern corresponds to CVE-2024-30260 / GHSA-m4v8-wqvr-p9f7 (fixed in 6.11.1 and 5.28.4) to my recollection, which would place 6.11.0 inside the vulnerable range, but I am flagging that as unverified recollection rather than gathered evidence.\n\nCorrecting the analyst: the defect anchors specifically at lines 204-207 (the length gate) inside the 197-209 function body. Severity MEDIUM -- a real credential disclosure to an attacker-controlled third party, but it requires the application to use the documented Client/Pool + proxy-authorization pattern together with maxRedirections > 0, and the leaked secret is a proxy credential rather than the origin credential."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/handler/redirect-handler.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 197,
+                  "endLine": 209
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "shouldRemoveHeader",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "3aa9d26fd17c332fc253a8aa84c9b6c2b3f091a4"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-20",
+          "level": "error",
+          "message": {
+            "text": "In lib/web/cookies/util.js, validateCookieDomain() (lines 124-132) validates ONLY that the domain does not start with '-' or end with '.' or '-'. It does not reject 0x3B (';'), ',' or control characters. stringify() then interpolates the value directly into the Set-Cookie header via `out.push(`Domain=${cookie.domain}`)` (line 249), which is joined and passed to headers.append('Set-Cookie', str) at lib/web/cookies/index.js:105. The 'domain' field is declared as a bare webidl.converters.DOMString in webidl.converters.Cookie (lib/web/cookies/index.js), so no character constraint is applied upstream either. This is an asymmetry with the sibling validator: validateCookiePath() (lines 105-117) DOES reject code 0x3B (';'), CTLs (<0x20) and 0x7F. Consequently an application calling setCookie(headers, {name, value, domain: untrustedInput}) lets an attacker inject additional Set-Cookie attributes (e.g. domain = 'example.com; Path=/; SameSite=None'). Note honestly: full CRLF response splitting is blocked downstream by isValidHeaderValue() (lib/web/fetch/util.js:156-176, rejects \\r, \\n, \\0), so the primitive is attribute injection rather than header splitting, and duplicate-attribute precedence limits impact because the injected text is emitted before the legitimate Path/Expires/SameSite entries in `out`.\n\nVerifier (CONFIRM): Re-derived from source. validateCookieDomain (lib/web/cookies/util.js:124-132) checks ONLY startsWith('-'), endsWith('.'), endsWith('-'); it does not reject 0x3B (';'), ',' or CTLs, so an attacker-controlled `domain` can inject arbitrary additional cookie attributes. Confirmed no upstream constraint: webidl.converters.Cookie declares domain as nullableConverter(DOMString) with no allowedValues (lib/web/cookies/index.js:147-151), and dictionaryConverter only enforces allowedValues when present (lib/web/fetch/webidl.js:388-396) \u2014 contrast sameSite at index.js:167-171 which does set allowedValues. The tainted value is interpolated verbatim at util.js:249 (`out.push(\\`Domain=${cookie.domain}\\`)`), joined with '; ' at line 275, and appended at index.js:105 via headers.append('Set-Cookie', str). The asymmetry is real and the project itself relies on it for the sibling field: validateCookiePath (util.js:105-117) rejects <0x20, 0x7F and 0x3B, and test/cookie/cookies.js:136-152 explicitly asserts path='/;domain=sub.domain.com' throws \"Invalid cookie path\", while the domain test (cookies.js:155-174) only covers ['-domain.com','domain.org.','domain.org-'] and never tests ';'. Reachability verified: setCookie is a public top-level export (index.js:139) and the graph reports validateCookieDomain (line 124), validateCookiePath (105) and stringify (212) all reachable_from_entry=true, hop_distance=0. Downstream mitigation is only partial, as the lead honestly stated: isValidHeaderValue (lib/web/fetch/util.js:156-177) rejects only \\0, \\r and \\n, so ';' ',' 0x0B 0x0C 0x7F all survive \u2014 the primitive is Set-Cookie attribute injection, NOT CRLF response splitting. CORRECTION to the analyst's impact claim: they said duplicate-attribute precedence limits impact because the injection precedes the legitimate attributes; that holds for Path/Expires/SameSite (lines 252-263), but Secure (235), HttpOnly (239) and Max-Age (244) are emitted BEFORE Domain, so an injected later-duplicate Max-Age/Expires wins under RFC 6265 last-wins parsing, permitting forced cookie deletion or session-lifetime extension even when the application set maxAge. Severity LOW (not MEDIUM): exploitation requires the consuming application to pass untrusted input into a field that is semantically a hostname, and impact is confined to one Set-Cookie value \u2014 but it is a real missing-validation defect in a public API that validates every sibling field. Exploit-reference check: version pinned to undici 6.11.0 (package.json:3); exploit_search returned \"exploit corpus unavailable: not indexed\", so no CVE/version-range comparison was possible and no patched/unpatched claim is made \u2014 this did not affect the verdict."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/web/cookies/util.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 124,
+                  "endLine": 132
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "validateCookieDomain",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "5fc98d3531430234f6c95a11bd60211233e6d9cd"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-1321",
+          "level": "error",
+          "message": {
+            "text": "MISSING PROTOTYPE GUARD on the response-header accumulator in `parseHeaders`. At lib/core/util.js:249 the accumulator is created as a prototype-inheriting plain object (`if (obj === undefined) obj = {}`), with no `Object.create(null)` / `{__proto__: null}` / `Object.hasOwn` guard \u2014 even though this same codebase applies exactly that control to its other header lookup tables (`Object.setPrototypeOf(headerNameLowerCasedRecord, null)` at lib/core/constants.js:113 and `Object.setPrototypeOf(normalizeMethodRecord, null)` at lib/web/fetch/util.js:746-747). Because `key` at line 251 is a SERVER-CONTROLLED response header name (lowercased via `headerNameToString`), a response header whose name collides with an `Object.prototype` member (`constructor`, `toString`, `valueOf`, `hasOwnProperty`, `isPrototypeOf`, `propertyIsEnumerable`, `__defineGetter__`, `__proto__`, ...) makes `let val = obj[key]` (line 252) resolve to an inherited function/object instead of `undefined`. `if (val)` is then truthy, `typeof val === 'string'` is false, so the `val = [val]` normalization at line 256 is skipped and line 259 executes `val.push(headers[i + 1].toString('utf8'))` on a non-array \u2014 `Object.push` / `Object.prototype.push` does not exist, throwing a TypeError inside response-header parsing. Same defect applies to the trailer accumulator passed at lib/api/api-request.js:127.\n\nVerifier (CONFIRM): Re-derived from source. lib/core/util.js:249 creates the response-header accumulator as a prototype-inheriting plain object (`if (obj === undefined) obj = {}`) with no null-prototype / hasOwn guard, while `key` (L251) is an attacker-controlled, lowercased response header name. For the two all-lowercase Object.prototype members, `obj[key]` at L252 returns an inherited value instead of undefined: `constructor` -> the `Object` function, `__proto__` -> `Object.prototype`. Both are truthy, so `if (val)` (L254) is taken; `typeof val === 'string'` (L255) is false, so the `val = [val]` normalization at L256 is skipped, and L259 `val.push(headers[i + 1].toString('utf8'))` executes on a non-array -> TypeError: val.push is not a function, on the FIRST occurrence of the header. Header names reach this unfiltered: client-h1.js:331-341 pushes raw name Buffers, and core/tree.js:137-139 `lookup` returns null for any non-wellknown name so headerNameToString falls back to `toString('latin1').toLowerCase()`; `__proto__` and `Constructor` are valid HTTP tokens so llhttp accepts them. The same codebase applies precisely this control to its other header/method lookup tables (constants.js:113 `Object.setPrototypeOf(headerNameLowerCasedRecord, null)` with the comment \"object prototypes should not be able to be referenced\", fetch/util.js:746-747, formdata.js:172, eventsource.js:438), confirming the omission is a real missing guard. Reachability verified both ways: graph says L249/252/259 reachable_from_entry=true hop_distance=1, and source shows live call sites at api-request.js:83, :92 and :127 (`util.parseHeaders(trailers, this.trailers)` with `this.trailers = {}` at :56 -> the trailer accumulator has the identical defect), plus api-stream/api-pipeline/api-connect/api-upgrade/retry-handler. Impact traced to the catch boundary: on HTTP/1 the throw unwinds the wasm import and is caught at client-h1.js:292 -> util.destroy(socket, err), so the request fails with a TypeError and the connection is torn down (collateral for other in-flight requests on that socket); on HTTP/2 (allowH2, opt-in) client-h2.js:420 invokes request.onHeaders inside a `stream.once('response', ...)` listener with NO try/catch, so the throw escapes into node:http2's emit as an uncaught exception. Two corrections to the analyst: (1) the claimed collision list is overstated - because `key` is lowercased, `toString`/`valueOf`/`hasOwnProperty`/`isPrototypeOf`/`propertyIsEnumerable`/`__defineGetter__` do NOT collide; only `constructor` and `__proto__` do. (2) No prototype modification actually occurs (the `__proto__` assignment branch is unreachable since the getter short-circuits into the `if (val)` branch), so CWE-1321's \"modification\" framing is imprecise - the realized weakness is an unguarded prototype-chain read causing type confusion (CWE-843) and an uncaught exception (CWE-248) leading to availability loss; I keep CWE-1321 as the missing-control class the fix addresses. Severity MEDIUM, not HIGH: the attacker must control (or MITM) the upstream response, and on the default HTTP/1 path the blast radius is the request plus that socket, with process-level crash only on the opt-in H2 path. Version pinned at undici 6.11.0 (package.json:3); mcp__orion__exploit_search returned \"exploit corpus unavailable: not indexed (run `orion index-exploits`)\", so the exploit-reference channel gave no signal in either direction and is not used as evidence here."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/core/util.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 249,
+                  "endLine": 259
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parseHeaders",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "1a1ddce7bc2afb062f145b3162b078d242bf99d4"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-522",
+          "level": "error",
+          "message": {
+            "text": "MISSING `proxy-authorization` STRIPPING on cross-origin redirect in the core dispatcher redirect path. `shouldRemoveHeader` (lib/handler/redirect-handler.js:197-209) removes only `authorization` and `cookie` when the redirect target origin differs, and it gates that removal behind a header-name-length fast path `unknownOrigin && (header.length === 13 || header.length === 6)` \u2014 `proxy-authorization` is 19 characters, so it can never be matched and is forwarded verbatim to the redirect target. The intended control demonstrably exists in this same repository on the fetch() path, which deletes all four credential headers (lib/web/fetch/index.js:1326 `authorization`, :1329 `proxy-authorization`, :1332 `cookie`, :1333 `host`) when `sameOrigin(requestCurrentURL(request), locationURL)` is false \u2014 proving the omission in redirect-handler.js is a gap, not a deliberate scope decision. Consequence: an app calling undici.request/stream/pipeline (or using Agent/Pool/RedirectHandler/the redirect interceptor) with `maxRedirections > 0` and a manually-set `proxy-authorization` header leaks that proxy credential to any attacker-controlled host named in a Location response header. Note ProxyAgent's `throwIfProxyAuthIsSent` (lib/dispatcher/proxy-agent.js:182-184) only blocks this header on the ProxyAgent.dispatch path, not on the plain request path that RedirectHandler serves.\n\nVerifier (CONFIRM): Independently re-derived and confirmed. shouldRemoveHeader() in lib/handler/redirect-handler.js gates cross-origin credential stripping behind a header-name-length fast path `unknownOrigin && (header.length === 13 || header.length === 6)` and only compares against 'authorization' and 'cookie'. Since \"proxy-authorization\" is 19 characters, it can never enter that branch, and a repo-wide case-insensitive grep shows no 'proxy-authorization' handling anywhere in lib/handler/ (lib/core/constants.js:66 is only the header-name-lowercasing cache, not a filter), so nothing downstream removes it either. The header therefore survives cleanRequestHeaders() (:212-230) and is re-dispatched verbatim to the new, possibly attacker-controlled origin at :171. The intended control provably exists on the sibling fetch path \u2014 lib/web/fetch/index.js:1324-1334 deletes authorization, proxy-authorization, cookie and host when !sameOrigin(), with a dedicated regression test at test/fetch/redirect-cross-origin-header.js:15,45 \u2014 while the dispatcher-path test (test/redirect-request.js:493) asserts only 'authorization'. This makes it an un-propagated fix, not a deliberate scope decision. Reachability verified in source, not just the graph: lib/dispatcher/client.js:220 installs createRedirectInterceptor on every Client by default, and lib/interceptor/redirect-interceptor.js:8-16 instantiates RedirectHandler whenever a per-request maxRedirections > 0 is supplied; RedirectHandler.onHeaders:119 then calls cleanRequestHeaders(headers, statusCode===303, this.opts.origin !== origin). The graph independently reports shouldRemoveHeader (line 197) and cleanRequestHeaders (line 212) as reachable_from_entry=true, hop_distance=0. The vulnerable usage pattern is documented by the project itself (docs/docs/best-practices/proxy.md:13,91-99 tells users to pass 'proxy-authorization' as a request header to Client), and ProxyAgent's throwIfProxyAuthIsSent guard (lib/dispatcher/proxy-agent.js:182-184) only covers the ProxyAgent dispatch path, leaving the plain request/stream/pipeline path unguarded. Version pinned exactly at 6.11.0 (package.json:3): this is past the CVE-2024-24758 fix boundary (5.28.3 / 6.6.1) and the fetch half of that fix is indeed present at index.js:1329, but it was never propagated to RedirectHandler \u2014 so the dispatcher-path gap is live at this exact version rather than already patched. The Metasploit corpus returned \"exploit corpus unavailable: not indexed\", so it contributed no evidence in either direction. Severity MEDIUM, not HIGH: exploitation requires the application to explicitly set proxy-authorization AND maxRedirections > 0, plus attacker influence over a Location header. Same bug class in this same function was CVE-assigned twice before (authorization = CVE-2022-31150, cookie = CVE-2023-45143). The analyst's claimed location is accurate."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/handler/redirect-handler.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 197,
+                  "endLine": 209
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "shouldRemoveHeader",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "959e0d08f42c906af09fc26ad02f525bfbce7f7e"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-330",
+          "level": "error",
+          "message": {
+            "text": "NO CSPRNG AND NO BOUNDARY-COLLISION CHECK for the multipart/form-data delimiter. lib/web/fetch/body.js:103 builds the boundary as `----formdata-undici-0${`${Math.floor(Math.random() * 1e11)}`.padStart(11, '0')}` \u2014 `Math.random()` is a non-cryptographic PRNG (V8 xorshift128+, whose internal state is recoverable from a few observed outputs), so the delimiter is predictable rather than unguessable. Separately, nothing validates that serialized part content does not contain the delimiter: the only neutralization applied is `escape()` at line 108 (`str.replace(/\\n/g,'%0A').replace(/\\r/g,'%0D').replace(/\"/g,'%22')`), which is applied ONLY to the field `name` (line 125, 130) and `filename` (line 131), while a string field's VALUE passes through `normalizeLinefeeds` at line 109 (`value.replace(/\\r?\\n|\\r/g, '\\r\\n')`) which merely canonicalizes line endings and preserves `-`, so `--<boundary>` survives intact. A query for every call referencing `boundary` in lib/ returns no `includes`/`indexOf`/`test` collision check in body.js. Consequence: an attacker who can both supply a FormData field value and learn/predict one boundary (boundaries are emitted in the Content-Type header at line 167) can inject `\\r\\n--<boundary>\\r\\nContent-Disposition: form-data; name=\"...\"\\r\\n\\r\\n...` into the value and forge or override additional multipart parts seen by the receiving server.\n\nVerifier (CONFIRM): Re-derived independently from source. (1) lib/web/fetch/body.js:103 generates the multipart/form-data delimiter as `----formdata-undici-0` + an 11-digit decimal from `Math.floor(Math.random() * 1e11)` \u2014 ~36.5 bits from V8's non-cryptographic xorshift128+, whose state is recoverable from observed outputs. This is the only Math.random() call in all of lib/, while crypto.randomBytes is used elsewhere in the same repo (lib/web/websocket/frame.js, connection.js), so the CSPRNG control exists and was simply not applied here. (2) The companion missing-neutralization claim also holds: `escape()` (body.js:107-108, percent-encodes \\n, \\r, \") is applied to the field name (lines 125, 130) and filename (line 131), but a string field's VALUE is passed only through `normalizeLinefeeds` (line 126 -> 109), which canonicalizes line endings and preserves both CRLF and `-`. A grep for `boundary` across lib/ shows body.js references it only at 103 (generation), 104 (prefix), 144 (terminator) and 167 (Content-Type disclosure) \u2014 there is no includes/indexOf/test containment check of any part name or value against the boundary. So an attacker who controls a FormData string value and learns/predicts one boundary can inject `\\r\\n--<boundary>\\r\\nContent-Disposition: form-data; name=\"...\"\\r\\n\\r\\n...` and forge or override parts at the receiving server. (3) Reachability is real, not an arrow-function graph artifact: graph reports extractBody reachable_from_entry=true, hop_distance=0, and source confirms callers at lib/web/fetch/request.js:503 (fetch / new Request with a FormData body) and lib/dispatcher/client-h1.js:868-873 (undici.request with a FormData-like body). (4) Version pinned exactly at undici 6.11.0 (package.json:3), which predates the upstream CSPRNG boundary fix (6.21.1 / 5.28.5 / 7.2.3, GHSA-c76h-2ccp-4975 / CVE-2025-22150), and the pre-fix Math.random() code is still present. Caveat: exploit_search returned \"exploit corpus unavailable: not indexed\", so no Metasploit module could be cited; the version conclusion rests on the manifest plus the present source, not the exploit catalog. Severity held at MEDIUM rather than HIGH because exploitation requires both an attacker-controlled field value and boundary knowledge (36 bits is not brute-forceable per request, so it depends on observing a prior boundary from the same V8 isolate and recovering PRNG state)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/web/fetch/body.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 103,
+                  "endLine": 126
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "extractBody",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "b0a82f7a5c35768c6a922f00578f6f27faa551f4"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1333",
+          "level": "error",
+          "message": {
+            "text": "Quadratic ReDoS (catastrophic backtracking) in the regex LITERAL `/( )+$/` at lib/web/fetch/data-url.js:89, inside `dataURLProcessor`. The literal has an unanchored start with a `+`-quantified atom pinned to `$` \u2014 the classic O(n^2) shape: when no match exists, the engine retries from every space offset and backtracks the whole remaining run each time. It is applied to `mimeType`, which is taken from the attacker/caller-supplied `data:` URL: `URLSerializer(dataURL, true)` -> `.slice(5)` -> `collectASequenceOfCodePointsFast(',', ...)`, i.e. everything before the first comma, with no length bound. Step 6 of dataURLProcessor strips only LEADING and TRAILING whitespace, so an interior run of spaces survives. Line 89 is gated on line 71 (`/;( ){0,}base64$/i`) matching, which only requires the mimeType to END in `;base64` \u2014 it does not require the long space run to be near the end. Concrete input: `data:x<100000 spaces>y;base64,AAAA`. mimeType = `x` + 100000 spaces + `y;base64`; line 71 matches; line 85 `slice(0,-6)` yields `x`+100000 spaces+`y;`; line 89's regex then has NO possible match (string ends in `;`), so the engine pays ~n^2/2 \u2248 5e9 backtracking steps, hanging the event loop. Reached via fetch(): lib/web/fetch/index.js:922 `dataURLProcessor(currentURL)`, hop_distance 1. OPEN QUESTION the verifier must settle: whether the WHATWG URL serializer preserves literal U+0020 in a `data:` opaque path or percent-encodes it to %20 \u2014 if it percent-encodes, this is not exploitable via fetch() and only via any direct/other caller of dataURLProcessor. Note that undici's own line-71 literal explicitly tolerates spaces between `;` and `base64`, and line 89 exists solely to strip surviving spaces, which is in-data evidence that literal spaces do reach here.\n\nVerifier (CONFIRM): The regex literal /( )+$/ at lib/web/fetch/data-url.js:89 is a real polynomial (quadratic) ReDoS and is reachable with attacker-controlled input via fetch(). I verified every link myself: (1) The regex exists at line 89 and is the textbook unanchored-start + single-char + loop + $-anchor trim shape \u2014 the same class as npm 'trim' CVE-2020-7753, a documented quadratic ReDoS in V8; with no 'g' flag and no possible match (string ends in ';'), replace() tries every start offset in the interior space run, each backtracking the whole remaining run -> O(n^2). (2) mimeType is attacker-controlled: URLSerializer(dataURL,true)=url.href -> .slice(5) -> collectASequenceOfCodePointsFast(',',...) with no length bound. (3) removeChars (lines 637-650) only trims leading/trailing whitespace, so interior spaces survive (input begins 'x', ends '4' -> no trim). (4) Line 71 gate /;( ){0,}base64$/i only requires the mimeType to END in ';base64'; line 85 slice(0,-6) then leaves 'x<spaces>y;', which line 89 cannot match -> worst case. (5) Graph confirms line 89 reachable_from_entry=true, hop_distance=1, reached from fetch at index.js:922 dataURLProcessor(currentURL) in the case 'data:' handler. (6) The analyst's open question resolves in favor of exploitability: per WHATWG URL spec the data: opaque path is encoded with the C0-control percent-encode set, which excludes U+0020, so literal spaces are preserved (not %20); only leading/trailing C0/space and all tabs/newlines are stripped. This is corroborated by Fetch-spec step 11.5 and by undici's own lines 71/89 existing solely to handle literal surviving spaces. Thus fetch('data:x<100000 spaces>y;base64,AAAA') delivers ~100000 literal interior spaces to line 89, hanging the event loop (~5e9 steps for n=1e5; worse for larger inputs)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/web/fetch/data-url.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 89,
+                  "endLine": 89
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "dataURLProcessor",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "5ea648882db66e0cac6bf5dc04abf80c188189bf"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-20",
+          "level": "error",
+          "message": {
+            "text": "Missing anchors in the validation regex LITERAL `HTTP_QUOTED_STRING_TOKENS = /[\\u0009 -~\\u0080-\u00ff]/` at lib/web/fetch/data-url.js:16. The literal is a bare character class with no `^`/`$` anchors and no `+` quantifier, so `.test(s)` returns true if ANY SINGLE character of `s` is in the allowed set \u2014 not, as the MIME Sniffing spec requires, if `s` SOLELY consists of HTTP quoted-string token code points. Compare the sibling literal on line 10, `HTTP_TOKEN_CODEPOINTS = /^[...]+$/`, which IS correctly anchored \u2014 showing the author's intent was whole-string validation. It is used as the sole content gate for MIME-type parameter values at lib/web/fetch/data-url.js:419, inside the accept condition `parameterName.length !== 0 && HTTP_TOKEN_CODEPOINTS.test(parameterName) && (parameterValue.length === 0 || HTTP_QUOTED_STRING_TOKENS.test(parameterValue)) && !mimeType.parameters.has(parameterName)` (line 417), after which line 422 does `mimeType.parameters.set(parameterName, parameterValue)`. Consequence: a parameter value containing control characters (CR, LF, NUL, U+007F) passes validation as long as it contains at least one printable ASCII character \u2014 e.g. `a/b;p=\"x\\r\\nX-Injected: 1\"` is accepted because the `x` matches. The tainted parameter map is then re-emitted by `serializeAMimeType` (lib/web/fetch/data-url.js:551), which escapes only `\"` and `\\` (line 575, `value.replace(/(\\\\|\")/g, '\\\\$1')`) and NOT control characters, and that serialization becomes a Content-Type header value at lib/web/fetch/index.js:931 `serializeAMimeType(dataURLStruct.mimeType)` and at lib/web/fileapi/util.js:241 `serializeAMimeType(parsed)` (Blob.type normalization, where the input string is fully caller-controlled and unconstrained by any URL/header parser). Verifier should note there is a second line of defense for outgoing H1 headers \u2014 `headerCharRegex = /[^\\t\\x20-\\x7e\\x80-\\xff]/` at lib/core/util.js:513 \u2014 which does reject CR/LF, so rank this as a validation/spec-conformance bypass (control chars in the U+0080-U+00FF and U+007F ranges still pass both) rather than a confirmed CRLF injection.\n\nVerifier (CONFIRM): Re-derived from source. lib/web/fetch/data-url.js:16 defines HTTP_QUOTED_STRING_TOKENS as a bare character class with no ^/$ anchors and no quantifier, while line 10's sibling HTTP_TOKEN_CODEPOINTS is correctly anchored. It is used at line 419 as the sole gate implementing the mimesniff step whose own comment (line 413) requires \"parameterValue solely contains HTTP quoted-string token code points\", so .test() returns true when ANY single char is allowed: a parameter value such as `\\r\\nX: 1` is accepted (the `X` matches) and stored at line 422. serializeAMimeType (551-586) then re-emits it escaping only `\"` and `\\` (line 575), never control chars. I confirmed a real unescaped downstream sink the analyst missed: undici's File class is publicly exported (index.js:119 -> lib/web/fetch/file.js:337 exports the local class) and its constructor (file.js:40-55) substitutes parseMIMEType/serializeAMimeType for the FileAPI U+0020-U+007E check, with the type getter (file.js:91-95) returning the unsanitized kState.type (bypassing node:buffer Blob's sanitization in super()). So `new File([],'n',{type:'a/b;p=\"\\r\\nX: 1\"'}).type` keeps raw CRLF solely because of the missing anchors; FormData.append without a filename keeps that object (formdata.js:219) and extractBody interpolates it unescaped into multipart part headers at body.js:130-134 (`Content-Type: ${value.type}`), which the graph reports reachable_from_entry=true, hop_distance=1 -> CRLF injection into the multipart/form-data request body (CWE-93). Outgoing HTTP header injection is blocked by isValidHeaderValue (fetch/util.js:156-177) and headerCharRegex (core/util.js:513), matching the lead's caveat; the lead's other two cited sinks are not attacker-controlled (index.js:931 is fed by the URL parser, which strips CR/LF and percent-encodes C0/non-ASCII; fileapi/util.js:241 takes an already-sanitized native blob.type), and its \"U+0080-U+00FF still pass\" remark is wrong since that range is in the allowed set anyway. Severity MEDIUM, not high: exploitation needs the app to pass an attacker-controlled MIME string into undici's File `type` and send it via FormData, and impact is multipart body smuggling rather than HTTP header injection. Exploit-reference grounding unavailable (undici 6.11.0 pinned at package.json:3, but exploit_search returned \"corpus unavailable: not indexed\")."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/web/fetch/data-url.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 16,
+                  "endLine": 16
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parseMIMEType",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "69a2fca222eac3246f30829a448238dc9e074786"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

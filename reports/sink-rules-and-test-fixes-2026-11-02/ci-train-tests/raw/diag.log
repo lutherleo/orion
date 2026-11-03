@@ -1,0 +1,453 @@
+ref @ af58327
+skip (uses): actions/checkout@v4
+skip (uses): actions/setup-python@v5
+step 01: pip install -e ".[dev]" numpy
+step 02: pytest -m "not slow" -q
+step 03: pytest eval/tests -q
+step 04: pip install tree-sitter==0.26.0 tree-sitter-javascript==0.25.0 tree-sitter-typescript==0.23.2 tree-sitter-python==0.25.0 tree-sitter-java==0.23.5
+step 05: pytest train/tests -m "not slow" -q
+Obtaining file:///tmp/ci-diag.yG5F3c/repo
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Collecting numpy
+  Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Collecting neo4j>=5.0 (from orion==0.1.0)
+  Downloading neo4j-6.4.1-py3-none-any.whl.metadata (5.5 kB)
+Collecting fastmcp>=2.0 (from orion==0.1.0)
+  Downloading fastmcp-4.1.5-py3-none-any.whl.metadata (9.5 kB)
+Collecting networkx>=3.0 (from orion==0.1.0)
+  Downloading networkx-3.7-py3-none-any.whl.metadata (6.7 kB)
+Collecting pytest>=8 (from orion==0.1.0)
+  Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+Collecting fastmcp-slim==4.1.5 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading fastmcp_slim-4.1.5-py3-none-any.whl.metadata (11 kB)
+Collecting mcp-types<3.0.0,>=2.0.0 (from fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading mcp_types-2.3.0-py3-none-any.whl.metadata (1.9 kB)
+Collecting platformdirs>=4.0.0 (from fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading platformdirs-4.14.3-py3-none-any.whl.metadata (5.4 kB)
+Collecting pydantic-settings>=2.0.0 (from fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading pydantic_settings-2.16.2-py3-none-any.whl.metadata (4.0 kB)
+Collecting pydantic>=2.12.0 (from pydantic[email]>=2.12.0->fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading pydantic-2.14.2-py3-none-any.whl.metadata (137 kB)
+Collecting python-dotenv>=1.1.0 (from fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading python_dotenv-1.2.4-py3-none-any.whl.metadata (29 kB)
+Collecting rich>=13.9.4 (from fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+Collecting typing-extensions>=4.0.0 (from fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting authlib>=1.6.11 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading authlib-1.9.2-py2.py3-none-any.whl.metadata (10 kB)
+Collecting exceptiongroup>=1.2.2 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading exceptiongroup-1.3.1-py3-none-any.whl.metadata (6.7 kB)
+Collecting httpx2>=2.5.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading httpx2-2.16.0-py3-none-any.whl.metadata (10 kB)
+Collecting mcp<3.0.0,>=2.3.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading mcp-2.3.0-py3-none-any.whl.metadata (6.6 kB)
+Collecting opentelemetry-api>=1.28.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading opentelemetry_api-1.45.2-py3-none-any.whl.metadata (1.4 kB)
+Collecting py-key-value-aio<0.5.0,>=0.4.4 (from py-key-value-aio[filetree,memory]<0.5.0,>=0.4.4; extra == "client"->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading py_key_value_aio-0.4.6-py3-none-any.whl.metadata (16 kB)
+Collecting starlette>=1.0.1 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading starlette-1.10.0-py3-none-any.whl.metadata (6.6 kB)
+Collecting certifi>=2026.10.19 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading certifi-2026.10.23-py3-none-any.whl.metadata (2.5 kB)
+Collecting cyclopts>=4.0.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading cyclopts-5.3.2-py3-none-any.whl.metadata (12 kB)
+Collecting griffelib>=2.0.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading griffelib-2.4.1-py3-none-any.whl.metadata (1.9 kB)
+Collecting joserfc>=1.5.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading joserfc-1.7.7-py3-none-any.whl.metadata (3.2 kB)
+Collecting jsonref>=1.1.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading jsonref-1.1.0-py3-none-any.whl.metadata (2.7 kB)
+Collecting jsonschema-path>=0.3.4 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading jsonschema_path-0.5.0-py3-none-any.whl.metadata (8.1 kB)
+Collecting openapi-pydantic>=0.6.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading openapi_pydantic-0.6.0-py3-none-any.whl.metadata (12 kB)
+Collecting packaging>=24.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pyperclip>=1.9.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading pyperclip-1.11.0-py3-none-any.whl.metadata (2.4 kB)
+Collecting python-multipart>=0.0.26 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading python_multipart-0.0.33-py3-none-any.whl.metadata (6.3 kB)
+Collecting pyyaml<7.0,>=6.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+Collecting uncalled-for>=0.4.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading uncalled_for-0.4.1-py3-none-any.whl.metadata (3.3 kB)
+Collecting uvicorn>=0.35 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading uvicorn-0.54.0-py3-none-any.whl.metadata (6.6 kB)
+Collecting watchfiles>=1.0.0 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading watchfiles-1.3.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+Collecting websockets>=15.0.1 (from fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading websockets-17.4-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.3 kB)
+Collecting anyio>=4.9 (from mcp<3.0.0,>=2.3.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading anyio-4.16.0-py3-none-any.whl.metadata (4.7 kB)
+Collecting jsonschema>=4.20.0 (from mcp<3.0.0,>=2.3.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+Collecting pyjwt>=2.10.1 (from pyjwt[crypto]>=2.10.1->mcp<3.0.0,>=2.3.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading pyjwt-2.15.1-py3-none-any.whl.metadata (3.5 kB)
+Collecting sse-starlette>=3.0.0 (from mcp<3.0.0,>=2.3.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading sse_starlette-3.6.0-py3-none-any.whl.metadata (15 kB)
+Collecting typing-inspection>=0.4.1 (from mcp<3.0.0,>=2.3.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading typing_inspection-0.4.4-py3-none-any.whl.metadata (2.6 kB)
+Collecting beartype>=0.20.0 (from py-key-value-aio<0.5.0,>=0.4.4->py-key-value-aio[filetree,memory]<0.5.0,>=0.4.4; extra == "client"->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading beartype-0.23.1-py3-none-any.whl.metadata (35 kB)
+Collecting aiofile>=3.12.3 (from py-key-value-aio[filetree,memory]<0.5.0,>=0.4.4; extra == "client"->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading aiofile-3.12.3-py3-none-any.whl.metadata (17 kB)
+Collecting cachetools>=5.0.0 (from py-key-value-aio[filetree,memory]<0.5.0,>=0.4.4; extra == "client"->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading cachetools-7.2.8-py3-none-any.whl.metadata (5.5 kB)
+Collecting caio~=0.12.0 (from aiofile>=3.12.3->py-key-value-aio[filetree,memory]<0.5.0,>=0.4.4; extra == "client"->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading caio-0.12.10-cp312-cp312-manylinux_2_34_x86_64.whl.metadata (4.6 kB)
+Collecting idna>=2.8 (from anyio>=4.9->mcp<3.0.0,>=2.3.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+Collecting cryptography>=45.0.1 (from authlib>=1.6.11->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.4 kB)
+Collecting cffi>=2.0.0 (from cryptography>=45.0.1->authlib>=1.6.11->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.5 kB)
+Collecting pycparser (from cffi>=2.0.0->cryptography>=45.0.1->authlib>=1.6.11->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
+Collecting attrs>=23.1.0 (from cyclopts>=4.0.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+Collecting docstring-parser<4.0,>=0.15 (from cyclopts>=4.0.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading docstring_parser-0.18.0-py3-none-any.whl.metadata (3.5 kB)
+Collecting rich-rst<3,>=2.0.1 (from cyclopts>=4.0.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading rich_rst-2.2.0-py3-none-any.whl.metadata (5.0 kB)
+Collecting pygments>=2.0.0 (from rich-rst<3,>=2.0.1->cyclopts>=4.0.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Collecting httpcore2==2.16.0 (from httpx2>=2.5.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading httpcore2-2.16.0-py3-none-any.whl.metadata (27 kB)
+Collecting truststore>=0.10 (from httpx2>=2.5.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading truststore-0.10.5-py3-none-any.whl.metadata (4.5 kB)
+Collecting h11>=0.16 (from httpcore2==2.16.0->httpx2>=2.5.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+Collecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.20.0->mcp<3.0.0,>=2.3.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+Collecting referencing>=0.28.4 (from jsonschema>=4.20.0->mcp<3.0.0,>=2.3.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+Collecting rpds-py>=0.25.0 (from jsonschema>=4.20.0->mcp<3.0.0,>=2.3.0->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading rpds_py-2026.9.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)
+Collecting pathable<0.7.0,>=0.6.0 (from jsonschema-path>=0.3.4->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading pathable-0.6.0-py3-none-any.whl.metadata (7.2 kB)
+Collecting pytz (from neo4j>=5.0->orion==0.1.0)
+  Downloading pytz-2026.6-py2.py3-none-any.whl.metadata (22 kB)
+Collecting annotated-types>=0.6.0 (from pydantic>=2.12.0->pydantic[email]>=2.12.0->fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.50.2 (from pydantic>=2.12.0->pydantic[email]>=2.12.0->fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading pydantic_core-2.50.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (6.5 kB)
+Collecting email-validator>=2.0.0 (from pydantic[email]>=2.12.0->fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading email_validator-2.3.0-py3-none-any.whl.metadata (26 kB)
+Collecting dnspython>=2.0.0 (from email-validator>=2.0.0->pydantic[email]>=2.12.0->fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading dnspython-2.9.1-py3-none-any.whl.metadata (5.8 kB)
+Collecting iniconfig>=2 (from pytest>=8->orion==0.1.0)
+  Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+Collecting pluggy<2,>=1.6 (from pytest>=8->orion==0.1.0)
+  Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+Collecting markdown-it-py>=2.2.0 (from rich>=13.9.4->fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.9.4->fastmcp-slim==4.1.5->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+Collecting click>=7.0 (from uvicorn>=0.35->fastmcp-slim[client,server]==4.1.5->fastmcp>=2.0->orion==0.1.0)
+  Downloading click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+Downloading numpy-2.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.7/16.7 MB 41.7 MB/s  0:00:00
+Downloading fastmcp-4.1.5-py3-none-any.whl (8.2 kB)
+Downloading fastmcp_slim-4.1.5-py3-none-any.whl (937 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 937.3/937.3 kB 23.1 MB/s  0:00:00
+Downloading mcp-2.3.0-py3-none-any.whl (368 kB)
+Downloading mcp_types-2.3.0-py3-none-any.whl (69 kB)
+Downloading py_key_value_aio-0.4.6-py3-none-any.whl (171 kB)
+Downloading pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 807.9/807.9 kB 39.9 MB/s  0:00:00
+Downloading aiofile-3.12.3-py3-none-any.whl (22 kB)
+Downloading caio-0.12.10-cp312-cp312-manylinux_2_34_x86_64.whl (162 kB)
+Downloading anyio-4.16.0-py3-none-any.whl (134 kB)
+Downloading authlib-1.9.2-py2.py3-none-any.whl (266 kB)
+Downloading beartype-0.23.1-py3-none-any.whl (1.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 40.6 MB/s  0:00:00
+Downloading cachetools-7.2.8-py3-none-any.whl (19 kB)
+Downloading certifi-2026.10.23-py3-none-any.whl (135 kB)
+Downloading cryptography-50.0.2-cp311-abi3-manylinux_2_34_x86_64.whl (4.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 43.3 MB/s  0:00:00
+Downloading cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (221 kB)
+Downloading cyclopts-5.3.2-py3-none-any.whl (297 kB)
+Downloading docstring_parser-0.18.0-py3-none-any.whl (22 kB)
+Downloading rich_rst-2.2.0-py3-none-any.whl (279 kB)
+Downloading attrs-26.1.0-py3-none-any.whl (67 kB)
+Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)
+Downloading griffelib-2.4.1-py3-none-any.whl (172 kB)
+Downloading httpx2-2.16.0-py3-none-any.whl (97 kB)
+Downloading httpcore2-2.16.0-py3-none-any.whl (85 kB)
+Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Downloading idna-3.20-py3-none-any.whl (69 kB)
+Downloading joserfc-1.7.7-py3-none-any.whl (71 kB)
+Downloading jsonref-1.1.0-py3-none-any.whl (9.4 kB)
+Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)
+Downloading jsonschema_path-0.5.0-py3-none-any.whl (24 kB)
+Downloading pathable-0.6.0-py3-none-any.whl (18 kB)
+Downloading referencing-0.37.0-py3-none-any.whl (26 kB)
+Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+Downloading neo4j-6.4.1-py3-none-any.whl (390 kB)
+Downloading networkx-3.7-py3-none-any.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 42.9 MB/s  0:00:00
+Downloading openapi_pydantic-0.6.0-py3-none-any.whl (96 kB)
+Downloading opentelemetry_api-1.45.2-py3-none-any.whl (60 kB)
+Downloading packaging-26.3-py3-none-any.whl (129 kB)
+Downloading platformdirs-4.14.3-py3-none-any.whl (35 kB)
+Downloading pydantic-2.14.2-py3-none-any.whl (490 kB)
+Downloading pydantic_core-2.50.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 27.7 MB/s  0:00:00
+Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Downloading pydantic_settings-2.16.2-py3-none-any.whl (81 kB)
+Downloading email_validator-2.3.0-py3-none-any.whl (35 kB)
+Downloading dnspython-2.9.1-py3-none-any.whl (360 kB)
+Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 34.5 MB/s  0:00:00
+Downloading pyjwt-2.15.1-py3-none-any.whl (33 kB)
+Downloading pyperclip-1.11.0-py3-none-any.whl (11 kB)
+Downloading pytest-9.2.0-py3-none-any.whl (411 kB)
+Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Downloading python_dotenv-1.2.4-py3-none-any.whl (23 kB)
+Downloading python_multipart-0.0.33-py3-none-any.whl (32 kB)
+Downloading rich-15.0.0-py3-none-any.whl (310 kB)
+Downloading markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Downloading rpds_py-2026.9.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (371 kB)
+Downloading sse_starlette-3.6.0-py3-none-any.whl (17 kB)
+Downloading starlette-1.10.0-py3-none-any.whl (80 kB)
+Downloading truststore-0.10.5-py3-none-any.whl (19 kB)
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Downloading typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+Downloading uncalled_for-0.4.1-py3-none-any.whl (14 kB)
+Downloading uvicorn-0.54.0-py3-none-any.whl (87 kB)
+Downloading click-8.5.0-py3-none-any.whl (125 kB)
+Downloading watchfiles-1.3.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (458 kB)
+Downloading websockets-17.4-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (226 kB)
+Downloading pycparser-3.12-py3-none-any.whl (62 kB)
+Downloading pytz-2026.6-py2.py3-none-any.whl (506 kB)
+Building wheels for collected packages: orion
+  Building editable for orion (pyproject.toml): started
+  Building editable for orion (pyproject.toml): finished with status 'done'
+  Created wheel for orion: filename=orion-0.1.0-0.editable-py3-none-any.whl size=3152 sha256=85691e9b0c02b9c6a8ccc2f189d4800ad3f8ea95f7ba5244a22cf657bb5f42a2
+  Stored in directory: /tmp/ci-diag.yG5F3c/tmp/pip-ephem-wheel-cache-mrsq1e_k/wheels/35/24/94/32ecea9b4a79bf3847370c4fe9a5224a1c46889790c4a911f0
+Successfully built orion
+Installing collected packages: pytz, pyperclip, websockets, uncalled-for, typing-extensions, truststore, rpds-py, pyyaml, python-multipart, python-dotenv, pyjwt, pygments, pycparser, pluggy, platformdirs, pathable, packaging, numpy, networkx, neo4j, mdurl, jsonref, iniconfig, idna, h11, griffelib, docstring-parser, dnspython, click, certifi, caio, cachetools, beartype, attrs, annotated-types, uvicorn, typing-inspection, referencing, pytest, pydantic-core, py-key-value-aio, opentelemetry-api, markdown-it-py, httpcore2, exceptiongroup, email-validator, cffi, anyio, aiofile, watchfiles, starlette, rich, pydantic, jsonschema-specifications, jsonschema-path, httpx2, cryptography, sse-starlette, rich-rst, pydantic-settings, openapi-pydantic, mcp-types, jsonschema, joserfc, mcp, fastmcp-slim, cyclopts, authlib, fastmcp, orion
+
+Successfully installed aiofile-3.12.3 annotated-types-0.8.0 anyio-4.16.0 attrs-26.1.0 authlib-1.9.2 beartype-0.23.1 cachetools-7.2.8 caio-0.12.10 certifi-2026.10.23 cffi-2.1.1 click-8.5.0 cryptography-50.0.2 cyclopts-5.3.2 dnspython-2.9.1 docstring-parser-0.18.0 email-validator-2.3.0 exceptiongroup-1.3.1 fastmcp-4.1.5 fastmcp-slim-4.1.5 griffelib-2.4.1 h11-0.16.0 httpcore2-2.16.0 httpx2-2.16.0 idna-3.20 iniconfig-2.3.1 joserfc-1.7.7 jsonref-1.1.0 jsonschema-4.26.0 jsonschema-path-0.5.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mcp-2.3.0 mcp-types-2.3.0 mdurl-0.1.2 neo4j-6.4.1 networkx-3.7 numpy-2.5.4 openapi-pydantic-0.6.0 opentelemetry-api-1.45.2 orion-0.1.0 packaging-26.3 pathable-0.6.0 platformdirs-4.14.3 pluggy-1.7.0 py-key-value-aio-0.4.6 pycparser-3.12 pydantic-2.14.2 pydantic-core-2.50.2 pydantic-settings-2.16.2 pygments-2.21.0 pyjwt-2.15.1 pyperclip-1.11.0 pytest-9.2.0 python-dotenv-1.2.4 python-multipart-0.0.33 pytz-2026.6 pyyaml-6.0.3 referencing-0.37.0 rich-15.0.0 rich-rst-2.2.0 rpds-py-2026.9.1 sse-starlette-3.6.0 starlette-1.10.0 truststore-0.10.5 typing-extensions-4.16.0 typing-inspection-0.4.4 uncalled-for-0.4.1 uvicorn-0.54.0 watchfiles-1.3.0 websockets-17.4
+=== install: exit 0
+....................................................ss.................. [ 22%]
+........................................................................ [ 45%]
+........................................................................ [ 67%]
+................................ss.s..ssssssssssssssssssssssssss..ssssss [ 90%]
+ssssssss.....ss.....ss......s.                                           [100%]
+=========================== short test summary info ============================
+SKIPPED [1] train/tests/test_convert.py:50: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] train/tests/test_convert.py:69: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] train/tests/test_stage1_build.py:43: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_build.py:60: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_build.py:82: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_build.py:117: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_build.py:132: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:18: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:29: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:34: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:39: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:45: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:59: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:64: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:72: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:83: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:89: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:94: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:103: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:126: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:139: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [3] train/tests/test_stage1_cases.py:154: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:166: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:173: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:180: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:193: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:214: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:232: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage1_cases.py:243: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:121: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [3] train/tests/test_stage2.py:134: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:140: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:144: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:155: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:174: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:184: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:194: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:198: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:220: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:235: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:243: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:348: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:361: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:426: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_stage2.py:451: could not import 'tree_sitter': No module named 'tree_sitter'
+SKIPPED [1] train/tests/test_unsloth_data.py:62: could not import 'transformers': No module named 'transformers'
+268 passed, 50 skipped in 4.34s
+=== notree-train: exit 0
+Collecting tree-sitter==0.26.0
+  Downloading tree_sitter-0.26.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (10 kB)
+Collecting tree-sitter-javascript==0.25.0
+  Downloading tree_sitter_javascript-0.25.0-cp310-abi3-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (2.2 kB)
+Collecting tree-sitter-typescript==0.23.2
+  Downloading tree_sitter_typescript-0.23.2-cp39-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (2.3 kB)
+Collecting tree-sitter-python==0.25.0
+  Downloading tree_sitter_python-0.25.0-cp310-abi3-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (1.9 kB)
+Collecting tree-sitter-java==0.23.5
+  Downloading tree_sitter_java-0.23.5-cp39-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.7 kB)
+Downloading tree_sitter-0.26.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (667 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 667.5/667.5 kB 38.5 MB/s  0:00:00
+Downloading tree_sitter_javascript-0.25.0-cp310-abi3-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (99 kB)
+Downloading tree_sitter_typescript-0.23.2-cp39-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (344 kB)
+Downloading tree_sitter_python-0.25.0-cp310-abi3-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (108 kB)
+Downloading tree_sitter_java-0.23.5-cp39-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (84 kB)
+Installing collected packages: tree-sitter-typescript, tree-sitter-python, tree-sitter-javascript, tree-sitter-java, tree-sitter
+
+Successfully installed tree-sitter-0.26.0 tree-sitter-java-0.23.5 tree-sitter-javascript-0.25.0 tree-sitter-python-0.25.0 tree-sitter-typescript-0.23.2
+=== install-ts: exit 0
+........................................................................ [  4%]
+...............................................s.................s..ss.. [  9%]
+.........s...s........sss...............sss............................. [ 13%]
+.........................................................s.............. [ 18%]
+...................................................s.................... [ 23%]
+........................................................................ [ 27%]
+........................................................................ [ 32%]
+..........................sssssssss.s........sssssss........s.........s. [ 36%]
+.............ssss....................................................... [ 41%]
+.........................................................sssssss...sssss [ 46%]
+............................s.................................s......... [ 50%]
+........................ss.............................................. [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 64%]
+........................................................................ [ 69%]
+.....................s........................s.......s................. [ 73%]
+........................................................................ [ 78%]
+........................................................................ [ 82%]
+...............................s........................................ [ 87%]
+........................................................................ [ 92%]
+........................................................................ [ 96%]
+..................................................                       [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_deps.py:78: NodeGoat fixture not present
+SKIPPED [1] tests/test_embed.py:23: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_embed_spans.py:62: Joern not installed (no joern-parse under /tmp/ci-diag.yG5F3c/home/joern/joern-cli; set JOERN_HOME)
+SKIPPED [1] tests/test_embed_spans.py:90: Joern not installed (no joern-parse under /tmp/ci-diag.yG5F3c/home/joern/joern-cli; set JOERN_HOME)
+SKIPPED [1] tests/test_exploit_corpus.py:117: real MSF metadata fixture not present (gitignored); run fetch_metadata() to enable
+SKIPPED [1] tests/test_exploit_layer2.py:94: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_graph_build.py:37: Joern not installed (no joern-parse under /tmp/ci-diag.yG5F3c/home/joern/joern-cli; set JOERN_HOME)
+SKIPPED [1] tests/test_graph_build.py:56: Joern not installed (no joern-parse under /tmp/ci-diag.yG5F3c/home/joern/joern-cli; set JOERN_HOME)
+SKIPPED [1] tests/test_graph_build.py:85: Joern not installed (no joern-parse under /tmp/ci-diag.yG5F3c/home/joern/joern-cli; set JOERN_HOME)
+SKIPPED [1] tests/test_graphdb_readonly_server.py:38: writes to the shared Neo4j: set ORION_LIVE_NEO4J=1 to run it
+SKIPPED [1] tests/test_graphdb_readonly_server.py:46: writes to the shared Neo4j: set ORION_LIVE_NEO4J=1 to run it
+SKIPPED [1] tests/test_graphdb_readonly_server.py:53: writes to the shared Neo4j: set ORION_LIVE_NEO4J=1 to run it
+SKIPPED [1] tests/test_lm_format.py:245: Qwen3.5 tokenizer unavailable: No module named 'transformers'
+SKIPPED [1] tests/test_lm_model.py:182: could not import 'outlines_core': No module named 'outlines_core'
+SKIPPED [1] tests/test_mcp_clause_guard.py:48: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_mcp_clause_guard.py:65: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [3] tests/test_mcp_clause_guard.py:83: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_mcp_clause_guard.py:93: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_mcp_clause_guard.py:98: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [3] tests/test_mcp_readonly.py:20: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [4] tests/test_persist_chunked.py:57: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_persist_counts.py:30: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_persist_counts.py:40: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_persist_counts.py:46: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_persist_indexes.py:23: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_profiles.py:17: NodeGoat fixture not present
+SKIPPED [1] tests/test_reanalyze.py:69: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_reanalyze.py:86: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_reanalyze.py:95: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_reanalyze.py:113: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_delete.py:31: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_delete.py:63: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_delete.py:76: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_delete.py:83: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_delete.py:99: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_delete.py:109: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_delete.py:130: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_record.py:53: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_record.py:97: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_record.py:120: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_record.py:148: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_scan_record.py:168: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_semantic_hybrid.py:179: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_shortlists.py:311: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [2] tests/test_smoke.py:18: Neo4j not reachable: Couldn't connect to 127.0.0.1:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_ui_jobs.py:1105: Windows job objects
+SKIPPED [1] tests/test_ui_keys.py:153: could not import 'keyring.backends.fail': No module named 'keyring'
+SKIPPED [1] tests/test_ui_keys.py:234: could not import 'keyring.errors': No module named 'keyring'
+SKIPPED [1] tests/test_ui_runs.py:489: drive-qualified path parts exist only on Windows
+1505 passed, 57 skipped, 62 deselected in 42.85s
+=== tree-tests: exit 0
+--- summary
+diag-notree-train.xml: 0 failed, 268 passed, 50 skipped, 318 total
+   test_balance                   35 passed   0 skipped   0 failed
+   test_build                     15 passed   0 skipped   0 failed
+   test_convert                    2 passed   2 skipped   0 failed
+   test_cve_dates                  2 passed   0 skipped   0 failed
+   test_cypher_data                2 passed   0 skipped   0 failed
+   test_devscore                  10 passed   0 skipped   0 failed
+   test_diffs                      8 passed   0 skipped   0 failed
+   test_enrich_gh                 14 passed   0 skipped   0 failed
+   test_examples                  21 passed   0 skipped   0 failed
+   test_filters                   20 passed   0 skipped   0 failed
+   test_fixmap                    15 passed   0 skipped   0 failed
+   test_guard                      9 passed   0 skipped   0 failed
+   test_mine                       3 passed   0 skipped   0 failed
+   test_mlx_train                 10 passed   0 skipped   0 failed
+   test_notebook                  13 passed   0 skipped   0 failed
+   test_repo_sizes                 3 passed   0 skipped   0 failed
+   test_rounds                    15 passed   0 skipped   0 failed
+   test_sft_encode                 6 passed   0 skipped   0 failed
+   test_snapshot                  10 passed   0 skipped   0 failed
+   test_sources                   26 passed   0 skipped   0 failed
+   test_splits                     7 passed   0 skipped   0 failed
+   test_stage1_build               3 passed   5 skipped   0 failed
+   test_stage1_cases               0 passed  24 skipped   0 failed
+   test_stage2                    12 passed  18 skipped   0 failed
+   test_unsloth_data               7 passed   1 skipped   0 failed
+   skip x47: could not import 'tree_sitter': No module named 'tree_sitter'
+   skip x2: could not import 'mlx.core': No module named 'mlx'
+   skip x1: could not import 'transformers': No module named 'transformers'
+diag-tree-tests.xml: 0 failed, 1505 passed, 57 skipped, 1562 total

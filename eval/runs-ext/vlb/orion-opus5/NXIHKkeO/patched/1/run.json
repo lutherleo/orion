@@ -1,0 +1,201 @@
+{
+ "benchmark": "vlb",
+ "task": "NXIHKkeO",
+ "repo": "mmaitre314/picklescan",
+ "snapshot": "patched",
+ "ref": "173c8f2a869ea9b69b543477525ec70611c3c6f4",
+ "commit": "173c8f2a869ea9b69b543477525ec70611c3c6f4",
+ "arm": "orion-opus5",
+ "model": "claude-opus-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 1285.7,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 24,
+  "uncached_in": 520,
+  "cache_read": 8477663,
+  "cache_write": 778682,
+  "out": 331387,
+  "tokens": 9588252,
+  "cli_cost_usd": 20.5306
+ },
+ "status": "ok",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": null,
+ "usage": [
+  {
+   "uncached_in": 24,
+   "cache_read": 449006,
+   "cache_write": 65606,
+   "out": 25353,
+   "cli_cost_usd": 1.52205962
+  },
+  {
+   "uncached_in": 28,
+   "cache_read": 572756,
+   "cache_write": 59577,
+   "out": 24103,
+   "cli_cost_usd": 1.49234412
+  },
+  {
+   "uncached_in": 32,
+   "cache_read": 942108,
+   "cache_write": 104662,
+   "out": 31658,
+   "cli_cost_usd": 2.3732852250000005
+  },
+  {
+   "uncached_in": 32,
+   "cache_read": 816939,
+   "cache_write": 84409,
+   "out": 36594,
+   "cli_cost_usd": 2.17790787
+  },
+  {
+   "uncached_in": 10,
+   "cache_read": 110173,
+   "cache_write": 17174,
+   "out": 6397,
+   "cli_cost_usd": 0.38901724499999996
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 171266,
+   "cache_write": 20582,
+   "out": 9307,
+   "cli_cost_usd": 0.5267462449999999
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 194839,
+   "cache_write": 24218,
+   "out": 14915,
+   "cli_cost_usd": 0.71475212
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 165745,
+   "cache_write": 12803,
+   "out": 10112,
+   "cli_cost_usd": 0.46548762000000005
+  },
+  {
+   "uncached_in": 24,
+   "cache_read": 339807,
+   "cache_write": 31327,
+   "out": 13431,
+   "cli_cost_usd": 0.822517995
+  },
+  {
+   "uncached_in": 30,
+   "cache_read": 461599,
+   "cache_write": 23090,
+   "out": 9232,
+   "cli_cost_usd": 0.695900245
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 242952,
+   "cache_write": 14999,
+   "out": 6919,
+   "cli_cost_usd": 0.446847245
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 211911,
+   "cache_write": 12019,
+   "out": 6720,
+   "cli_cost_usd": 0.39621999499999994
+  },
+  {
+   "uncached_in": 26,
+   "cache_read": 382025,
+   "cache_write": 25428,
+   "out": 13119,
+   "cli_cost_usd": 0.77654762
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 229574,
+   "cache_write": 20439,
+   "out": 11946,
+   "cli_cost_usd": 0.6200797450000001
+  },
+  {
+   "uncached_in": 30,
+   "cache_read": 494570,
+   "cache_write": 33808,
+   "out": 16354,
+   "cli_cost_usd": 0.9983018700000001
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 274722,
+   "cache_write": 18355,
+   "out": 9332,
+   "cli_cost_usd": 0.55693412
+  },
+  {
+   "uncached_in": 30,
+   "cache_read": 504075,
+   "cache_write": 30589,
+   "out": 16978,
+   "cli_cost_usd": 0.985683495
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 199794,
+   "cache_write": 14177,
+   "out": 6065,
+   "cli_cost_usd": 0.395533995
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 282932,
+   "cache_write": 22389,
+   "out": 9829,
+   "cli_cost_usd": 0.61399662
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 267649,
+   "cache_write": 15503,
+   "out": 7868,
+   "cli_cost_usd": 0.488066745
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 327904,
+   "cache_write": 32070,
+   "out": 10790,
+   "cli_cost_usd": 0.7582374949999999
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 258741,
+   "cache_write": 46715,
+   "out": 11789,
+   "cli_cost_usd": 0.967639495
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 153566,
+   "cache_write": 12712,
+   "out": 8338,
+   "cli_cost_usd": 0.41412787
+  },
+  {
+   "uncached_in": 26,
+   "cache_read": 423010,
+   "cache_write": 36031,
+   "out": 14238,
+   "cli_cost_usd": 0.932368495
+  }
+ ],
+ "orion_run_dir": ".orion/runs/3a158dffa76b76fefc479edf60612d4c12210597/20261102T054304Z",
+ "scan_id": "3a158dffa76b76fefc479edf60612d4c12210597",
+ "graph": "cleared"
+}

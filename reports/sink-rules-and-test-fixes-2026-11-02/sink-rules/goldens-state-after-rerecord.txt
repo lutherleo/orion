@@ -1,0 +1,26 @@
+wrote /mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/tests/golden/nodegoat_default.json
+wrote /mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/tests/golden/nodegoat_lm.json
+orion from /mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/orion/__init__.py | tests.graph_snapshot from /mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/tests/graph_snapshot.py
+nodegoat default golden keys ['flows_to', 'candidate_flows'] | counts gold {'flows_to': 217, 'candidate_flows': 73} | here {'flows_to': 217, 'candidate_flows': 73} | matches
+nodegoat lm golden keys ['flows_to', 'candidate_flows'] | counts gold {'flows_to': 217, 'candidate_flows': 73} | here {'flows_to': 217, 'candidate_flows': 73} | matches
+pygoat default golden keys ['flows_to', 'candidate_flows'] | counts gold {'flows_to': 1075, 'candidate_flows': 98} | here {'flows_to': 1076, 'candidate_flows': 93} | DIFFERS: {"candidate_flows": {"added": 92, "missing": 97}, "flows_to": {"added": 38, "missing": 37}}
+pygoat lm golden keys ['flows_to', 'candidate_flows'] | counts gold {'flows_to': 1075, 'candidate_flows': 300} | here {'flows_to': 1076, 'candidate_flows': 161} | DIFFERS: {"candidate_flows": {"added": 161, "missing": 300}, "flows_to": {"added": 38, "missing": 37}}
+ M CLAUDE.md
+ M orion/graph/pathfind.py
+ M orion/graph/profiles.py
+ M tests/golden/nodegoat_default.json
+ M tests/golden/nodegoat_lm.json
+ M tests/test_graph_snapshot.py
+ M tests/test_sink_rules.py
+warning: in the working copy of 'tests/golden/nodegoat_default.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/golden/nodegoat_lm.json', LF will be replaced by CRLF the next time Git touches it
+ CLAUDE.md                          |  25 ++-
+ orion/graph/pathfind.py            |  58 ++++--
+ orion/graph/profiles.py            |  21 +-
+ tests/golden/nodegoat_default.json | 411 +++++--------------------------------
+ tests/golden/nodegoat_lm.json      | 411 +++++--------------------------------
+ tests/test_graph_snapshot.py       |   9 +
+ tests/test_sink_rules.py           | 116 ++++++++++-
+ 7 files changed, 312 insertions(+), 739 deletions(-)
+
+[exited with code 0]

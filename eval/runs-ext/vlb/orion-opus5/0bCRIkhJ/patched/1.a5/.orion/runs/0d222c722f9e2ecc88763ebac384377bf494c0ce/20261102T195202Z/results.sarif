@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1188",
+              "name": "CWE1188",
+              "shortDescription": {
+                "text": "CWE-1188"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1188"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1188.html"
+            },
+            {
+              "id": "CWE-693",
+              "name": "CWE693",
+              "shortDescription": {
+                "text": "CWE-693"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-693"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/693.html"
+            },
+            {
+              "id": "CWE-79",
+              "name": "CWE79",
+              "shortDescription": {
+                "text": "CWE-79"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-79"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/79.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-693",
+          "level": "error",
+          "message": {
+            "text": "In lib/sanitize.js:14, the guard `if (hasOwn(options,'allowedTags') && Array.isArray(options.allowedTags) && options.allowedTags.length > 0)` silently DISCARDS the strictest possible caller configuration, `allowedTags: []` (\"allow no HTML tags at all\"). Because the `.length > 0` clause is false for an empty array, line 15 `sanitizerOptions.allowedTags = options.allowedTags` never executes, so `sanitizerOptions` is handed to sanitize-html with no `allowedTags` key and the library reverts to its permissive built-in default tag allowlist. The protection the integrator explicitly requested is reverted to a weaker default with no error or warning. Blast radius is total: `initializeOptions(options)` at line 67 is the highest-centrality call in the whole graph (0.004966) and its result FLOWS_TO every sanitizeHtml sink (lines 37, 42, 57), so the downgrade applies to every sanitized value from req.body/params/headers/query.\n\nVerifier (CONFIRM): Re-derived from source: lib/sanitize.js:14 does carry the `&& options.allowedTags.length > 0` clause, so the strictest caller config `allowedTags: []` makes the condition false, line 15 never executes, and `sanitizerOptions` reaches sanitize-html with no `allowedTags` key \u2014 where it is merged against sanitize-html's `defaults` and the built-in allowlist (p, div, a, h1-h6, table, span, b, i, ...) applies instead of the requested zero tags, silently and without warning. The clause is not load-bearing: test/test.js:1300-1316 (`Object.prototype.allowedTags = ['script']`) shows the prototype-pollution defense is supplied entirely by `hasOwn`/Reflect.ownKeys (lines 7-10), so `.length > 0` adds no hardening and only discards legitimate empty-array config. The same fail-open exists at line 18 for `allowedAttributes: {}`. Reach is confirmed in source, not just the graph: index.js:5-20 middleware calls sanitize() on req.body/params/headers (line 9) and req.query (line 12) -> prepareSanitize -> initializeOptions(options) at lib/sanitize.js:67 -> sanitizeHtml sinks at 37/42/57. I correct the analyst on two points. (1) Blast radius is NOT total: the downgrade only fires for integrators who pass `allowedTags: []` or `allowedAttributes: {}`; the default no-option path is unaffected. (2) CWE-79 is too strong \u2014 sanitize-html's defaults exclude script/iframe/img/svg/style/object and all on* attributes, and allowedSchemes blocks javascript:, so the achievable impact is HTML/markup injection, attacker-controlled hyperlinks, UI-redress/phishing and content spoofing into output the integrator believed was tag-free, not script execution. That makes this a protection-mechanism failure (CWE-693) at MEDIUM severity rather than critical XSS. Exploit-reference check: sanitize-html is pinned at ~2.13.0 (package.json:34, matched by :Dependency), but exploit_search returned \"exploit corpus unavailable: not indexed\", so no module/CVE version range could be compared; this is in any case a defect in this repo's own wrapper logic, not in the pinned dependency."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/sanitize.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 14,
+                  "endLine": 16
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "initializeOptions",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "470fe486841b1524d89424894d1757e2e343e362"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-79",
+          "level": "error",
+          "message": {
+            "text": "OBJECT KEYS ARE NEVER SANITIZED \u2014 only values are. In the object branch of `sanitize` (lib/sanitize.js:51-59) the walk is `Object.keys(data).forEach((key) => { ... const item = data[key]; if (typeof item === 'string') { data[key] = sanitizeHtml(item, options.sanitizerOptions); } else if (...) { data[key] = sanitize(options, item, currentDepth + 1); } })`. The loop variable `key` is read (to index `data`) and re-used verbatim as the destination property name, but is never itself passed through `sanitizeHtml` and the property is never renamed. An attacker POSTing `{\"<img src=x onerror=alert(1)>\": \"v\"}` as JSON body, or sending `?<svg onload=alert(1)>=v` as a query string, gets the malicious markup preserved intact on the object the middleware hands downstream as \"sanitized\". Any consumer that reflects field NAMES into HTML (e.g. rendering `Object.keys(req.body)` in a validation-error message, a form-rebuild template, or an admin dump of submitted fields) is XSS-able straight through the sanitizer. The missing control is applying sanitizeHtml to `key` and reassigning under the cleaned name.\n\nVerifier (CONFIRM): Independently re-derived and confirmed: express-xss-sanitizer's object walk sanitizes only property VALUES, never property NAMES. In lib/sanitize.js:50-61 the loop variable `key` is used solely to test `options.allowedKeys.includes(key)` (:52), read `data[key]` (:55), and write back to `data[key]` (:57, :59) \u2014 it is never passed through sanitizeHtml and the property is never renamed. A graph sweep shows this is systematic, not a missed branch: there are exactly 3 sanitizeHtml call sites in the whole scan (lib/sanitize.js:37, :42, :57) and every argument is a value (`data`/`item`), so no key-sanitization path exists anywhere in the package. The path is genuinely reachable, so the lead does not fail the exploitability test: the object-branch forEach at :51 is reachable_from_entry=true (hop 1) and sanitizeHtml at :57 is reachable_from_entry=true (hop 2); index.js:7-18 invokes it per-request for body/params/headers/query. Keys reach the consumer intact because sanitize mutates in place and returns the same object (`return data`, :63), which index.js:9 reassigns to req[k] and :13-18 redefines req.query as. Attacker control of keys is real for JSON bodies ({\"<img src=x onerror=alert(1)>\":\"v\"} is valid JSON) and query strings (qs parses ?<svg onload=alert(1)>=v into that literal key); the headers vector is NOT viable since Node lowercases and rejects invalid header-name characters. This is an undisclosed gap in a dedicated security control: package.json:4 and README.md:2 promise unqualified XSS sanitization of req.body/query/headers/params, allowedKeys treats keys only as selectors (README:35-38), and no test asserts key sanitization. Scoped to MEDIUM, not higher, because the XSS sink is out-of-repo: exploitation requires a downstream consumer that reflects field NAMES into HTML (validation-error messages, form-rebuild templates, admin dumps of submitted fields) \u2014 realistic but less common than value reflection, which the library handles correctly. Corrections to the analyst: the forEach closes at line 61 (not 59), and the exploit-reference check yielded no signal in either direction \u2014 mcp__orion__exploit_search returned \"exploit corpus unavailable: not indexed\" \u2014 so despite the version being exactly pinned (express-xss-sanitizer 2.0.1, sanitize-html ~2.13.0) I claim neither a weaponized exploit nor patched status, and no part of this verdict rests on that check."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/sanitize.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 51,
+                  "endLine": 61
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "sanitize",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "2af276c7ea53fcea2d9be19462abb5a3c3e9dea9"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1188",
+          "level": "error",
+          "message": {
+            "text": "FAIL-OPEN ALLOWLIST: `initializeOptions` only forwards `allowedTags`/`allowedAttributes` to sanitize-html when they are NON-EMPTY, so the two strictest configurations an integrator can express silently become the most permissive. At lib/sanitize.js:14 the guard is `hasOwn(options,'allowedTags') && Array.isArray(options.allowedTags) && options.allowedTags.length > 0`, and at :18 it is `hasOwn(options,'allowedAttributes') && Object.keys(options.allowedAttributes).length > 0`. An app that passes `allowedTags: []` (meaning \"strip ALL HTML\") or `allowedAttributes: {}` (meaning \"allow NO attributes\") fails both length checks, so `sanitizerOptions` is left WITHOUT those keys and is handed to `sanitizeHtml(data, options.sanitizerOptions)` at lib/sanitize.js:37/42/57 \u2014 where sanitize-html then applies its own built-in DEFAULT allowlist (which permits `<a href>`, `<img src>`, `<b>`, `<i>`, etc.) instead of stripping everything. The missing control is a distinction between \"option absent\" and \"option present but empty\"; the empty case must produce `allowedTags: []` explicitly rather than be dropped. Verifier should confirm by instantiating `xss({allowedTags: []})` and POSTing `<a href=x>hi</a>` \u2014 the anchor is expected to survive.\n\nVerifier (CONFIRM): Re-derived from source: lib/sanitize.js:14 guards the allowedTags forward with `options.allowedTags.length > 0` and :18 guards allowedAttributes with `Object.keys(...).length > 0`, so the two strictest configurations an integrator can express (`allowedTags: []` = \"strip all HTML\", `allowedAttributes: {}` = \"allow no attributes\") fail the length test and are silently DROPPED, leaving `sanitizerOptions` as the bare `{}` created at :13. That `{}` is passed straight to sanitizeHtml at :37/:42/:57, where sanitize-html merges it over its own permissive default allowlist. I did not take the dependency's behavior on faith: the repo's OWN test suite proves it, because `xss({maxDepth:100})` produces the identical empty `sanitizerOptions`, and test/test.js:264-311 asserts that path yields `<a href=\"/\" onclick=\"return 0;\">Link</a>` -> `<a href=\"/\">Link</a>` and `<p onclick=\"return;\">Test</p>` -> `<p>Test</p>`. So an integrator asking for total stripping instead gets the default allowlist (`<a href>`, `<p>`, `<b>`, `<i>`, `<h1>`-`<h6>`, tables) \u2014 a fail-open protection-mechanism failure. Reach is real, not merely graph-asserted: index.js:5-21 applies this to req.body/params/headers/query on every request and the graph shows lines 14/18 and all three sinks reachable_from_entry=true (hop 1-2). README.md:46-53 documents allowedTags without any warning that an empty array is ignored, so the behavior is undocumented, not an intentional contract. TWO ANALYST ERRORS CORRECTED: (1) `<img src>` does NOT survive \u2014 img is absent from sanitize-html 2.x default allowedTags and the repo's own tests (test/test.js:161-170, 196-206) assert `<img src=\"/\"/>` -> `''` under defaults; (2) severity is MEDIUM not HIGH \u2014 the fallback is sanitize-html's hardened default, which still strips `<script>`, all `on*` handlers, and `javascript:` URLs (default allowedSchemes http/https/ftp/mailto/tel), so the impact is HTML/markup and phishing-link injection, not direct script-execution XSS. Caveat on method: no Bash tool and no node_modules in the tree, so I could not execute the live PoC; the confirmation rests on the unambiguous `> 0` guards plus the repo's own passing assertions of the empty-options path. sanitize-html is `~2.13.0` with no lockfile (not exactly pinnable) and exploit_search returned \"exploit corpus unavailable: not indexed\", so there is no exploit-reference grounding either way \u2014 neither matters, since the defect is in this repo's code rather than a dependency CVE."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/sanitize.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 14,
+                  "endLine": 20
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "initializeOptions",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "1cddf903d1e609d35354458894bf305858ee7a6d"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

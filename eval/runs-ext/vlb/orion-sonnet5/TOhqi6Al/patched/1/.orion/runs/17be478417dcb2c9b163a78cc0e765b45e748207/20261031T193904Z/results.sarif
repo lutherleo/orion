@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1022",
+              "name": "CWE1022",
+              "shortDescription": {
+                "text": "CWE-1022"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1022"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1022.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-1022",
+          "level": "error",
+          "message": {
+            "text": "jquery.json-viewer's json2html() renders any string value that matches isUrl() as a clickable `<a href=\"...\" target=\"_blank\">` link, but the generated anchor has no `rel=\"noopener\"` / `rel=\"noreferrer\"` attribute anywhere in the file. Since $.fn.jsonViewer defaults `withLinks: true` and is designed to render arbitrary/untrusted JSON (e.g. an API response) directly into the DOM via $(this).html(html), any URL-shaped string value in that JSON becomes a target=_blank link the viewing user can click, and the linked page gets an unprotected `window.opener` handle back to the host page (reverse tabnabbing / CWE-1022), letting it navigate the opener to a phishing page. This is a missing standard protection (rel=noopener/noreferrer on externally-controlled target=_blank links), not a data-flow bug -- confirmed by grepping the whole file for noopener/noreferrer/rel= and finding zero occurrences while target=\"_blank\" appears exactly once.\n\nVerifier (CONFIRM): Re-derived independently from source and graph. json2html() (jquery.json-viewer.js) builds an anchor tag for any string value that passes isUrl(): `<a href=\"'+json+'\" class=\"json-string\" target=\"_blank\">` (line 48), gated only by `options.withLinks && isUrl(json)` (line 47). A whole-file grep confirms zero occurrences of `rel=`, `noopener`, or `noreferrer` anywhere in the file, while `target=\"_blank\"` occurs exactly once, at line 48 \u2014 so this anchor has no rel=noopener/noreferrer protection. $.fn.jsonViewer defaults `withLinks: true` (lines 120-125, within the Object.assign default options), and the resulting html string \u2014 built directly from json2html(), which recurses over arbitrary nested string/object/array JSON values supplied by the caller \u2014 is inserted as live DOM via `$(this).html(html)` at line 137, which jQuery parses and injects as real elements (not just a template string). Any URL-shaped string anywhere in the input JSON thus becomes a clickable target=_blank link lacking noopener/noreferrer, giving the linked page an unprotected window.opener handle to navigate the host page (reverse tabnabbing). Graph query confirms json2html is reachable_from_entry=true with hop_distance=0 and is itself registered as an EntryPoint (exposure=reachable, kind=handler); the specific call building the anchor at line 48 is also reachable_from_entry=true. This is a genuine missing-security-attribute defect in a library whose explicit purpose is rendering arbitrary/attacker-influenced JSON (e.g. API responses) to the DOM, not a false positive."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "json-viewer/jquery.json-viewer.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 47,
+                  "endLine": 48
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "json2html",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "c4abc4433334ecb7f784e7d19c8e67bbddaf939f"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

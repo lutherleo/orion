@@ -1,0 +1,277 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-319",
+              "name": "CWE319",
+              "shortDescription": {
+                "text": "CWE-319"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-319"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/319.html"
+            },
+            {
+              "id": "CWE-674",
+              "name": "CWE674",
+              "shortDescription": {
+                "text": "CWE-674"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-674"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/674.html"
+            },
+            {
+              "id": "CWE-770",
+              "name": "CWE770",
+              "shortDescription": {
+                "text": "CWE-770"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-770"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/770.html"
+            },
+            {
+              "id": "CWE-789",
+              "name": "CWE789",
+              "shortDescription": {
+                "text": "CWE-789"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-789"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/789.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-770",
+          "level": "error",
+          "message": {
+            "text": "Unbounded parser buffer growth in JsonTokenizer.fillBuf(): a single oversized JSON token drives repeated capacity doubling with no ceiling, giving attacker-controlled memory exhaustion. Attacker input enters at `reader.read(buf, storeEnd, buf.length - storeEnd)` (JsonTokenizer.java:495). readString() accumulates the token body into `buf[storeEnd++]` (lines 152-154) without ever flushing, so the stored-token length grows with the attacker's token. Once `storeLen == buf.length` (line 475), fillBuf() executes `char[] doubleBuf = Arrays.copyOf(buf, 2 * buf.length)` (line 477) -- there is no maximum-capacity check anywhere on this path. A client POSTing one JSON document containing a single huge string value (e.g. {\"a\":\"AAAA...\"}) therefore forces the char[] to double repeatedly until OutOfMemoryError. Confirmed there is no bounding config: org.eclipse.parsson.api.JsonConfig declares only MAX_BIGINTEGER_SCALE, MAX_BIGDECIMAL_LEN, MAX_DEPTH and REJECT_DUPLICATE_KEYS -- no string-length, token-length or document-size limit exists to cap this allocation.\n\nVerifier (CONFIRM): Re-derived from source: fillBuf() grows the token buffer by unconditional doubling with no maximum-capacity check and no overflow guard (JsonTokenizer.java:475-479, `Arrays.copyOf(buf, 2 * buf.length)`), fed directly by attacker-controlled input at `reader.read(buf, storeEnd, buf.length-storeEnd)` (495). readString() accumulates the whole token body into buf (`buf[storeEnd]=(char)ch; storeEnd++`, 152-154) with no flush, and unescape() does the same (174-203), so the stored-token length \u2014 and hence the allocation \u2014 is bounded only by the attacker's token length. I confirmed myself that no bounding knob exists anywhere: api/JsonConfig.java:19-52 declares only MAX_BIGINTEGER_SCALE, MAX_BIGDECIMAL_LEN, MAX_DEPTH, REJECT_DUPLICATE_KEYS, and a repo-wide grep for maxStringLength/MAX_STRING/maxTokenLength/maxDocument returns no matches; the only length check in the file (521, bigDecimalLengthLimit) gates BigDecimal *conversion*, not buffering. The path is reachable from the public API: JsonParserImpl.java:67,74,80 construct the tokenizer from a caller-supplied Reader/InputStream, nextToken() calls readString() at 355, readString() calls read() at 149, read() calls fillBuf() at 456; graph confirms reachable_from_entry=true for all of lines 152,154,456,475,477,495. So the structural claim (CWE-770/789, unbounded allocation driven by untrusted input) is real and reachable. I downgrade the analyst's impact framing and severity, however: reset() runs per token (nextToken():332), so buf only reaches the largest single token rather than accumulating, and after each doubling only buf.length-storeEnd further chars can be read, so growth is linear in attacker bytes \u2014 peak heap is roughly 3 bytes per ASCII byte sent, with no amplification, and BufferPoolImpl holds recycled oversized buffers only behind a WeakReference (BufferPoolImpl.java:32,70) so there is no persistent retention. A real but LOW-severity missing-resource-limit hardening gap (plus a secondary int-overflow at 477: 2*buf.length goes negative at buf.length>=2^30, throwing NegativeArraySizeException instead of a JsonException). Exploit-reference check was not possible \u2014 exploit_search reported the corpus unavailable/not indexed; version pinned at 1.1.3-SNAPSHOT (pom.xml:33), which already contains the CVE-2023-4043-class number limits and MAX_DEPTH, so only the string/token dimension remains uncapped."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonTokenizer.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 475,
+                  "endLine": 479
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "fillBuf",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "90c5ef454b4b286902daf98365b55b637acc3f17"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-770",
+          "level": "error",
+          "message": {
+            "text": "JsonTokenizer has NO maximum token/string length control: fillBuf() doubles the internal char[] without any upper bound (`char[] doubleBuf = Arrays.copyOf(buf, 2 * buf.length)`), so a single oversized JSON string token drives unbounded heap allocation. The only length control in the library, bigDecimalLengthLimit, is applied in getBigDecimal() at line 521 \u2014 i.e. AFTER the buffer has already been grown to hold the whole token \u2014 and it covers numbers only, never strings. JsonContext exposes no max-string-length / max-token-length property at all (its entire control surface is depthLimit, bigIntegerScaleLimit, bigDecimalLengthLimit, prettyPrinting, rejectDuplicateKeys, bufferPool). Aggravating factor: the grown buffer is handed back to the shared pool via `jsonContext.bufferPool().recycle(buf)` at line 583, so one oversized document permanently inflates the process-wide BufferPool. This sits on the core untrusted-input path (JsonReaderImpl/JsonParserImpl -> JsonTokenizer), including the JAX-RS JsonValueBodyReader.\n\nVerifier (CONFIRM): Re-derived independently from source. JsonTokenizer.fillBuf() grows its char[] via `Arrays.copyOf(buf, 2 * buf.length)` (line 477) guarded only by `storeLen == buf.length` (line 475), with no comparison against any configured maximum \u2014 and grep across impl/src/main/java shows this is the ONLY array-growth site in the tokenizer. readString() (128-168) accumulates an entire string token between storeBegin/storeEnd, so one oversized string token forces repeated doubling until the whole token is resident, bounded only by the heap. No string/token-length control exists to stop it: JsonContext's full accessor set (112-134) is bigIntegerScaleLimit, bigDecimalLengthLimit, depthLimit, prettyPrinting, rejectDuplicateKeys, bufferPool, and api/JsonConfig.java (19-52) publishes only MAX_BIGINTEGER_SCALE, MAX_BIGDECIMAL_LEN, MAX_DEPTH, REJECT_DUPLICATE_KEYS \u2014 a defending application has no knob. The single length limit is both post-allocation and number-only: getBigDecimal() (518-527) derives sourceLen from storeEnd-storeBegin, i.e. after the token is fully buffered, so even the number path permits the unbounded char[] and only blocks BigDecimal construction. Reachability holds: the line-477 call is reachable_from_entry=true (hop 9) and readString/read/fillBuf are all reachable=true, with a concrete untrusted remote path through the JAX-RS JsonValueBodyReader. TWO ANALYST CLAIMS CORRECTED: (1) the \"permanently inflates the process-wide BufferPool\" aggravator is wrong \u2014 BufferPoolImpl.java:32 holds the queue as a WeakReference with no strong referent, so the pool and any oversized recycled buffer are GC-collectible exactly under the heap pressure this attack induces; retention is a transient window, not permanent (also, line 478 recycles the OLD smaller buffer; line 583 in close() returns the grown one). (2) Amplification is linear (~3-6x transmitted bytes: up to 2N-char array from doubling overshoot plus the getValue() String copy), not an explosive small-payload bomb, and container body-size limits commonly gate it \u2014 hence MEDIUM, not HIGH. Version pinned at 1.1.3-SNAPSHOT (pom.xml:33); the CVE-2023-4043 number/depth mitigations are already present, so this is a distinct unaddressed gap. Exploit catalog returned \"not indexed\", so no exploit-reference signal was available in either direction and none is claimed."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonTokenizer.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 475,
+                  "endLine": 479
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "fillBuf",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "90c5ef454b4b286902daf98365b55b637acc3f17"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-789",
+          "level": "error",
+          "message": {
+            "text": "JsonPatchImpl.DiffGenerator.diffArray() allocates a quadratic LCS matrix `int[][] c = new int[m+1][n+1]` where m and n are the sizes of the two attacker-supplied JSON arrays, with NO size cap or product check anywhere. There is no configurable limit for this in JsonConfig/JsonContext at all (unlike depth and number length), so Json.createDiff(source, target) on two moderately large arrays allocates m*n ints: two 50,000-element arrays request ~2.5e9 ints (~10 GB) and OOM the JVM from a request body of only a few hundred KB \u2014 a very high amplification factor.\n\nVerifier (CONFIRM): Independently verified against source. JsonPatchImpl.DiffGenerator.diffArray() reads both attacker-controlled array lengths and immediately allocates a quadratic LCS matrix with no bound: `int m = source.size(); int n = target.size(); int[][] c = new int[m+1][n+1];` (lines 270-272). No guard exists between the size() reads and the alloc. I confirmed no limit is available anywhere: JsonConfig declares exactly four knobs (MAX_BIGINTEGER_SCALE:28, MAX_BIGDECIMAL_LEN:35, MAX_DEPTH:41, REJECT_DUPLICATE_KEYS:50) and JsonContext:54-60 holds only those three ints \u2014 none covers array size or diff cost; grepping `limit|size()` across the whole of JsonPatchImpl.java returns only lines 270-271, so the jsonContext field (:217) is never consulted for bounds. Reachability is established despite reachable_from_entry=false on line 272: the graph has JsonProviderImpl.createDiff as an :EntryPoint with exposure=\"reachable\"/reachable_from_entry=true, DiffGenerator.diff (line 223) at hop_distance=4, and a diff:<unresolvedSignature>(3) stub at hop_distance=6 showing the private 3-arg diff is reached \u2014 the false label on diffArray is overload-resolution loss at the diff->diffArray dispatch, which the source closes unambiguously (JsonProviderImpl.java:177 -> JsonPatchImpl.java:141 -> :225 -> :229 -> :237-238 -> :264). Amplification is as claimed: two 50,000-element arrays are a few hundred KB of body but request 50001*50001 ints (~10 GB) plus 50,001 array headers; even 20,000 per side (~200 KB body) demands ~1.6 GB, OOMing a normal heap. A secondary defect reinforces the DoS: emit() (:291-324) recurses to depth O(m+n), so inputs too small to OOM can still StackOverflowError. I rate MEDIUM not HIGH because exploitation requires the host application to call Json.createDiff on two untrusted structures, which is much rarer than the untrusted-parsing path. exploit_search was unavailable (\"exploit corpus unavailable: not indexed\"), so although the version pins to Parsson 1.1.3-SNAPSHOT (pom.xml:33) I make no patched/unpatched claim from the exploit catalog; the verdict rests solely on source evidence I gathered."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonPatchImpl.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 270,
+                  "endLine": 272
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "diffArray",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "0f32c1b7ae20f76a042a9a0fb3cf3cb99b327576"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-674",
+          "level": "error",
+          "message": {
+            "text": "JsonGeneratorImpl enforces no depth limit on output: its context stack is a plain unbounded `Deque stack = new ArrayDeque<>()` (line 86) pushed by writeStartObject/writeStartArray with no limit check, and write(JsonValue) is directly self-recursive over nested children (line 240 -> 249 `write(child)`; line 312 -> 331 `write(member.getKey(), member.getValue())`) with no depth parameter or counter. jsonContext.depthLimit() is never consulted in this file, so serializing a deeply nested JsonStructure recurses until StackOverflowError. This is reachable from the public writer API: JsonWriterImpl line 67 calls `this.generator.write(value)` in a loop over the structure.\n\nVerifier (CONFIRM): The code defect the lead describes is exactly present and I re-derived it from source. JsonGeneratorImpl keeps an unbounded `Deque<Context> stack = new ArrayDeque<>()` (line 86) and pushes at lines 129/142/294/307 guarded only by scope-validity checks, never a depth check. write(JsonValue) (240-282) is self-recursive at 249 and mutually recursive into write(String,JsonValue) (312-354) at 257, which recurses at 323/331 -- no depth parameter or counter anywhere. A tree-wide case-insensitive grep for \"depth\" proves jsonContext.depthLimit() is consulted ONLY in JsonParserImpl (66/72/79) and never in JsonGeneratorImpl.java, so the write path has no depth control (CWE-674, uncontrolled recursion). Reachability is real: JsonWriterImpl:67 (`generator.write(value)`) and :89, plus JsonObjectImpl.toString() at JsonObjectBuilderImpl.java:329, and the graph marks the recursive calls at 249/257/323/331 reachable_from_entry=true (hop_distance 3-5). I am downgrading severity to LOW because the analyst omitted a real mitigating control: parsed input is depth-capped at DEFAULT_MAX_DEPTH=1000 (JsonContext.java:44) enforced in JsonParserImpl.Stack.push (lines 394-397, \"Input is too deeply nested\"), and JsonReaderImpl.read/readObject/readArray (61-108) all go through parser.getObject()/getArray(), so attacker-supplied JSON yields at most ~999 nesting levels -- roughly 1000 small frames, which does not overflow a default JVM thread stack (JsonNestingTest confirms 500 doc-levels throws, 499 succeeds). Reaching StackOverflowError therefore requires a builder-constructed structure (JsonObjectBuilderImpl/MapUtil.handle, MapUtil.java:38-70, are mutually recursive with no depth cap) or an application that explicitly raises org.eclipse.parsson.maxDepth. So: a genuine, confirmed write-side hardening gap, not a directly weaponizable DoS under default configuration. No exploit-reference cross-check was possible -- exploit_search returned \"exploit corpus unavailable: not indexed\"; version pinned at parsson 1.1.3-SNAPSHOT (pom.xml:33), a tree that already contains the parse-depth fix tied to CVE-2023-4043."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonGeneratorImpl.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 240,
+                  "endLine": 282
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "write",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "45e0201398fce828433ff96ec91cba3f43f21679"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-319",
+          "level": "error",
+          "message": {
+            "text": "Transport protection is applied on two of three outbound-API demo paths and silently omitted on the third, where it also leaks a credential. demos/rest/.../ParserResource.java line 53 builds `new URL(\"http://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=221160312e1c22ec60ecf336951b0e77&format=json&nojsoncallback=1&per_page=20\")` -- plaintext HTTP carrying a hardcoded Flickr api_key in the query string. The sibling demos in the same repo DO use TLS for the identical pattern: TwitterObjectSearch.java:69 `String searchUrl = \"https://api.twitter.com/1.1/search/tweets.json\"` and FacebookObjectSearch.java:67 `String searchUrl = \"https://graph.facebook.com/search?q=tamil&type=post&access_token=\"`. So the same codebase demonstrably knows to use https for credentialed API calls and does not on this one path, exposing the api_key to any network observer and allowing the JSON response to be tampered with in transit -- and that response is then parsed and reflected into an HTML page (line 74 `ps.println(\"<img src=\\\"http://farm\" + farm + \".staticflickr.com/\" + server + \"/\" + id + \"_\" + secret + \".jpg\\\">\")` where farm/server/id/secret come from parser.getString(), e.g. line 82 `secret = parser.getString()`), so an MITM also controls attacker-chosen text inside the emitted HTML. Flagged at LOW confidence for Shape C specifically: unlike lead 1 there is NO hedge comment or other marker that a protection was deliberately disabled or reverted here, so the parallel-path inconsistency is the only signal and this may simply be stale demo code rather than a reverted fix.\n\nVerifier (CONFIRM): The code the lead describes is present verbatim and I re-derived it myself. ParserResource.java:53 constructs `new URL(\"http://api.flickr.com/services/rest/?...&api_key=221160312e1c22ec60ecf336951b0e77&...\")` and opens it at :54 over plaintext HTTP, transmitting a hardcoded API key in the query string (CWE-319, with a CWE-798 element). It IS reachable from a real web entry point: the class is `@Path(\"/parser\")` (:39) with `@GET doGet()` (:42), registered in `DemoApplication.getClasses()` (:32) under `@ApplicationPath(\"/\")`; my graph query returned two EntryPoint nodes {kind:\"handler\", exposure:\"reachable\"} bound to `ParserResource.doGet` and its `StreamingOutput$0.write` lambda, with lines 53 and 74 both reachable_from_entry=true, hop_distance=3. The downstream reflection is also real: line 74 concatenates farm/server/id/secret -- each from `parser.getString()` at :69/:73/:78/:82 -- into an `<img src=\"...\">` attribute, and I read all 92 lines of the file and found no escaping/encoding call, so an MITM who controls the plaintext JSON response controls attacker-chosen text inside the emitted HTML. However, I REJECT the analyst's Shape-C framing (a deliberately reverted/disabled protection). The three \"parallel paths\" are three different vendor APIs of different vintages (ParserResource (c) 2012, TwitterObjectSearch (c) 2013), not three implementations of one operation; the https/http split is consistent with what each vendor's API supported in 2012, and there is no hedge comment or revert marker anywhere. Severity is capped at LOW by three facts I verified: (a) the `demos` module is NOT in the shipped artifact -- root pom.xml:438-442 lists only impl/rest/bundles, demos is in the `all` profile (pom.xml:466-469) and explicitly excluded by the `oss-release` profile (pom.xml:496-499, comment \"to make sure that release profile deactivates building samples\"); (b) the api_key is already published in this open-source repo, so cleartext transmission adds no marginal secret exposure; (c) exploitation requires a developer to deliberately build and deploy the sample WAR and an attacker on-path to api.flickr.com. Note: `exploit_search` returned \"exploit corpus unavailable: not indexed\", so no exploit-reference grounding was available; this finding is not a dependency-version CVE so that does not change the verdict."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 53,
+                  "endLine": 74
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "712ff40c0e88601cf06dc76cf150df964700bceb"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

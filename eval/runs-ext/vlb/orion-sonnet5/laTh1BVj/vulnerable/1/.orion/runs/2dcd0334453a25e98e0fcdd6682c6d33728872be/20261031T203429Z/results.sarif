@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-294",
+              "name": "CWE294",
+              "shortDescription": {
+                "text": "CWE-294"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-294"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/294.html"
+            },
+            {
+              "id": "CWE-319",
+              "name": "CWE319",
+              "shortDescription": {
+                "text": "CWE-319"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-319"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/319.html"
+            },
+            {
+              "id": "CWE-330",
+              "name": "CWE330",
+              "shortDescription": {
+                "text": "CWE-330"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-330"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/330.html"
+            },
+            {
+              "id": "CWE-79",
+              "name": "CWE79",
+              "shortDescription": {
+                "text": "CWE-79"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-79"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/79.html"
+            },
+            {
+              "id": "CWE-862",
+              "name": "CWE862",
+              "shortDescription": {
+                "text": "CWE-862"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-862"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/862.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-79",
+          "level": "error",
+          "message": {
+            "text": "ParserResource.doGet() is a JAX-RS endpoint annotated @Produces(\"text/html\") that streams writeFlickerFeed()'s output directly to the browser. That method builds the entire HTML document (\"<html><body>...\" and an <img src=\"...\"> tag) by raw string concatenation of 'id', 'farm', 'server', 'secret' fields parsed straight out of a remote JSON feed, with zero HTML-escaping/encoding call anywhere in the method or available in the codebase (no HTML escape/encode/sanitize utility exists in this repo at all -- only JSON-string escaping (writeEscapedString), URL-encoding (Twitter demo), and JSON-pointer encoding were found). If the upstream Flickr response is ever attacker-influenced or MITM'd, those fields are reflected into the HTML response completely unescaped -- the standard output-escaping control is absent.\n\nVerifier (CONFIRM): Source inspection confirms the claim precisely. ParserResource.doGet() (line 42-50) is a JAX-RS @GET @Produces(\"text/html\") handler registered in DemoApplication's resource set, so it is a live REST endpoint. It returns a StreamingOutput whose write() calls writeFlickerFeed(os) (line 47), which fetches a remote JSON feed over plain HTTP from api.flickr.com (line 53, not even TLS, making MITM substitution of the response plausible) and parses it with a streaming JsonParser. The 'id', 'server', 'secret' and 'farm' string fields are read directly via parser.getString() (lines 65-82) and concatenated with zero encoding into raw HTML via ps.println(\"<html><body>\") (line 61) and ps.println(\"<img src=\\\"http://farm\"+farm+\".staticflickr.com/\"+server+\"/\"+id+\"_\"+secret+\".jpg\\\">\") (line 74), followed by ps.println(\"</body></html>\") (line 87). No escaping/sanitizing call appears anywhere in the method or call chain. A graph-wide search for escape/encode/sanitize calls across the whole repo (CpgCall.name CONTAINS 'escape'/'encode'/'sanitiz') returns only JsonPatchImpl.encodePointer, JsonTokenizer.unescape, and TwitterObjectSearch's URL-encode calls \u2014 no HTML-escaping utility exists anywhere in the codebase, matching the analyst's claim. Reachability is also confirmed in-graph: every CpgCall in writeFlickerFeed (including the println at line 61 and the unescaped concatenation+println at line 74) has reachable_from_entry=true, and two EntryPoint nodes (kind='handler', exposure='reachable') point at ParserResource.doGet and its StreamingOutput.write lambda, confirming this is a live, reachable sink from an exposed entry point, not a dead code path."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 52,
+                  "endLine": 90
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "writeFlickerFeed",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "e7152e3c7a139db28597028df3e583a6108f2178"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-319",
+          "level": "error",
+          "message": {
+            "text": "In the same ParserResource.writeFlickerFeed(), the outbound request to Flickr's API is made over plain HTTP (http://api.flickr.com/...) rather than HTTPS, and it carries a hardcoded API key (api_key=221160312e1c22ec60ecf336951b0e77) directly in the URL query string in cleartext. There is no transport-encryption control (no https:// anywhere in this request) protecting the credential in transit, so anyone on the network path (including, notably, an attacker who could also tamper with the unencrypted response body that is then reflected unescaped into HTML -- see companion finding) can observe/capture the key.\n\nVerifier (CONFIRM): Read the actual source and confirmed the lead exactly as described. ParserResource.writeFlickerFeed() builds `new URL(\"http://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=221160312e1c22ec60ecf336951b0e77&format=json&nojsoncallback=1&per_page=20\")` (line 53) and immediately calls `url.openStream()` (line 54) \u2014 a plain-HTTP outbound request carrying a hardcoded Flickr API key in the cleartext query string, with no TLS anywhere on this call path. Graph confirms reachability: writeFlickerFeed is called from doGet() (reachable_from_entry=true, hop_distance=2), and doGet is the write() body of a StreamingOutput returned by a JAX-RS @GET endpoint registered as EntryPoint (exposure='reachable', kind='handler') \u2014 so this is attacker-reachable simply by hitting the /parser endpoint, no extra conditions needed. Cross-checked the analyst's comparator claim: grepped all demos/ for https?:// \u2014 demos/facebook/.../FacebookObjectSearch.java:67 uses `https://graph.facebook.com/...` and demos/twitter/.../TwitterObjectSearch.java:69 uses `https://api.twitter.com/...`, while this Flickr call is the only outbound http:// (non-TLS) API call with an embedded credential in the whole codebase. This matches CWE-319 (Cleartext Transmission of Sensitive Information) for the API key in transit. Severity kept MEDIUM rather than HIGH: this is sample/demo code (org.eclipse.parsson.demos.rest), the key is already publicly committed in source regardless of transport, and Flickr API keys are low-privilege, rate-limited, non-account-compromising credentials \u2014 so the added risk from the HTTP transport specifically is real but bounded."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 52,
+                  "endLine": 54
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "writeFlickerFeed",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "176f5613e7a2a5ddd46bf2a3960fcebc2be2bc68"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-294",
+          "level": "error",
+          "message": {
+            "text": "TwitterObjectSearch.getSearchStream() builds the OAuth 1.0 request-signing parameter map with a hardcoded, constant 'oauth_nonce' value (\"4b25256957d75b6370f33a4501dc5e7e\") instead of generating a fresh random/unique nonce per request (there is a '// TODO' comment directly above it, and no SecureRandom/UUID-based nonce generation exists anywhere in the codebase). OAuth 1.0's anti-replay protection depends on each request using a unique nonce; a captured request (e.g. via logs, a proxy, or the same timestamp window) could be replayed against Twitter's API using this code's signature. TwitterStreamSearch.main() reuses this same getSearchStream() method, so the gap is shared by both Twitter demos.\n\nVerifier (CONFIRM): Verified directly against the real source. In TwitterObjectSearch.getSearchStream() the OAuth 1.0 parameter map is built with a literal, hardcoded oauth_nonce value immediately preceded by a '// TODO' marker, rather than any random/unique value: `put(\"oauth_nonce\", \"4b25256957d75b6370f33a4501dc5e7e\"); // TODO` (line 84). A repo-wide grep for `SecureRandom|UUID\\.randomUUID|oauth_nonce` across the tree returns only this single line \u2014 confirming no nonce-generation logic exists anywhere in the codebase; the same constant is used on every invocation. TwitterStreamSearch.main() (line 44) calls `TwitterObjectSearch.getSearchStream()` directly, so it reuses the identical hardcoded nonce \u2014 both demo entry points are affected. Graph query confirms both `TwitterObjectSearch.main` and `TwitterStreamSearch.main` are EntryPoints with exposure='reachable' and `reachable_from_entry=true`, and the TreeMap-construction calls at that site are also `reachable_from_entry=true` (hop_distance=3), so the flawed code executes on every normal run of either demo, not merely on an edge-case path. Since OAuth 1.0's anti-replay defense depends on each signed request carrying a unique nonce (combined with the timestamp) that the server rejects on reuse, a hardcoded nonce means any request captured (via logs, a MITM proxy, etc.) within the same timestamp-validity window could be replayed to Twitter's API with a valid signature, authenticating as the victim. This is a genuine, present-in-source logic flaw, not a graph artifact \u2014 I confirmed it by reading the file content myself, independent of the analyst's claim."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/twitter/src/main/java/org/eclipse/parsson/demos/twitter/TwitterObjectSearch.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 81,
+                  "endLine": 90
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "getSearchStream",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "a0285d2acbe68a18d41105e3bc06f8f1e6547969"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "The demo JAX-RS POST endpoints (ArrayResource.doPost, ObjectResource.doPost, StructureResource.doPost) accept arbitrary JSON structures from any network caller with no authentication or authorization check anywhere on the request path -- no @RolesAllowed/@PermitAll/session/login-check call appears anywhere in the demos/rest module. Current impact is low (the handlers only System.out.println the parsed structure), but the standard access-control control (authn/authz on a state-accepting route) is entirely absent, so if this sample were extended to do anything consequential with the POST body it would be wide open.\n\nVerifier (CONFIRM): Verified directly against source and graph. All three JAX-RS POST handlers (ArrayResource.doPost, ObjectResource.doPost, StructureResource.doPost) are registered via DemoApplication.getClasses() with no ContainerRequestFilter/Interceptor, no @RolesAllowed/@PermitAll/@DenyAll annotation, and no web.xml security-constraint anywhere in the demos/rest module. Each handler body consists solely of `System.out.println(structure)` -- no auth check precedes it. Cypher query over the whole scan confirms the EntryPoint nodes for all three doPost methods have exposure='reachable', kind='handler', reachable_from_entry=true, hop_distance=0 (i.e. they are directly-reachable, unauthenticated entry points). A second cypher query for any call containing 'login'/'authenticate'/'Authorization'/'RolesAllowed'/'session' across the entire codebase returns exactly one hit, an outbound Authorization header set by the unrelated Twitter demo client (demos/twitter/.../TwitterObjectSearch.java:146) -- confirming zero authorization logic exists anywhere near these REST endpoints. This matches the analyst's claim precisely, and the lead's own reachable_from_entry=true signal (not false) further supports exploitability rather than undercutting it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ObjectResource.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 50,
+                  "endLine": 54
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "doPost",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "ac303dc4a2e8002dbcadb3a71db60e86dda11db5"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-330",
+          "level": "error",
+          "message": {
+            "text": "In the Twitter demo's OAuth1 request-signing code, the oauth_nonce value is hardcoded to the constant string \"4b25256957d75b6370f33a4501dc5e7e\" instead of being randomly generated per request, with a bare '// TODO' comment sitting directly above the hardcoded value -- indicating the developer flagged this as incomplete/wrong and never fixed it. A nonce is supposed to be unique per OAuth request to prevent replay attacks; reusing the same nonce for every request defeats that protection. The enclosing method getSearchStream() is reachable from entry (main -> getSearchStream, hop_distance 2) per the precomputed reachability, i.e. it executes on every run of this demo.\n\nVerifier (CONFIRM): Verified directly against the real source. TwitterObjectSearch.java line 84 hardcodes the OAuth1 oauth_nonce to the literal string \"4b25256957d75b6370f33a4501dc5e7e\" inside the TreeMap initializer built in getSearchStream() (lines 81-90), with a \"// TODO\" marker on that same line indicating the developer flagged it as unfinished. Since oauth_nonce never varies between invocations, every signed request this demo sends carries the same nonce (only oauth_timestamp changes), weakening/defeating the replay-protection purpose of the nonce \u2014 a textbook CWE-330 (use of insufficiently random/predictable value in a security context). Graph queries confirm the method chain is live on normal program flow: main (line 46, hop_distance=0, reachable_from_entry=true) -> getSearchStream (line 67, hop_distance=2, reachable_from_entry=true) -> the TreeMap call-site at line 81 (hop_distance=3, reachable_from_entry=true). One correction to the analyst's description: in the actual file the \"// TODO\" is a trailing comment on the SAME line as the put(\"oauth_nonce\", ...) call (line 84), not a separate line directly above it \u2014 the graph's serialized/reformatted code dump displays it on its own line, which is a cosmetic CPG normalization artifact, not a different code structure. This does not change the substance of the finding."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/twitter/src/main/java/org/eclipse/parsson/demos/twitter/TwitterObjectSearch.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 81,
+                  "endLine": 90
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "getSearchStream",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "c10b54abc33fd0411d05fedcef26fdf1f31ea045"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 1
+      }
+    }
+  ]
+}

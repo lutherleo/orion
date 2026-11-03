@@ -1,0 +1,34 @@
+{
+  "findings": [
+    {
+      "file": "lib/sanitize.js",
+      "function": "sanitize",
+      "line_start": 26,
+      "line_end": 55,
+      "cwe": "CWE-674",
+      "title": "Unbounded recursive sanitization allows stack-overflow DoS via deeply nested JSON",
+      "explanation": "The sanitize() helper recurses into every nested array/object with no depth limit (lines 35-37 for arrays, lines 49-50 for objects), and it is invoked directly on req.body, req.query, req.params and req.headers by the xss() middleware. Any client that can submit a JSON body or query string fully controls the nesting depth of this data. A small payload such as deeply nested arrays/objects (e.g. thousands of levels of `{\"a\":{...}}` or `[[[...]]]`) easily fits within typical body-size limits (a few KB can exceed 10k+ nesting levels) and drives the recursion past V8's call-stack limit, throwing an uncaught RangeError during middleware execution. Because the middleware runs on every request before the application's own handlers, this lets an unauthenticated attacker reliably fail or degrade request processing, resulting in an application-level denial of service.",
+      "path": [
+        { "file": "index.js", "function": "middleware", "line": 9, "role": "source" },
+        { "file": "index.js", "function": "middleware", "line": 12, "role": "source" },
+        { "file": "lib/sanitize.js", "function": "prepareSanitize", "line": 59, "role": "propagator" },
+        { "file": "lib/sanitize.js", "function": "sanitize", "line": 36, "role": "sink" },
+        { "file": "lib/sanitize.js", "function": "sanitize", "line": 50, "role": "sink" }
+      ]
+    },
+    {
+      "file": "lib/sanitize.js",
+      "function": "sanitize",
+      "line_start": 42,
+      "line_end": 50,
+      "cwe": "CWE-79",
+      "title": "allowedKeys allow-list matches identically-named keys at any nesting depth, bypassing XSS sanitization",
+      "explanation": "The same options.allowedKeys array (configured once by the developer, e.g. to exempt a single top-level field) is passed unchanged into every recursive call of sanitize(). The check `options.allowedKeys.includes(key)` is applied purely by key name, not by path, at every level of the object tree. Since req.body/req.query/req.params are fully attacker-controlled in structure, an attacker can nest an arbitrary object anywhere in the submitted payload and name one of its properties identically to any entry in allowedKeys (a name that is common, e.g. 'name', 'bio', 'content') to make that nested value skip HTML sanitization entirely, even though the developer only intended the exemption to apply to one specific, unrelated field. If that unsanitized value is later rendered or stored and reflected as HTML by the application, this results in a stored/reflected XSS that the sanitizer was supposed to prevent.",
+      "path": [
+        { "file": "index.js", "function": "middleware", "line": 9, "role": "source" },
+        { "file": "lib/sanitize.js", "function": "prepareSanitize", "line": 59, "role": "propagator" },
+        { "file": "lib/sanitize.js", "function": "sanitize", "line": 43, "role": "sink" }
+      ]
+    }
+  ]
+}

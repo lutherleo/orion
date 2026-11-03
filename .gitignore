@@ -46,8 +46,7 @@ train/data/sft-bench/
 train/runs/
 models/
 
-# External dev benchmarks (eval.extbench): raw runs, bare repo mirrors and the run log stay local;
-# the scored results (eval/results/) are committed.
-eval/runs-ext/
+# External dev benchmarks (eval.extbench): bare repo mirrors and the run log stay local;
+# the raw runs (eval/runs-ext/) and scored results (eval/results/) are committed.
 eval/mirrors/
 eval/runs.db

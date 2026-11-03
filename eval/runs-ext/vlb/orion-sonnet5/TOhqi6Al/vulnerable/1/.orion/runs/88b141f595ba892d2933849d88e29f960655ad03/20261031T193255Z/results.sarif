@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-79",
+              "name": "CWE79",
+              "shortDescription": {
+                "text": "CWE-79"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-79"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/79.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-79",
+          "level": "error",
+          "message": {
+            "text": "DOM-based XSS in jquery.json-viewer: json2html() renders object keys from attacker-supplied JSON into the output HTML string without any escaping, and that string is injected into the DOM via jQuery's $(this).html(html). In the object/dict branch of json2html (lines ~76-93), `key` is taken directly from iterating the `json` object (`for (key in json)` via the destructured iterator) and used to build `keyRepr` (line 80-81: '<span class=\"json-string\">\"' + key + '\"</span>' : key) and then concatenated unescaped into `html` at lines 84 (html += '<a href class=\"json-toggle\">' + keyRepr + '</a>') and 86 (html += keyRepr). Unlike string VALUES, which are escaped for &, <, >, ', \" at lines 32-38 before being embedded, keys receive no such treatment. A FLOWS_TO edge confirms json2html's result flows directly into the html() sink: json2html(json, options) at line 122 -> $(this).html(html) at line 128, i.e. the generated HTML (including any malicious key content) is written straight into the DOM. Any caller that renders attacker-influenced JSON (e.g. an API response reflecting user-controlled object keys) via $.fn.jsonViewer will execute injected markup/script if a key contains something like \"<img src=x onerror=alert(1)>\".\n\nVerifier (CONFIRM): Read the real source at json-viewer/jquery.json-viewer.js and confirmed the claim exactly. In json2html()'s object/dict branch (lines 73-99), the loop `for (var key in json)` (compiled by the CPG into a destructured iterator at line 77) builds `keyRepr` from the raw `key` (lines 80-81: `options.withQuotes ? '<span class=\"json-string\">\"' + key + '\"</span>' : key`) and concatenates it unescaped into `html` either as the toggle-anchor label (line 84: `html += '<a href class=\"json-toggle\">' + keyRepr + '</a>'`) or directly (line 86: `html += keyRepr`). By contrast, string VALUES go through an explicit escape chain for &, <, >, ', \" at lines 32-38 before being embedded (lines 40-46) \u2014 keys get no equivalent treatment anywhere in the function. The resulting `html` string is returned up through `json2html(json, options)` at line 122 and injected into the live DOM via `$(this).html(html)` at line 128 inside `$.fn.jsonViewer`'s `this.each(...)` callback (lines 119-129) \u2014 jQuery's .html() sets innerHTML, so any unescaped markup in a key (e.g. a key literally named `<img src=x onerror=alert(1)>`) executes. Graph query confirms the FLOWS_TO edge: json2html(json, options)@122 -> $(this).html(html)@128 (uid f98741dd...). EntryPoint query shows json2html is a detected reachable handler (hop_distance=0, reachable_from_entry=true, exposure=reachable); the html() sink shows reachable_from_entry=false/hop=-1, but that is consistent with the documented static-analysis gap for calls nested inside the anonymous callback passed to `this.each(...)` (a jQuery iteration idiom that unconditionally invokes its callback) rather than genuine unreachability \u2014 the source itself shows the call executes on every invocation of the jsonViewer plugin. This is a genuine, unpatched client-side DOM XSS: any caller that feeds jsonViewer() a JSON object whose keys are attacker-influenced (e.g., reflecting a server response with user-controlled property names) will have injected markup/script executed in the viewer's DOM context, with no sanitization path to prevent it. exploit_search corpus was unavailable (not indexed) so no third-party exploit-module cross-check was possible; verdict rests entirely on direct source + graph evidence gathered in this session."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "json-viewer/jquery.json-viewer.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 76,
+                  "endLine": 88
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "json2html",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "15cbb744968589557d976818d93d79be023bbe4d"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

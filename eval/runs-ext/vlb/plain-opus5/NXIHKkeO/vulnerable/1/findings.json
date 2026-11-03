@@ -1,0 +1,208 @@
+{
+  "findings": [
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "scan_7z_bytes",
+      "line_start": 425,
+      "line_end": 434,
+      "cwe": "CWE-22",
+      "title": "Path traversal via unvalidated 7z archive entry names",
+      "explanation": "Entry names taken from the untrusted 7z archive (archive.getnames()) are used verbatim both as extraction targets (archive.extract(path=tmpdir, targets=targets)) and to build a filesystem path (os.path.join(tmpdir, file_name)), with no normalization and no check that the result stays inside tmpdir. The only constraint on the name is that it ends with a pickle extension (.pkl/.pickle/.joblib/.dat/.data), which a traversing or absolute name can satisfy. Because os.path.join discards tmpdir entirely when file_name is absolute, and resolves '..' segments upward otherwise, a scanned archive controls the path that is then opened and parsed by scan_file_path(file_path) - the scanner reads files outside its temporary directory and reports their contents (globals) to the log/result. The same unvalidated names are handed to the extractor, so on any py7zr version that does not itself sanitize member names the extraction writes attacker-controlled bytes to an attacker-chosen path on the host running the scan. picklescan is typically run against files uploaded by untrusted parties, so the archive content is attacker-controlled by design.",
+      "path": [
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_7z_bytes",
+          "line": 425,
+          "role": "source"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_7z_bytes",
+          "line": 426,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_7z_bytes",
+          "line": 429,
+          "role": "sink"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_7z_bytes",
+          "line": 431,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_7z_bytes",
+          "line": 434,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "_http_get",
+      "line_start": 246,
+      "line_end": 252,
+      "cwe": "CWE-918",
+      "title": "SSRF through blindly followed redirect target",
+      "explanation": "On a 302 response the function recurses into the server-supplied Location header (_http_get(response.headers['Location'])) with no allow-list, no comparison against the original host, no scheme restriction and no redirect-count limit. The netloc parsed out of that attacker-controlled value is passed straight to http.client.HTTPSConnection, so the remote server fully chooses the next connection target, including hosts that are only reachable from the scanning machine (loopback, RFC1918 addresses, cloud instance-metadata endpoints) and arbitrary ports via 'host:port'. scan_url() and scan_huggingface_model() are public library entry points, and the documented deployment is scanning URLs/models supplied by untrusted users, so whoever supplies the URL can pivot the fetch into the internal network; the response body and status are surfaced back to the caller through the scan result and debug logs, making the SSRF readable rather than blind. The unbounded recursion additionally lets a redirect loop exhaust the stack (RecursionError) and abort the scan.",
+      "path": [
+        {
+          "file": "src/picklescan/cli.py",
+          "function": "main",
+          "line": 66,
+          "role": "source"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_url",
+          "line": 611,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "_http_get",
+          "line": 251,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "_http_get",
+          "line": 246,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "scan_zip_bytes",
+      "line_start": 451,
+      "line_end": 461,
+      "cwe": "CWE-693",
+      "title": "Zip members holding protocol 0/1 pickles are silently not scanned",
+      "explanation": "A member of a zip/npz/PyTorch container is only analyzed when its extension is in _pickle_file_extensions/_numpy_file_extensions or its first bytes match _pickle_magic_bytes (b'\\x80\\x00'..b'\\x80\\x05') / the NumPy magic. Pickle protocols 0 and 1 emit no PROTO opcode, so such a stream starts with an ASCII opcode and matches none of the magic byte patterns. A member whose name carries any unrecognized (or no) extension and whose body is a protocol 0/1 pickle therefore falls through both branches and is skipped with no result and no error: verified locally, a zip holding the same pickle returns scanned_files=1 as 'data.pkl' but scanned_files=0 and an empty, clean, error-free ScanResult as 'data.xyz' or 'archive/data'. Protocol 0/1 streams are fully loadable by pickle.load and by the loaders that consume these containers, so an attacker who controls the member name and protocol gets a clean bill of health (CLI exit code 0) for a container that still executes its payload on load - the deserialization protection is simply bypassed.",
+      "path": [
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_zip_bytes",
+          "line": 447,
+          "role": "source"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_zip_bytes",
+          "line": 450,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_zip_bytes",
+          "line": 451,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_zip_bytes",
+          "line": 453,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "scan_directory_path",
+      "line_start": 585,
+      "line_end": 595,
+      "cwe": "CWE-693",
+      "title": "Directory scan skips .npy files, missing pickles embedded in object arrays",
+      "explanation": "The directory walk only scans files whose extension is in _zip_file_extensions, _pickle_file_extensions or _pytorch_file_extensions. _numpy_file_extensions ('.npy') is absent from that filter, even though scan_bytes/scan_numpy do handle .npy and a NumPy object array embeds a raw pickle stream that numpy.load(..., allow_pickle=True) will execute. The result is an inconsistency an attacker can rely on: scanning the file directly reports its globals, while scanning the containing directory ignores it entirely. Verified locally - a directory holding the repository's own object-array weights.npy plus one benign pickle returns scanned_files=1, no globals, scan_err=False, i.e. a clean scan that never looked at the .npy at all. 'picklescan --path <dir>' is the normal way to sweep a model download, so naming a pickle payload *.npy defeats the sweep (CLI exit code 0).",
+      "path": [
+        {
+          "file": "src/picklescan/cli.py",
+          "function": "main",
+          "line": 62,
+          "role": "source"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_directory_path",
+          "line": 585,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_directory_path",
+          "line": 586,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "scan_huggingface_model",
+      "line_start": 566,
+      "line_end": 573,
+      "cwe": "CWE-693",
+      "title": "Hugging Face model scan skips .npy repository files",
+      "explanation": "The per-file filter applied to the model's file list checks _zip_file_extensions, _pickle_file_extensions and _pytorch_file_extensions but omits _numpy_file_extensions, so any '.npy' file in the repository is 'continue'd past and never fetched or scanned. The same bytes are scanned when passed to scan_file_path, which shows the omission is a gap rather than an intentional exclusion. A NumPy object array stores a pickle stream that executes on numpy.load(..., allow_pickle=True), so a repository owner can publish the payload as a .npy file and 'picklescan --huggingface <repo>' reports the model clean (zero infected files, exit code 0). The file name here is also fully controlled by the remote repository metadata (rfilename), i.e. by the party being scanned.",
+      "path": [
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_huggingface_model",
+          "line": 562,
+          "role": "source"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_huggingface_model",
+          "line": 567,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_huggingface_model",
+          "line": 568,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "_list_globals",
+      "line_start": 340,
+      "line_end": 341,
+      "cwe": "CWE-754",
+      "title": "Unhandled ValueError on crafted STACK_GLOBAL aborts the whole scan",
+      "explanation": "When a STACK_GLOBAL opcode is not preceded by two usable operands, _list_globals raises a bare ValueError. Unlike GenOpsError, this exception is not handled anywhere: scan_pickle_bytes catches only GenOpsError, and scan_zip_bytes catches only (BadZipFile, RuntimeError), so the ValueError escapes scan_file_path, scan_bytes, scan_zip_bytes, scan_directory_path and scan_url. It is trivially reachable - a 4-byte stream consisting of PROTO followed by STACK_GLOBAL raises 'Found 1 values for STACK_GLOBAL at position 1 instead of 2' (verified locally). Because the exception propagates out of the per-member and per-file loops, a single crafted entry suppresses analysis of every other entry: a zip containing such a stub plus a genuinely malicious member yields no ScanResult at all instead of reporting the malicious global (verified for both member orderings and for a directory scan). The CLI then reports exit code 2 (scan failed) rather than 1 (malware found), and library integrations that treat a non-exception path as 'scanned' lose the finding entirely, so the error path is a usable detection bypass as well as a denial of service.",
+      "path": [
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_file_path",
+          "line": 604,
+          "role": "source"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "_list_globals",
+          "line": 273,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "_list_globals",
+          "line": 293,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "_list_globals",
+          "line": 341,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

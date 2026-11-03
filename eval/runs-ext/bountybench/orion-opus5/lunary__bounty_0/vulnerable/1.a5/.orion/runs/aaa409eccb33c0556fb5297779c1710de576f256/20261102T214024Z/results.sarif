@@ -1,0 +1,976 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1333",
+              "name": "CWE1333",
+              "shortDescription": {
+                "text": "CWE-1333"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1333"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1333.html"
+            },
+            {
+              "id": "CWE-306",
+              "name": "CWE306",
+              "shortDescription": {
+                "text": "CWE-306"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-306"
+                ],
+                "security-severity": "9.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/306.html"
+            },
+            {
+              "id": "CWE-307",
+              "name": "CWE307",
+              "shortDescription": {
+                "text": "CWE-307"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-307"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/307.html"
+            },
+            {
+              "id": "CWE-620",
+              "name": "CWE620",
+              "shortDescription": {
+                "text": "CWE-620"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-620"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/620.html"
+            },
+            {
+              "id": "CWE-625",
+              "name": "CWE625",
+              "shortDescription": {
+                "text": "CWE-625"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-625"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/625.html"
+            },
+            {
+              "id": "CWE-639",
+              "name": "CWE639",
+              "shortDescription": {
+                "text": "CWE-639"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-639"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/639.html"
+            },
+            {
+              "id": "CWE-640",
+              "name": "CWE640",
+              "shortDescription": {
+                "text": "CWE-640"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-640"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/640.html"
+            },
+            {
+              "id": "CWE-693",
+              "name": "CWE693",
+              "shortDescription": {
+                "text": "CWE-693"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-693"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/693.html"
+            },
+            {
+              "id": "CWE-770",
+              "name": "CWE770",
+              "shortDescription": {
+                "text": "CWE-770"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-770"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/770.html"
+            },
+            {
+              "id": "CWE-862",
+              "name": "CWE862",
+              "shortDescription": {
+                "text": "CWE-862"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-862"
+                ],
+                "security-severity": "9.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/862.html"
+            },
+            {
+              "id": "CWE-918",
+              "name": "CWE918",
+              "shortDescription": {
+                "text": "CWE-918"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-918"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/918.html"
+            },
+            {
+              "id": "CWE-942",
+              "name": "CWE942",
+              "shortDescription": {
+                "text": "CWE-942"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-942"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/942.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "authMiddleware treats every path matching the unanchored regex /v1/datasets/.+ (and /v1/runs/.+/public, /v1/runs/.+/feedback, /auth/.+) as a \"public route\" and skips ALL authentication. On line 82 it unconditionally sets ctx.state.projectId from the attacker-controlled query string (ctx.request?.query?.projectId). The tenant-ownership control \u2014 `select id from project where id = ${ctx.state.projectId} and org_id = ${ctx.state.orgId}` on line 120, which throws \"Project not found\" \u2014 exists ONLY inside the authenticated branch (after verifyJwt on line 112). On the public-route branch (lines 90-105) there is no equivalent check: when isPublicRoute && !bearerToken, control falls straight to `await next()` on line 94 with projectId still equal to the raw query parameter. Therefore an unauthenticated request such as GET /v1/datasets/?projectId=<victim-project-uuid> with no Authorization header is served with the victim's projectId in ctx.state, and downstream handlers (e.g. datasets/index.ts:13 `select * from dataset d where project_id = ${projectId}`) trust it. Missing authorization/tenant-binding control on the public-route path.\n\nVerifier (CONFIRM): Re-derived from source. authMiddleware is installed globally (index.ts:34) ahead of all routes. It sets ctx.state.projectId from the raw query string unconditionally at utils.ts:82, then at utils.ts:84-86 tests ctx.path against an unanchored RegExp(\"/v1/datasets/.+\") (line 76). With no Authorization header, bearerToken is undefined and validateUUID(undefined)===false (utils/misc.ts:20-24), so the branch at line 90 falls through to `await next()` at line 94 with projectId still equal to the attacker-supplied value. The sole tenant-ownership control \u2014 `select id from project where id = ${ctx.state.projectId} and org_id = ${ctx.state.orgId}` throwing \"Project not found\" (lines 120-126) \u2014 exists only after verifyJwt (line 112); there is no equivalent on the public-route path (org_id appears exactly once in the file). Downstream handlers trust ctx.state.projectId as the only tenant predicate (datasets/index.ts:22-44 -> datasets/utils.ts:6 and :44). CORRECTION to the analyst's PoC: `/v1/datasets/` does NOT match `.+` (ctx.path has no trailing char), so the GET \"/\" route still requires a JWT; the actually-exploitable request is `GET /v1/datasets/<uuid-or-slug>?projectId=<victim-project-uuid>` with no auth header. Impact is broader than claimed: the same regex also exposes DELETE /v1/datasets/:id (datasets/index.ts:111-117), which has NO project_id predicate at all, plus PATCH /:id, POST /prompts and DELETE /prompts/:id \u2014 unauthenticated cross-tenant read AND destructive write. The graph labels the dataset handler calls reachable_from_entry=false/hop_distance=-1, but that is the documented arrow-function/route-callback under-linking: the middleware calls at lines 82/84/90/94/120 are all reachable_from_entry=true and the mount chain app.use(v1.routes()) -> v1.use(datasets.routes()) with prefixes \"/v1\" + \"/datasets\" is explicit in source, so I did not downgrade. Exploit-reference step not applicable (first-party logic, no pinned component version) and the corpus returned \"exploit corpus unavailable: not indexed\"."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/auth/utils.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 76,
+                  "endLine": 106
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "authMiddleware",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "79f8413a98a8c50e2fac91541cba6dfc2af85819"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "CRITICAL",
+            "security-severity": "9.5"
+          }
+        },
+        {
+          "ruleId": "CWE-639",
+          "level": "error",
+          "message": {
+            "text": "datasets.delete(\"/:id\") performs `delete from dataset where id = ${id}` with NO `and project_id = ${projectId}` predicate and no ownership pre-check \u2014 unlike the sibling datasets.patch(\"/:id\") on line 96 which DOES scope with `where id = ${id} and project_id = ${projectId}`. The handler does not even read projectId from ctx.state. Because /v1/datasets/<uuid> matches the publicRoutes regex `/v1/datasets/.+` in auth/utils.ts:62, this destructive route is reachable with no Authorization header at all, so any party who learns (or brute-forces) a dataset UUID can delete another tenant's dataset. Missing authorization control on a destructive route.\n\nVerifier (CONFIRM): Independently re-derived and confirmed. packages/backend/src/api/v1/datasets/index.ts:111-117 registers DELETE /:id whose handler destructures only `const { id } = ctx.params` (never reads ctx.state) and executes sql`delete from dataset where id = ${id}` with NO `and project_id = ${projectId}` predicate and no ownership pre-check. The sibling datasets.patch(\"/:id\") at :96-109 does read projectId from ctx.state and does scope with `where id = ${id} and project_id = ${projectId}` (:105), proving the omission is an inconsistency rather than an intentional design. The unauthenticated-reach element also holds: auth/utils.ts:76 lists `new RegExp('/v1/datasets/.+')` in publicRoutes, tested against ctx.path at :85; at :90-96 the branch `isPublicRoute && (!bearerToken || validateUUID(bearerToken))` calls bare `await next()` with no verifyJwt and no 401, so DELETE /v1/datasets/<uuid> executes with no Authorization header. Route is genuinely live, traced through source wiring (not graph attribution): index.ts:34 app.use(authMiddleware) is the sole auth layer, index.ts:41 app.use(v1.routes()) -> v1/index.ts:19,39 (prefix \"/v1\", v1.use(datasets.routes())) -> datasets/index.ts:10 (prefix \"/datasets\"). No compensating control exists: utils/db.ts is a plain postgres() client with no RLS or per-tenant session variable, and utils/ratelimit.ts only throttles (150 req/min/IP, max:150) without rejecting unauthenticated requests. I discount the lead's reachable_from_entry=false concern because that flag is uniformly false for every node in this file, including the route registrations and the correctly-scoped patch sibling, i.e. the documented arrow-function under-linking artifact. Two corrections to the analyst: the datasets publicRoutes regex is at auth/utils.ts:76, not :62 (:62 is only the array declaration), and the \"brute-forces a dataset UUID\" framing is weak since UUIDv4 entropy plus the rate limiter makes enumeration infeasible -- the realistic exploit path is a party who legitimately learns an id (cross-tenant authenticated user, ex-project-member, or an id leaked via URL/logs/shared links), which still constitutes missing authorization enabling permanent cross-tenant data destruction. Exploit-reference grounding was unavailable (corpus reported \"not indexed\"), which does not affect the verdict as this is a first-party authorization logic flaw rather than a versioned-dependency CVE."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/datasets/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 111,
+                  "endLine": 117
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "datasets.delete(\"/:id\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "cd99416f10b9da1ef9257fb6860e7791ccbb67e6"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-640",
+          "level": "error",
+          "message": {
+            "text": "The /reset-password handler never validates the submitted token against the stored account.recovery_token column, and never invalidates it after use. /request-password-reset writes `update account set recovery_token = ${token} where id = ${user.id}` (auth/index.ts:180), but a graph-wide search shows recovery_token is NEVER read in any query in the repo \u2014 the column is write-only, so the intended single-use binding control is not enforced. /reset-password only calls verifyJwt<{email}>(token) (signature+exp) and then does `update account set password_hash = ${passwordHash} where email = ${email}`. Two consequences: (a) a reset token is infinitely replayable for its full lifetime; (b) because signJwt payloads carry no purpose/type/audience claim, ANY {email}-shaped JWT signed with JWT_SECRET is accepted as a password-reset token \u2014 including the email-confirmation token minted by `signJwt({ email })` at utils/emails.ts:14, which uses signJwt's default ONE_MONTH expiry (auth/utils.ts:32-33) rather than the ONE_HOUR used for resets. Missing token-binding / token-purpose-separation control.\n\nVerifier (CONFIRM): Independently re-derived and confirmed on all points. (a) The /reset-password handler (packages/backend/src/api/v1/auth/index.ts:194-218) validates only the JWT signature+exp via verifyJwt<{email}>(token) at line 203, then updates password_hash keyed solely on the payload email (207-209). It never compares the submitted token to account.recovery_token and never clears it, so a reset token is replayable for its entire 1-hour lifetime and stale tokens remain valid after reissue. (b) A repo-wide grep (independent of the graph) shows recovery_token appears exactly twice in the whole tree: the column declaration at packages/db/init.sql:31 and the lone write at auth/index.ts:180 \u2014 zero reads, confirming the single-use binding control is write-only and unenforced. (c) The more severe consequence is token-purpose confusion: signJwt (auth/utils.ts:33-46) emits only exp/iat/nbf with no aud/typ/purpose claim, and verifyJwt (48-53) supplies no audience or claim constraints, so ANY {email}-shaped JWT signed with JWT_SECRET is accepted as a reset token. utils/emails.ts:14 mints exactly that shape with signJwt({ email }) using the DEFAULT ONE_MONTH expiry (auth/utils.ts:32,35) and delivers it in a URL query string (emails.ts:16), where it persists in email bodies, browser history, referrer headers and server logs \u2014 making a 30-day email-confirmation link redeemable for password reset and full account takeover. (d) On exploitability I did NOT accept the graph's reachable_from_entry=false: every node in the file reports hop_distance=-1 including the top-level auth.post(\"/reset-password\") registration itself, which is a clear arrow-function under-linking artifact since route registration executes at import time. Real source confirms reach \u2014 app.use(auth.routes()) at packages/backend/src/index.ts:42 mounts the router, and the publicRoutes entry new RegExp(\"/auth/.+\") at auth/utils.ts:63 makes /auth/reset-password unauthenticated, with authMiddleware short-circuiting before any bearer-token check. Pre-auth, network-reachable. Corrected the analyst's claimed range from 194-215 to the actual 194-218. exploit_search not applicable: first-party logic flaw with no versioned component in the vulnerable path."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/auth/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 194,
+                  "endLine": 218
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "auth.post(\"/reset-password\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "9dc0ec234f1a7b2dcb062d8f15b9a378cb4b79f7"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-639",
+          "level": "error",
+          "message": {
+            "text": "projects.delete(\"/:projectId\") takes projectId from ctx.params and deletes it with `delete from project where id = ${projectId}` \u2014 with NO predicate binding that project to the caller's org. The only check performed is a COUNT of the caller's own projects (`select count(*)::int from project where org_id = ${orgId}`, used solely to enforce \"an organization must have at least one project\"); that count never constrains WHICH project is deleted. Any authenticated user whose own org holds more than one project can therefore delete an arbitrary project belonging to any other organization by supplying its UUID. Missing resource-ownership authorization check.\n\nVerifier (CONFIRM): Re-derived from source. projects/index.ts:70-89 reads projectId from ctx.params and executes `delete from project where id = ${projectId}` (line 78) with no predicate tying the row to the caller's org. The only identity-bearing query is `select count(*)::int from project where org_id = ${orgId}` (line 75), which counts the ATTACKER's own projects and merely gates whether a delete occurs (\"an organization must have at least one project\") \u2014 it never constrains WHICH project is deleted. I specifically checked the one thing that could refute the lead: the upstream ownership check in authMiddleware. It does NOT cover this route. auth/utils.ts:82 sets ctx.state.projectId from `ctx.request?.query?.projectId` (the QUERY STRING), and the ownership query at auth/utils.ts:117-127 (`select id from project where id = ${ctx.state.projectId} and org_id = ${ctx.state.orgId}`) only runs when that value is truthy. A request `DELETE /v1/projects/<victim-uuid>` with no `?projectId=` query param skips the check entirely; ctx.params is not even parsed at middleware time. Supplying `?projectId=<own-project>` likewise passes the check while the delete still targets the path param. The path matches none of the publicRoutes entries (auth/utils.ts:62-78), so a valid JWT is required but orgId is the attacker's own \u2014 i.e. ANY authenticated user whose org holds >1 project can delete an arbitrary project in any other org. The route is live and wired: src/index.ts:34,41 -> v1/index.ts:37 -> prefix \"/projects\", single handler with no route-level guard, and the frontend calls it (frontend/utils/dataHooks.ts:185-188, fetcher.delete on `/projects/${projectId}`). The graph's reachable_from_entry=false is a systemic arrow-function under-linking artifact, not dead code: 114 of 118 backend route registrations are false. The codebase's own convention elsewhere scopes such DML (templates.ts:79, checklists.ts:77-79, radars.ts:283-285 all include the owning predicate), making projects/index.ts:78 the outlier. Severity aggravator I found independently: projects/index.ts:53-57 sets the public api_key equal to project.id, so a victim project's UUID IS its public API key, routinely embedded in client-side SDK code \u2014 target UUIDs are discoverable, not unguessable. No exploit_search applies: first-party app logic, no versioned third-party component to pin. The analyst's location and CWE were accurate."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/projects/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 70,
+                  "endLine": 78
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "projects.delete(\"/:projectId\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "c0304e5b1cd6f27d4df90e8e99c4067c0513030b"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-639",
+          "level": "error",
+          "message": {
+            "text": "projects.patch(\"/:projectId\") takes projectId from ctx.params and runs `update project set name = ${name} where id = ${projectId}` with no org/tenant predicate whatsoever \u2014 the handler never even destructures orgId or projectId from ctx.state, so no ownership information is consulted. Any authenticated user can rename any project in any organization by UUID. Missing resource-ownership authorization check.\n\nVerifier (CONFIRM): Independently re-derived and confirmed. The PATCH /v1/projects/:projectId handler takes projectId from the attacker-controlled path param and issues `update project set name = ${name} where id = ${projectId}` with no org_id/tenant predicate and no ctx.state read (projects/index.ts:91-106). Critically, I verified the global middleware does NOT compensate: authMiddleware sets ctx.state.projectId exclusively from the QUERY STRING (auth/utils.ts:82, `ctx.request?.query?.projectId`), and its project-ownership check is gated behind `if (ctx.state.projectId)` (auth/utils.ts:117-127). The frontend's patch helper sends no ?projectId= query param (fetcher.ts:69-78), so on this request ctx.state.projectId is undefined and the ownership check is skipped entirely. The route is not in publicRoutes (auth/utils.ts:62-78), so a valid JWT is required, but any authenticated user's JWT from any org passes. The guard is unfixable from the query side anyway, since the UPDATE keys off ctx.params regardless. Sibling routes show the intended pattern (templates.ts:71,79,95 use `where project_id = ${ctx.state.projectId} and id = ${ctx.params.id}`), proving the omission is a defect, not design. Reachability is real despite the graph: the router is mounted (v1/index.ts:37 -> src/index.ts:41) and the frontend actively calls it for project rename (dataHooks.ts:181-184,190-196). The graph's reachable_from_entry=false is a false negative \u2014 it reports false for all four routes in the file including projects.get(\"/\"), the endpoint that populates the dashboard, the known arrow-function under-linking artifact. Exploitability is further raised because project UUIDs are not secret: the public API key is set equal to project.id (projects/index.ts:53-57) and returned as public_api_key (line 20), so target IDs leak into client-side SDK configs. Severity HIGH rather than CRITICAL: impact is cross-tenant integrity (rename) only, with no data disclosure. Advisory exploit_search was unavailable (\"exploit corpus unavailable: not indexed\") and no versioned :Dependency is implicated \u2014 this is a first-party authz logic flaw, so the version/CVE comparison workflow does not apply."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/projects/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 91,
+                  "endLine": 106
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "projects.patch(\"/:projectId\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "d1d4e611ae1d055612c53d561d49c6b8abbf0d25"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-639",
+          "level": "error",
+          "message": {
+            "text": "versions.patch(\"/:id\") updates template_version content with `update template_version set content=..., extra=..., test_values=..., is_draft=... where id = ${ctx.params.id}` and no project_id/ownership predicate, and performs no prior lookup to confirm the version's parent template belongs to ctx.state.projectId. Every other template route in the codebase is scoped (e.g. templates.ts:85 `where project_id = ${ctx.state.projectId} and id = ${ctx.params.id}`), making this an isolated omission. Any authenticated user can overwrite another tenant's prompt template version \u2014 which the SDK then serves to that tenant's production LLM calls via the /v1/template_versions/latest route. Missing authorization check on a state-changing route.\n\nVerifier (CONFIRM): Re-derived independently from source. packages/backend/src/api/v1/templateVersions.ts:66-74 performs `update template_version set content/extra/test_values/is_draft ... where id = ${ctx.params.id}` with NO project_id or template-ownership predicate, and the handler never references ctx.state.projectId nor does any prior lookup tying the version to the caller's tenant. The route is reachable: mounted at api/v1/index.ts:42 behind the globally-applied authMiddleware (backend/src/index.ts:34); PATCH /v1/template_versions/:id is NOT in publicRoutes (only /v1/template_versions/latest is, auth/utils.ts:73), so any valid JWT reaches it. The tenancy check at auth/utils.ts:117-127 runs only `if (ctx.state.projectId)` and validates only the ATTACKER'S OWN ?projectId= query param against their org \u2014 it never constrains the row being updated, and omitting the param skips it entirely. No compensating control exists: grep for ROW LEVEL SECURITY / current_setting / set_config across packages/ returns no matches, and the route has no per-route guard. Exploitation is trivial because db/init.sql:163 declares `template_version.id serial primary key` \u2014 sequential integers, enumerable rather than guessable. Impact chain verified: templateVersions.ts:24-34 (/latest) serves tv.content scoped by the victim's project id to the SDK, so an attacker-overwritten version is fed into the victim tenant's production LLM calls. Graph reachability is unusable here (all nodes in this file report reachable_from_entry=false, including the known-live SDK /latest route \u2014 an arrow-function under-linking artifact), so reach was confirmed against source instead; this is not evidence against exploitability. One correction to the analyst: the claim that this is an \"isolated omission\" is wrong \u2014 templates.ts:113-132 (POST /:id/versions) is also unscoped and templateVersions.ts:43-55 (GET /:id) reads any version unscoped; this broadens rather than weakens the finding. Exploit-reference check returned \"exploit corpus unavailable: not indexed\", so no published-module/version comparison was possible; this verdict rests entirely on source evidence, not on any exploit catalog claim."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/templateVersions.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 57,
+                  "endLine": 77
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "versions.patch(\"/:id\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "711ccf432d8f96f0b005a459941bef0a1a0b766b"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-639",
+          "level": "error",
+          "message": {
+            "text": "runs.get(\"/:id/related\") executes a RECURSIVE CTE seeded with `WHERE r1.id = ${id}` from ctx.params and returns rr.input, rr.output, rr.params, rr.feedback and rr.project_id for the whole run tree, with NO project_id or org_id predicate \u2014 the handler never reads ctx.state at all. Both sibling routes DO enforce scoping: runs.get(\"/:id\") at line 189 scopes by orgId (with an explicit comment about teammates), and runs.get(\"/:id/feedback\") at line 261 scopes by `project_id = ${projectId} and id = ${id}`. Any authenticated user can read another tenant's full LLM prompt/completion payloads by run UUID. Missing authorization check.\n\nVerifier (CONFIRM): Independently re-derived and confirmed. runs.get(\"/:id/related\") (packages/backend/src/api/v1/runs/index.ts:239-259) takes a run UUID from ctx.params.id and runs a RECURSIVE CTE seeded only by `WHERE r1.id = ${id}` (line 246), projecting rr.input, rr.output, rr.params, rr.feedback and rr.project_id (lines 253-254) for the run and its whole descendant tree. The handler never reads ctx.state \u2014 no project_id or org_id predicate at all. Both sibling routes enforce tenant scoping, proving the intended control: :189-193 scopes by `r.project_id in (select id from project where org_id = ${orgId})` with the explicit comment \"Use orgId in case teammates shares URL to run...\" (line 192), and :261-271 scopes by `project_id = ${projectId} and id = ${id}`; :163-179 (/:id/public) additionally requires `is_public = true`, confirming non-public run payloads are meant to be protected. The route is genuinely reachable: src/index.ts:41 app.use(v1.routes()) -> api/v1/index.ts:38 v1.use(runs.routes()) -> router prefix \"/runs\" (runs/index.ts:11) = GET /v1/runs/:id/related. It is NOT in the publicRoutes allowlist (auth/utils.ts:62-78 lists /v1/runs/.+/public, /v1/runs/.+/feedback and /v1/runs/ingest, but not /related), so authMiddleware:108-136 requires a valid JWT \u2014 making this exploitable by ANY authenticated user against ANY other tenant's runs. authMiddleware:117-127 does validate a projectId query param against the caller's org, but the /related handler ignores projectId entirely so that check never constrains this query, and utils/db.ts:5-18 is a plain postgres.js client with no RLS or tenant session variable, so there is no compensating global scoping. Two corrections to the analyst: (a) ${id} is a postgres.js parameterized bind, so this is NOT SQL injection \u2014 it is purely a missing authorization check, and CWE-639 is correct; (b) the graph's reachable_from_entry=false must be disregarded \u2014 I queried all eight route registrations in this file and every one is false, including GET /v1/runs/ (the primary list endpoint), confirming a file-wide koa-router arrow-function under-linking artifact rather than true unreachability. The exploit-reference check was unavailable (corpus returned \"exploit corpus unavailable: not indexed\") and no meaningful upstream version could be pinned (root package.json:3 is a 1.0.0 monorepo placeholder), so this verdict rests solely on code evidence, with no claim of patched or CVE-matched status. Severity HIGH rather than CRITICAL because exploitation requires knowing a target run UUID (v4, not practically brute-forceable), though UUIDs leak readily via shared URLs, logs and SDK responses, and the recursive CTE amplifies one known UUID into the run's entire descendant tree."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/runs/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 239,
+                  "endLine": 259
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "runs.get(\"/:id/related\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "5e00c54ae1fbe8f3416de65b79e5a256045e4735"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-639",
+          "level": "error",
+          "message": {
+            "text": "external-users.get(\"/:id\") runs `select * from external_user where id = ${id} limit 1` with no project_id predicate and returns the entire row (end-user PII: external_id, props, last_seen). The sibling collection route at line 9 of the same file DOES scope by `project_id = ${projectId}`, and filters.ts:90 selects external_user `where project_id = ${projectId}` \u2014 so the omission is specific to this route. The companion query at external-users.ts:9 casts the id as `id::int`, indicating external_user ids are sequential integers, making cross-tenant enumeration trivial rather than requiring UUID guessing. Missing authorization check on a PII read.\n\nVerifier (CONFIRM): Re-derived independently from source. packages/backend/src/api/v1/external-users.ts:70-77 handles GET /v1/external-users/:id and executes `select * from external_user where id = ${id} limit 1`, assigning the full row to ctx.body with NO project_id or org_id predicate. Reachability is real despite the graph's reachable_from_entry=false: that flag is false for every call in the file including the line-9 collection route the frontend demonstrably consumes, i.e. the documented arrow-function under-linking. Mounting verified in source: prefix \"/external-users\" (line 6) -> v1.use(projectUsers.routes()) at api/v1/index.ts:45 -> app.use(v1.routes()) at src/index.ts:41; the frontend calls it at packages/frontend/pages/users/[id].tsx:45. Middleware does not compensate: the path is absent from publicRoutes (auth/utils.ts:62-78) so a JWT is required, but tenancy is enforced only conditionally via `if (ctx.state.projectId)` (auth/utils.ts:117-127) against a projectId taken from the query string (line 82) -- and the handler ignores projectId entirely, so even an attacker supplying their own valid projectId (passing that check) reads any other tenant's row. The analyst's inference that ids are sequential is confirmed directly: packages/db/init.sql:49 declares `id serial primary key`, making cross-tenant enumeration (id=1,2,3,...) trivial. Disclosed columns are end-user PII: external_id, last_seen, props jsonb (init.sql:51-54). The omission is anomalous rather than intentional -- every comparable read scopes by tenant: same file line 31, filters.ts:100 on this same table, checklists.ts:27-29 for its /:id route, datasets/index.ts:105, analytics.ts:23, and runs/index.ts:207 which scopes /:id by org_id with an explicit comment about cross-project URL sharing. The advisory exploit_search was a no-op (corpus not indexed) and is inapplicable: this is first-party application code, not a versioned third-party dependency, so no patched-version rebuttal exists."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/external-users.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 70,
+                  "endLine": 77
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "users.get(\"/:id\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "5018d2c940080d32963cce07c74142dd887fd99b"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-942",
+          "level": "error",
+          "message": {
+            "text": "The CORS policy reflects the caller's Origin verbatim while also enabling credentials, with no allowlist check anywhere. utils/cors.ts:7-9 sets `Access-Control-Allow-Origin: ctx.get(\"Origin\") || \"*\"` together with `Access-Control-Allow-Credentials: true`, and the @koa/cors options at line 17 do the same via `origin(ctx) { return ctx.get(\"Origin\") || \"*\" }` with `credentials: true`. There is no comparison of the Origin header against NEXT_PUBLIC_APP_URL or any permitted-origin list in the file. Because corsMiddleware is registered globally at index.ts:33 (before authMiddleware at :34), any attacker-controlled web page can issue credentialed cross-origin reads of every API response. Missing origin-allowlist control.\n\nVerifier (CONFIRM): The described code and structure are genuinely present and I verified each element myself. cors.ts:17-24 passes @koa/cors an origin function that returns ctx.get(\\\"Origin\\\") || \\\"*\\\" together with credentials:true, i.e. verbatim reflection of the caller's Origin with credentials enabled. I grepped the entire backend for NEXT_PUBLIC_APP_URL|allowedOrigin|allowlist|whitelist and found no origin comparison anywhere (the only NEXT_PUBLIC_APP_URL uses are a reset link, a redirect, and a Stripe return_url), confirming the missing-allowlist claim. The middleware is globally active: index.ts:33 registers corsMiddleware before authMiddleware (:34) and all routes (:40-43), and utils/middleware.ts:3-9 shows createMiddleware is a transparent passthrough. Reachability is affirmatively confirmed by the graph (reachable_from_entry=true on lines 7, 9, 17, 19), not merely assumed. TWO CORRECTIONS to the analyst. (1) Location: the analyst's headline sink at lines 7-9 is DEAD CODE, guarded by `if (ctx.method === \\\"options\\\")` (lowercase) while Koa's ctx.method is the raw uppercase HTTP method \\\"OPTIONS\\\", so that branch never executes; the live vulnerable policy is solely lines 17-24, which @koa/cors applies to preflight and simple requests alike. (2) Impact: the claim of \\\"credentialed cross-origin reads of every API response\\\" is overstated because there are NO ambient credentials \u2014 zero `cookie` references exist repo-wide, and auth is Bearer JWT pulled from localStorage and attached manually (frontend/utils/fetcher.ts:15-18; authMiddleware reads only the Authorization header at auth/utils.ts:88-112). A cross-origin page cannot read the victim's localStorage and browsers never auto-attach Authorization, so credentials:true does not enable session-riding of authenticated endpoints. The defect is still real: any origin can read responses from the no-auth publicRoutes (auth/utils.ts:62-78, e.g. /v1/runs/.+/public, /v1/datasets/.+, /v1/template_versions/latest), including from an instance bound to localhost or an intranet host, using the victim's browser as a network pivot. Severity is therefore MEDIUM rather than the HIGH a cookie-session app would warrant. Dependency note: @koa/cors is ^5.0.0 (package.json:12), which is at/past the fix for the known CVE-2023-49803 advisory (affecting <5.0.0), so this is the application's own misconfiguration, not a library CVE; the exploit catalog was unavailable (\\\"exploit corpus unavailable: not indexed\\\") so no module is cited."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/utils/cors.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 17,
+                  "endLine": 24
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "patchedCors",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "5d2308bcd1a8fbdb1bdc122f6fd6b12a277ce3df"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-693",
+          "level": "error",
+          "message": {
+            "text": "No HTTP security-response-header control exists in either package. The backend's entire Koa middleware chain was fully enumerated (index.ts lines 29-43): requestHandler, tracingMiddleWare, errorMiddleware, logger(), corsMiddleware, authMiddleware, ratelimit, bodyParser(), setDefaultBody, then four routers \u2014 there is no helmet/koa-helmet or any header-setting middleware. The frontend's nextConfig object keys were likewise fully enumerated (next.config.js: reactStrictMode, eslint, typescript, images, rewrites, webpack, transpilePackages) \u2014 there is no `headers()` function. A repo-wide search for Content-Security-Policy, X-Frame-Options, Strict-Transport-Security, X-Content-Type-Options, helmet, csrf and SameSite returned zero rows. So the app ships with no CSP, no HSTS, no X-Frame-Options/clickjacking defence, no X-Content-Type-Options, and no CSRF token middleware.\n\nVerifier (CONFIRM): I independently re-derived the core claim and it holds: neither package sets any HTTP security response header. Verified from four directions I checked myself. (1) Source: packages/backend/src/index.ts:29-43 contains the complete Koa chain (requestHandler, tracingMiddleWare, errorMiddleware, logger(), corsMiddleware, authMiddleware, ratelimit, bodyParser(), setDefaultBody, then redirections/v1/auth/webhooks routers) with no helmet/koa-helmet or header-setting middleware; my own Cypher returned exactly those 13 app.use calls at lines 29-43. (2) packages/frontend/next.config.js:1-56 defines only reactStrictMode, eslint, typescript, images, rewrites, webpack, transpilePackages -- no headers() function, and Next ^14.1.0 emits no security headers by default. (3) A repo-wide case-insensitive grep for helmet|Content-Security-Policy|X-Frame-Options|Strict-Transport-Security|X-Content-Type-Options|frameguard|csrf|xsrf|SameSite returned zero matches, and my Cypher equivalent returned n=0. (4) I closed the escape hatches the analyst did not check: there is no vercel.json, nginx conf, Caddyfile, Dockerfile or compose file anywhere (so no infra-layer headers), no Next middleware.ts, pages/_document.tsx:1-16 sets no CSP meta tag, no helmet/koa-csrf in any package.json (only @koa/cors), and every backend ctx.set() call is CORS or Content-Type/Content-Disposition only. TWO CORRECTIONS to the analyst. First, the CSRF-token and SameSite portions of the claim are a non-finding: authentication is a Bearer JWT read from the Authorization header (packages/backend/src/api/v1/auth/utils.ts:88,112) and held in localStorage (packages/frontend/utils/fetcher.ts:15,30,63,74,84), so there are no session cookies, a cross-site request carries no ambient credentials, CSRF tokens are not architecturally required, and SameSite has no auth cookie to apply to. Second, severity is LOW, not the analyst's implied HIGH: this is a pure protection-mechanism/hardening gap with no attacker-controlled data flow to a sink, and it only amplifies other defects. It does amplify genuine risk here -- a one-month JWT in localStorage with no CSP means any XSS yields full token theft, and absent X-Frame-Options the authenticated dashboard is framable -- but both are conditional on a separate bug. The all-false reachable_from_entry on the app.use calls is a graph artifact for module-level bootstrap code; the source shows these plainly execute before app.listen at index.ts:46, so I did not downgrade on it. Separately and out of scope for this verdict, packages/backend/src/utils/cors.ts:7-24 reflects any Origin back with credentials:true, which is materially more serious than the missing headers and should be filed as its own finding. The advisory exploit lookup was unavailable (corpus not indexed), which does not bear on a finding about absent code rather than a versioned CVE."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 29,
+                  "endLine": 43
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "<module>",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "6a696c23da43aac0997ff502c1e655a5bab52d6a"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-639",
+          "level": "error",
+          "message": {
+            "text": "evaluations.get(\"/result/:evaluationId\") selects evaluation_result rows joined to dataset_prompt and dataset_prompt_variation using only `where er.evaluation_id = ${evaluationId}` from ctx.params, with no project_id predicate; the handler never reads ctx.state. The immediately preceding route evaluations.get(\"/:id\") at line 57 DOES enforce `where id = ${id} and project_id = ${projectId}` and throws 404 when absent, so the control is deliberately applied elsewhere and omitted here. Any authenticated user can read another tenant's evaluation results, prompts and model outputs by evaluation UUID. Missing authorization check.\n\nVerifier (CONFIRM): Independently re-derived and confirmed. evaluations.get(\"/result/:evaluationId\") (evaluations/index.ts:72-89) filters only on `er.evaluation_id = ${evaluationId}` from ctx.params and never reads ctx.state, so no tenant predicate is applied. The query is structurally incapable of scoping: init.sql:359-375 shows evaluation_result has NO project_id column (tenancy only via FK to evaluation(id) at line 372), and the query joins only dataset_prompt / dataset_prompt_variation -- it never touches a table carrying project_id. The route IS authenticated (authMiddleware is global at src/index.ts:34 and the path is absent from publicRoutes at auth/utils.ts:62-78, which whitelists only the exact string /v1/evaluations/run), but the only tenant guard is conditional: `if (ctx.state.projectId)` at auth/utils.ts:117, where projectId is read from the query string (line 82). Omitting ?projectId= skips the membership check at lines 120-126 entirely; supplying an attacker-owned projectId passes it, and the handler ignores projectId regardless. So any authenticated user of any org retrieves another tenant's evaluation outputs, prompts, variables, context and ideal_output. The sibling route at line 57 enforces `where id = ${id} and project_id = ${projectId}` with a 404 at lines 65-67, proving project scoping is the intended control. Reachability: the graph marks this call reachable_from_entry=false, but it marks EVERY route in the file the same way (including evaluations.get(\"/\")), i.e. the known arrow-function under-linking artifact; I confirmed reach from source -- router mounted at v1/index.ts:44 and the frontend fetches /evaluations/result/${id} at frontend/pages/evaluations/[id].tsx:37 (also proving /:id at line 57 does not shadow it, since :id matches one segment). CORRECTION to the analyst: exploitation requires knowing the target evaluation UUID (uuid_generate_v4(), init.sql:322), which is not enumerable -- a real practical barrier the analyst omitted, so I rate this MEDIUM rather than HIGH. No versioned component is involved (custom authz logic), so exploit_search does not apply."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/evaluations/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 72,
+                  "endLine": 89
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "evaluations.get(\"/result/:evaluationId\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "4fd226a91e125f7b3bc9d76b788318de4ba38ce7"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-862",
+          "level": "error",
+          "message": {
+            "text": "The dataset prompt and variation sub-resource routes all operate on caller-supplied ids with no project_id predicate and no ownership pre-check, and every one of these paths matches the publicRoutes regex `/v1/datasets/.+` (auth/utils.ts:62) so they require no Authorization header: get \"/prompts/:id\" (line 149, `select * from dataset_prompt where id = ${id}` + `select * from dataset_prompt_variation where prompt_id = ${id}`), delete \"/prompts/:id\" (line 166, lines 169-170), patch \"/prompts/:id\" (line 176, line 183 `update dataset_prompt set messages = ${messages} where id = ${id}`), get \"/variations/:id\" (line 188, line 191), delete \"/variations/:id\" (line 202, line 205), patch \"/variations/:variationId\" (line 211, line 227), plus post \"/prompts\" (line 120) and post \"/variations\" (line 243) which insert against a datasetId/promptId taken straight from the request body with no ownership validation. Missing authorization control across the whole dataset sub-resource surface.\n\nVerifier (CONFIRM): Independently re-derived from source. (1) MISSING CONTROL: every dataset sub-resource handler operates on a caller-supplied id with no project_id predicate and no ownership pre-check \u2014 get /prompts/:id (149-163), delete /prompts/:id (166-173), patch /prompts/:id (176-186), get /variations/:id (188-200), delete /variations/:id (202-208), patch /variations/:variationId (211-240), post /prompts (120-146, datasetId straight from body), post /variations (243-264, promptId straight from body). None reference ctx.state.projectId or userId. (2) NO AUTH REQUIRED: publicRoutes (auth/utils.ts:62) contains new RegExp(`/v1/datasets/.+`) at line 76, and authMiddleware line 90 does `if (isPublicRoute && (!bearerToken || validateUUID(bearerToken))) { await next(); return }` \u2014 returning without any verifyJwt call, so no Authorization header is needed. The unanchored regex matches all the paths above. (3) REACH CHAIN VERIFIED IN SOURCE: datasets prefix \"/datasets\" (datasets/index.ts:10) -> v1 prefix \"/v1\" (v1/index.ts:19) -> v1.use(datasets.routes()) (v1/index.ts:39) -> app.use(v1.routes()) (src/index.ts:41), with app.use(authMiddleware) at src/index.ts:34. (4) THE OMISSION IS A GENUINE DEVIATION, not authz-delegated-elsewhere: the same file/module enforces the control on siblings \u2014 patch(\"/:id\") line 105 includes `and project_id = ${projectId}`, and getDatasetById (datasets/utils.ts:6) and getDatasetBySlug (datasets/utils.ts:44) both filter by project_id. (5) I did NOT accept the graph's reachable_from_entry=false: my own query shows ALL 86 route registrations under api/v1/ are false (100%, including the plainly-live datasets.get(\"/\")), i.e. the known koa-router arrow-function under-linking artifact with no evidential weight; the frontend actively calls these routes (frontend/utils/dataHooks.ts:542-606), proving they are live. CORRECTIONS TO THE ANALYST: the regex is at line 76 (62 is the array declaration, not the regex); and the analyst under-scoped the surface \u2014 delete(\"/:id\") at 111-117 (`delete from dataset where id = ${id}`) is likewise predicate-free and public, allowing unauthenticated destruction of an entire dataset. Severity is CRITICAL rather than merely cross-tenant because id-unguessability does not mitigate it: authMiddleware:82 sets projectId from an unauthenticated query param, so GET /v1/datasets/<slug>?projectId=<victim-project-uuid> returns prompt_id and variation_id via getDatasetBySlug, which then feed the unprotected read/update/delete routes. exploit_search was unavailable (\"corpus unavailable: not indexed\"), which is advisory-only and immaterial for first-party code with no pinned component version."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/datasets/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 120,
+                  "endLine": 264
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "datasets prompts/variations handlers",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "cce88b7f63a754edad7d2b69c10cf3cf2122f32d"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "CRITICAL",
+            "security-severity": "9.5"
+          }
+        },
+        {
+          "ruleId": "CWE-307",
+          "level": "error",
+          "message": {
+            "text": "There is no brute-force / credential-stuffing protection on auth.post(\"/login\") (auth/index.ts:139): the handler looks up the account by email and calls verifyPassword with no failed-attempt counter, no account lockout, and no per-account throttle. The only protection is the single global koa-ratelimit instance (index.ts:35), and that control is doubly weakened in utils/ratelimit.ts: (a) its `whitelist: (ctx) => { if (ctx.state.userId) return true; return false }` exempts every authenticated request from rate limiting entirely, and (b) its key is `id: (ctx) => ctx.request.ip || ctx.ip || ctx.state.userId` while index.ts:26 sets `app.proxy = true`, which makes Koa derive ctx.request.ip from the client-supplied X-Forwarded-For header \u2014 so an attacker can rotate that header to get a fresh 150-requests-per-minute bucket per forged value. Missing anti-automation control on authentication.\n\nVerifier (CONFIRM): Re-derived from source. The unauthenticated POST /auth/login handler (auth/index.ts:139-170, router prefix \"/auth\" at :10-12) does an email lookup then verifyPassword and returns 403, with no failed-attempt counter, no account lockout, and no per-account throttle. A repo-wide case-insensitive grep for lockout|failed_attempt|loginAttempt|attempts|throttl|rate.?limit over packages/ matched ONLY utils/ratelimit.ts and its single registration, so the one global koa-ratelimit instance (index.ts:35) is the sole anti-automation control in the monorepo. That control is bypassable: index.ts:26 sets app.proxy = true and ratelimit.ts:10 keys buckets on ctx.request.ip, which in Koa ^2.15.0 (package.json:21) resolves to ips[0] -- the LEFTMOST, fully client-supplied X-Forwarded-For entry -- with maxIpsCount/proxyIpHeader never set and no nginx/real_ip/proxy_set_header config anywhere in the tree. Because Koa takes the leftmost value, the forged entry wins even behind a proxy that merely appends the true client IP, so rotating the header grants a fresh max:150-per-60s bucket per value, i.e. effectively unlimited credential-stuffing attempts; driver:\"memory\" (ratelimit.ts:3,6-7) also scopes counters per process. Reachability is established from source (mounted at index.ts:42, served at :46, and /auth/login is an explicit public route per auth/utils.ts:63) and corroborated by the graph, which lists auth/utils.ts::program:verifyPassword as an EntryPoint with exposure \"reachable\", kind \"handler\"; the uniform reachable_from_entry=false on every CpgCall in this scan (including line-1 require() nodes) is uninformative, not counter-evidence. ONE CORRECTION: the analyst's sub-claim (a) is overstated -- the whitelist at ratelimit.ts:18-23 does exempt authenticated traffic globally (authMiddleware at index.ts:34 runs before ratelimit at :35), but it does NOT weaken the login control, because /auth/login hits the public-route early return at auth/utils.ts:90-106 and never sets ctx.state.userId. Only the spoofable-key sub-claim (b) actually defeats the login limiter, and it holds. I also move the anchor from ratelimit.ts to the authentication endpoint, since CWE-307 is about the missing restriction on the auth attempt. Exploit-corpus lookup returned \"not indexed\", so no exploit-reference signal was used."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/auth/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 139,
+                  "endLine": 170
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "1de01bd9cc4b5857a7b4dc0bf0fa992ddd02f370"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-639",
+          "level": "error",
+          "message": {
+            "text": "versions.get(\"/:id\") fetches the template_version by id with no ownership predicate (`select * from template_version where id = ${ctx.params.id}`) and then performs a SEPARATE scoped lookup for the parent template (`select * from template where project_id = ${ctx.state.projectId} and id = ${version.templateId}`) \u2014 but it never checks whether that second query returned anything before responding. It unconditionally returns `ctx.body = { ...version, template }`, so when the version belongs to another tenant the ownership query yields undefined for `template` while the full version row (including content and test_values) is still disclosed. The ownership check is performed but its result is never enforced.\n\nVerifier (CONFIRM): Verified directly in source. `versions.get(\"/:id\")` at packages/backend/src/api/v1/templateVersions.ts:43-55 fetches the template_version row keyed only on `ctx.params.id` (L45) with no ownership predicate, then runs a separate tenant-scoped lookup for the parent template (L51) but NEVER checks its result before responding with `ctx.body = { ...version, template }` (L54). There is no `if (!template)` guard or `ctx.throw` between L52 and L54, so the ownership check is performed and its result discarded. For a cross-tenant id the first query still returns the full row; `template` resolves to undefined and is dropped by JSON.stringify, leaving the victim's complete template_version (content, extra, test_values) disclosed.\n\nTwo facts I established make this more severe than the analyst assessed: (1) `template_version.id` is `serial` (init.sql:163) \u2014 a sequential integer, so enumeration is trivial with no UUID guessing; (2) `template_version` has no project_id column (init.sql:162-171), so tenancy is derivable ONLY via template_id -> template.project_id, which is exactly the discarded query \u2014 making it the sole isolation control.\n\nReachability: the graph reports reachable_from_entry=false/hops=-1 for ALL 139 calls in this file, including the `/latest` route that auth/utils.ts:73 lists as a public SDK endpoint \u2014 this is the documented arrow-function under-linking artifact, not real unreachability, so I discounted it and confirmed reach from source: src/index.ts:41 (app.use(v1.routes())) -> api/v1/index.ts:42 (v1.use(templateVersions.routes())) -> prefix \"/template_versions\" (L8) + \"/:id\" (L43). The frontend actively calls it (frontend/pages/prompts/[[...id]].tsx:145).\n\nAttacker prerequisite is low: the route is not in publicRoutes so a JWT is required, but `/auth/.+` is public (auth/utils.ts:63) and `/auth/signup` is open self-registration (auth/index.ts:14). An attacker registers, supplies their OWN projectId to satisfy the org check at auth/utils.ts:117-127, then enumerates victim version ids. Deviation from intent is proven by sibling templates.ts:71,79,95, which all scope `project_id = ctx.state.projectId AND id = ctx.params.id` in a single query. Not SQLi \u2014 postgres.js parameterizes these interpolations; the defect is purely authorization. Exploit-reference check was inapplicable (corpus returned \"not indexed\"; only a generic monorepo version 1.0.0 available), so it played no part in this verdict.\n\nAdjacent and arguably worse, outside this lead's scope: versions.patch(\"/:id\") at lines 57-77 updates content/extra/test_values keyed solely on ctx.params.id with no ownership check at all \u2014 a cross-tenant write primitive worth filing separately."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/templateVersions.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 43,
+                  "endLine": 55
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "versions.get(\"/:id\")",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "55d71920a1a35d5ddb7f4fcef497ca0524796095"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-918",
+          "level": "error",
+          "message": {
+            "text": "The Next.js image optimizer has no host restriction: next.config.js sets `images.remotePatterns = [{ protocol: \"https\", hostname: \"**\" }]`, a wildcard that permits any HTTPS host. The enumerated nextConfig keys contain no `domains` allowlist or any narrower pattern. This turns /_next/image into an open server-side fetch proxy \u2014 an unauthenticated attacker can supply arbitrary ?url= values to make the Next server issue outbound HTTPS requests to hosts of their choosing and reflect the responses. Missing remote-host allowlist control.\n\nVerifier (CONFIRM): Independently verified against the real source. packages/frontend/next.config.js:16-23 sets images.remotePatterns = [{protocol:\"https\", hostname:\"**\"}]; \"**\" is a micromatch wildcard matching every hostname, including private IP literals and internal DNS names. I confirmed there is no narrowing control anywhere: grep for `unoptimized|images\\.|loaderFile|output: \"export\"` across packages/frontend returned no matches (no domains allowlist, no custom loader, no unoptimized, no static export), and a glob for packages/frontend/**/middleware.{ts,js,tsx} returned no files, so nothing authenticates Next's built-in routes. package.json:8 runs `next start` (a real Node server, also required by rewrites() and pages/api/app/[id].ts), so GET /_next/image?url=... is reachable unauthenticated and causes a server-side fetch of any attacker-supplied HTTPS URL. The wildcard is load-bearing rather than dead config: components/SmartViewer/Message.tsx:137-139 renders <Image src={item.imageUrl.url}> from logged LLM trace content. I correct the analyst on impact: Next's optimizer requires the upstream response to be a valid image type, so arbitrary response REFLECTION is not available \u2014 this is a mostly blind, GET-only SSRF \u2014 and because protocol is pinned to https, HTTP-only cloud metadata (169.254.169.254, GCP/Azure) is out of reach. Still genuine because Next applies no private-IP or DNS-rebinding filtering, leaving unauthenticated internal host/port probing via differential status and timing, forged GETs to internal HTTPS endpoints, and bandwidth/CPU amplification plus image-cache pollution. Hence MEDIUM, not HIGH. Two unresolved caveats that do not change the verdict: next is \"^14.1.0\" with no lockfile in the tree and zero :Dependency rows, so I could not pin an exact version and treat any dependency-CVE angle as UNKNOWN (neither exploitable-by-CVE nor patched); and the exploit corpus was unavailable (\"not indexed\"), so no module/CVE reference could be cited. The weakness is a first-party misconfiguration, not an upstream CVE, so neither gap blocks confirmation. The reachable_from_entry=false flags on the images assignments are the expected artifact of a build-time config object (sibling rewrites() calls show true), not evidence against exploitability, since the actual sink is Next's framework-internal fetch which no CPG edge from this file would model."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/frontend/next.config.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 16,
+                  "endLine": 23
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "<module>",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "1c05b74cb97cfc596c157018de867c7af23f3840"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-770",
+          "level": "error",
+          "message": {
+            "text": "The global rate limiter in `packages/backend/src/utils/ratelimit.ts` is effectively neutralized along three independent axes, each marked by hedge/stale text. (1) The configured ceiling was raised to `max: 150` while the adjacent comment still reads `// limit unlogged IPs to 50 requests per minute` \u2014 the documented limit was tripled and the comment never updated, the classic signature of a quietly relaxed control. (2) `whitelist: (ctx) => { if (ctx.state.userId) return true; return false }` exempts every authenticated user from rate limiting entirely; because index.ts registers `app.use(authMiddleware)` BEFORE `app.use(ratelimit)`, `ctx.state.userId` is already populated by the time the limiter runs, so any account holder has unlimited throughput against expensive endpoints. (3) `blacklist` is present only as commented-out boilerplate. Compounding all of it, the limiter keys on `id: (ctx) => ctx.request.ip || ctx.ip || ctx.state.userId` while index.ts sets `app.proxy = true`, which makes Koa derive `ctx.request.ip` from the client-supplied X-Forwarded-For header \u2014 so even the unauthenticated 150/min bucket is trivially evaded by rotating that header.\n\nVerifier (CONFIRM): Re-derived independently from source. The repo's ONLY rate limiter (grep across packages/ finds no other limiter and no per-route throttles) is defeated two independent ways. (A) Authenticated-user exemption: ratelimit.ts:18-23 whitelists any request with ctx.state.userId. I traced the ordering dependency rather than assuming it \u2014 index.ts:34 registers authMiddleware before index.ts:35 registers ratelimit, and authMiddleware assigns ctx.state.userId = payload.userId at api/v1/auth/utils.ts:114 BEFORE calling `await next()` at utils.ts:138. So by the time the limiter runs, userId is populated and every account holder has unlimited throughput against all endpoints. Graph agrees: the ctx.state.userId fieldAccess inside the whitelist lambda is reachable_from_entry=true (uid 68262bbfa3b2f426344e7f270c604e3813daf7b2), and app.use(authMiddleware)@34 / app.use(ratelimit)@35 confirm order. (B) Attacker-controlled limiter key: ratelimit.ts:10 keys on `ctx.request.ip || ctx.ip || ctx.state.userId` while index.ts:26 sets `app.proxy = true`. I grepped all of packages/ for maxIpsCount/proxyIpHeader \u2014 neither is ever set, so Koa's maxIpsCount stays at its default 0, meaning request.ip resolves to ips[0], the LEFTMOST and fully client-supplied X-Forwarded-For entry. The unauthenticated 150/min bucket is therefore evaded by rotating that header. Impact is concrete because /auth/.+ is a public route (auth/utils.ts:63) and /auth/login performs CPU-bound argon2 verifyPassword (auth/index.ts:139,155) with no other throttle, enabling credential stuffing and CPU exhaustion. I DOWNGRADE two of the analyst's three axes as non-substantive: `max: 150` vs. the stale `// limit unlogged IPs to 50` comment (ratelimit.ts:16, present verbatim) is a documentation inconsistency, not proof of a relaxed control, since 150/min is itself a plausible limit; and the commented-out `blacklist` (ratelimit.ts:24-26) is verbatim koa-ratelimit README boilerplate, i.e. an optional feature never enabled, not a removed control. The confirmation rests on (A) and (B) alone. Note the graph marks the module-init assignments (e.g. `_tmp_1.max = 150`) reachable_from_entry=false \u2014 that is the documented arrow-function/module-init under-linking artifact, and index.ts:35 app.use(ratelimit) proves in source that the middleware is installed on the live app, so I did not downgrade on it. exploit_search was unavailable (\"exploit corpus unavailable: not indexed\"), but no version grounding is needed: the defect is in this repo's own options object, not in koa-ratelimit ^5.1.0 (packages/backend/package.json:24)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/utils/ratelimit.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 10,
+                  "endLine": 23
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "f4eec7b76e6720a1ff621fb1ce37fa759b29fe4b"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-620",
+          "level": "error",
+          "message": {
+            "text": "`handlePasswordReset` in packages/frontend/pages/update-password.tsx is a stub whose real implementation was removed and replaced with a hardcoded success flag: `// TODO: reset password with supertoken` followed by `const ok = true`. The handler never transmits the new password anywhere \u2014 no fetcher/API call exists in the function \u2014 yet it unconditionally shows the notification `message: \"Password updated successfully\"` and then `if (ok) { Router.push(\"/\") }`. A user who believes they have rotated a compromised password has not; the old credential remains valid indefinitely with positive confirmation to the contrary. Note the same file's validator also accepts 5-character passwords (`val.length < 5`) while the sibling reset-password.tsx enforces 6.\n\nVerifier (CONFIRM): Re-derived from source. packages/frontend/pages/update-password.tsx:34-52 defines `handlePasswordReset`, bound to the form at line 69 (`form.onSubmit(handlePasswordReset)`). The handler destructures `password` and then never uses it: line 37 is the comment `// TODO: reset password with supertoken`, line 38 hardcodes `const ok = true`, lines 40-45 unconditionally fire `notifications.show({title:\"Success\", message:\"Password updated successfully\"})`, and lines 47-49 do `if (ok) { Router.push(\"/\") }`. No transmission of the password exists anywhere in the function \u2014 `fetcher` is not even imported into the file (imports at lines 1-18 are only @mantine/core, @mantine/form, @tabler/icons-react, @/utils/errors, next-seo, next/router, react, @mantine/notifications). The graph agrees: of 87 CpgCall nodes with file_path='packages/frontend/pages/update-password.tsx', none is a fetch/fetcher/axios/XHR call. The secondary claim also holds: the validator at line 30 is `val.length < 5` while sibling packages/frontend/pages/reset-password.tsx:38 enforces `val.length < 6`. This is a silent failure of a security control that returns affirmative success \u2014 CWE-620 (unverified password change) / CWE-754. The route is live: Next.js pages router auto-serves /update-password and next.config.js declares no rewrite or redirect excluding it. I am downgrading the analyst's severity, however, based on scoping evidence the analyst did not establish: (1) the genuine password-reset flow is a DIFFERENT, working page \u2014 packages/backend/src/api/v1/auth/index.ts:182 emails `${NEXT_PUBLIC_APP_URL}/reset-password?token=...`, and reset-password.tsx:51 correctly POSTs to /auth/reset-password, which hashes and persists the new credential (auth/index.ts:205-209); so no user following a reset email reaches the stub; (2) a repo-wide grep for the string `update-password` across /tmp/workspaces/9a7a7d896a81f3de/tree returns ZERO matches \u2014 the page is an unreferenced orphan route, linked from no nav, email, or settings page (packages/frontend/pages/settings.tsx contains no password field); (3) `/update-password` is missing from Layout's isAuthPage allowlist (packages/frontend/components/Layout/index.tsx:21-27), so an unauthenticated visitor is redirected to /login by lines 53-55, leaving only an already-signed-in user who manually types the URL. There is no attacker-controlled vector and no path through the application UI, so impact is limited to a self-inflicted false sense of security for a user who guesses the URL. The defect is real and should be fixed (delete the dead page or wire it to /auth/reset-password, and align the length check to 6), but it is LOW, not MEDIUM/HIGH. No versioned third-party component is implicated, so exploit-reference lookup is not applicable to this first-party logic defect."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/frontend/pages/update-password.tsx",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 34,
+                  "endLine": 52
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "handlePasswordReset",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "4effe8aca266143345ed3800f493da8a0027b453"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-1333",
+          "level": "error",
+          "message": {
+            "text": "Attacker-controlled regex pattern is compiled and executed server-side: in packages/backend/src/checks/index.ts the CHECK_RUNNERS entry with id=\"regex\" destructures `const { regex, type, field } = params` (line 98) and then builds `const re = new RegExp(regex)` (line 100), running it via `re.test(lastMsg(run[field]))` (line 102) and `run[field].match(re)` (line 106). The pattern text is never length-limited, anchored, or screened for nested quantifiers, so a stored check such as params.regex = \"(a+)+$\" or \"(x*)*y\" causes catastrophic backtracking against run input text, hanging the Node event loop (single-threaded DoS). The `params` object is attacker-supplied: runChecks.ts:83 does `params = check.params` and runChecks.ts:98 calls `runner.evaluator!(run, params)`; the check objects come from HTTP bodies at `checklists.post(\"/\")` (checklists.ts:33, `const { slug, type, data } = ctx.request.body`), `checklists.patch(\"/:id\")` (checklists.ts:54), `radars.post(\"/\")` (radars.ts:217, `const { description, view, checks, ... } = ctx.request.body`) and `radars.patch(\"/:radarId\")` (radars.ts:243). The radar cron job then re-runs the stored pattern over many runs (jobs/radar.ts:12 `runChecksOnRun(run, checks, true)`), amplifying the stall.\n\nVerifier (CONFIRM): Re-derived from source independently. The regex CHECK_RUNNERS entry at packages/backend/src/checks/index.ts:96-112 destructures `regex` straight out of `params` (line 98), compiles it with `new RegExp(regex)` (line 100), and executes it via `re.test(lastMsg(run[field]))` (line 102) and `run[field].match(re)` (line 106) with no length cap, no anchoring, and no nested-quantifier screening. A grep for safe-regex|re2|RE2|recheck across packages/backend/src returns zero hits, so there is no regex guard or timeout anywhere in the backend; Node's RegExp cannot be interrupted, so a pattern like \"(a+)+$\" blocks the single-threaded event loop. `params` is genuinely attacker-supplied: runChecks.ts:83 reads `const { id, params } = check` and runChecks.ts:98 invokes `runner.evaluator!(run, params)`, while the storage routes apply no schema validation at all -- checklists.ts:33-52 inserts `data` from ctx.request.body verbatim (line 13 reads \"// TODO: full zod\") and radars.ts:217-241/243-276 store `sql.json(checks)` raw, even though zod is used on other routes (auth, orgs, projects, datasets). shared/filters/index.ts:177-181 confirms `regex` is a free-text {type:\"text\"} param with only a placeholder, no pattern or maxLength. Reachability is confirmed both ways: the graph reports uid 4fd616b28cd7a95aa6546a62c8b902b8271c6497 (new RegExp, line 100) and the `test` call at line 102 as reachable_from_entry=true, hop_distance=1, and the source shows two live drivers -- jobs/radar.ts:12 inside a while(true) loop over 300-run batches (radar.ts:91-105, entrypoint src/radar.ts:3), and, uncited by the analyst but stronger, api/v1/evaluations/index.ts:153 which runs the stored checks inside the HTTP handler POST /v1/evaluations/run, a route listed in publicRoutes at auth/utils.ts:77, with the match subject (`output`) supplied in the same request body -- so an unauthenticated caller holding only a project UUID stalls the main API event loop. Correcting the analyst: their headline evidence, a FLOWS_TO self-loop on the new RegExp call allegedly \"proving its own argument is tainted\", proves no such thing (a self-loop is a graph artifact), but the claim survives on the source reading above. Severity MEDIUM rather than HIGH: planting the pattern needs a project-member credential and impact is denial-of-service only, though the public trigger route and the uninterruptible regex keep it well above LOW."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/checks/index.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 98,
+                  "endLine": 106
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "CHECK_RUNNERS[id=\"regex\"].evaluator",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "cfd11ff3415dbec61bb96e18f7977b268baa334e"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-306",
+          "level": "error",
+          "message": {
+            "text": "Over-broad regex literal in the authentication allowlist exposes mutating dataset endpoints to unauthenticated callers. packages/backend/src/api/v1/auth/utils.ts:76 adds `new RegExp(`/v1/datasets/.+`)` to `publicRoutes` with the comment \"getDataSets in SDKs\" (read-only intent), but authMiddleware (line 81) evaluates it as `publicRoutes.some((route) => typeof route === \"string\" ? route === ctx.path : route.test(ctx.path))` (line 85) with NO HTTP-method discrimination. Because the datasets router is `new Router({prefix: \"/datasets\"})` (datasets/index.ts:9) mounted on `const v1 = new Router({prefix: \"/v1\"})` (api/v1/index.ts:18) via `v1.use(datasets.routes())` (api/v1/index.ts:39), the literal matches every dataset sub-route including the destructive ones: `datasets.delete(\"/:id\")` (line 111), `datasets.patch(\"/:id\")` (line 96), `datasets.delete(\"/prompts/:id\")` (line 166), `datasets.patch(\"/prompts/:id\")` (line 176), `datasets.delete(\"/variations/:id\")` (line 202), `datasets.patch(\"/variations/:variationId\")` (line 211), `datasets.post(\"/prompts\")` (line 120), `datasets.post(\"/variations\")` (line 243). authMiddleware then does `if (isPublicRoute && (!bearerToken || validateUUID(bearerToken))) { ... await next(); return }`, skipping verifyJwt entirely. The delete handler compounds this by not scoping to the project at all: `await sql`delete from dataset where id = ${id}``. Failure scenario: an unauthenticated `DELETE /v1/datasets/<uuid>` with no Authorization header matches the regex, bypasses JWT verification, and deletes any tenant's dataset (ctx.status = 200).\n\nVerifier (CONFIRM): Independently re-derived and confirmed. auth/utils.ts:76 puts the unanchored literal `new RegExp(`/v1/datasets/.+`)` (commented \"getDataSets in SDKs\", i.e. read-only intent) into `publicRoutes`, and authMiddleware matches it on `ctx.path` ONLY (lines 84-86) with zero HTTP-method discrimination, then short-circuits at lines 90-96 (`if (isPublicRoute && (!bearerToken || validateUUID(bearerToken))) { await next(); return }`) so `verifyJwt` on line 112 is never reached. With no Authorization header, bearerToken is undefined, `!bearerToken` is true, and validateUUID(undefined) returns false (utils/misc.ts:20-21), so the request passes through unauthenticated. I verified this is the ONLY auth layer in the backend and that it is global: grep for authMiddleware across packages/backend/src yields exactly one consumer, src/index.ts:34 `app.use(authMiddleware)`, registered app-wide before `app.use(v1.routes())` (index.ts:41); I read all 266 lines of datasets/index.ts and there is no route-level guard, and no checkAccess-style helper exists anywhere. Mounting confirms coverage: datasets/index.ts:9 `new Router({prefix:\"/datasets\"})` mounted via api/v1/index.ts:39 `v1.use(datasets.routes())` under api/v1/index.ts:18 `new Router({prefix:\"/v1\"})`, so the regex matches every /v1/datasets/<x> sub-route including the mutating ones (delete \"/:id\" :111, patch \"/:id\" :96, post \"/prompts\" :120, delete \"/prompts/:id\" :166, patch \"/prompts/:id\" :176, delete \"/variations/:id\" :202, patch \"/variations/:variationId\" :211, post \"/variations\" :243, plus unscoped reads at :149 and :188). The damage is compounded because the delete handler has no tenant predicate at all (datasets/index.ts:111-117: `delete from dataset where id = ${id}`), unlike the patch at :105 which does scope on project_id; the same is true of :169-170, :205, :183, :235. Regarding the graph's reachable_from_entry=false on all dataset routes: that is a graph artifact, not counter-evidence -- I queried src/index.ts and `app.listen(PORT)` and every `app.use(...)` are also reachable_from_entry=false/hop_distance=-1, so the graph models neither top-level module execution nor Koa dispatch; the source wiring establishes reach. Advisory exploit-reference step could not be run (corpus returned \"exploit corpus unavailable: not indexed\") and no version is pinned in packages/backend/package.json, but this is a first-party authorization logic flaw, so the verdict rests on source evidence alone. Net effect: an unauthenticated `DELETE /v1/datasets/<uuid>` bypasses JWT verification and destroys any tenant's dataset (ctx.status = 200). Analyst's location and CWE are correct; I extend the end line to 96 to cover the actual bypass branch."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/auth/utils.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 76,
+                  "endLine": 96
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "authMiddleware",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "0d4f5be189fc2b43dbdc85453fa0eee0a0b315bc"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "CRITICAL",
+            "security-severity": "9.5"
+          }
+        },
+        {
+          "ruleId": "CWE-625",
+          "level": "error",
+          "message": {
+            "text": "All four regex literals in the `publicRoutes` authentication allowlist (packages/backend/src/api/v1/auth/utils.ts lines 63, 71, 72, 76) are missing `^` and `$` anchors, and are consumed with `route.test(ctx.path)` (line 85), which has SUBSTRING semantics \u2014 unlike the plain-string entries in the same array, which are compared with strict equality (`route === ctx.path`). The literals are `new RegExp(`/auth/.+`)`, `new RegExp(`/v1/runs/.+/public`)`, `new RegExp(`/v1/runs/.+/feedback`)` and `new RegExp(`/v1/datasets/.+`)`. Consequently ANY request path that merely CONTAINS one of these fragments is classified as public and skips verifyJwt \u2014 e.g. a path like `/v1/users/auth/x` or `/v1/orgs/v1/datasets/x` satisfies `isPublicRoute`. `.+` also matches `/`, so the patterns span arbitrarily many path segments rather than one. This makes the allowlist's blast radius depend on route-table coincidences instead of an explicit list, and any future route whose path embeds `/auth/` or `/v1/datasets/` silently becomes unauthenticated. Anchoring each literal (`^/v1/datasets/[^/]+$`) and splitting by HTTP method is the fix.\n\nVerifier (CONFIRM): Independently re-derived. packages/backend/src/api/v1/auth/utils.ts:62-78 defines publicRoutes with four unanchored RegExp literals (L63 `/auth/.+`, L71 `/v1/runs/.+/public`, L72 `/v1/runs/.+/feedback`, L76 `/v1/datasets/.+`) \u2014 no `^`/`$` \u2014 consumed at L84-86 via `publicRoutes.some((route) => typeof route === \"string\" ? route === ctx.path : route.test(ctx.path))`, i.e. unanchored substring matching for the regex entries while string entries use strict equality. authMiddleware is mounted globally at src/index.ts:34 ahead of every router and is the ONLY auth layer (grep of packages/backend/src/utils found no other access-control middleware); the isPublicRoute branch at L90-106 calls next() without verifyJwt and never sets ctx.state.userId/orgId. Graph confirms exploitability: authMiddleware is an :EntryPoint {kind:\"handler\", exposure:\"reachable\"} and the `.some(...)` call at L84 has reachable_from_entry=true, hop_distance=1 (the L85 `route.test` node's reachable_from_entry=false is the known arrow-function under-linking, so no downgrade). The impact is concrete today, not merely latent: because `.` matches `/`, `/v1/datasets/.+` spans multiple segments and matches every route in api/v1/datasets/index.ts, not just the single SDK GET its comment intends \u2014 with no Authorization header at all, DELETE /v1/datasets/prompts/:id (L166-173 `delete from dataset_prompt where id = ${id}`), DELETE /v1/datasets/:id (L111-117 `delete from dataset where id = ${id}`), DELETE/PATCH /v1/datasets/variations/:id (L202-240) and GET /v1/datasets/prompts|variations/:id (L149, L188) all execute unauthenticated with no project/org filter, giving unauthenticated cross-tenant read and destructive write. The analyst's `/v1/users/auth/x` example is correct as regex behaviour but is latent only (no current route embeds `/auth/` outside the intentionally public /auth router, auth/index.ts:11). Exploit-reference check not applicable: first-party code, no pinned component version (root package.json \"1.0.0\"), and exploit_search returned \"corpus unavailable: not indexed\" \u2014 the verdict rests solely on source and graph evidence."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages/backend/src/api/v1/auth/utils.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 62,
+                  "endLine": 86
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "authMiddleware",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "5eebad402b802088466100c02d3685ab77cf96d2"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

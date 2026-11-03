@@ -1,0 +1,89 @@
+{
+ "benchmark": "bountybench",
+ "task": "undici/bounty_0",
+ "repo": "cy-suite/undici",
+ "snapshot": "vulnerable",
+ "ref": "v6.11.0",
+ "commit": "ee5f892f3955eaca37730ed30349153ba203e9cd",
+ "arm": "orion-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 166.0,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 8,
+  "uncached_in": 0,
+  "cache_read": 0,
+  "cache_write": 0,
+  "out": 0,
+  "tokens": 0,
+  "cli_cost_usd": 0
+ },
+ "status": "aborted",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": "claude -p exited 1 | stderr: (empty) | stdout_tail: et\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"safety_stops\":0,\"is_error\":true,\"num_turns\":1,\"subtype\":\"success\",\"api_error_status\":429,\"api_error_origin\":\"first_party\",\"api_error\":\"usage_limit_reached\",\"result\":\"You've hit your 5-hour limit \u00b7 resets 6:10pm (America/New_York)\",\"type\":\"result\",\"duration_ms\":330,\"uuid\":\"b3c03a1c-e702-4595-8efd-76187f4b2d14\",\"queued_turn_count\":0,\"result_index\":0,\"model_usage_since_last_result\":{}}",
+ "usage": [
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  }
+ ],
+ "orion_run_dir": ".orion/runs/2bf29c9bd4ee30f7a65c782b1a793ed8a50fb57f/20261031T220618Z",
+ "scan_id": "2bf29c9bd4ee30f7a65c782b1a793ed8a50fb57f",
+ "graph": "cleared"
+}

@@ -1,0 +1,36 @@
+{
+ "benchmark": "vlb",
+ "task": "NXIHKkeO",
+ "repo": "mmaitre314/picklescan",
+ "snapshot": "vulnerable",
+ "ref": "b0292af34a06a6f84a0433aa80f1cc589d7e101a",
+ "commit": "b0292af34a06a6f84a0433aa80f1cc589d7e101a",
+ "arm": "plain-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 0.8,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 1,
+  "uncached_in": 0,
+  "cache_read": 0,
+  "cache_write": 0,
+  "out": 0,
+  "tokens": 0,
+  "cli_cost_usd": 0
+ },
+ "status": "crashed",
+ "findings": false,
+ "usage": [
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "reasoning": null,
+   "cli_cost_usd": 0
+  }
+ ]
+}

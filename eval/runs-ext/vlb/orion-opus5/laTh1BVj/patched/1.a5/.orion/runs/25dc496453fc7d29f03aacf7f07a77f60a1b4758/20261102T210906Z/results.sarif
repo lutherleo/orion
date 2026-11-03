@@ -1,0 +1,538 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-319",
+              "name": "CWE319",
+              "shortDescription": {
+                "text": "CWE-319"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-319"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/319.html"
+            },
+            {
+              "id": "CWE-344",
+              "name": "CWE344",
+              "shortDescription": {
+                "text": "CWE-344"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-344"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/344.html"
+            },
+            {
+              "id": "CWE-400",
+              "name": "CWE400",
+              "shortDescription": {
+                "text": "CWE-400"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-400"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/400.html"
+            },
+            {
+              "id": "CWE-484",
+              "name": "CWE484",
+              "shortDescription": {
+                "text": "CWE-484"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-484"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/484.html"
+            },
+            {
+              "id": "CWE-636",
+              "name": "CWE636",
+              "shortDescription": {
+                "text": "CWE-636"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-636"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/636.html"
+            },
+            {
+              "id": "CWE-674",
+              "name": "CWE674",
+              "shortDescription": {
+                "text": "CWE-674"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-674"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/674.html"
+            },
+            {
+              "id": "CWE-770",
+              "name": "CWE770",
+              "shortDescription": {
+                "text": "CWE-770"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-770"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/770.html"
+            },
+            {
+              "id": "CWE-798",
+              "name": "CWE798",
+              "shortDescription": {
+                "text": "CWE-798"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-798"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/798.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-400",
+          "level": "warning",
+          "message": {
+            "text": "Attacker-controlled JSON numbers reach unguarded BigDecimal conversions in JsonNumberImpl, bypassing the bigIntegerScaleLimit defense. The public accessors intValue() (line 262, sink 264), intValueExact() (267, sink 269), longValue() (272, sink 274), longValueExact() (277, sink 279) and doubleValue() (282, sink 284) all call bigDecimalValue().<conv>() with NO scale check, while the immediately following siblings bigIntegerValue() (287) and bigIntegerValueExact() (297) DO guard with `Math.abs(bd.scale()) <= bigIntegerScaleLimit` and otherwise throw UnsupportedOperationException(NUMBER_SCALE_LIMIT_EXCEPTION). The other number defense does not cover this: JsonTokenizer.getBigDecimal only limits the *source character count* (`sourceLen > jsonContext.bigDecimalLengthLimit()`, line 522, DEFAULT_MAX_BIGDECIMAL_LEN=1100), so a 13-character JSON literal such as {\"a\":1E+2147483647} passes the length check and yields a BigDecimal with scale -2147483647, which then flows unguarded into intValueExact()/longValueExact(). Source: JsonValueBodyReader.readFrom (rest/.../JsonValueBodyReader.java:69-70, reachable_from_entry=true, hop_distance=1) parses an untrusted HTTP entity with Json.createReaderFactory(null) (defaults), and JsonParserImpl:171 builds the number via getJsonNumber(getBigDecimal(), jsonContext.bigIntegerScaleLimit()). This is the same incomplete-fix shape as the original scale-limit hardening: the limit was applied to the BigInteger accessors only. A verifier must confirm the JDK BigDecimal behaviour (intValueExact/longValueExact perform setScale(0)/toBigInteger, materializing a ~2^31-digit unscaled value) to establish the CPU/memory exhaustion.\n\nVerifier (INCONCLUSIVE): The structural claim is real and I reproduced it: JsonNumberImpl.intValue/intValueExact/longValue/longValueExact/doubleValue (lines 262-285) convert via bigDecimalValue() with no scale check, while the immediately following bigIntegerValue/bigIntegerValueExact (287-305) do enforce Math.abs(bd.scale()) <= bigIntegerScaleLimit; and the other number defense really is only a source-character limit (JsonTokenizer.java:522, DEFAULT_MAX_BIGDECIMAL_LEN=1100 in JsonContext.java:41), so a 13-char literal like {\"a\":1E+2147483647} passes and produces a BigDecimal with scale near Integer.MIN_VALUE, reachable from an untrusted HTTP entity (JsonValueBodyReader.java:69-70 with Json.createReaderFactory(null), JsonParserImpl.java:171). However the lead's stated DoS mechanism does not survive scrutiny for its primary sinks: BigDecimal.intValueExact()/longValueExact() must throw ArithmeticException for any value that does not fit a long and determine that from precision()/scale() arithmetic before any setScale(0) (precision()-scale > 19 for moderate exponents; and for |scale| ~ 2^31 that subtraction overflows int to a negative value, hitting the fraction-only/\"Rounding necessary\" throw) - so no ~2^31-digit unscaled value is ever materialized there; doubleValue() likewise only needs the exponent (parseDouble of the ~13-char scientific-notation toString) and returns Infinity cheaply. That leaves only intValue()/longValue() (lines 264, 274) as a plausible DoS, via a naive toBigInteger() -> bigTenToThe(|scale|) allocation, and whether the running JDK's BigDecimal.longValue() short-circuits large negative scales is exactly what I could not establish in this session: there is no JVM installed (/usr/lib/jvm does not exist), no JDK source on disk, and no execution tool available, so I could not run the PoC or read java.math.BigDecimal. Exploitation additionally requires application code to call intValue()/longValue() on the parsed number - parsson itself never does so while parsing (in-repo callers are only public API surfaces JsonTokenizer.java:544/559, JsonStructureParser.java:73/81, JsonObjectBuilderImpl.java:264). I therefore confirm the guard asymmetry as a defense-in-depth gap but cannot confirm the claimed exploitable CPU/memory exhaustion, and I reject the specific intValueExact/longValueExact/doubleValue mechanism. exploit_search was unavailable (corpus not indexed), so no version cross-check for parsson 1.1.3-SNAPSHOT (pom.xml:33) was possible."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonNumberImpl.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 262,
+                  "endLine": 285
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "intValueExact/longValueExact/intValue/longValue/doubleValue",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "b117d01e87a106b217c1623c0263e52eda7f6cd1"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "INCONCLUSIVE",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-674",
+          "level": "error",
+          "message": {
+            "text": "MISSING depth limit on the recursive JSON-writing path. org.eclipse.parsson.JsonGeneratorImpl.write(JsonValue) (line 240) recurses into itself for nested structures -- `write(child)` at line 249 for each JsonArray element and `write(member.getKey(), member.getValue())` at line 257 for each JsonObject member -- with NO recursion-depth guard. The configured depthLimit control is consumed in exactly three places in the whole repository, all of them JsonParserImpl constructors (`new Stack(jsonContext.depthLimit())` at lines 66/72/79, enforced in Stack.push at line 396); JsonGeneratorImpl.java contains ZERO occurrences of 'depth' or 'nested'. Consequently the depth protection covers only text->object parsing, not object->text writing: a deeply nested JsonValue built via JsonObjectBuilderImpl/JsonArrayBuilderImpl (which also never consult depthLimit) and then serialized through JsonWriterImpl/JsonGeneratorImpl.write(JsonValue) produces unbounded recursion and StackOverflowError (CWE-674). write(JsonValue) is attacker-reachable (reachable_from_entry=true, hop_distance=2).\n\nVerifier (CONFIRM): I re-derived the structural claim and it holds exactly. JsonGeneratorImpl.write(JsonValue) (JsonGeneratorImpl.java:240-282) is mutually recursive with write(String, JsonValue) (lines 312-354) over the JsonValue tree -- recursion sites at 249, 257, 323, 331 -- with no recursion-depth counter or limit check in either body. The generator never receives the depth control: its constructors (lines 95-107) take a JsonContext but read only bufferPool(), and a repo-wide grep for depth|depthLimit|MAX_DEPTH over all *.java returns ZERO hits in JsonGeneratorImpl.java/JsonPrettyGeneratorImpl.java. depthLimit() is consumed in exactly three places repo-wide -- the JsonParserImpl constructors at lines 66/72/79 -- and enforced only in JsonParserImpl.Stack.push (lines 394-397). JsonObjectBuilderImpl holds a jsonContext and uses bigIntegerScaleLimit() (lines 89-118) but never depthLimit(). So the nesting control covers text->object parsing only, not object->text writing (CWE-674). Reach is real in source, not just graph-asserted: JsonObjectImpl.toString() (JsonObjectBuilderImpl.java:327-333) -> JsonWriterImpl.write(JsonStructure) -> generator.write(value) (JsonWriterImpl.java:67) -> the recursive method, matching the graph's hop_distance=2 / reachable_from_entry=true. I downgrade severity from the analyst's framing: JsonContext.java:44 sets DEFAULT_MAX_DEPTH=1000 and Stack.push throws at size>=limit, so any PARSED structure is capped under 1000 levels (~1000-2000 frames), which will not normally overflow a default 1MB JVM thread stack; and JsonConfig.java:37-41 documents MAX_DEPTH as applying \"when being parsing JSON string\", so parse-only may be intended scope. Actual StackOverflowError therefore requires a raised org.eclipse.parsson.maxDepth, a structure built via JsonObjectBuilderImpl/JsonArrayBuilderImpl/MapUtil.handle (MapUtil.java:39-69, itself unguarded-recursive) that bypasses the parser entirely, or a small-stack thread. The missing control is genuinely present and reachable, but impact is DoS-only and config/path-conditioned, so LOW. Exploit-reference grounding unavailable: exploit_search returned \"exploit corpus unavailable: not indexed\"."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonGeneratorImpl.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 240,
+                  "endLine": 282
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "write",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "45e0201398fce828433ff96ec91cba3f43f21679"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-770",
+          "level": "error",
+          "message": {
+            "text": "MISSING max-string/token-length limit in the tokenizer. org.eclipse.parsson.JsonTokenizer.fillBuf() grows its character buffer by unconditional doubling (`char[] doubleBuf = Arrays.copyOf(buf, 2 * buf.length)`) whenever a single JSON token does not fit the current buffer (guard is only `storeLen == buf.length`). There is NO upper bound on the resulting array size and no corresponding configuration knob anywhere in the library: JsonContext's complete control surface is exactly bigIntegerScaleLimit(), bigDecimalLengthLimit(), depthLimit(), prettyPrinting(), rejectDuplicateKeys(), bufferPool() -- there is no maxStringLength/maxNameLength/maxDocumentSize. A single unterminated or very long string/name/number token in attacker-supplied JSON therefore forces repeated doubling until OutOfMemoryError (CWE-770 / CWE-789 uncontrolled resource allocation). Aggravating detail: line 479 recycles the OLD small buffer into the shared BufferPool while the newly doubled buffer replaces it, so oversized buffers can later pollute the pool. fillBuf is attacker-reachable (reachable_from_entry=true, hop_distance=8).\n\nVerifier (CONFIRM): Re-derived from source: JsonTokenizer.fillBuf() grows its token buffer by unconditional doubling with the sole guard `storeLen == buf.length` and no maximum-size comparison, and no max-string/name/token/document limit exists anywhere in the library. I hand-traced the loop to prove it is live rather than dead code: readString() sets storeBegin=readBegin (line 132); the first fillBuf() takes the left-shift branch (483-486) setting storeBegin=0; once storeEnd reaches buf.length the doubling branch (476-480) fires, and reader.read(buf, storeEnd, buf.length-storeEnd) at line 496 refills exactly the newly added half, so every subsequent fill doubles again (4096 -> 8192 -> 16384 -> ...), bounded only by heap. At buf.length == 2^30, `2 * buf.length` overflows int and Arrays.copyOf receives a negative length (NegativeArraySizeException); otherwise OutOfMemoryError. Both termini are unchecked Error/RuntimeException, not a JsonParsingException, so a single oversized string/name/number token destabilizes the whole JVM instead of failing one request. No knob exists to bound it: JsonContext's accessors (112-134) are exactly bigIntegerScaleLimit, bigDecimalLengthLimit, depthLimit, prettyPrinting, rejectDuplicateKeys, bufferPool, and api/JsonConfig.java:19-52 defines only MAX_BIGINTEGER_SCALE, MAX_BIGDECIMAL_LEN, MAX_DEPTH, REJECT_DUPLICATE_KEYS; a repo-wide case-insensitive grep for maxString|stringLength|maxName|maxToken|maxDocument returned zero matches. The existing bigDecimalLengthLimit is enforced in getBigDecimal() at line 522, i.e. AFTER tokenization, so it does not prevent buffer growth, and the STRING path has no check at all (getValue(), 510-512). Reachability confirmed by my own Cypher query (fillBuf line 471, reachable_from_entry=true, hop_distance=8) and by a concrete attacker-facing path shipped in this repo: rest/.../JsonValueBodyReader.java:69 is a JAX-RS @Provider consuming */* that feeds the raw HTTP request InputStream into rf.createReader(inputStream).readValue() with all-default config (line 45). Two corrections to the analyst: (a) the pool-pollution aggravator is overstated -- line 479 recycles the OLD buffer, which on the first doubling is the legitimately-pooled 4096 array, so pollution only arises from later doublings and from close() (585) recycling the final grown buffer, and BufferPoolImpl holds its queue via a WeakReference (line 32) so oversized arrays are GC-able; (b) severity is MEDIUM, not HIGH, because amplification is only linear (~4-8x wire bytes to heap bytes) -- the attacker must actually transmit the data, so this is not an amplification bomb. exploit_search was unavailable (\"exploit corpus unavailable: not indexed\"), so I could not ground exploitability against published modules in either direction; version pinned as Parsson 1.1.3-SNAPSHOT (pom.xml:33)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonTokenizer.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 476,
+                  "endLine": 480
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "fillBuf",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "90c5ef454b4b286902daf98365b55b637acc3f17"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-344",
+          "level": "error",
+          "message": {
+            "text": "MISSING nonce randomness in OAuth 1.0a request signing. org.eclipse.parsson.demos.twitter.TwitterObjectSearch builds its OAuth signature base-string parameter map with a hardcoded constant nonce: `put(\"oauth_nonce\", \"4b25256957d75b6370f33a4501dc5e7e\")`, carrying an explicit `// TODO` comment in the source, alongside `put(\"oauth_signature_method\", \"HMAC-SHA1\")` and `put(\"oauth_timestamp\", \"\" + timestamp)`. OAuth 1.0a requires a per-request unique nonce; the anti-replay control is simply absent (no SecureRandom/UUID generation appears in the map initializer). Every signed request reuses the same nonce value, defeating server-side replay detection for the nonce+timestamp pair (CWE-323 reusing a nonce in a cryptographic protocol / CWE-330 insufficiently random values). Scope caveat for the verifier: this is demo/sample code under demos/twitter, not the shipped impl/ library, so real-world impact is limited to anyone copying the sample.\n\nVerifier (CONFIRM): The described code structure is genuinely present and I re-derived every element independently. demos/twitter/.../TwitterObjectSearch.java:84 contains `put(\"oauth_nonce\", \"4b25256957d75b6370f33a4501dc5e7e\"); // TODO` \u2014 a hardcoded invariant OAuth 1.0a nonce. A repo-wide case-insensitive grep for `oauth_nonce|SecureRandom|randomUUID|nonce` returns exactly ONE hit (that line), proving the randomness control is absent rather than implemented elsewhere. I traced the nonce into the signature: TreeMap (L81-90) -> param string (L93-104) -> HMAC-SHA1 base string (L107-120) -> Authorization header (L126-146), sent to https://api.twitter.com/1.1/search/tweets.json (L69). This violates RFC 5849 section 3.3, which requires the nonce be unique per request for a given timestamp/client/token tuple. LOCATION CORRECTED: the nonce put is at line 84, not the claimed 81; line 81 is the `new TreeMap` alloc, and the graph reports 81 only because Joern collapses the anonymous-subclass initializer onto the allocation site (that artifact is what misled the analyst). SEVERITY DOWNGRADED TO LOW, and CWE recast: (1) the nonce is client-generated anti-replay material consumed by Twitter's server \u2014 a constant value does not weaken the HMAC (key = consumerSecret&accessTokenSecret), leak credentials, or permit signature forgery; (2) it does not widen an attacker's replay window, since a captured request carries its own (nonce,timestamp) pair and server-side dedup catches exact duplicates either way \u2014 the real effect is that the client's OWN requests within the same one-second window collide and get rejected, a functional bug more than an attacker primitive; (3) scope is demo code, not the shipped impl/ library \u2014 a standalone CLI main() with a hardcoded \"#javaone\" query and no attacker-controlled input, whose twitterconfig.properties ships with empty credentials, against a Twitter v1.1 endpoint defunct since 2023. The graph's exposure:\"reachable\"/kind:\"handler\" on main() is scanner over-classification of a CLI entrypoint, not network exposure. CWE-323 presumes encryption where nonce+key reuse breaks confidentiality, which does not apply to an HMAC-signed protocol nonce; CWE-344 (use of invariant value in dynamically changing context) is the precise fit. Verdict: true-positive spec-conformance defect, not a practically exploitable vulnerability. Exploit-reference check could not be performed \u2014 the Metasploit corpus returned \"exploit corpus unavailable: not indexed\", so no published-exploit evidence exists either for or against; component pins to org.eclipse.parsson 1.1.3-SNAPSHOT (root pom.xml:33), but this is demo-tree code rather than a library CVE question."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/twitter/src/main/java/org/eclipse/parsson/demos/twitter/TwitterObjectSearch.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 84,
+                  "endLine": 84
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "main",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "035ebd03f0cb0ea65dedc33074bf30a7b9b46567"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-636",
+          "level": "error",
+          "message": {
+            "text": "Json.createParserFactory(config) builds its JsonContext with a property whitelist of ONLY JsonContext.PROPERTY_BUFFER_POOL, omitting jakarta.json.JsonConfig.KEY_STRATEGY \u2014 while the sibling createReaderFactory (line 119) and createBuilderFactory (line 225) paths DO whitelist JsonConfig.REJECT_DUPLICATE_KEYS and KEY_STRATEGY. Because JsonContext.config(String) reads from that whitelist-filtered map (`return config != null ? config.get(propertyName) : null`), a KEY_STRATEGY the caller supplied is silently discarded on the parser-factory path. JsonParserImpl.getObject()/getValue() builds objects via `new JsonObjectBuilderImpl(jsonContext)` (JsonParserImpl.java:152 and :161), and JsonObjectBuilderImpl.java:53-54 resolves the duplicate-key policy as DuplicateStrategy.strategyFromProperty(jsonContext.config(KEY_STRATEGY), jsonContext.rejectDuplicateKeys()). With KEY_STRATEGY dropped to null and REJECT_DUPLICATE_KEYS unset, strategyFromProperty returns DuplicateStrategy.LAST, so duplicate object keys are silently accepted last-wins instead of being rejected. Net effect: the same config map that enforces duplicate-key rejection through Json.createReaderFactory(...) is a no-op through Json.createParserFactory(...) \u2014 a protection wired into two of three factory paths and omitted in the third, which is exactly the parser-disagreement primitive behind JSON duplicate-key auth-bypass / request-smuggling bugs.\n\nVerifier (CONFIRM): The core defect is real and I verified every link in the chain against the source. JsonProviderImpl.createParserFactory (line 71) whitelists only JsonContext.PROPERTY_BUFFER_POOL, while the sibling createReaderFactory (119-122) and createBuilderFactory (225-228) both whitelist jakarta.json.JsonConfig.KEY_STRATEGY. JsonContext's varargs constructor stores copyPropertiesMap(this, config, properties) (JsonContext.java:100-101), copyPropertiesMap copies ONLY whitelisted names (219-245), and config(String) reads exclusively from that filtered map (108-110) -- so config(KEY_STRATEGY) is null on the parser-factory path. JsonObjectBuilderImpl.java:53-54 resolves the duplicate-key policy from exactly that call, and strategyFromProperty (391-404) falls through to DuplicateStrategy.LAST when the value is null and rejectDuplicateKeys is false. The parser path reaches that constructor: JsonParserImpl.java:152 (getObject) and :161 (getValue) do `new JsonObjectBuilderImpl(jsonContext)`, and getObject(builder) at 320-331 calls builder.add -> putValueMap (197-203) -> duplicateStrategy.getValue. Net: Json.createParserFactory(Map.of(JsonConfig.KEY_STRATEGY, KeyStrategy.NONE)).createParser(r).getObject() silently applies last-wins instead of throwing IllegalStateException, whereas the identical map through createReaderFactory enforces it -- a security control wired into two of three factory paths and silently dropped in the third (CWE-636, not failing securely). Graph confirms reachability: all three JsonContext allocations reachable_from_entry=true, and putValueMap (hop 2) / strategyFromProperty (hop 4) reachable=true. No test exercises KEY_STRATEGY through createParserFactory (grep finds it only in JsonReaderTest.java:188,212,224,236). ONE CORRECTION to the analyst, which narrows the finding: the analyst claimed REJECT_DUPLICATE_KEYS is also \"unset\" and that the whole config map is a no-op on this path. That is false -- JsonContext.java:98 computes this.rejectDuplicateKeys from the RAW config argument before whitelisting, so the deprecated org.eclipse.parsson.api.JsonConfig.REJECT_DUPLICATE_KEYS IS still honored through createParserFactory. Only the non-deprecated jakarta.json KEY_STRATEGY is discarded (both NONE -> no rejection, and FIRST -> becomes last-wins). Severity is MEDIUM rather than high: the bug is not attacker-reachable on its own -- it requires the application to opt into KEY_STRATEGY on the streaming JsonParser factory path and to call getObject()/getValue(); exploitation then depends on the app's own duplicate-key trust assumptions. exploit_search could not be used as corroboration (corpus returned \"exploit corpus unavailable: not indexed\"), so this verdict rests entirely on the source and graph evidence I gathered."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonProviderImpl.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 68,
+                  "endLine": 72
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "createParserFactory",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "bf284af5a41ad8d7a0c4fde319f4a7eb0f03a453"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-484",
+          "level": "error",
+          "message": {
+            "text": "JsonContext.copyPropertiesMap contains a switch whose `case JsonConfig.REJECT_DUPLICATE_KEYS:` branch is MISSING a `break;` \u2014 it conditionally puts the hardened value (`if (instance.rejectDuplicateKeys) newConfig.put(JsonConfig.REJECT_DUPLICATE_KEYS, true)` at line 235) and then falls straight through into `default:` at line 240 (`if (config.containsKey(propertyName)) newConfig.put(propertyName, config.get(propertyName))`), which re-puts the SAME key with the caller's raw value and overwrites the just-written `true`. The immediately preceding `case JsonGenerator.PRETTY_PRINTING:` branch does have its `break;`, so the omission is an asymmetry, and the comment \"// Rest of properties are copied without changes\" sits exactly where the `break;` should be \u2014 i.e. the deliberate protection-normalization step is silently undone by the fall-through. Concretely, a caller passing Map.of(JsonConfig.REJECT_DUPLICATE_KEYS, Boolean.FALSE) gets instance.rejectDuplicateKeys == true (because getBooleanProperty is presence-based: `config.containsKey(propertyName) ? true : null`) yet getConfigInUse() reports REJECT_DUPLICATE_KEYS=false, so the factory misreports its own duplicate-key protection state. Note for the verifier: the enforcement path JsonObjectBuilderImpl.java:53 reads the `rejectDuplicateKeys` FIELD rather than this map, so the direct impact appears confined to getConfigInUse() misreporting rather than outright protection loss \u2014 rank accordingly.\n\nVerifier (CONFIRM): Re-derived from source and confirmed. (1) The missing `break` is real: JsonContext.java:228-232 (`case JsonGenerator.PRETTY_PRINTING`) ends with `break;` at line 232, but `case JsonConfig.REJECT_DUPLICATE_KEYS:` at 233 closes its if-block at line 236 and falls straight through the comment at 237 into `default:` at 238, where line 240 re-puts the SAME key with `config.get(propertyName)`, overwriting the normalized `true` written at line 235. (2) The case is NOT dead code -- a fact the analyst did not cite but which I verified: JsonProviderImpl.java:119-122 (createReaderFactory) and :225-228 (createBuilderFactory) both pass JsonConfig.REJECT_DUPLICATE_KEYS into the `properties` varargs of the JsonContext(config, pool, String...) constructor (JsonContext.java:93-102), so public API entry reaches this case. (3) Presence-based semantics confirmed at JsonContext.java:179-181 (`config.containsKey(propertyName) ? true : null`), so any non-null value sets the field `true` while the fall-through reports the caller's raw value -- divergence for any value other than `true`. (4) Crucially, the analyst's own caveat holds and I verified it exhaustively: a grep of all of impl/src/main/java shows the duplicate-key setting is read ONLY via the FIELD at JsonObjectBuilderImpl.java:53-54 (`jsonContext.rejectDuplicateKeys()` -> strategyFromProperty, line 399); REJECT_DUPLICATE_KEYS is never read back out of the config map (the only map read is `config(jakarta.json.JsonConfig.KEY_STRATEGY)`). The repo's own test JsonReaderTest.java:198-208 proves enforcement is value-insensitive (value \"anything is valid here\" still throws JsonException on duplicates). So there is NO loss of duplicate-key protection and no trust boundary crossed; the impact is confined to getConfigInUse() (JsonReaderFactoryImpl.java:53-54, JsonBuilderFactoryImpl.java:70-71) returning a map that contradicts the factory's actual behavior -- a public Jakarta JSON-P API contract/correctness bug. I therefore CONFIRM the defect but assign LOW severity rather than treating it as a security control bypass. Version pinned at parsson 1.1.3-SNAPSHOT (pom.xml:33); exploit_search was unavailable (\"exploit corpus unavailable: not indexed\"), immaterial since this is a first-party logic defect, not a versioned-dependency CVE."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonContext.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 233,
+                  "endLine": 241
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "copyPropertiesMap",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "eb4e38be751b66f2e3396df563e2788f3ef41060"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-798",
+          "level": "error",
+          "message": {
+            "text": "Hardcoded Flickr API key embedded directly in a URL string literal: `new URL(\"http://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=221160312e1c22ec60ecf336951b0e77&format=json&nojsoncallback=1&per_page=20\")` in ParserResource.writeFlickerFeed. The credential `221160312e1c22ec60ecf336951b0e77` is a committed secret in source control, retrievable by anyone with read access to the repo or to the built artifact (string constants survive compilation into the class file). The enclosing method is reachable from the JAX-RS entry point ParserResource.doGet.\n\nVerifier (CONFIRM): Independently re-derived and confirmed. (1) The hardcoded credential is present exactly as claimed: ParserResource.java:53 embeds a 32-hex Flickr API key `221160312e1c22ec60ecf336951b0e77` directly in a `new URL(...)` string literal; a tree-wide grep for the raw key string returns exactly this one occurrence, so the claimed location is accurate. (2) Reachability verified in the real source, not merely inferred from the graph: the class is `@Path(\"/parser\")` with `doGet()` annotated `@GET` (lines 39-44); `doGet` returns an anonymous `StreamingOutput` whose `write()` invokes `writeFlickerFeed(os)` at line 47, which executes line 53. The graph independently agrees - both `doGet` and the anonymous `StreamingOutput$0.write` are :EntryPoint nodes with exposure=\"reachable\", kind=\"handler\", and the line-53 call has reachable_from_entry=true, hop_distance=3. (3) It is a real committed secret rather than a placeholder stub: the sibling demos externalize credentials properly (demos/facebook/.../facebookconfig.properties:12 `access_token=` empty, demos/twitter/.../twitterconfig.properties:12-13 `consumer-key=`/`consumer-secret=` empty, both read at runtime via config.get(...)), while demos/rest ships no properties file at all - so the inline key deviates from the project's own convention and is a well-formed Flickr key, not `YOUR_API_KEY_HERE`. I DOWNGRADE the analyst's implied HIGH severity to MEDIUM: the code is demo-only (root pom.xml:438-442 lists only impl/rest/bundles as primary modules; demos build solely under the `all` profile at pom.xml:466-469, albeit activeByDefault=true), and the value is a Flickr API key with no accompanying API secret, used against the public read-only `flickr.photos.getRecent` method. Realistic impact is API quota exhaustion, rate-limit abuse, and traffic attribution/revocation against the key owner - not account takeover or private-data access. The advisory exploit-reference check is N/A: the lead names no versioned component to pin, and exploit_search returned \"exploit corpus unavailable: not indexed\". I did not test the key against Flickr's live API, so its current validity is unknown; this does not affect the finding, as the remediation (rotate + externalize) is the same either way."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 53,
+                  "endLine": 53
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "writeFlickerFeed",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "dceb7efc7cbe57302306e47aeabe73366f360455"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-319",
+          "level": "error",
+          "message": {
+            "text": "The same URL literal at ParserResource.java:53 uses the cleartext `http://` scheme (not `https://`) while carrying the `api_key` credential in the query string. The API key is therefore transmitted unencrypted over the network on every call to writeFlickerFeed, exposing it to any network observer or MITM, and it is additionally logged in plaintext by any intermediary proxy that records request URLs. This is a distinct defect from the hardcoding itself -- switching to https would not de-hardcode the key, and rotating the key would not fix the cleartext channel. Note this is the ONLY `http://` URL actually opened in the whole scan.\n\nVerifier (CONFIRM): Independently re-derived from source: ParserResource.java:53 builds a URL with the cleartext `http://` scheme whose query string carries the `api_key=221160312e1c22ec60ecf336951b0e77` credential, and line 54 issues the request via `url.openStream()`, so the credential is transmitted unencrypted in the HTTP request line (and would be recorded by any intermediary proxy logging request URLs). This is genuinely distinct from the hardcoding defect: switching to https would not de-hardcode the key, and rotating the key would not encrypt the channel. Reachability confirmed in BOTH source and graph: `@Path(\"/parser\")` + `@GET doGet()` (L39-44) returns an anonymous StreamingOutput whose `write()` calls `writeFlickerFeed(os)` (L45-49), and the graph has `EntryPoint {kind:\"handler\", exposure:\"reachable\"}` -> `ParserResource.doGet` plus `...doGet.StreamingOutput$0.write`, with the L53 `new URL(...)` and L54 `openStream` calls each `reachable_from_entry:true, hop_distance:3`. The analyst's uniqueness claim also holds: repo-wide grep for `api_key|api.flickr.com` yields exactly one hit, and the graph query for `http://` in URL/openStream/assignment calls returns only this one site. I corrected two things: the line range should be 53-54 (the actual cleartext transmission happens at the `openStream()` on L54, not at the literal alone), and severity is LOW rather than HIGH -- this is sample/demo WAR code under `demos/rest` with its own standalone pom (the root pom builds the parsson library and does not aggregate demos, so it ships in no released artifact), the key is already public by being committed to an open-source repo, and the retrieved data is public Flickr photo metadata. The other `http://` strings in the file (L6 license header, L74 `<img src=\"http://farm...\">`) carry no credential and are not opened by this process, so they are not part of this finding. No versioned third-party component is named by this lead, so an exploit-catalog version comparison is not applicable."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 53,
+                  "endLine": 54
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "writeFlickerFeed",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "176f5613e7a2a5ddd46bf2a3960fcebc2be2bc68"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-344",
+          "level": "error",
+          "message": {
+            "text": "Static/constant OAuth 1.0a nonce hardcoded as a literal: `put(\"oauth_nonce\", \"4b25256957d75b6370f33a4501dc5e7e\")` inside the TreeMap initializer in TwitterObjectSearch.getSearchStream, alongside a `// TODO` comment acknowledging it is unfinished. The OAuth 1.0a nonce must be freshly random per request -- its entire purpose is replay protection. Because this value is a compile-time constant, every signed request this code issues reuses the same nonce, so the HMAC-SHA1 signature base string varies only by `oauth_timestamp`, defeating replay detection and making captured requests replayable within the server's timestamp window. The signing key is built at line 117 as `new SecretKeySpec((consumerSecret + \"&\" + accessTokenSecret).getBytes(), \"HmacSHA1\")`.\n\nVerifier (CONFIRM): The construct is genuinely present in the source: TwitterObjectSearch.java:84 contains `put(\"oauth_nonce\", \"4b25256957d75b6370f33a4501dc5e7e\"); // TODO`, a compile-time-constant OAuth 1.0a nonce, and a repo-wide grep for `oauth_nonce` returns only this one site. It does feed the HMAC-SHA1 signature base string (built at lines 93-113 from the same map, signed at 116-119 with the key `new SecretKeySpec((consumerSecret+\"&\"+accessTokenSecret).getBytes(),\"HmacSHA1\")` at line 117), so every request this code signs reuses the same nonce, varying only by `oauth_timestamp` (line 86). That is a real CWE-344 violation of the nonce contract, self-acknowledged by the `// TODO`. TWO CORRECTIONS to the analyst. (1) Location: the `put` is at line 84, not 81 \u2014 line 81 is the start of the anonymous TreeMap initializer, which is merely the line the graph stamps on the synthetic `<init>` node whose `code` property spans the whole block. (2) The impact narrative is inverted and overstated: in OAuth 1.0a the SERVER enforces nonce+timestamp uniqueness, so a client emitting a constant nonce does not defeat the server's replay detection and does not make captured requests replayable \u2014 it causes this client's own requests to be rejected as duplicates within a given timestamp second. No secret leaks and the HMAC key is unaffected. Severity is therefore LOW, not high: the file is a demo CLI whose only EntryPoint is `main(String[])` (graph: kind=handler, method_full_name=org.eclipse.parsson.demos.twitter.TwitterObjectSearch.main), it is excluded from the default Maven build (root pom.xml:438-442 ships only impl/rest/bundles; `demos` appears only in an optional profile's <modules> at pom.xml:466-469), it ships with all four credentials blank in twitterconfig.properties, and it takes zero untrusted input (searchStr is the literal \"#javaone\" at line 68, searchUrl a literal at line 69). Advisory exploit_search was unavailable (\"exploit corpus unavailable: not indexed\"); no versioned third-party component is implicated since the weakness is first-party code."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/twitter/src/main/java/org/eclipse/parsson/demos/twitter/TwitterObjectSearch.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 84,
+                  "endLine": 84
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "getSearchStream",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "d00f6dceac9a33488b969ea4882c426674f2731e"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-400",
+          "level": "warning",
+          "message": {
+            "text": "Inconsistent application of the bigIntegerScaleLimit guard across JsonNumberImpl accessors. The scale check `Math.abs(bd.scale()) <= bigIntegerScaleLimit` is applied ONLY in bigIntegerValue() (lines 290-291) and bigIntegerValueExact() (lines 300-301). The sibling accessors on the same class that also materialize the BigDecimal are NOT guarded: isIntegral() calls `bigDecimalValue().scale()` at line 259 and intValueExact() calls `bigDecimalValue().intValueExact()` at line 269, and per the semantic-search body text intValue()/longValue()/longValueExact()/doubleValue() are likewise unguarded. If any of those JDK BigDecimal accessors internally expands a hostile extreme-scale value (e.g. a parsed `1E-2147483647`) the scale cap is bypassed on that path. IMPORTANT CAVEAT for the verifier: whether this is actually exploitable depends on JDK BigDecimal internals (several of these have fast-paths that return 0 without expansion) AND on whether bigDecimalLengthLimit (default 1100) already rejects such a literal at parse time in JsonTokenizer -- I could not resolve either from the graph alone. Treat as a guard-asymmetry observation to confirm, not an established DoS.\n\nVerifier (INCONCLUSIVE): The guard asymmetry is real but is documented as intentional, and the only live hazard candidate cannot be settled in this session. (1) CONFIRMED in source: the `Math.abs(bd.scale()) <= bigIntegerScaleLimit` check exists only in bigIntegerValue() (JsonNumberImpl.java:287-295) and bigIntegerValueExact() (297-305); isIntegral/intValue/intValueExact/longValue/longValueExact/doubleValue (257-285) call bigDecimalValue().xxx() with no check. (2) But JsonConfig.java:21-28 explicitly documents the property as applying only to bigIntegerValue()/bigIntegerValueExact(), so the asymmetry is deliberate scope, not an oversight -- it is a defect only if an unguarded accessor actually expands. (3) The analyst's primary claimed location is DISPROVED: line 259 is isIntegral() -> BigDecimal.scale(), a plain field read with no materialization. intValue()/longValue()/doubleValue() likewise have well-known JDK zero fast-paths (fractionOnly(), scale <= -64, scientific-notation toString), and longValueExact()'s `(precision() - scale) > 19` check cheaply rejects the large-negative-scale case. (4) I DID resolve the analyst's parse-time caveat against them: JsonTokenizer.getBigDecimal() (519-531) limits only the number's source character count (default 1100, JsonContext.java:41), so `1E-100000000` (12 chars) parses fine to scale=100000000, JsonParserImpl.java:171 wraps it in JsonBigDecimalNumber which does not override intValueExact/longValueExact, and the graph shows both base-class methods reachable_from_entry=true. So a hostile extreme-positive-scale value does reach the unguarded *Exact accessors. (5) UNRESOLVED: whether JDK BigDecimal.longValueExact() short-circuits fraction-only values before setScale(0, ROUND_UNNECESSARY) -> bigTenToThe(scale) -> BigInteger.TEN.pow(1e8). That is purely JDK-internal; no java runtime, no Bash tool, and no JDK src.zip/BigDecimal.java exist on this machine, so I could neither read nor execute it. Circumstantially, the CVE-2023-4043 reporters audited this exact class and the maintainers still scoped the guard to only the two BigInteger accessors, which argues the rest are safe. Not enough self-gathered evidence to CONFIRM a DoS, and not enough to fully REJECT the intValueExact/longValueExact path. exploit_search was unavailable (\"exploit corpus unavailable: not indexed\"), so no version grounding was possible for Parsson 1.1.3-SNAPSHOT (pom.xml:33)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "impl/src/main/java/org/eclipse/parsson/JsonNumberImpl.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 267,
+                  "endLine": 280
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "intValueExact",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "ad8530c82e1ce933fa25f79533143ecab26de9b2"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "LOW",
+            "decision": "INCONCLUSIVE",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+preflight: all prerequisites present.
+
+=== arm O (sonnet) on nodegoat ===
+[eval] building graph for /home/lutherleo/orion-bench/fixtures/NodeGoat …
+/home/lutherleo/.cache/huggingface/modules/transformers_modules/jinaai/jina_hyphen_bert_hyphen_v2_hyphen_qk_hyphen_post_hyphen_norm/3baf9e3ac750e76e8edd3019170176884695fb94/configuration_bert.py:29: UserWarning: optimum is not installed. To use OnnxConfig and BertOnnxConfig, make sure that `optimum` package is installed
+  warnings.warn("optimum is not installed. To use OnnxConfig and BertOnnxConfig, make sure that `optimum` package is installed")
+
+arm O-sonnet / nodegoat: recall 15/15 (checkable 14), FP-candidates 4, 10260718 tokens, $10.3347 priced, 1010.3s
+[eval] wrote /home/lutherleo/orion-bench/bench/research/nodegoat/O-sonnet.json
+
+=== arm O (sonnet) on pygoat ===
+[eval] building graph for /home/lutherleo/orion-bench/fixtures/pygoat …
+
+arm O-sonnet / pygoat: recall 11/16 (checkable 15), FP-candidates 8, 7940703 tokens, $8.3830 priced, 855.4s
+[eval] wrote /home/lutherleo/orion-bench/bench/research/pygoat/O-sonnet.json
+
+=== arm P (plain-sonnet5, eval's plain arm) on nodegoat ===
+  [P] 
+  [P] Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+  [P]   sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+  [P] 
+[P] nodegoat: status crashed, wrote /home/lutherleo/orion-bench/bench/research/nodegoat/P-plain-sonnet5.json
+arm P did not finish ok (crashed): its row is not a clean result
+
+=== arm P (plain-sonnet5, eval's plain arm) on pygoat ===
+  [P] 
+  [P] Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+  [P]   sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+  [P] 
+[P] pygoat: status crashed, wrote /home/lutherleo/orion-bench/bench/research/pygoat/P-plain-sonnet5.json
+arm P did not finish ok (crashed): its row is not a clean result
+(plots skipped: No module named 'matplotlib')
+
+Paste into bench/research/REPORT.md, then commit bench/research/*/O-*.json, P-*.json + the plots:
+
+**nodegoat**
+
+| Arm | Recall | FP candidates (verdicts) | Tokens / cost | Wall-clock |
+|---|---|---|---|---|
+| Opus 5, no Orion (C) | 15 / 15 | 5 | 326k / $0.61 | 139s |
+| Semgrep (D) | 4 / 15 | 26 | 0k / $0.00 | 28s |
+| Orion + sonnet | 15 / 15 | 4 (26C/0I/2R/0E) | 10261k / $10.33 | 1010s |
+
+**pygoat**
+
+| Arm | Recall | FP candidates (verdicts) | Tokens / cost | Wall-clock |
+|---|---|---|---|---|
+| Opus 5, no Orion (C) | 14 / 16 | 10 | 446k / $0.84 | 174s |
+| Semgrep (D) | 7 / 16 | 85 | 0k / $0.00 | 72s |
+| Orion + sonnet | 11 / 16 | 8 (26C/0I/2R/0E) | 7941k / $8.38 | 855s |
+
+The same results through eval's frozen matcher (Gate 3):
+
+**nodegoat** (eval matcher: L1 file + function or line +/-10, L2 + CWE family, one-to-one; keys proposed, NOT signed: dev evidence on draft keys)
+
+| Arm | L1 caught (location only) | L2 caught (+ CWE) | missed (L1) | duplicates | unmatched | no CWE | unlocated |
+|---|---|---|---|---|---|---|---|
+| C | 15 / 15 | 0 / 15 | - | 3 | 3 | 21 | 0 of 21 |
+| D | 5 / 15 | 0 / 15 | A1-2, A1-3, A2-2, A4, A6, A7, A8, A9, SSRF, ReDoS | 10 | 20 | 35 | 1 of 35 |
+| P-plain-sonnet5 | 0 / 15 | 0 / 15 | A1-1, A1-2, A1-3, A2-1, A2-2, A3, A4, A5, A6, A7, A8, A9, A10, SSRF, ReDoS | 0 | 0 | 0 | 0 of 0 |
+| O-sonnet | 15 / 15 | 15 / 15 | - | 7 | 4 | 0 | 0 of 26 |
+
+L1 does not check the bug TYPE: with many keys in one repo, a finding of another class near a fix site is credited. Only L2 checks the type, and a finding without a CWE can never reach it.
+
+**pygoat** (eval matcher: L1 file + function or line +/-10, L2 + CWE family, one-to-one; keys proposed, NOT signed: dev evidence on draft keys)
+
+| Arm | L1 caught (location only) | L2 caught (+ CWE) | missed (L1) | duplicates | unmatched | no CWE | unlocated |
+|---|---|---|---|---|---|---|---|
+| C | 15 / 16 | 0 / 16 | COMPONENTS | 9 | 6 | 30 | 0 of 30 |
+| D | 13 / 16 | 0 / 16 | XSS, LOGGING, COMPONENTS | 39 | 83 | 135 | 5 of 135 |
+| P-plain-sonnet5 | 0 / 16 | 0 / 16 | SQLI, CMDI, XSS, SSRF, SSTI, XXE, DESER-PICKLE, DESER-YAML, IDOR, CRYPTO, MISCONFIG, AUTHZ, DESIGN-OTP, LOGGING, CODEEXEC, COMPONENTS | 0 | 0 | 0 | 0 of 0 |
+| O-sonnet | 12 / 16 | 12 / 16 | XXE, AUTHZ, DESIGN-OTP, LOGGING | 12 | 2 | 0 | 0 of 26 |
+
+L1 does not check the bug TYPE: with many keys in one repo, a finding of another class near a fix site is credited. Only L2 checks the type, and a finding without a CWE can never reach it.

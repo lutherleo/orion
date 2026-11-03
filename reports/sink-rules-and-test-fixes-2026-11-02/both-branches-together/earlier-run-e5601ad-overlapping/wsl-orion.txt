@@ -1,0 +1,41 @@
+........................................................................ [  4%]
+...............................................s....................ss.. [  8%]
+.........s............sss...............sss..................s..s.ss...s [ 13%]
+ss.ssss.ssss.................s.s.........................s.............. [ 17%]
+...................................................s.................... [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+...........s..............s.......s.........................s.........s. [ 35%]
+........................................................................ [ 39%]
+......................................................................F. [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 53%]
+........................................................................ [ 57%]
+........................................................................ [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 70%]
+..........s............................................................. [ 75%]
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+....................s................................................... [ 88%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+.......................................                                  [100%]
+=================================== FAILURES ===================================
+_________________ test_scan_record_is_invisible_to_get_schema __________________
+tests/test_scan_record.py:160: in test_scan_record_is_invisible_to_get_schema
+    assert after == before
+E   AssertionError: assert {'node_proper...tory': True}]} == {'node_proper...tory': True}]}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Differing items:
+E     {'node_properties': [{'nodeType': ':`CpgMethod`', 'nodeLabels': ['CpgMethod'], 'propertyName': 'scan_id', 'propertyTyp...e': ':`CpgMethod`', 'nodeLabels': ['CpgMethod'], 'propertyName': 'centrality', 'propertyTypes': ['Double'], ...}, ...]} != {'node_properties': [{'nodeType': ':`CpgMethod`', 'nodeLabels': ['CpgMethod'], 'propertyName': 'scan_id', 'propertyTyp...e': ':`CpgMethod`', 'nodeLabels': ['CpgMethod'], 'propertyName': 'centrality', 'propertyTypes': ['Double'], ...}, ...]}
+E     Use -v to get more diff
+------------------------------ Captured log call -------------------------------
+WARNING  neo4j.notifications:result.py:345 Received notification from DBMS server: <GqlStatusObject gql_status='01N62', status_description='warn: procedure or function execution warning. Execution of the procedure db.schema.nodeTypeProperties() generated the warning The field `propertyTypes` will change output format in the next major version.', position=<SummaryInputPosition line=1, column=1, offset=0>, raw_classification='GENERIC', classification=<NotificationClassification.GENERIC: 'GENERIC'>, raw_severity='WARNING', severity=<NotificationSeverity.WARNING: 'WARNING'>, diagnostic_record={'_classification': 'GENERIC', '_severity': 'WARNING', '_position': {'offset': 0, 'line': 1, 'column': 1}, 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CALL db.schema.nodeTypeProperties()'
+WARNING  neo4j.notifications:result.py:345 Received notification from DBMS server: <GqlStatusObject gql_status='01N62', status_description='warn: procedure or function execution warning. Execution of the procedure db.schema.relTypeProperties() generated the warning The field `propertyTypes` will change output format in the next major version.', position=<SummaryInputPosition line=1, column=1, offset=0>, raw_classification='GENERIC', classification=<NotificationClassification.GENERIC: 'GENERIC'>, raw_severity='WARNING', severity=<NotificationSeverity.WARNING: 'WARNING'>, diagnostic_record={'_classification': 'GENERIC', '_severity': 'WARNING', '_position': {'offset': 0, 'line': 1, 'column': 1}, 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CALL db.schema.relTypeProperties()'
+WARNING  neo4j.notifications:result.py:345 Received notification from DBMS server: <GqlStatusObject gql_status='01N62', status_description='warn: procedure or function execution warning. Execution of the procedure db.schema.nodeTypeProperties() generated the warning The field `propertyTypes` will change output format in the next major version.', position=<SummaryInputPosition line=1, column=1, offset=0>, raw_classification='GENERIC', classification=<NotificationClassification.GENERIC: 'GENERIC'>, raw_severity='WARNING', severity=<NotificationSeverity.WARNING: 'WARNING'>, diagnostic_record={'_classification': 'GENERIC', '_severity': 'WARNING', '_position': {'offset': 0, 'line': 1, 'column': 1}, 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CALL db.schema.nodeTypeProperties()'
+WARNING  neo4j.notifications:result.py:345 Received notification from DBMS server: <GqlStatusObject gql_status='01N62', status_description='warn: procedure or function execution warning. Execution of the procedure db.schema.relTypeProperties() generated the warning The field `propertyTypes` will change output format in the next major version.', position=<SummaryInputPosition line=1, column=1, offset=0>, raw_classification='GENERIC', classification=<NotificationClassification.GENERIC: 'GENERIC'>, raw_severity='WARNING', severity=<NotificationSeverity.WARNING: 'WARNING'>, diagnostic_record={'_classification': 'GENERIC', '_severity': 'WARNING', '_position': {'offset': 0, 'line': 1, 'column': 1}, 'OPERATION': '', 'OPERATION_CODE': '0', 'CURRENT_SCHEMA': '/'}> for query: 'CALL db.schema.relTypeProperties()'
+=========================== short test summary info ============================
+FAILED tests/test_scan_record.py::test_scan_record_is_invisible_to_get_schema
+1 failed, 1586 passed, 36 skipped, 62 deselected in 213.42s (0:03:33)

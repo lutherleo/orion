@@ -1,0 +1,96 @@
+{
+ "benchmark": "vlb",
+ "task": "0bCRIkhJ",
+ "repo": "AhmedAdelFahim/express-xss-sanitizer",
+ "snapshot": "patched",
+ "ref": "62d6542a2a57298da7a2e02de623454007e4f6d6",
+ "commit": "62d6542a2a57298da7a2e02de623454007e4f6d6",
+ "arm": "orion-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 585.7,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 9,
+  "uncached_in": 146,
+  "cache_read": 1810823,
+  "cache_write": 228461,
+  "out": 99184,
+  "tokens": 2138614,
+  "cli_cost_usd": 2.2919
+ },
+ "status": "ok",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": null,
+ "usage": [
+  {
+   "uncached_in": 18,
+   "cache_read": 224752,
+   "cache_write": 28660,
+   "out": 7076,
+   "cli_cost_usd": 0.23359001999999998
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 188642,
+   "cache_write": 26924,
+   "out": 10689,
+   "cli_cost_usd": 0.25486064500000005
+  },
+  {
+   "uncached_in": 22,
+   "cache_read": 249085,
+   "cache_write": 26894,
+   "out": 11113,
+   "cli_cost_usd": 0.27146737000000004
+  },
+  {
+   "uncached_in": 24,
+   "cache_read": 393721,
+   "cache_write": 60535,
+   "out": 21724,
+   "cli_cost_usd": 0.54411682
+  },
+  {
+   "uncached_in": 8,
+   "cache_read": 78510,
+   "cache_write": 23674,
+   "out": 5410,
+   "cli_cost_usd": 0.167438995
+  },
+  {
+   "uncached_in": 12,
+   "cache_read": 130468,
+   "cache_write": 12937,
+   "out": 5455,
+   "cli_cost_usd": 0.13416597000000002
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 168193,
+   "cache_write": 9920,
+   "out": 6272,
+   "cli_cost_usd": 0.13714359499999998
+  },
+  {
+   "uncached_in": 12,
+   "cache_read": 124925,
+   "cache_write": 5943,
+   "out": 3662,
+   "cli_cost_usd": 0.086261245
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 252527,
+   "cache_write": 32974,
+   "out": 27783,
+   "cli_cost_usd": 0.46280727000000005
+  }
+ ],
+ "orion_run_dir": ".orion/runs/1fa1d2becc579e43515ae153fe53bb03237c055d/20261031T192213Z",
+ "scan_id": "1fa1d2becc579e43515ae153fe53bb03237c055d",
+ "graph": "cleared"
+}

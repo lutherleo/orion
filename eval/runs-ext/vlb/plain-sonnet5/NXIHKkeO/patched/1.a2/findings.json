@@ -1,0 +1,62 @@
+{
+  "findings": [
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "_http_get",
+      "line_start": 250,
+      "line_end": 269,
+      "cwe": "CWE-918",
+      "title": "SSRF via unrestricted redirect following in _http_get",
+      "explanation": "_http_get() blindly follows any HTTP 302 response by recursing with response.headers['Location'] (line 262), re-parsing the new URL and opening a fresh http.client.HTTPSConnection to whatever host that Location header names (line 256), with no allow-list, no scheme restriction, and no limit on how many hops it will follow. The destination server for the very first request is fully attacker-controlled in common usage (scan_url() passes through a caller- or CLI-supplied URL, and scan_huggingface_model() fetches whatever file name a third-party model repo advertises). Because the redirect target is taken verbatim from the response of that same attacker-reachable server, an attacker who controls (or can get a victim to point the scanner at) the initial endpoint can redirect the scan to arbitrary internal hosts, cloud metadata services, or other restricted network locations, and picklescan will fetch and process whatever is returned there.",
+      "path": [
+        {
+          "file": "src/picklescan/cli.py",
+          "function": "main",
+          "line": 66,
+          "role": "source"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_url",
+          "line": 628,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "_http_get",
+          "line": 262,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "src/picklescan/scanner.py",
+      "function": "scan_7z_bytes",
+      "line_start": 437,
+      "line_end": 447,
+      "cwe": "CWE-22",
+      "title": "Path traversal (Zip Slip) when extracting untrusted 7z archive entries",
+      "explanation": "The member names returned by archive.getnames() come straight from the untrusted 7z archive being scanned and are used, unsanitized, both as extraction targets (archive.extract(path=tmpdir, targets=targets)) and to rebuild a file path via os.path.join(tmpdir, file_name). Neither step verifies that the resulting path stays inside tmpdir: a crafted entry name containing '../' sequences (or an absolute path) causes os.path.join to resolve to, or extract/read from, a location outside the temporary directory entirely (os.path.join discards the tmpdir prefix altogether when file_name is absolute). Since picklescan's entire purpose is to scan attacker-supplied/untrusted model archives, a malicious .bin/.pt/.ckpt file disguised as a 7z archive can leverage this to write/overwrite files outside the intended sandboxed temp directory during the act of scanning it.",
+      "path": [
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_7z_bytes",
+          "line": 438,
+          "role": "source"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_7z_bytes",
+          "line": 442,
+          "role": "propagator"
+        },
+        {
+          "file": "src/picklescan/scanner.py",
+          "function": "scan_7z_bytes",
+          "line": 444,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

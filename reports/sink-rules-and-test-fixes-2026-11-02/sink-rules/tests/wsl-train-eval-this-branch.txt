@@ -1,0 +1,230 @@
+....................................................FF.................. [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 24%]
+..............................FF.F..FFF.FFF.FFFFFFFF...F.FFF.F..FFFFFFFF [ 33%]
+F.FFFF.....FF.....FF.............................................s...... [ 41%]
+........................................................................ [ 49%]
+.ss..................................................................... [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 74%]
+........................................................................ [ 82%]
+........................................................................ [ 91%]
+.......................................................FF............... [ 99%]
+.....                                                                    [100%]
+=================================== FAILURES ===================================
+E   ModuleNotFoundError: No module named 'mlx'
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_convert.py:48: ModuleNotFoundError: No module named 'mlx'
+E   ModuleNotFoundError: No module named 'mlx'
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_convert.py:67: ModuleNotFoundError: No module named 'mlx'
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-lutherleo/pytest-5/test_build_writes_examples_led0/out.jsonl'
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_build.py:40: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-lutherleo/pytest-5/test_build_writes_examples_led0/out.jsonl'
+E   AssertionError: assert ('skipped' == 'ok'
+      
+      - ok
+      + skipped)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_build.py:72: AssertionError: assert ('skipped' == 'ok'
+E   AssertionError: assert (['A'] == ['A']
+      
+      Use -v to get more diff and 'skipped' == 'ok'
+      
+      - ok
+      + skipped)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_build.py:96: AssertionError: assert (['A'] == ['A']
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-lutherleo/pytest-5/test_resume_reconciles_out_jso0/out.jsonl'
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_build.py:40: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-lutherleo/pytest-5/test_resume_reconciles_out_jso0/out.jsonl'
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-lutherleo/pytest-5/test_reconcile_keeps_rows_of_l0/out.jsonl'
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_build.py:40: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-lutherleo/pytest-5/test_reconcile_keeps_rows_of_l0/out.jsonl'
+E   AssertionError: assert [] == ['vulnerable'...', 'negative']
+      
+      Right contains 4 more items, first extra item: 'vulnerable'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:18: AssertionError: assert [] == ['vulnerable'...', 'negative']
+E   IndexError: list index out of range
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:33: IndexError: list index out of range
+E   AssertionError: assert ([] == ['vulnerable']
+      
+      Right contains one more item: 'vulnerable'
+      Use -v to get more diff)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:39: AssertionError: assert ([] == ['vulnerable']
+E   AssertionError: assert ([] == []
+      
+      Use -v to get more diff and 'no_target' == 'sprawling'
+      
+      - sprawling
+      + no_target)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:48: AssertionError: assert ([] == []
+E   IndexError: list index out of range
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:66: IndexError: list index out of range
+E   AssertionError: assert [] == [('annotated', 'third', 12)]
+      
+      Right contains one more item: ('annotated', 'third', 12)
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:74: AssertionError: assert [] == [('annotated', 'third', 12)]
+E   IndexError: list index out of range
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:82: IndexError: list index out of range
+E   IndexError: list index out of range
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:88: IndexError: list index out of range
+E   AssertionError: assert [] == ['multi', 'multi']
+      
+      Right contains 2 more items, first extra item: 'multi'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:94: AssertionError: assert [] == ['multi', 'multi']
+E   AssertionError: assert ([] == ['vulnerable']
+      
+      Right contains one more item: 'vulnerable'
+      Use -v to get more diff)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:102: AssertionError: assert ([] == ['vulnerable']
+E   AssertionError: assert [] == ['vulnerable', 'patched']
+      
+      Right contains 2 more items, first extra item: 'vulnerable'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:130: AssertionError: assert [] == ['vulnerable', 'patched']
+E   assert (0 == 3)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:145: assert (0 == 3)
+E   AssertionError: assert [] == ['f']
+      
+      Right contains one more item: 'f'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:167: AssertionError: assert [] == ['f']
+E   AssertionError: assert ([] == ['vulnerable']
+      
+      Right contains one more item: 'vulnerable'
+      Use -v to get more diff)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:187: AssertionError: assert ([] == ['vulnerable']
+E   assert (0 == 2)
+     +  where 0 = len([])
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:200: assert (0 == 2)
+E   AssertionError: assert [] == [('vulnerable...tched', None)]
+      
+      Right contains 2 more items, first extra item: ('vulnerable', 'view')
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:223: AssertionError: assert [] == [('vulnerable...tched', None)]
+E   AssertionError: assert ([] == ['vulnerable']
+      
+      Right contains one more item: 'vulnerable'
+      Use -v to get more diff)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage1_cases.py:245: AssertionError: assert ([] == ['vulnerable']
+E   AssertionError: assert ([] == ['vulnerable'...', 'negative']
+      
+      Right contains 3 more items, first extra item: 'vulnerable'
+      Use -v to get more diff)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:123: AssertionError: assert ([] == ['vulnerable'...', 'negative']
+E   AssertionError: assert [] == ['vulnerable', 'negative']
+      
+      Right contains 2 more items, first extra item: 'vulnerable'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:137: AssertionError: assert [] == ['vulnerable', 'negative']
+E   AssertionError: assert [] == ['vulnerable', 'negative']
+      
+      Right contains 2 more items, first extra item: 'vulnerable'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:137: AssertionError: assert [] == ['vulnerable', 'negative']
+E   AssertionError: assert [] == ['vulnerable', 'negative']
+      
+      Right contains 2 more items, first extra item: 'vulnerable'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:137: AssertionError: assert [] == ['vulnerable', 'negative']
+E   AssertionError: assert [] == ['vulnerable', 'negative']
+      
+      Right contains 2 more items, first extra item: 'vulnerable'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:141: AssertionError: assert [] == ['vulnerable', 'negative']
+E   AssertionError: assert [] == ['bk']
+      
+      Right contains one more item: 'bk'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:150: AssertionError: assert [] == ['bk']
+E   assert ([] == []
+      
+      Use -v to get more diff and 0 == 3)
+     +  where 0 = len([])
+     +    where [] = <function test_negative_sampling_is_deterministic_per_seed.<locals>.<lambda> at 0x770236596de0>(0)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:163: assert ([] == []
+E   ValueError: max() iterable argument is empty
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:181: ValueError: max() iterable argument is empty
+E   AssertionError: assert ([] == ['vulnerable']
+      
+      Right contains one more item: 'vulnerable'
+      Use -v to get more diff)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:191: AssertionError: assert ([] == ['vulnerable']
+E   AssertionError: assert ['no_snippet'] == ['flow_gone']
+      
+      At index 0 diff: 'no_snippet' != 'flow_gone'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:201: AssertionError: assert ['no_snippet'] == ['flow_gone']
+E   ValueError: not enough values to unpack (expected 1, got 0)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:227: ValueError: not enough values to unpack (expected 1, got 0)
+E   AssertionError: assert ([] == []
+      
+      Use -v to get more diff and ['no_snippet'] == ['no_fix_site_node']
+      
+      At index 0 diff: 'no_snippet' != 'no_fix_site_node'
+      Use -v to get more diff)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:240: AssertionError: assert ([] == []
+E   ValueError: not enough values to unpack (expected at least 1, got 0)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:245: ValueError: not enough values to unpack (expected at least 1, got 0)
+E   AssertionError: assert [] == ['vulnerable'...', 'negative']
+      
+      Right contains 3 more items, first extra item: 'vulnerable'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:352: AssertionError: assert [] == ['vulnerable'...', 'negative']
+E   assert (0 == 3)
+     +  where 0 = len([])
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:367: assert (0 == 3)
+E   assert (0 == 3)
+     +  where 0 = sum(<generator object test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts.<locals>.<genexpr> at 0x7702361d5a40>)
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:435: assert (0 == 3)
+E   AssertionError: assert [] == ['patched']
+      
+      Right contains one more item: 'patched'
+      Use -v to get more diff
+/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/train/tests/test_stage2.py:463: AssertionError: assert [] == ['patched']
+E   FileNotFoundError: [Errno 2] No such file or directory: '/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/eval/shim/claude'
+/home/lutherleo/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/subprocess.py:1955: FileNotFoundError: [Errno 2] No such file or directory: '/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/eval/shim/claude'
+E   FileNotFoundError: [Errno 2] No such file or directory: '/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/eval/shim/claude'
+/home/lutherleo/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/subprocess.py:1955: FileNotFoundError: [Errno 2] No such file or directory: '/mnt/c/Users/h/Downloads/orion/.claude/worktrees/vibrant-villani-d0c165/eval/shim/claude'
+=========================== short test summary info ============================
+FAILED train/tests/test_convert.py::test_merge_lora_folds_the_delta_unquantized_and_copies_the_rest
+FAILED train/tests/test_convert.py::test_merge_lora_refuses_an_existing_out_dir_and_unknown_modules
+FAILED train/tests/test_stage1_build.py::test_build_writes_examples_ledger_and_resumes
+FAILED train/tests/test_stage1_build.py::test_one_snapshot_serves_all_pairs_of_a_repo_and_missing_fix_is_recorded
+FAILED train/tests/test_stage1_build.py::test_sigint_finishes_current_pair_then_stops
+FAILED train/tests/test_stage1_build.py::test_resume_reconciles_out_jsonl_after_a_crash
+FAILED train/tests/test_stage1_build.py::test_reconcile_keeps_rows_of_ledgered_pairs
+FAILED train/tests/test_stage1_cases.py::test_single_function_fix_gives_vuln_patched_negatives
+FAILED train/tests/test_stage1_cases.py::test_annotation_beats_changed_functions
+FAILED train/tests/test_stage1_cases.py::test_deleted_function_keeps_vulnerable_drops_patched
+FAILED train/tests/test_stage1_cases.py::test_sprawling_and_test_only_fixes_yield_nothing
+FAILED train/tests/test_stage1_cases.py::test_patched_example_does_not_mutate_the_vulnerable_index
+FAILED train/tests/test_stage1_cases.py::test_sink_location_resolves_by_suffix_and_locations_by_line
+FAILED train/tests/test_stage1_cases.py::test_unresolvable_annotation_falls_back_to_changed_function
+FAILED train/tests/test_stage1_cases.py::test_add_only_hunk_anchors_on_insertion_line
+FAILED train/tests/test_stage1_cases.py::test_multi_tier_and_unknown_class - ...
+FAILED train/tests/test_stage1_cases.py::test_unchanged_patched_function_gets_no_patched_example
+FAILED train/tests/test_stage1_cases.py::test_negative_never_nested_in_or_around_a_target
+FAILED train/tests/test_stage1_cases.py::test_annotated_functions_past_the_cap_are_never_negatives
+FAILED train/tests/test_stage1_cases.py::test_insertion_strictly_inside_a_body_is_a_target
+FAILED train/tests/test_stage1_cases.py::test_unchanged_long_function_does_not_get_both_labels
+FAILED train/tests/test_stage1_cases.py::test_overloads_each_get_their_own_patched_code
+FAILED train/tests/test_stage1_cases.py::test_moved_unchanged_helper_is_not_a_target
+FAILED train/tests/test_stage1_cases.py::test_annotated_targets_are_kept_even_when_unchanged
+FAILED train/tests/test_stage2.py::test_cases_from_graph_vuln_patched_and_negative
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec0]
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec1]
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec2]
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_patched_scan_has_no_flows
+FAILED train/tests/test_stage2.py::test_negatives_never_touch_a_fix_site_and_are_seeded
+FAILED train/tests/test_stage2.py::test_negative_sampling_is_deterministic_per_seed
+FAILED train/tests/test_stage2.py::test_negatives_come_only_from_the_flows_the_runtime_judges
+FAILED train/tests/test_stage2.py::test_gold_flow_ranked_past_the_runtime_cap_is_still_found
+FAILED train/tests/test_stage2.py::test_graph_cases_reports_why_the_patched_example_is_missing
+FAILED train/tests/test_stage2.py::test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink
+FAILED train/tests/test_stage2.py::test_pair_without_a_fix_site_node_on_the_gold_path_is_skipped_with_a_reason
+FAILED train/tests/test_stage2.py::test_fix_site_of_an_add_only_hunk_is_its_insertion_line
+FAILED train/tests/test_stage2.py::test_build_writes_examples_one_ledger_line_and_evicts_both_scans
+FAILED train/tests/test_stage2.py::test_build_with_templates_adds_traces_carrying_pair_id_and_split
+FAILED train/tests/test_stage2.py::test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts
+FAILED train/tests/test_stage2.py::test_a_case_whose_trace_is_dropped_keeps_its_single_step_row
+FAILED eval/tests/test_shim.py::test_shim_tees_stdout_to_usage_log - FileNotF...
+FAILED eval/tests/test_shim.py::test_shim_overwrites_usage_log_each_run - Fil...
+43 failed, 823 passed, 3 skipped in 18.65s

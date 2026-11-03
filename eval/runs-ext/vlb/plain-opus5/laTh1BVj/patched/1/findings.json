@@ -1,0 +1,51 @@
+{
+  "findings": [
+    {
+      "file": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+      "function": "writeFlickerFeed",
+      "line_start": 73,
+      "line_end": 74,
+      "cwe": "CWE-79",
+      "title": "Reflected XSS: unescaped JSON values written into HTML response",
+      "explanation": "The JAX-RS resource ParserResource (@Path(\"/parser\"), @Produces(\"text/html\"), registered in DemoApplication.getClasses()) fetches a JSON document over cleartext HTTP from api.flickr.com (line 53) and streams it back to the browser as an HTML page. The string values taken from that JSON response (id, server, secret and farm, read via parser.getString() on lines 69, 73, 78 and 82) are concatenated straight into an <img src=\"...\"> tag on line 74 with no HTML/attribute encoding, no URL encoding and no validation that the values are the expected numeric/hex tokens. Because the response is written with Content-Type text/html, any attacker who controls the JSON body executes script in the context of the demo application's origin: a value such as 4\" onerror=\"alert(document.cookie)\" x=\" closes the src attribute and injects an event handler, and a value containing \"><script>...</script> injects arbitrary markup. The response body is attacker-controllable in practice because it is retrieved over plain http:// (no TLS), so any on-path attacker (shared Wi-Fi, malicious proxy/DNS, compromised upstream or CDN) can replace the fields; the same holds if the third-party API itself returns attacker-influenced content. Nothing on the path sanitizes or encodes the data between the parser and the HTML writer.",
+      "path": [
+        {
+          "file": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+          "function": "writeFlickerFeed",
+          "line": 54,
+          "role": "source"
+        },
+        {
+          "file": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+          "function": "writeFlickerFeed",
+          "line": 69,
+          "role": "propagator"
+        },
+        {
+          "file": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+          "function": "writeFlickerFeed",
+          "line": 73,
+          "role": "propagator"
+        },
+        {
+          "file": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+          "function": "writeFlickerFeed",
+          "line": 78,
+          "role": "propagator"
+        },
+        {
+          "file": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+          "function": "writeFlickerFeed",
+          "line": 82,
+          "role": "propagator"
+        },
+        {
+          "file": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+          "function": "writeFlickerFeed",
+          "line": 74,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

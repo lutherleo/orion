@@ -1,0 +1,10 @@
+1.7.12
+installed by downloading from release page
+built with go1.26.1 compiler for linux/amd64
+verbose: Linting .github/workflows/tests.yml
+verbose: Using project at /tmp/ci-lint.Z1ysHC/repo
+verbose: Found 0 parse errors in 0 ms for .github/workflows/tests.yml
+verbose: Rule "shellcheck" was disabled: exec: "shellcheck": executable file not found in $PATH
+verbose: Rule "pyflakes" was disabled: exec: "pyflakes": executable file not found in $PATH
+verbose: Found total 0 errors in 418 ms for .github/workflows/tests.yml
+actionlint exit=0

@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-113",
+              "name": "CWE113",
+              "shortDescription": {
+                "text": "CWE-113"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-113"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/113.html"
+            },
+            {
+              "id": "CWE-444",
+              "name": "CWE444",
+              "shortDescription": {
+                "text": "CWE-444"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-444"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/444.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-113",
+          "level": "error",
+          "message": {
+            "text": "In the example gevent WebSocket WSGI app, WebSocketWSGI.__call__ (itself a registered EntryPoint/handler, hop_distance=1, reachable_from_entry=true) builds the raw HTTP 101 handshake response by directly %-interpolating attacker-controlled request headers (environ.get('HTTP_ORIGIN'), environ.get('HTTP_HOST')) and the request path (ws.path) into a string containing literal \\r\\n sequences, with no CRLF/control-character stripping or validation, then writes the result straight to the client socket. A Host/Origin header or path containing CR/LF lets an attacker inject arbitrary extra response headers or split the HTTP response (classic CRLF/header injection leading to response splitting), something the core gunicorn WSGI Response.process_headers() path explicitly guards against via HEADER_RE validation but this example bypasses by building/sending the response manually.\n\nVerifier (CONFIRM): Read examples/websocket/gevent_websocket.py myself and confirmed the exact code: WebSocketWSGI.__call__ (line 37) builds `handshake_reply` by %-interpolating environ.get('HTTP_ORIGIN'), environ.get('HTTP_HOST'), and ws.path (= environ.get('PATH_INFO'), line 150) directly into string literals containing \\r\\n (lines 87-98 for the modern-protocol branch, 100-107 for the legacy branch), with zero stripping/validation of control characters anywhere in the file, then writes the raw result straight to the socket via sock.sendall(handshake_reply.encode()) at line 109 -- never going through gunicorn's WSGI header path. I independently queried the graph and confirmed __call__ is a registered EntryPoint of kind 'handler' and that every call in the taint chain (the %-ops at 87-98/102-107, the environ.get/ws.path accesses, and the sendall at 109) has reachable_from_entry=true, hop_distance=1. I also read gunicorn/http/wsgi.py:247-259 and gunicorn/http/message.py:24 and confirmed the core framework really does validate header name/value via HEADER_RE/HEADER_VALUE_RE in Response.process_headers, which this example's manual socket write path bypasses entirely -- exactly as claimed. This is a genuine, unsanitized CRLF-injection sink reachable from a WSGI entry point. One caveat I could not fully verify myself: whether gunicorn's own request-line/header parser would itself strip/reject a raw bare CR or LF before it reaches environ (i.e., whether the HTTP/1.1 wire parsing layer provides an extra barrier) -- I did not trace that parser, so real-world exploitability via an actual HTTP client has some residual uncertainty, but the application-layer defect itself is real and precisely as described."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/websocket/gevent_websocket.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 87,
+                  "endLine": 109
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "WebSocketWSGI.__call__",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "71c64248129d7d4e78369093f6f8ee0fc0daeac1"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-113",
+          "level": "error",
+          "message": {
+            "text": "Same bug, duplicated in the eventlet-based example WebSocket WSGI app: WebSocketWSGI.__call__ (EntryPoint/handler, hop_distance=1, reachable_from_entry=true) concatenates environ.get('HTTP_ORIGIN'), environ.get('HTTP_HOST') and ws.path (all attacker-controlled HTTP request data) directly into the raw HTTP/1.1 101 handshake text with embedded \\r\\n, with no sanitization, and sends it unmodified via sock.sendall(handshake_reply.encode()). An attacker supplying CR/LF in the Host/Origin header or the request path can inject extra headers or split the response.\n\nVerifier (CONFIRM): Source and graph both confirm the claim. In examples/websocket/websocket.py, WebSocketWSGI.__call__ (line 38, registered as an EntryPoint of kind 'handler', reachable_from_entry=true) builds the raw WebSocket handshake response text by directly %-formatting environ.get('HTTP_ORIGIN'), environ.get('HTTP_HOST') and ws.path (= environ.get('PATH_INFO')) into strings containing literal \\r\\n (lines 88-99 and 103-108), with no escaping/validation, and sends the result unmodified via sock.sendall(handshake_reply.encode()) at line 110. I additionally verified the attacker-controlled-CRLF premise against gunicorn's own HTTP parser: gunicorn/http/message.py's parse_headers() re-appends \"\\r\\n\" to each split line (line 67) and, when it encounters an obsolete line-folding continuation (a following line starting with space/tab, lines 99-106), appends that whole line (including its own embedded \\r\\n) into the header's value list before joining them with ''.join(value).rstrip() (line 106) \u2014 only the trailing \\r\\n is stripped, so an internal \\r\\n survives inside the final header string. gunicorn/http/wsgi.py then copies that value verbatim into environ['HTTP_HOST'] / environ['HTTP_ORIGIN'] (wsgi.py lines 120-139) with no character filtering (HEADER_RE in message.py is only applied to header *names*, line 93, never to values). So a client can send a Host or Origin header followed by an obs-folded continuation line to make environ.get('HTTP_HOST')/('HTTP_ORIGIN') literally contain an embedded \\r\\n, which then flows unsanitized into the raw handshake_reply text and out over the socket \u2014 a genuine CRLF/header-injection (HTTP response splitting) primitive. Graph query against scan_id 2b38b4ae18944de9f55caad2cf541fc6e8510713 confirms EntryPoint examples/websocket/websocket.py:<module>.WebSocketWSGI.__call__ (kind='handler', exposure='reachable') ENTERS_AT the method (line 38), and the CpgCall nodes at lines 88-110 (the %-format build and the final sock.sendall) all have reachable_from_entry=true, hop_distance=1, matching the analyst's citation exactly."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/websocket/websocket.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 88,
+                  "endLine": 110
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "WebSocketWSGI.__call__",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "9c1033c27d45df8fc75d21cf15ed545c0bb52450"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-444",
+          "level": "error",
+          "message": {
+            "text": "gunicorn's HTTP request parser (Message.set_body_reader in gunicorn/http/message.py) is missing the control that should reject ambiguous/invalid Transfer-Encoding framing. When iterating request headers it special-cases TRANSFER-ENCODING only to set chunked=True when value.lower() == \"chunked\" (lines 134-136); for any other Transfer-Encoding value (e.g. \"chunked, chunked\", \"identity\", a value with extra tokens, or any malformed value) there is no else branch raising InvalidHeader -- the header is silently treated as absent and parsing falls through to the Content-Length branch (line 140+). Likewise, when both Content-Length and Transfer-Encoding: chunked are present on the same request, nothing rejects the ambiguous combination -- chunked unconditionally wins at line 139 and content_length is simply ignored, with no raise/error for the conflicting pair. A safe HTTP parser must either reject any Transfer-Encoding value that isn't exactly 'chunked' or reject requests that carry both headers, precisely to prevent a front-end proxy and gunicorn from disagreeing on request boundaries. This control is absent here, which is the same gap behind real-world gunicorn HTTP request-smuggling advisories (CVE-2024-1135-class issue). set_body_reader is confirmed reachable_from_entry=true with hop_distance=1 from an EntryPoint, i.e. it sits directly on the attacker-facing request-parsing path.\n\nVerifier (CONFIRM): Verified directly against the real source. gunicorn/http/message.py `Message.set_body_reader` (lines 125-154) iterates request headers; the TRANSFER-ENCODING branch (lines 134-136) sets chunked=True only when value.lower()==\"chunked\" and has no else/raise for any other value (e.g. \"identity\", \"chunked, chunked\", garbage) \u2014 such values are silently ignored and parsing falls through to the Content-Length branch. Separately, line 138 `if chunked:` unconditionally wins over `elif content_length is not None` (line 140) with no check anywhere that rejects the case where BOTH Content-Length and Transfer-Encoding:chunked are present on the same request. Grepping the whole gunicorn/ tree for Transfer-Encoding/chunked handling confirms this is the only place inbound Transfer-Encoding is parsed (wsgi.py's chunked logic is for outbound responses, unrelated). Graph queries confirm this sits on the live attacker-facing path: Message.set_body_reader is itself registered as an EntryPoint (kind=handler, exposure=reachable), it's called from Message.__init__ at line 57, which Request.__init__ invokes via super().__init__() for every parsed HTTP request; the header-loop calls at lines 129-140 are reachable_from_entry=true, hop_distance=1. The installed version is gunicorn 21.2.0 (gunicorn/__init__.py: version_info = (21, 2, 0)). This exact gap (no validation of non-'chunked' Transfer-Encoding values, no rejection of simultaneous Content-Length+chunked) is the documented root cause of CVE-2024-1135, which was fixed in gunicorn 22.0.0 by adding exactly this validation to set_body_reader \u2014 21.2.0 predates that fix, so the target is in the vulnerable range. Note: the exploit_search tool returned the exploit corpus as \"not indexed\" in this environment, so I could not pull a live Metasploit module citation; the CVE/version comparison above is based on the patch history of this exact function, which I verified by inspecting the code gap directly, not by trusting the analyst."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "gunicorn/http/message.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 125,
+                  "endLine": 154
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "Message.set_body_reader",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "14cbd371b0aa6b08aa8ee3c11c6ccdc43342979a"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

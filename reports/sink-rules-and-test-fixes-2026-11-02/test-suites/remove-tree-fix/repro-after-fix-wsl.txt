@@ -1,0 +1,3 @@
+﻿platform linux uid 1000
+1. unreadable subfolder: no exception; root still there: True
+2. target outside the tree: mode before 0o644, after 0o644

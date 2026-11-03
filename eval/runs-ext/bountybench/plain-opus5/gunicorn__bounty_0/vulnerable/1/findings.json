@@ -1,0 +1,124 @@
+{"findings": [
+  {
+    "file": "gunicorn/http/wsgi.py",
+    "function": "create",
+    "line_start": 127,
+    "line_end": 128,
+    "cwe": "CWE-348",
+    "title": "Client-controlled SCRIPT_NAME header rewrites SCRIPT_NAME/PATH_INFO",
+    "explanation": "create() copies the request header named SCRIPT_NAME into the local script_name with no check that the peer is a trusted proxy (cfg.forwarded_allow_ips is never consulted here, and no forwarder_headers/header_map setting exists in this version). Because parse_headers only upper-cases header names and HEADER_RE does not forbid '_', any client can produce hdr_name == 'SCRIPT_NAME' by sending the header 'Script_Name:'. At line 183 the value is then used to cut the request path: path_info = path_info.split(script_name, 1)[1], and the result is published as PATH_INFO with SCRIPT_NAME set to the attacker's string. Verified against this tree: 'GET /public/admin/secret HTTP/1.1' with 'Script_Name: /public' yields SCRIPT_NAME='/public' and PATH_INFO='/admin/secret' while RAW_URI stays '/public/admin/secret'. A front-end proxy or WAF enforcing a path-prefix ACL (e.g. deny /admin/*) inspects the URI it forwarded and allows the request, but the WSGI application routes on PATH_INFO and serves the protected resource, so path-based authorization is bypassed. The same primitive lets an attacker relocate any route, and because split() matches anywhere rather than stripping a prefix, it also corrupts URL generation. Additionally, when script_name is not a substring of the path the [1] index raises an unhandled IndexError (confirmed: 'Script_Name: /zzz' on 'GET /abc'), turning any request into a 500 and giving a trivial remote error-trigger.",
+    "path": [
+      {"file": "gunicorn/http/message.py", "function": "parse_headers", "line": 92, "role": "source"},
+      {"file": "gunicorn/http/wsgi.py", "function": "create", "line": 120, "role": "propagator"},
+      {"file": "gunicorn/http/wsgi.py", "function": "create", "line": 128, "role": "propagator"},
+      {"file": "gunicorn/http/wsgi.py", "function": "create", "line": 183, "role": "propagator"},
+      {"file": "gunicorn/http/wsgi.py", "function": "create", "line": 185, "role": "sink"}
+    ]
+  },
+  {
+    "file": "gunicorn/http/message.py",
+    "function": "set_body_reader",
+    "line_start": 125,
+    "line_end": 154,
+    "cwe": "CWE-444",
+    "title": "Transfer-Encoding not validated, and TE+CL conflict not rejected (request smuggling)",
+    "explanation": "Message framing is decided by a loop that flags chunked encoding only when a Transfer-Encoding value is byte-for-byte equal to 'chunked' after lower-casing (line 135). Any other TE value is silently ignored and the body is then framed from Content-Length, or from EOF, instead of the request being rejected as RFC 7230 3.3.3 requires. Verified against this tree: 'Transfer-Encoding: chunked, chunked' together with 'Content-Length: 5' selects LengthReader and consumes exactly 5 bytes, whereas an RFC-compliant front end reads the same request as chunked. The bytes the proxy counts as chunked body are therefore left in the connection buffer and parsed by Gunicorn as the start of a new request, letting an attacker prepend an arbitrary request (including arbitrary method, path and headers) to the next victim request on that connection. The same gap applies to 'chunked, identity', 'xchunked' and to a split 'Transfer-Encoding: identity' + 'Transfer-Encoding: chunked' pair. Independently, when TE: chunked and Content-Length are both present (verified) Gunicorn neither rejects the request nor drops Content-Length: it uses chunked framing but still exports the attacker's CONTENT_LENGTH to the application via wsgi.py:133, so the application's view of the body length disagrees with the framing actually used. Exploitable end to end with the gthread worker, which reuses one parser/unreader across keep-alive requests (gunicorn/workers/gthread.py:273 and finish_request), and against any proxy that pools backend connections.",
+    "path": [
+      {"file": "gunicorn/http/message.py", "function": "parse_headers", "line": 121, "role": "source"},
+      {"file": "gunicorn/http/message.py", "function": "set_body_reader", "line": 135, "role": "propagator"},
+      {"file": "gunicorn/http/message.py", "function": "set_body_reader", "line": 152, "role": "sink"},
+      {"file": "gunicorn/http/parser.py", "function": "Parser.__next__", "line": 121, "role": "sink"}
+    ]
+  },
+  {
+    "file": "gunicorn/http/body.py",
+    "function": "parse_chunk_size",
+    "line_start": 88,
+    "line_end": 92,
+    "cwe": "CWE-444",
+    "title": "Chunk size parsed with int(x, 16), accepting non-HTTP forms and negative sizes",
+    "explanation": "The chunk-size token is only .strip()ed and then handed to Python's int(chunk_size, 16), which is far more permissive than the 1*HEXDIG grammar of RFC 9112 4.1. Verified against this tree: the chunk sizes '0x5', '+5' and ' 5 ' are all accepted as 5, and '1_0' is accepted as 16 (Python allows underscore digit separators), so Gunicorn frames a body that no standards-compliant intermediary frames the same way. Any front end that forwards the chunked body verbatim while computing a different length for these tokens desynchronizes from Gunicorn, and the surplus bytes are parsed as a new pipelined request on the keep-alive connection. .strip() additionally permits leading/trailing CR, LF, tab and form-feed around the size. Worse, a negative size is accepted outright: int(b'-5', 16) == -5 passes the 'chunk_size == 0' test and is returned to parse_chunked, whose 'while size > 0' loop never runs, so the generator ends immediately and the request is reported to the application as having an empty body (verified: body == b''). The remaining bytes, which the proxy counted as body, are discarded from the framing decision, truncating the message and desynchronizing the connection.",
+    "path": [
+      {"file": "gunicorn/http/body.py", "function": "parse_chunk_size", "line": 86, "role": "source"},
+      {"file": "gunicorn/http/body.py", "function": "parse_chunk_size", "line": 88, "role": "propagator"},
+      {"file": "gunicorn/http/body.py", "function": "parse_chunk_size", "line": 90, "role": "sink"},
+      {"file": "gunicorn/http/body.py", "function": "parse_chunked", "line": 59, "role": "sink"}
+    ]
+  },
+  {
+    "file": "gunicorn/http/message.py",
+    "function": "parse_headers",
+    "line_start": 66,
+    "line_end": 67,
+    "cwe": "CWE-444",
+    "title": "Bare LF not treated as a header terminator, hiding a second Content-Length",
+    "explanation": "The header block is split on CRLF only, and neither the header value nor the resulting line is ever checked for a bare LF or other control characters, so an LF inside a header line is retained as part of that header's value. Verified against this tree: 'POST / HTTP/1.1\\r\\nHost: a\\r\\nX: y\\nContent-Length: 44\\r\\nContent-Length: 0\\r\\n\\r\\nSMUGGLED' parses to headers [('HOST','a'), ('X','y\\nContent-Length: 44'), ('CONTENT-LENGTH','0')]. Gunicorn therefore sees only one Content-Length, so the duplicate-Content-Length rejection in set_body_reader (line 131) never fires, it frames a zero-length body, and 'SMUGGLED' stays in the unreader to be parsed as the next request on the connection. Any front end that does treat a bare LF as a line terminator, as many proxies and RFC 9112 2.2 recommend, instead sees Content-Length: 44 and forwards 44 bytes as the body of request one. The two ends disagree on message boundaries, which is a direct request-smuggling primitive: the attacker's hidden request is prefixed onto the next request handled on that connection. Exploitable with the gthread worker, which keeps one parser per keep-alive connection, and against connection-pooling proxies.",
+    "path": [
+      {"file": "gunicorn/http/message.py", "function": "Request.parse", "line": 218, "role": "source"},
+      {"file": "gunicorn/http/message.py", "function": "parse_headers", "line": 67, "role": "propagator"},
+      {"file": "gunicorn/http/message.py", "function": "parse_headers", "line": 88, "role": "propagator"},
+      {"file": "gunicorn/http/message.py", "function": "set_body_reader", "line": 131, "role": "sink"},
+      {"file": "gunicorn/http/parser.py", "function": "Parser.__next__", "line": 121, "role": "sink"}
+    ]
+  },
+  {
+    "file": "gunicorn/http/message.py",
+    "function": "parse_headers",
+    "line_start": 99,
+    "line_end": 106,
+    "cwe": "CWE-113",
+    "title": "obs-fold continuation lines embed literal CRLF into the header value",
+    "explanation": "Line 67 re-appends the '\\r\\n' it stripped to every split line, and the obs-fold continuation loop then appends those raw lines, terminators included, to the value list before joining them. The join therefore produces a header value that contains a literal CRLF, and only the trailing one is removed by .rstrip(). Verified against this tree: 'X-Evil: foo\\r\\n bar' parses to the single header ('X-EVIL', 'foo\\r\\n bar'), i.e. a CRLF sequence inside a value. RFC 7230 3.2.4 requires a server to reject obs-fold or replace it with spaces; here it is preserved verbatim. The tainted value is published to the application as HTTP_X_EVIL (wsgi.py:139) and is written unescaped into the access log through the '{%s}i' atoms (gunicorn/glogging.py:330), so an attacker can forge whole log entries with a crafted User-Agent. More seriously it hands every WSGI application a header value containing CRLF, which is the injection payload for response splitting, header injection into an outbound request, or cache poisoning in any consumer that writes the value into a protocol where CRLF is a delimiter. Gunicorn deliberately blocks exactly these bytes on the way out (HEADER_VALUE_RE, wsgi.py:258) but manufactures them on the way in.",
+    "path": [
+      {"file": "gunicorn/http/message.py", "function": "parse_headers", "line": 67, "role": "source"},
+      {"file": "gunicorn/http/message.py", "function": "parse_headers", "line": 105, "role": "propagator"},
+      {"file": "gunicorn/http/message.py", "function": "parse_headers", "line": 106, "role": "propagator"},
+      {"file": "gunicorn/http/wsgi.py", "function": "create", "line": 139, "role": "sink"},
+      {"file": "gunicorn/glogging.py", "function": "Logger.atoms", "line": 330, "role": "sink"}
+    ]
+  },
+  {
+    "file": "gunicorn/http/wsgi.py",
+    "function": "create",
+    "line_start": 136,
+    "line_end": 139,
+    "cwe": "CWE-290",
+    "title": "Underscore and dash header names collide in one HTTP_ environ key, enabling proxy-header spoofing",
+    "explanation": "Header names are mapped to environ keys by replacing '-' with '_' without rejecting or dropping names that already contain '_', and HEADER_RE (message.py:24) does not forbid '_' in a name. A client-supplied 'X_Forwarded_For' and a proxy-supplied 'X-Forwarded-For' therefore collapse onto the identical key HTTP_X_FORWARDED_FOR, and lines 137-138 merge the colliding values with a comma in header order rather than keeping them distinguishable. Verified against this tree: a request carrying 'X_Forwarded_For: 1.1.1.1' followed by the proxy's 'X-Forwarded-For: 9.9.9.9' produces HTTP_X_FORWARDED_FOR == '1.1.1.1,9.9.9.9'. Because the attacker's underscore variant can be placed ahead of the value a proxy appends, the standard idiom of reading the first hop to obtain the real client IP returns the attacker's chosen address. That spoofs the client IP used for IP allow-listing, admin-interface restriction, rate limiting, and audit logging, and the same collision forges any other trusted proxy header an application relies on, such as X-Forwarded-Proto, X-Real-IP or an authentication header injected by a front-end SSO proxy. No configuration can prevent this in this version: the header_map setting that later releases added to drop or refuse underscore headers does not exist here.",
+    "path": [
+      {"file": "gunicorn/http/message.py", "function": "parse_headers", "line": 93, "role": "source"},
+      {"file": "gunicorn/http/wsgi.py", "function": "create", "line": 136, "role": "propagator"},
+      {"file": "gunicorn/http/wsgi.py", "function": "create", "line": 138, "role": "propagator"},
+      {"file": "gunicorn/http/wsgi.py", "function": "create", "line": 139, "role": "sink"}
+    ]
+  },
+  {
+    "file": "gunicorn/http/message.py",
+    "function": "parse_request_line",
+    "line_start": 336,
+    "line_end": 338,
+    "cwe": "CWE-20",
+    "title": "Request method and HTTP version accepted with broken, unanchored regexes",
+    "explanation": "METH_RE (line 25) is written as r'[A-Z0-9$-_.]{3,20}', where '$-_' is read by the regex engine as a character range from 0x24 to 0x5F rather than the three literal characters intended. The class therefore admits every HTTP delimiter in that span, verified against this tree: % & ' ( ) * + , / : ; < = > ? @ [ \\ ] ^ _ are all accepted inside a method token even though RFC 9110 5.6.2 restricts it to a token. Compounding this, the check uses METH_RE.match, which is anchored only at the start, so the characters after a matching 3-character prefix are never validated at all: 'GETfoo', 'GET/../', 'PUT@evil' and even 'GET\\x00x' are all accepted (verified), and the unvalidated method is published to the application as REQUEST_METHOD. VERSION_RE.match at line 352 has the identical unanchored flaw, so 'HTTP/1.1xyz' parses as version (1,1) with the trailing garbage discarded. Accepting method and version tokens that compliant parsers reject is the precondition for a parser differential: a front end and Gunicorn disagree on whether the request line is valid or on where the method ends, which admits smuggled or re-interpreted requests past a proxy that normalizes or filters on the method, while NUL and delimiter bytes reaching REQUEST_METHOD give applications and access-log consumers an input they are entitled to assume is a bare token.",
+    "path": [
+      {"file": "gunicorn/http/message.py", "function": "parse_request_line", "line": 331, "role": "source"},
+      {"file": "gunicorn/http/message.py", "function": "parse_request_line", "line": 336, "role": "propagator"},
+      {"file": "gunicorn/http/message.py", "function": "parse_request_line", "line": 338, "role": "sink"},
+      {"file": "gunicorn/http/wsgi.py", "function": "default_environ", "line": 87, "role": "sink"}
+    ]
+  },
+  {
+    "file": "gunicorn/http/wsgi.py",
+    "function": "start_response",
+    "line_start": 233,
+    "line_end": 239,
+    "cwe": "CWE-113",
+    "title": "Response status string never validated for CRLF before being written to the status line",
+    "explanation": "start_response stores the application-supplied status verbatim and default_headers() interpolates it straight into the status line at line 305 ('HTTP/%s.%s %s\\r\\n'), which send_headers() writes to the socket. Nothing on this path rejects control characters in the status, even though process_headers() immediately below validates every header name against HEADER_RE and every header value against HEADER_VALUE_RE = [\\x00-\\x1F\\x7F] (lines 252-259) for precisely this reason. The status is the one field written into the response head with no filter, so an application that interpolates request-derived data into it, a common pattern for propagating an upstream status or a custom reason phrase, lets an attacker close the status line with CRLF and inject arbitrary response headers and a second complete response body. That yields response splitting and cache poisoning, and because the smuggled headers are attacker-chosen it also yields stored XSS via an injected Content-Type and body, or session fixation via an injected Set-Cookie. The only other guard, int(self.status.split()[0]) at line 239, merely swallows a ValueError into status_code = None and does not constrain the string that is actually emitted.",
+    "path": [
+      {"file": "gunicorn/http/wsgi.py", "function": "start_response", "line": 233, "role": "source"},
+      {"file": "gunicorn/http/wsgi.py", "function": "default_headers", "line": 305, "role": "propagator"},
+      {"file": "gunicorn/http/wsgi.py", "function": "send_headers", "line": 322, "role": "sink"}
+    ]
+  }
+]}

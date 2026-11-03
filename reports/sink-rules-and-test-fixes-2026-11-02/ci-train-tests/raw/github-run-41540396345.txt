@@ -1,0 +1,13 @@
+﻿GitHub Actions run 41540396345 on af58327 (ci/run-train-tests), read with gh on 2026-11-02
+https://github.com/lutherleo/orion/actions/runs/41540396345
+conclusion=success
+
+neo4j	Set up job	2026-11-02T22:49:00.4586299Z Image: ubuntu-24.04
+neo4j	Run actions/setup-python@v5	2026-11-02T22:49:39.7757915Z Successfully set up CPython (3.12.15)
+neo4j	Run pytest -m "not slow" -q	2026-11-02T22:55:48.6587804Z 1523 passed, 39 skipped, 62 deselected in 346.87s (0:05:46)
+unit	Set up job	2026-11-02T22:48:59.5882457Z Image: ubuntu-24.04
+unit	Run actions/setup-python@v5	2026-11-02T22:49:02.3192450Z Successfully set up CPython (3.12.15)
+unit	Run pytest -m "not slow" -q	2026-11-02T22:49:53.3706242Z 1487 passed, 75 skipped, 62 deselected in 37.52s
+unit	Run pytest eval/tests -q	2026-11-02T22:49:58.3662607Z 550 passed, 3 skipped in 4.50s
+unit	Run pip install tree-sitter==0.26.0 tree-sitter-javascript==0.25.0 tree-sitter-typescript==0.23.2 tree-sitter-python==0.25.0 tree-sitter-java==0.23.5	2026-11-02T22:49:59.2824656Z Successfully installed tree-sitter-0.26.0 tree-sitter-java-0.23.5 tree-sitter-javascript-0.25.0 tree-sitter-python-0.25.0 tree-sitter-typescript-0.23.2
+unit	Run pytest train/tests -m "not slow" -q	2026-11-02T22:50:03.0611712Z 315 passed, 3 skipped in 3.53s

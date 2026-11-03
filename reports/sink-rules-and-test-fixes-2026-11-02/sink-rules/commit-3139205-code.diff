@@ -1,0 +1,356 @@
+﻿diff --git a/CLAUDE.md b/CLAUDE.md
+index bccd04c..cc82258 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -407,9 +407,28 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
+   NodeGoat lm 201 -> 111 (prototype_pollution 115 -> 0; redirects from rank 120 -> 20), PyGoat lm
+   300 -> 170 (prototype_pollution 283 -> 1; SQL in the top 50 0 -> 26), PyGoat default unchanged,
+   FLOWS_TO unchanged. Orion-LM's code-only sink lines (C1's training format) are unchanged -- pinned
+-  by `tests/test_sink_rules.py`. The plain `log` hint still matches "login"/"dialog" (lowest
+-  severity; not changed). GOTCHA: the PyGoat goldens depend on the Joern build; `pygoat_lm` needs
+-  re-recording on the Mac: `python -m tests.test_graph_snapshot pygoat lm`.
++  by `tests/test_sink_rules.py`. GOTCHA: the PyGoat goldens depend on the Joern build.
++- **Sink rules 2026-11-02** (found by the graph-as-memory Q&A pilot; flows only, `_classify_flow_sink`):
++  a real call is judged by its name and its text up to the first "(", not its arguments, so
++  `comments.objects.create(name='System')` is no longer code_exec and `print(sql_query)` no longer sql
++  (each nested call has its own row); an operator call keeps its whole text (NodeGoat's only `$where` sink
++  is `_tmp_5.$where`). New `Profile.flow_sinks`, regexes over a real call's whole text, flow ranking
++  only: GENERIC `Popen`/`popen` always and subprocess `run`/`call`/`check_call`/`check_output` with
++  `shell=True`, as code_exec; EXPRESS `$where`, so it is not lost in a `count({$where: x})`. EXPRESS `log`
++  is a `SinkPattern` that matches the word (console.log, logger, logError, auditLog, not /login,
++  isLoggedIn, dialog). Measured in WSL on cpg.bin, all sinks by category:
++  NodeGoat default and lm 111 -> 73 (render 30 -> 21, redirect 8 -> 5, log 60 -> 34; code_exec 3, nosql 10
++  unchanged), PyGoat default 98 -> 93 (code_exec 9 -> 12: +4 Popen incl. `cmd_lab` and `command_out`, -1
++  `'System'`; sql 26 -> 18), PyGoat lm 170 -> 161 (the same, and path 54 -> 50: the Popens were `open(`
++  path rows). FLOWS_TO unchanged (217; 1076 on WSL's PyGoat CPG). Every discovery prompt is byte-identical
++  to before. `_classify_sink` keeps the old rule for `orion/lm/sinks.py`, so C1's code-only lines are
++  unchanged (`subprocess.Popen(` there is still `path`, pinned by `tests/test_sink_rules.py`). The effect
++  on what scans FIND is not measured: that needs `bench/prove.py` on the Mac. Still loose, not changed:
++  operator rows match hints anywhere in their text, so `comment_obj = ... 'System'` stays code_exec
++  (rank 3 on PyGoat) and handler assignments keep the category of their body (kept on purpose: FLOWS_TO
++  doesn't cross callbacks, so that row is often the only pointer to the sink); `console.log`
++  fieldAccess rows repeat the call. GOTCHA: both PyGoat goldens now need re-recording on the Mac:
++  `python -m tests.test_graph_snapshot pygoat default` and `... pygoat lm`.
+ - PyGoat fixture pinned: `fixtures/pygoat` at `19d17cc8874861142b330636d068bbde54e86b85`
+   (`tests/test_stream_build.py::test_stream_flows_parity_pygoat`, slow; fails on another commit).
+   Golden outputs live in `tests/golden/`.
+diff --git a/orion/graph/pathfind.py b/orion/graph/pathfind.py
+index 5a527d8..b9e48f1 100644
+--- a/orion/graph/pathfind.py
++++ b/orion/graph/pathfind.py
+@@ -48,26 +48,19 @@ def _severity(category: str) -> int:
+ # never name-matched (`assign` hit every `<operator>.assignment`, `log` every `<operator>.logicalAnd`),
+ # and a profiles.SinkPattern hint matches by regex. Orion-LM's code-only sink lines (orion/lm/sinks.py)
+ # match code only (name ""), so they are unchanged -- C1's training rows still match what it sees.
+-SINK_RULES = "2026-10-28"
++# "2026-11-02": flows use `_classify_flow_sink` (a real call is judged by its own name and callee, not
++# by its arguments, plus `Profile.flow_sinks`), and EXPRESS's `log` hint matches `log` as a word.
++SINK_RULES = "2026-11-02"
+ _OPERATOR = "<operator>"
+ 
+ 
+-def _classify_sink(props: dict, profile) -> str | None:
+-    """The highest-severity sink category whose hint appears in this call's name or code, else None.
+-    Matching is substring + case-insensitive on `name`/`code` -- deliberately generous (this is a
+-    candidate list a verifier re-checks), but ranked so `eval` outranks `log`. Two exceptions: a
+-    Joern operator call (`<operator>.assignment`, `.logicalAnd`, ...) is never matched on its NAME,
+-    which is Joern's, not the code's; and a `profiles.SinkPattern` hint matches by its regex."""
+-    if profile is None:
+-        return None
+-    raw_name = str(props.get("name") or "")
+-    raw_code = str(props.get("code") or "")
+-    if raw_name.startswith(_OPERATOR):
+-        raw_name = ""
++def _best_hint(hints_by_category: dict, raw_name: str, raw_code: str) -> str | None:
++    """The highest-severity category with a hint in this name or code, else None. A plain hint is a
++    case-insensitive substring; a `profiles.SinkPattern` hint matches by its regex."""
+     name, code = raw_name.lower(), raw_code.lower()
+     best: str | None = None
+     best_sev = -1
+-    for category, hints in profile.sink_hints.items():
++    for category, hints in hints_by_category.items():
+         for hint in hints:
+             rx = getattr(hint, "rx", None)
+             if rx is not None:
+@@ -83,6 +76,41 @@ def _classify_sink(props: dict, profile) -> str | None:
+     return best
+ 
+ 
++def _classify_sink(props: dict, profile) -> str | None:
++    """The highest-severity sink category whose hint appears in this call's name or code, else None.
++    Matching is substring + case-insensitive on `name`/`code` -- deliberately generous (this is a
++    candidate list a verifier re-checks), but ranked so `eval` outranks `log`. Two exceptions: a
++    Joern operator call (`<operator>.assignment`, `.logicalAnd`, ...) is never matched on its NAME,
++    which is Joern's, not the code's; and a `profiles.SinkPattern` hint matches by its regex.
++
++    This is the rule for a line of code with no call around it (orion/lm/sinks.py, C1's training
++    format, frozen by decision D4). A graph flow's sink goes through `_classify_flow_sink`."""
++    if profile is None:
++        return None
++    raw_name = str(props.get("name") or "")
++    if raw_name.startswith(_OPERATOR):
++        raw_name = ""
++    return _best_hint(profile.sink_hints, raw_name, str(props.get("code") or ""))
++
++
++def _classify_flow_sink(props: dict, profile) -> str | None:
++    """The sink category of a CpgCall in the graph. A real call is judged by its name and its text up
++    to the first "(" (kept, for hints like `open(`): a call inside its arguments has a row of its own,
++    so `profile.updateUser(res.render(...))` and `comments.create(name='System')` are not that sink.
++    `profile.flow_sinks` are the exception, read over the call's whole text. An operator call keeps
++    its whole text: `x = eval(y)` and `_tmp_5.$where` have no callee to read."""
++    if profile is None:
++        return None
++    raw_name = str(props.get("name") or "")
++    raw_code = str(props.get("code") or "")
++    if raw_name.startswith(_OPERATOR):
++        return _best_hint(profile.sink_hints, "", raw_code)
++    callee, paren, _args = raw_code.partition("(")
++    named = _best_hint(profile.sink_hints, raw_name, callee + paren)
++    whole = _best_hint(profile.flow_sinks, "", raw_code)
++    return max(filter(None, (named, whole)), key=_severity, default=None)
++
++
+ def _index_and_edges(batch: schema.Batch):
+     """call_props (uid -> unioned CpgCall props), FLOWS_TO adjacency (src_uid -> [dst_uid]),
+     self-loop source uids (FLOWS_TO src == dst), entry-method full_names, and the CONTAINS_CALL map
+@@ -189,7 +217,7 @@ def pathfind(batch: schema.Batch, profile) -> dict:
+     # Every reached call that classifies as a sink is a candidate flow.
+     raw: list[tuple[int, float, int, str, str, str, list[str]]] = []
+     for uid in dist:
+-        category = _classify_sink(call_props.get(uid, {}), profile)
++        category = _classify_flow_sink(call_props.get(uid, {}), profile)
+         if category is None:
+             continue
+         centrality = float(call_props.get(uid, {}).get("centrality") or 0.0)
+diff --git a/orion/graph/profiles.py b/orion/graph/profiles.py
+index 440f622..75627f9 100644
+--- a/orion/graph/profiles.py
++++ b/orion/graph/profiles.py
+@@ -88,6 +88,11 @@ class Profile:
+     # One line describing how request handlers / entry points are wired in this stack.
+     entrypoint_hint: str = ""
+ 
++    # --- flow ranking only (pathfind._classify_flow_sink): regexes over a real call's WHOLE text, for
++    # sinks its name alone can't say (`shell=True`, a `$where` key). Not in the discovery prompt, and
++    # not in Orion-LM's code-only sink lines (orion/lm/sinks.py), which C1 was trained on.
++    flow_sinks: dict[str, tuple[SinkPattern, ...]] = field(default_factory=dict)
++
+     # --- shape-B checklist (graph/shortlists.py): the protections an app on this stack should have,
+     # ordered most to least important (the order is the shortlist's tie-break rank).
+     controls: tuple[Control, ...] = ()
+@@ -106,9 +111,15 @@ EXPRESS = Profile(
+         "nosql": ("find", "findOne", "$where"),
+         "redirect": ("redirect",),
+         "render": ("render", "send"),
+-        "log": ("log",),
++        # `log` as a word (console.log, logger.info, logError, auditLog, LOG.warn), not a substring:
++        # /login, isLoggedIn, validateLogin and dialog are no log sinks (2026-11-02).
++        "log": (SinkPattern("log", r"(?<![A-Za-z\d_$])LOG(?:GER)?(?![A-Za-z\d_$])"
++                                   r"|(?:(?<![A-Za-z\d_$])log|(?<![A-Z])Log)(?:ger|ging)?"
++                                   r"(?!In\b|Out\b|On\b)(?![a-z\d_$])"),),
+     },
+     entrypoint_hint="Express route handlers registered via app.get/post/put/delete/use(path, handler).",
++    # A `$where` key is the sink whichever query call carries it (count, deleteMany, aggregate, ...).
++    flow_sinks={"nosql": (SinkPattern("$where", r"\$where"),)},
+     controls=(
+         Control("output escaping in templates", "CWE-79",
+                 present=(r"autoescape\s*:\s*true",),
+@@ -147,6 +158,14 @@ GENERIC = Profile(
+         "calls (call-graph roots) — request handlers, exported API, main. Their parameters are the "
+         "untrusted inputs."
+     ),
++    # Anchored, so a call with one of these in its arguments is not filed as the sink. `Popen` runs a
++    # command with or without a shell; subprocess's other helpers only count with `shell=True` (Joern
++    # renders it `shell = True`), since a list of args with no shell is the safe way to call them.
++    flow_sinks={"code_exec": (
++        SinkPattern("Popen", r"^(?:[\w.]+\.)?[Pp]open\s*\("),
++        SinkPattern("subprocess shell=True", r"^[\w.]*subprocess\.(?:run|call|check_call|check_output)\s*\("
++                                             r"[\s\S]*\bshell\s*=\s*True\b"),
++    )},
+     controls=(
+         Control("output escaping in templates", "CWE-79",
+                 disabled=(r"autoescape\s*[=:]\s*false", r"\bmark_safe\(", r"\|\s*safe\b",
+diff --git a/tests/test_graph_snapshot.py b/tests/test_graph_snapshot.py
+index 36fd135..9bbb392 100644
+--- a/tests/test_graph_snapshot.py
++++ b/tests/test_graph_snapshot.py
+@@ -23,6 +23,15 @@ pygoat_default is unchanged by the rules (byte-identical before/after). pygoat_l
+ 170 flows, prototype_pollution 283 -> 1) but was not re-recorded: the PyGoat goldens depend on the
+ Joern build (WSL's CPG differs from the Mac's by 38 taint edges, 1076 vs 1075), so re-record it on
+ the machine that made it:  python -m tests.test_graph_snapshot pygoat lm
++
++Re-recorded 2026-11-02 for sink rules pathfind.SINK_RULES (a real call judged by its own name and
++callee, not its arguments; Profile.flow_sinks; EXPRESS `log` a word): nodegoat_default and nodegoat_lm
++(111 -> 73 flows each) were recorded in WSL, whose NodeGoat CPG matched the old goldens row for row;
++FLOWS_TO unchanged. Both PyGoat goldens change too (default 98 -> 93, lm 170 -> 161 on WSL's CPG, with
++the four subprocess.Popen sinks) and were NOT re-recorded, for the reason above, so both fail until
++they are, on the Mac:
++  python -m tests.test_graph_snapshot pygoat default
++  python -m tests.test_graph_snapshot pygoat lm
+ """
+ from __future__ import annotations
+ 
+diff --git a/tests/test_sink_rules.py b/tests/test_sink_rules.py
+index a257476..42b56a8 100644
+--- a/tests/test_sink_rules.py
++++ b/tests/test_sink_rules.py
+@@ -1,6 +1,9 @@
+ """Sink rules 2026-10-28 (merge plan Phase 2, decision D4): the graph's flow ranking no longer
+ name-matches Joern operator calls, and EXPRESS's `Function` hint is the constructor, not the keyword.
+-Orion-LM's code-only sink lines (C1's training format) and the discovery prompt are unchanged. Pure.
++Sink rules 2026-11-02: a real call is judged by its own name and callee, not its arguments;
++`Profile.flow_sinks` adds command execution on GENERIC and keeps `$where` on EXPRESS; EXPRESS's `log`
++is a word. Orion-LM's code-only sink lines (C1's training format) and the discovery prompt are
++unchanged. Pure.
+ """
+ from __future__ import annotations
+ 
+@@ -38,11 +41,10 @@ def _call(name: str, code: str) -> dict:
+     (_call("<operator>.new", 'new Function("return " + x)'), profiles.EXPRESS, "code_exec"),
+     (_call("Function", "Function(x)()"), profiles.EXPRESS, "code_exec"),
+     # ... not the keyword, a comment, or a name that merely contains it. NodeGoat's old #1 code_exec
+-    # (user-dao.js:57) drops to the lowest category: the plain `log` hint is a substring of
+-    # "validateLogin" -- the `log` hint's own looseness, unchanged here.
++    # (user-dao.js:57) is no sink at all: "validateLogin" holds no `log` word.
+     (_call("<operator>.assignment",
+            "this.validateLogin = function(userName, password, callback) {\n  // Helper function\n}"),
+-     profiles.EXPRESS, "log"),
++     profiles.EXPRESS, None),
+     (_call("myFunction", "myFunction(x)"), profiles.EXPRESS, None),
+     (_call("Function", "obj.Function(x)"), profiles.EXPRESS, None),
+     (_call("handler", "app.get('/', function(req, res) {})"), profiles.EXPRESS, None),
+@@ -51,6 +53,77 @@ def test_classify_sink(props, profile, want):
+     assert pathfind._classify_sink(props, profile) == want
+ 
+ 
++@pytest.mark.parametrize("text,want", [
++    ("console.log(x)", "log"), ("logger.info(x)", "log"), ("logging.warn(x)", "log"), ("Logger.info(x)", "log"),
++    ("LOG.warn(x)", "log"), ("LOGGER.debug(x)", "log"), ("logError(x)", "log"), ("auditLog(x)", "log"),
++    ("/login", None), ("isLoggedIn", None), ("validateLogin", None), ("logIn(x)", None), ("logOut(x)", None),
++    ("logout(x)", None), ("dialog.show(x)", None), ("catalog.list(x)", None), ("blog.post(x)", None),
++    ("LOGIN", None), ("BLOG", None),
++])
++def test_the_log_hint_is_a_word(text, want):
++    assert pathfind._classify_sink(_call("", text), profiles.EXPRESS) == want
++
++
++@pytest.mark.parametrize("props,profile,want", [
++    # the outer call is not the sink of a call in its arguments: each nested call has its own row
++    (_call("updateUser", "profile.updateUser(res.render('x', y), z)"), profiles.EXPRESS, None),
++    (_call("get", 'app.get("/login", isLoggedIn, handler)'), profiles.EXPRESS, None),
++    (_call("create", "comments.objects.create(name='System')"), profiles.GENERIC, None),
++    (_call("render", "render(request, 'page.html', {'q': sql_query})"), profiles.GENERIC, None),
++    (_call("print", "print(sql_query)"), profiles.GENERIC, None),
++    # the real one is matched by its name, its callee, or the head of a chain
++    (_call("render", "res.render('x', y)"), profiles.EXPRESS, "render"),
++    (_call("log", "console.log(x)"), profiles.EXPRESS, "log"),
++    (_call("toArray", "db.users.find(q).toArray(cb)"), profiles.EXPRESS, "nosql"),
++    (_call("raw", "User.objects.raw(q)"), profiles.GENERIC, "sql"),
++    # a hint that holds the "(" still sees it
++    (_call("open", "open(path)"), profiles.with_lm_sinks(profiles.GENERIC), "path"),
++    # a call with no "(" in its code keeps its whole text
++    (_call("x", "eval x"), profiles.GENERIC, "code_exec"),
++    # operator calls keep their whole text: `$where` is only ever a field here
++    (_call("<operator>.fieldAccess", "_tmp_5.$where"), profiles.EXPRESS, "nosql"),
++    (_call("<operator>.assignment", "x = eval(req.body.q)"), profiles.EXPRESS, "code_exec"),
++    (_call("<operator>.logicalAnd", "a && b"), profiles.EXPRESS, None),
++    # flow_sinks read the whole text of a real call
++    (_call("count", "db.users.count({$where: q})"), profiles.EXPRESS, "nosql"),
++    (_call("Popen", "subprocess.Popen(cmd,shell = True,stdout = subprocess.PIPE)"), profiles.GENERIC, "code_exec"),
++    (_call("Popen", 'subprocess.Popen(command.split(" "))'), profiles.GENERIC, "code_exec"),
++    (_call("popen", "os.popen(cmd)"), profiles.GENERIC, "code_exec"),
++    (_call("Popen", "Popen(cmd)"), profiles.GENERIC, "code_exec"),
++    (_call("run", "subprocess.run(cmd,shell = True)"), profiles.GENERIC, "code_exec"),
++    (_call("check_output", "subprocess.check_output(cmd,shell=True)"), profiles.GENERIC, "code_exec"),
++    (_call("call", "sp.subprocess.call(cmd,\n    shell = True)"), profiles.GENERIC, "code_exec"),
++    # ... anchored, so neither a safe call nor an outer one is filed
++    (_call("run", "subprocess.run(cmd)"), profiles.GENERIC, None),
++    (_call("run", "subprocess.run(cmd,shell = False)"), profiles.GENERIC, None),
++    (_call("run", "pool.run(subprocess.Popen(cmd),shell = True)"), profiles.GENERIC, None),
++    (_call("wrap", "wrap(subprocess.Popen(cmd))"), profiles.GENERIC, None),
++    (_call("reopen", "reopen(cmd)"), profiles.GENERIC, None),
++    # flow_sinks outrank a lower-severity match by name, and survive with_lm_sinks
++    (_call("Popen", "subprocess.Popen(cmd)"), profiles.with_lm_sinks(profiles.GENERIC), "code_exec"),
++    (_call("count", "db.users.count({$where: q})"), LM_EXPRESS, "nosql"),
++])
++def test_classify_flow_sink(props, profile, want):
++    assert pathfind._classify_flow_sink(props, profile) == want
++
++
++def test_classify_flow_sink_with_no_profile():
++    assert pathfind._classify_flow_sink(_call("eval", "eval(x)"), None) is None
++
++
++def test_pathfind_files_a_flow_by_the_new_rules():
++    from orion.graph import schema
++    b = schema.Batch("s")
++    calls = {"src": ("handler", "handler(x)"), "cmd": ("Popen", "subprocess.Popen(x,shell = True)"),
++             "outer": ("create", "comments.create(name='System')")}
++    for uid, (name, code) in calls.items():
++        b.emit_node("CpgCall", {"uid": uid, "name": name, "code": code})
++        b.edges.append(("FLOWS_TO", "CpgCall", {"uid": "src"}, "CpgCall", {"uid": uid}, {}))
++    pathfind.pathfind(b, profiles.GENERIC)
++    flows = {p["sink_uid"]: p["sink_category"] for label, p in b.nodes if label == "CandidateFlow"}
++    assert flows == {"cmd": "code_exec"}
++
++
+ def test_the_prompt_still_shows_the_same_sink_vocabulary():
+     # SinkPattern is its display text, so the default discovery prompt is byte-identical.
+     line = strategies._profile_block(profiles.EXPRESS).splitlines()[-1]
+@@ -58,6 +131,20 @@ def test_the_prompt_still_shows_the_same_sink_vocabulary():
+                     "findOne, $where; redirect: redirect; render: render, send; log: log.")
+ 
+ 
++def test_the_generic_prompt_shows_the_same_sink_vocabulary():
++    # flow_sinks never reach the prompt: Popen and shell=True are flow ranking only.
++    line = strategies._profile_block(profiles.GENERIC).splitlines()[-1]
++    assert line == ("Dangerous sinks to watch: code_exec: eval, exec, system, spawn; sql: execute, query, "
++                    "raw; redirect: redirect.")
++    assert "Popen" not in strategies._profile_block(profiles.GENERIC)
++    assert "shell" not in strategies._profile_block(profiles.GENERIC)
++
++
++def test_the_lm_profiles_keep_their_flow_sinks():
++    assert profiles.with_lm_sinks(profiles.GENERIC).flow_sinks == profiles.GENERIC.flow_sinks
++    assert LM_EXPRESS.flow_sinks == profiles.EXPRESS.flow_sinks
++
++
+ def test_the_rules_version_is_in_every_pathfind_summary():
+     from orion.graph import schema
+     assert pathfind.pathfind(schema.Batch("s"), profiles.EXPRESS)["sink_rules"] == pathfind.SINK_RULES
+@@ -93,6 +180,10 @@ TARGETS = [
+     "public void doGet(HttpServletRequest r) {\n  Runtime.getRuntime().exec(r.getParameter(\"c\"));\n}",
+     "res.redirect(req.query.next);\nres.render('page', {x});",
+     "x = 1\ny = x + 2",
++    "def run(cmd):\n    return subprocess.Popen(cmd, shell=True)",
++    "def run(cmd):\n    return subprocess.check_output(cmd, shell=True)",
++    "comments.objects.create(name='System')",
++    "app.get('/login', isLoggedIn, handler);",
+ ]
+ 
+ 
+@@ -105,6 +196,23 @@ def test_c1_code_only_sink_lines_are_unchanged(code, monkeypatch):
+     assert new == old
+ 
+ 
++@pytest.mark.parametrize("code,want", [
++    # literal, not "same as the old rule": a Popen line is `path` through the `open(` hint, as C1 saw it
++    ("subprocess.Popen(cmd, shell=True)", "path"),
++    ("subprocess.check_output(cmd, shell=True)", None),
++    ("comments.objects.create(name='System')", "code_exec"),
++    ("print(sql_query)", "sql"),
++])
++def test_c1_sink_category_on_the_lines_the_flow_rules_changed(code, want):
++    case = {"snippets": [{"role": "target", "file": "a.py", "function": "f", "start": 1, "code": code}]}
++    assert sinks.annotate(case).get("sink_category") == want
++
++
++def test_the_lm_code_only_hints_are_the_ones_c1_was_trained_on():
++    assert profiles.GENERIC.sink_hints == {"code_exec": ("eval", "exec", "system", "spawn"),
++                                           "sql": ("execute", "query", "raw"), "redirect": ("redirect",)}
++
++
+ def test_the_lm_code_only_profile_has_no_regex_hints():
+     """The C1 pin above holds because Orion-LM's code-only profile (GENERIC + LM hints) has no
+     SinkPattern and is matched with an empty name; adding one there would change C1's sink lines."""

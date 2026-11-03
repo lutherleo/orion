@@ -1,0 +1,238 @@
+{
+  "findings": [
+    {
+      "file": "packages/backend/src/api/v1/auth/utils.ts",
+      "function": "authMiddleware",
+      "line_start": 62,
+      "line_end": 106,
+      "cwe": "CWE-639",
+      "title": "Authorization bypass via client-controlled projectId on \"public\" routes",
+      "explanation": "For routes matched by the `publicRoutes` list (e.g. `/v1/datasets/.+`, `/v1/evaluations/run`, `/v1/runs/.+/public`, `/v1/runs/.+/feedback`, `/v1/template_versions/latest`), the middleware skips JWT verification and sets `ctx.state.projectId = bearerToken` directly from the client-supplied `Authorization` header with no lookup against the `api_key` table. The code never confirms the token is an active, non-revoked key belonging to a project; it simply trusts whatever value the client sends as the authoritative project identifier. Because the `publicRoutes` matcher only checks `ctx.path` (not the HTTP method), this also exposes mutating endpoints such as the full dataset CRUD API (`POST/PATCH/DELETE /v1/datasets/...`) to anyone who merely knows a project's public/tracking key (itself just the project's UUID, by design embedded in client-side SDK traffic), rather than requiring the private server-side key or an authenticated session.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 88, "role": "source" },
+        { "file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 99, "role": "propagator" },
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.post(\"/\")", "line": 60, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/projects/index.ts",
+      "function": "projects.delete(\"/:projectId\")",
+      "line_start": 70,
+      "line_end": 89,
+      "cwe": "CWE-862",
+      "title": "IDOR allows deleting any organization's project",
+      "explanation": "The route reads `projectId` from the URL path and deletes `project where id = ${projectId}` without ever verifying that this project belongs to the caller's `orgId`. The only ownership check performed (`select count(*) from project where org_id = ${orgId}`) validates the attacker's OWN org has more than one project, not that the target project belongs to them. Any authenticated user whose org has 2+ projects can delete an arbitrary project belonging to a different organization by supplying its UUID.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/projects/index.ts", "function": "projects.delete(\"/:projectId\")", "line": 71, "role": "source" },
+        { "file": "packages/backend/src/api/v1/projects/index.ts", "function": "projects.delete(\"/:projectId\")", "line": 78, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/projects/index.ts",
+      "function": "projects.patch(\"/:projectId\")",
+      "line_start": 91,
+      "line_end": 106,
+      "cwe": "CWE-862",
+      "title": "IDOR allows renaming any organization's project",
+      "explanation": "The `projectId` route parameter is used directly in `update project set name = ... where id = ${projectId}` with no check that the project belongs to `ctx.state.orgId`. Any authenticated user can rename any other organization's project by guessing/knowing its UUID.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/projects/index.ts", "function": "projects.patch(\"/:projectId\")", "line": 92, "role": "source" },
+        { "file": "packages/backend/src/api/v1/projects/index.ts", "function": "projects.patch(\"/:projectId\")", "line": 98, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/templateVersions.ts",
+      "function": "versions.get(\"/:id\")",
+      "line_start": 43,
+      "line_end": 55,
+      "cwe": "CWE-862",
+      "title": "IDOR discloses prompt template versions from other projects",
+      "explanation": "The handler fetches `template_version` solely by `id`, with no filter on project ownership. The subsequent query that looks up the parent `template` is scoped to `ctx.state.projectId`, but its result is irrelevant to whether the version data (content, extra, test values) is already returned to the client in `ctx.body`. Any authenticated user can read any other organization's prompt template version content by iterating/guessing version IDs.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/templateVersions.ts", "function": "versions.get(\"/:id\")", "line": 43, "role": "source" },
+        { "file": "packages/backend/src/api/v1/templateVersions.ts", "function": "versions.get(\"/:id\")", "line": 54, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/templateVersions.ts",
+      "function": "versions.patch(\"/:id\")",
+      "line_start": 57,
+      "line_end": 77,
+      "cwe": "CWE-862",
+      "title": "IDOR allows tampering with any organization's prompt template version",
+      "explanation": "The UPDATE statement targets `template_version` filtered only by `id = ${ctx.params.id}`; there is no WHERE clause tying the row to the caller's project/organization. Any authenticated user (regardless of which org/project they belong to) can modify the content, extra metadata, test values, or draft status of any other organization's prompt template version.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/templateVersions.ts", "function": "versions.patch(\"/:id\")", "line": 58, "role": "source" },
+        { "file": "packages/backend/src/api/v1/templateVersions.ts", "function": "versions.patch(\"/:id\")", "line": 66, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/templates.ts",
+      "function": "templates.post(\"/:id/versions\")",
+      "line_start": 113,
+      "line_end": 132,
+      "cwe": "CWE-862",
+      "title": "IDOR allows adding a version to any organization's template",
+      "explanation": "`template_id` is taken directly from `ctx.params.id` and used to insert a new `template_version` row with no check that the template belongs to `ctx.state.projectId`. Any authenticated user can inject a new version (content/extra/test values) into any other organization's template.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/templates.ts", "function": "templates.post(\"/:id/versions\")", "line": 113, "role": "source" },
+        { "file": "packages/backend/src/api/v1/templates.ts", "function": "templates.post(\"/:id/versions\")", "line": 121, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.delete(\"/:id\")",
+      "line_start": 111,
+      "line_end": 117,
+      "cwe": "CWE-862",
+      "title": "IDOR allows deleting any organization's dataset",
+      "explanation": "Unlike the sibling GET/PATCH handlers for the same resource, this DELETE route has no `project_id` filter at all: `delete from dataset where id = ${id}`. Any authenticated caller can delete any project's dataset by supplying its ID, and (combined with the public-route bypass in authMiddleware) a caller who only has a project's public tracking key may also reach this route.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/:id\")", "line": 112, "role": "source" },
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/:id\")", "line": 114, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.post(\"/prompts\")",
+      "line_start": 120,
+      "line_end": 146,
+      "cwe": "CWE-862",
+      "title": "IDOR allows inserting prompts into any organization's dataset",
+      "explanation": "`datasetId` is taken straight from the request body and used to insert a `dataset_prompt` row with no verification that the dataset belongs to the caller's project. Any authenticated caller (or public-key holder, per the authMiddleware bypass) can attach arbitrary prompt content to any other organization's dataset.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.post(\"/prompts\")", "line": 121, "role": "source" },
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.post(\"/prompts\")", "line": 126, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.get(\"/prompts/:id\")",
+      "line_start": 149,
+      "line_end": 163,
+      "cwe": "CWE-862",
+      "title": "IDOR discloses dataset prompts and variations from other projects",
+      "explanation": "The prompt (and its variations) are fetched purely by `id` with no ownership check against the caller's project. Any authenticated caller can read any other organization's dataset prompt content, ideal outputs, and test variables by guessing/incrementing the ID.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.get(\"/prompts/:id\")", "line": 150, "role": "source" },
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.get(\"/prompts/:id\")", "line": 152, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.delete(\"/prompts/:id\")",
+      "line_start": 166,
+      "line_end": 173,
+      "cwe": "CWE-862",
+      "title": "IDOR allows deleting any organization's dataset prompt",
+      "explanation": "`delete from dataset_prompt where id = ${id}` has no project/dataset ownership filter, letting any authenticated caller delete prompt data belonging to another organization.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/prompts/:id\")", "line": 167, "role": "source" },
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/prompts/:id\")", "line": 169, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.patch(\"/prompts/:id\")",
+      "line_start": 176,
+      "line_end": 186,
+      "cwe": "CWE-862",
+      "title": "IDOR allows overwriting any organization's dataset prompt content",
+      "explanation": "The UPDATE statement is scoped only by `id`, not by project/dataset ownership, so any authenticated caller can overwrite the message content of another organization's dataset prompt.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.patch(\"/prompts/:id\")", "line": 177, "role": "source" },
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.patch(\"/prompts/:id\")", "line": 182, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.get(\"/variations/:id\") / delete(\"/variations/:id\") / patch(\"/variations/:variationId\") / post(\"/variations\")",
+      "line_start": 188,
+      "line_end": 264,
+      "cwe": "CWE-862",
+      "title": "IDOR on dataset prompt variation endpoints (read/modify/delete/create)",
+      "explanation": "All four variation routes operate purely on client-supplied `id`/`variationId`/`promptId` values with no check that the underlying prompt/dataset belongs to the caller's project. This allows any authenticated caller to read, overwrite, delete, or create variations (including ideal outputs and context used for evaluation) belonging to another organization's dataset.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.patch(\"/variations/:variationId\")", "line": 212, "role": "source" },
+        { "file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.patch(\"/variations/:variationId\")", "line": 227, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/evaluations/index.ts",
+      "function": "evaluations.post(\"/\")",
+      "line_start": 12,
+      "line_end": 55,
+      "cwe": "CWE-639",
+      "title": "Cross-tenant data access via unvalidated datasetId/checklistId in evaluation creation",
+      "explanation": "`datasetId` and `checklistId` are taken directly from the request body and stored on a new `evaluation` row tied to the caller's own `projectId`, but neither value is checked to belong to that project. `getEvaluation()` and `runEval()` (in evaluations/utils.ts) subsequently look up the dataset's prompts/variations and the checklist purely by ID with no project filter, then run the model against that data and store results under the attacker's own evaluation. This lets a user from one organization run evaluations against — and read back via their own evaluation results — another organization's private dataset prompts, ideal outputs, and checklists simply by supplying their UUIDs.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/evaluations/index.ts", "function": "evaluations.post(\"/\")", "line": 13, "role": "source" },
+        { "file": "packages/backend/src/api/v1/evaluations/utils.ts", "function": "getEvaluation", "line": 131, "role": "propagator" },
+        { "file": "packages/backend/src/api/v1/evaluations/utils.ts", "function": "runEval", "line": 34, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/evaluations/index.ts",
+      "function": "evaluations.get(\"/result/:evaluationId\")",
+      "line_start": 72,
+      "line_end": 89,
+      "cwe": "CWE-862",
+      "title": "IDOR discloses evaluation results from other projects",
+      "explanation": "The query filters only by `er.evaluation_id = ${evaluationId}` with no join/check against the caller's `projectId`. Any authenticated user can read another organization's evaluation results (model outputs, pass/fail details, prompt content) by guessing/incrementing the evaluation ID.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/evaluations/index.ts", "function": "evaluations.get(\"/result/:evaluationId\")", "line": 73, "role": "source" },
+        { "file": "packages/backend/src/api/v1/evaluations/index.ts", "function": "evaluations.get(\"/result/:evaluationId\")", "line": 75, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/runs/index.ts",
+      "function": "runs.get(\"/:id/related\")",
+      "line_start": 239,
+      "line_end": 259,
+      "cwe": "CWE-862",
+      "title": "IDOR discloses run data (and descendants) from other projects",
+      "explanation": "The recursive query selects runs by `id` with no `project_id` filter anywhere in the CTE. Any authenticated user can retrieve the full data (inputs, outputs, params, errors, tags, feedback) of any run and all its recursive children belonging to a different organization, simply by knowing/guessing the run's UUID.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/runs/index.ts", "function": "runs.get(\"/:id/related\")", "line": 240, "role": "source" },
+        { "file": "packages/backend/src/api/v1/runs/index.ts", "function": "runs.get(\"/:id/related\")", "line": 242, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/external-users.ts",
+      "function": "users.get(\"/:id\")",
+      "line_start": 70,
+      "line_end": 77,
+      "cwe": "CWE-862",
+      "title": "IDOR discloses external user records from other projects",
+      "explanation": "`select * from external_user where id = ${id}` has no `project_id` filter, so any authenticated user can read another organization's end-user records (external ID, props, last seen) by guessing/incrementing the numeric ID.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/external-users.ts", "function": "users.get(\"/:id\")", "line": 71, "role": "source" },
+        { "file": "packages/backend/src/api/v1/external-users.ts", "function": "users.get(\"/:id\")", "line": 72, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/checks/index.ts",
+      "function": "CHECK_RUNNERS[\"regex\"].evaluator",
+      "line_start": 96,
+      "line_end": 113,
+      "cwe": "CWE-1333",
+      "title": "ReDoS via user-supplied regex in checklist/radar \"regex\" check",
+      "explanation": "The `regex` string from a checklist/radar filter (fully attacker-controlled JSON, stored without validation — see radars.post/patch and checklists.post/patch) is compiled with `new RegExp(regex)` and run against run input/output text. A crafted catastrophic-backtracking pattern will block the Node.js event loop. Because the same process continuously evaluates radar checks in the background job (src/jobs/radar.ts) across all paying-plan projects, a single malicious regex submitted by one tenant can stall processing for every other tenant.",
+      "path": [
+        { "file": "packages/backend/src/api/v1/radars.ts", "function": "radars.post(\"/\")", "line": 227, "role": "source" },
+        { "file": "packages/backend/src/jobs/radar.ts", "function": "runRadarChecksOnRun", "line": 12, "role": "propagator" },
+        { "file": "packages/backend/src/checks/index.ts", "function": "CHECK_RUNNERS[\"regex\"].evaluator", "line": 100, "role": "sink" }
+      ]
+    },
+    {
+      "file": "packages/backend/src/utils/cors.ts",
+      "function": "patchedCors",
+      "line_start": 5,
+      "line_end": 25,
+      "cwe": "CWE-942",
+      "title": "Overly permissive CORS: reflects any Origin with credentials enabled",
+      "explanation": "The CORS middleware reflects whatever `Origin` header the browser sends (`return ctx.get(\"Origin\") || \"*\"`) while also setting `Access-Control-Allow-Credentials: true`. This effectively allows any website to make credentialed cross-origin requests to the API and read the responses, defeating the browser's same-origin protections for any endpoint that relies on ambient credentials.",
+      "path": []
+    }
+  ]
+}

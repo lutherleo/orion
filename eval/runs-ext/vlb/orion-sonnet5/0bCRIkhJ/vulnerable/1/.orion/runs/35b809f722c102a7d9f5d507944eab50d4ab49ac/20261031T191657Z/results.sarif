@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-937",
+              "name": "CWE937",
+              "shortDescription": {
+                "text": "CWE-937"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-937"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/937.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-937",
+          "level": "warning",
+          "message": {
+            "text": "sanitize-html (~2.13.0) is the sole third-party sanitization engine this package delegates all XSS neutralization to (lib/sanitize.js calls sanitizeHtml(data, options.sanitizerOptions) for every string field of req.body/req.params/req.headers/req.query). The call graph confirms this is the highest-centrality reachable method in the whole package (centrality 0.01177, reachable_from_entry=true, hop_distance=0), i.e. a single chokepoint: any sanitize-html parsing/filter bypass in the declared 2.13.0 line defeats this entire middleware's protection for every consumer. The declared range is a tight tilde (~2.13.0, patch-only), so it will not auto-pick-up a newer minor release that fixes a parser/filter-bypass advisory discovered after 2.13.0 shipped. Recommend the verifier diff 2.13.0 against the current sanitize-html changelog/advisory list for any filter-bypass or ReDoS fix landed after that version.\n\nVerifier (INCONCLUSIVE): All of the lead's concrete, checkable claims about architecture verify as true against source and graph, but the lead does not identify an actual known vulnerability in sanitize-html 2.13.0 \u2014 it is a forward-looking risk flag (\"check the changelog\"), and I could not resolve that open question. (1) package.json:34 pins `\"sanitize-html\": \"~2.13.0\"` exactly as claimed \u2014 a tilde range that only floats within the 2.13.x patch line (>=2.13.0 <2.14.0), so a later fix shipped as a 2.14.0+ minor would NOT be auto-picked-up, confirming the analyst's semver point. (2) lib/sanitize.js is the only file in the tree (besides its own test) referencing sanitize-html/sanitizeHtml \u2014 grep over *.js found no DOMPurify/xss()/validator alternative, so it is indeed the sole third-party sanitization engine. (3) Every string field of data passed in is routed through `sanitizeHtml(data/item, options.sanitizerOptions)` at lib/sanitize.js:28, 33, 48 inside the `sanitize()` function (lines 26-55, not 26-45 as the analyst stated \u2014 the function's closing brace is at line 55). (4) Cypher confirms `lib/sanitize.js::program:sanitize` has centrality=0.011770019107173875, reachable_from_entry=true, hop_distance=0, and a full ORDER BY centrality DESC scan of every CpgMethod in the scan confirms this is in fact the single highest-centrality method in the whole package (next highest is initializeOptions at 0.0105, same file). So the 'chokepoint' structural claim is fully verified. However, the actual security claim rests entirely on sanitize-html 2.13.0 having an exploitable parser/filter-bypass or ReDoS flaw, and that I could not establish: exploit_search for 'sanitize-html bypass filter XSS' and for ReDoS both returned only `{\"_note\":\"exploit corpus unavailable: not indexed\"}` \u2014 the same tool failure the analyst hit \u2014 and I have no other authoritative CVE/advisory data confirming a known-vulnerable condition specific to the 2.13.0 line. Per the rules, absent that evidence I cannot CONFIRM a vulnerability, and since the architectural risk pattern described (single sanitization chokepoint, tightly-pinned third-party dep) is accurately and verifiably true, REJECT is not warranted either \u2014 this is an unresolved, correctly-hedged dependency-risk lead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/sanitize.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 26,
+                  "endLine": 55
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "sanitize",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "1cc0cb138677079e86aed6b264417e67ffa39799"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "INCONCLUSIVE",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

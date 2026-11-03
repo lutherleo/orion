@@ -1,0 +1,64 @@
+..FFFFs                                                                  [100%]
+=================================== FAILURES ===================================
+E   RuntimeError: joern-parse failed (rc=1):
+    
+    java.lang.AssertionError: Input path does not exist at `/mnt/c/Users/h/AppData/Local/Temp/claude/C--Users-h-Downloads-orion--claude-worktrees-vibrant-villani-d0c165/f7950741-8940-447e-85ba-5fcb86e0cc14/scratchpad/base_e755f75/fixtures/NodeGoat`, exiting.
+    	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$1(JoernParse.scala:100)
+    	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$adapted$1(JoernParse.scala:102)
+    	at scala.util.Try$.apply(Try.scala:195)
+    	at io.joern.joerncli.JoernParse$.checkInputPath(JoernParse.scala:102)
+    	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:87)
+    	at io.joern.joerncli.JoernParse$.run$$anonfun$1(JoernParse.scala:77)
+    	at scala.util.Success.flatMap(Try.scala:244)
+    	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:73)
+    	at io.joern.joerncli.JoernParse$.main(JoernParse.scala:19)
+    	at io.joern.joerncli.JoernParse.main(JoernParse.scala)
+/mnt/c/Users/h/AppData/Local/Temp/claude/C--Users-h-Downloads-orion--claude-worktrees-vibrant-villani-d0c165/f7950741-8940-447e-85ba-5fcb86e0cc14/scratchpad/base_e755f75/orion/graph/joern_adapter.py:723: RuntimeError: joern-parse failed (rc=1):
+E   RuntimeError: joern-parse failed (rc=1):
+    
+    java.lang.AssertionError: Input path does not exist at `/mnt/c/Users/h/AppData/Local/Temp/claude/C--Users-h-Downloads-orion--claude-worktrees-vibrant-villani-d0c165/f7950741-8940-447e-85ba-5fcb86e0cc14/scratchpad/base_e755f75/fixtures/NodeGoat`, exiting.
+    	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$1(JoernParse.scala:100)
+    	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$adapted$1(JoernParse.scala:102)
+    	at scala.util.Try$.apply(Try.scala:195)
+    	at io.joern.joerncli.JoernParse$.checkInputPath(JoernParse.scala:102)
+    	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:87)
+    	at io.joern.joerncli.JoernParse$.run$$anonfun$1(JoernParse.scala:77)
+    	at scala.util.Success.flatMap(Try.scala:244)
+    	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:73)
+    	at io.joern.joerncli.JoernParse$.main(JoernParse.scala:19)
+    	at io.joern.joerncli.JoernParse.main(JoernParse.scala)
+/mnt/c/Users/h/AppData/Local/Temp/claude/C--Users-h-Downloads-orion--claude-worktrees-vibrant-villani-d0c165/f7950741-8940-447e-85ba-5fcb86e0cc14/scratchpad/base_e755f75/orion/graph/joern_adapter.py:723: RuntimeError: joern-parse failed (rc=1):
+E   RuntimeError: joern-parse failed (rc=1):
+    
+    java.lang.AssertionError: Input path does not exist at `/mnt/c/Users/h/AppData/Local/Temp/claude/C--Users-h-Downloads-orion--claude-worktrees-vibrant-villani-d0c165/f7950741-8940-447e-85ba-5fcb86e0cc14/scratchpad/base_e755f75/fixtures/NodeGoat`, exiting.
+    	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$1(JoernParse.scala:100)
+    	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$adapted$1(JoernParse.scala:102)
+    	at scala.util.Try$.apply(Try.scala:195)
+    	at io.joern.joerncli.JoernParse$.checkInputPath(JoernParse.scala:102)
+    	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:87)
+    	at io.joern.joerncli.JoernParse$.run$$anonfun$1(JoernParse.scala:77)
+    	at scala.util.Success.flatMap(Try.scala:244)
+    	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:73)
+    	at io.joern.joerncli.JoernParse$.main(JoernParse.scala:19)
+    	at io.joern.joerncli.JoernParse.main(JoernParse.scala)
+/mnt/c/Users/h/AppData/Local/Temp/claude/C--Users-h-Downloads-orion--claude-worktrees-vibrant-villani-d0c165/f7950741-8940-447e-85ba-5fcb86e0cc14/scratchpad/base_e755f75/orion/graph/joern_adapter.py:723: RuntimeError: joern-parse failed (rc=1):
+E   RuntimeError: joern-parse failed (rc=1):
+    
+    java.lang.AssertionError: Input path does not exist at `/mnt/c/Users/h/AppData/Local/Temp/claude/C--Users-h-Downloads-orion--claude-worktrees-vibrant-villani-d0c165/f7950741-8940-447e-85ba-5fcb86e0cc14/scratchpad/base_e755f75/fixtures/NodeGoat`, exiting.
+    	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$1(JoernParse.scala:100)
+    	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$adapted$1(JoernParse.scala:102)
+    	at scala.util.Try$.apply(Try.scala:195)
+    	at io.joern.joerncli.JoernParse$.checkInputPath(JoernParse.scala:102)
+    	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:87)
+    	at io.joern.joerncli.JoernParse$.run$$anonfun$1(JoernParse.scala:77)
+    	at scala.util.Success.flatMap(Try.scala:244)
+    	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:73)
+    	at io.joern.joerncli.JoernParse$.main(JoernParse.scala:19)
+    	at io.joern.joerncli.JoernParse.main(JoernParse.scala)
+/mnt/c/Users/h/AppData/Local/Temp/claude/C--Users-h-Downloads-orion--claude-worktrees-vibrant-villani-d0c165/f7950741-8940-447e-85ba-5fcb86e0cc14/scratchpad/base_e755f75/orion/graph/joern_adapter.py:723: RuntimeError: joern-parse failed (rc=1):
+=========================== short test summary info ============================
+FAILED tests/test_embed_spans.py::test_spans_from_batch_matches_graph_query
+FAILED tests/test_embed_spans.py::test_build_with_concurrent_index_overlap - ...
+FAILED tests/test_graph_build.py::test_build_nodegoat - RuntimeError: joern-p...
+FAILED tests/test_graph_build.py::test_call_file_attribution - RuntimeError: ...
+4 failed, 2 passed, 1 skipped in 5.89s

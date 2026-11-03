@@ -1,0 +1,295 @@
+{
+  "findings": [
+    {
+      "file": "packages/backend/src/api/v1/auth/utils.ts",
+      "function": "authMiddleware",
+      "line_start": 62,
+      "line_end": 106,
+      "cwe": "CWE-306",
+      "title": "Unanchored public-route regex exposes the whole dataset API without authentication",
+      "explanation": "publicRoutes contains new RegExp(`/v1/datasets/.+`) (line 76) and the middleware decides with route.test(ctx.path) (line 85). The regex is unanchored, applies to every HTTP method, and `.+` swallows any sub-path, so every route registered under the /datasets prefix - including DELETE /v1/datasets/:id, GET|PATCH|DELETE /v1/datasets/prompts/:id, GET|PATCH|DELETE /v1/datasets/variations/:id and POST /v1/datasets/prompts|variations - is treated as public. When a route is public the middleware returns at line 94/104 without ever calling verifyJwt, so no JWT is required, and ctx.state.projectId is taken straight from the bearer token (lines 90-93, 98-105) without ever being checked against the api_key/project tables. Consequently (a) an attacker with no account at all can call the dataset read/write/delete handlers, and (b) because a project's `public` API key is literally the project UUID (see api/v1/auth/index.ts:77-84), anyone holding a public key that is embedded in a browser/mobile app can read that project's private evaluation datasets via GET /v1/datasets/:slug. The dataset handlers that do not filter on project_id (see the separate findings) then operate across every tenant.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 82, "role": "source"},
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 84, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 90, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 94, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.delete(\"/:id\")",
+      "line_start": 111,
+      "line_end": 117,
+      "cwe": "CWE-862",
+      "title": "Unauthenticated deletion of any dataset (no project scoping)",
+      "explanation": "The handler runs `delete from dataset where id = ${id}` using only the path parameter. Unlike the sibling PATCH handler (line 105) it never adds `and project_id = ${projectId}`, and it never reads ctx.state at all, so there is no tenancy check. Because /v1/datasets/.+ is in publicRoutes, the request does not even need a JWT. Any party that learns a dataset UUID (e.g. a member of another org, or a UUID leaked in a shared URL) can issue `DELETE /v1/datasets/<uuid>` and destroy another organisation's dataset, cascading to dataset_prompt and dataset_prompt_variation rows via the FK `on delete cascade`.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 76, "role": "source"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/:id\")", "line": 112, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/:id\")", "line": 114, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.get(\"/prompts/:id\")",
+      "line_start": 149,
+      "line_end": 163,
+      "cwe": "CWE-639",
+      "title": "Cross-tenant read of dataset prompts via unscoped ID lookup",
+      "explanation": "`select * from dataset_prompt where id = ${id}` and `select * from dataset_prompt_variation where prompt_id = ${id}` are executed with no join back to dataset/project and no comparison against ctx.state.projectId or orgId. Combined with the publicRoutes regex for /v1/datasets/.+, an unauthenticated caller who knows (or obtains) a prompt UUID receives another organisation's prompt messages, variables, context and ideal outputs - the core intellectual property stored in Lunary datasets.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 76, "role": "source"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.get(\"/prompts/:id\")", "line": 150, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.get(\"/prompts/:id\")", "line": 153, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.patch(\"/prompts/:id\")",
+      "line_start": 176,
+      "line_end": 186,
+      "cwe": "CWE-862",
+      "title": "Unauthenticated overwrite of any dataset prompt",
+      "explanation": "`update dataset_prompt set messages = ${messages} where id = ${id}` takes the row id from the path and the new content from the request body, with no project/org ownership check and (because of the /v1/datasets/.+ public-route regex) no authentication. An attacker can rewrite the prompts of any tenant's dataset; those messages are later compiled and sent to LLM providers by runEval/compileChatMessages, so this is also a persistent prompt-injection vector into the victim's evaluation runs.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 76, "role": "source"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.patch(\"/prompts/:id\")", "line": 178, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.patch(\"/prompts/:id\")", "line": 183, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.delete(\"/prompts/:id\")",
+      "line_start": 166,
+      "line_end": 173,
+      "cwe": "CWE-862",
+      "title": "Unauthenticated deletion of any dataset prompt and its variations",
+      "explanation": "Both `delete from dataset_prompt where id = ${id}` and `delete from dataset_prompt_variation where prompt_id = ${id}` are driven solely by the path parameter. No projectId/orgId predicate is present and the route is matched by the /v1/datasets/.+ public-route regex, so an unauthenticated request destroys arbitrary tenants' prompt data.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 76, "role": "source"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/prompts/:id\")", "line": 167, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/prompts/:id\")", "line": 169, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.get(\"/variations/:id\")",
+      "line_start": 188,
+      "line_end": 200,
+      "cwe": "CWE-639",
+      "title": "Cross-tenant read of dataset prompt variations",
+      "explanation": "`select * from dataset_prompt_variation where id = ${id}` is executed with no project scoping and no authentication (matched by the /v1/datasets/.+ public-route regex). The returned row contains the variation's variables, context and ideal_output, i.e. another organisation's test data, readable by anyone who knows or harvests a variation UUID.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 76, "role": "source"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.get(\"/variations/:id\")", "line": 189, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.get(\"/variations/:id\")", "line": 192, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.patch(\"/variations/:variationId\")",
+      "line_start": 211,
+      "line_end": 240,
+      "cwe": "CWE-862",
+      "title": "Unauthenticated modification of any dataset prompt variation",
+      "explanation": "The update statement builds its SET clause from the request body (variables, context, idealOutput) and selects the row with `where id = ${variationId}` only. There is no ownership check on the variation and no authentication, since /v1/datasets/.+ is treated as a public route. An attacker can tamper with any tenant's expected outputs, silently corrupting their evaluation results.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 76, "role": "source"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.patch(\"/variations/:variationId\")", "line": 213, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.patch(\"/variations/:variationId\")", "line": 227, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.delete(\"/variations/:id\")",
+      "line_start": 202,
+      "line_end": 208,
+      "cwe": "CWE-862",
+      "title": "Unauthenticated deletion of any dataset prompt variation",
+      "explanation": "`delete from dataset_prompt_variation where id = ${id}` uses only the path parameter, with no project_id predicate and no authentication (public-route regex /v1/datasets/.+). Any unauthenticated caller holding a variation UUID can delete another organisation's data.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 76, "role": "source"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/variations/:id\")", "line": 203, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.delete(\"/variations/:id\")", "line": 205, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.post(\"/prompts\")",
+      "line_start": 120,
+      "line_end": 146,
+      "cwe": "CWE-862",
+      "title": "Unauthenticated insertion of prompts into an arbitrary dataset",
+      "explanation": "datasetId is read from the request body and inserted directly (`insert into dataset_prompt ${sql({datasetId, messages})}`) without verifying that the dataset belongs to the caller's project, and without authentication because of the /v1/datasets/.+ public-route regex. An attacker can graft arbitrary prompt content onto any tenant's dataset; that content is later compiled and sent to the victim's LLM provider during evaluations (api/v1/evaluations/utils.ts:40-42).",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 76, "role": "source"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.post(\"/prompts\")", "line": 121, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.post(\"/prompts\")", "line": 126, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/datasets/index.ts",
+      "function": "datasets.post(\"/variations\")",
+      "line_start": 243,
+      "line_end": 264,
+      "cwe": "CWE-862",
+      "title": "Unauthenticated insertion of variations onto an arbitrary prompt",
+      "explanation": "promptId comes from the request body and is inserted without checking that the parent prompt (and therefore dataset/project) belongs to the caller; the route also requires no JWT because of the /v1/datasets/.+ public-route regex. This lets an attacker add attacker-controlled variables/context/ideal outputs to another organisation's prompt.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/utils.ts", "function": "authMiddleware", "line": 76, "role": "source"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.post(\"/variations\")", "line": 244, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/datasets/index.ts", "function": "datasets.post(\"/variations\")", "line": 251, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/templateVersions.ts",
+      "function": "versions.patch(\"/:id\")",
+      "line_start": 57,
+      "line_end": 77,
+      "cwe": "CWE-639",
+      "title": "Any authenticated user can overwrite any prompt template version",
+      "explanation": "The update is keyed only on `where id = ${ctx.params.id}`; ctx.state.projectId/orgId are never consulted, so there is no tenancy check. template_version.id is a `serial` integer (packages/db/init.sql:163), so IDs are sequential and trivially enumerable. Any logged-in user of any organisation can PATCH /v1/template_versions/<n> and replace the content/extra/test_values of another organisation's production prompt. Since SDKs fetch the newest non-draft version via /v1/template_versions/latest, the attacker's text is then executed as the victim's prompt against their LLM provider (persistent prompt injection), and setting is_draft can also silently disable their prompts.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/templateVersions.ts", "function": "versions.patch(\"/:id\")", "line": 58, "role": "source"},
+        {"file": "packages/backend/src/api/v1/templateVersions.ts", "function": "versions.patch(\"/:id\")", "line": 72, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/templateVersions.ts",
+      "function": "versions.get(\"/:id\")",
+      "line_start": 43,
+      "line_end": 55,
+      "cwe": "CWE-639",
+      "title": "Cross-tenant disclosure of prompt template versions",
+      "explanation": "The first query selects the template_version row by id alone. The follow-up query does filter the parent template by project_id, but its result is only attached as `template` - the version row itself is returned to the caller regardless (line 54). template_version.id is a sequential `serial` (packages/db/init.sql:163), so any authenticated user can walk IDs 1..N and dump every organisation's prompt content, model parameters and test values.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/templateVersions.ts", "function": "versions.get(\"/:id\")", "line": 45, "role": "source"},
+        {"file": "packages/backend/src/api/v1/templateVersions.ts", "function": "versions.get(\"/:id\")", "line": 54, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/templates.ts",
+      "function": "templates.post(\"/:id/versions\")",
+      "line_start": 113,
+      "line_end": 132,
+      "cwe": "CWE-639",
+      "title": "New template version can be added to another organisation's template",
+      "explanation": "The insert uses ctx.params.id directly as template_id without checking that the template belongs to ctx.state.projectId (contrast the GET/PATCH/DELETE handlers above, which all filter on project_id). template.id is a `serial` integer (packages/db/init.sql:151), so IDs are enumerable. Any authenticated user can append a non-draft version to any tenant's template; because /v1/template_versions/latest returns the most recently created non-draft version, the injected content immediately becomes the prompt that the victim's SDK executes.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/templates.ts", "function": "templates.post(\"/:id/versions\")", "line": 114, "role": "source"},
+        {"file": "packages/backend/src/api/v1/templates.ts", "function": "templates.post(\"/:id/versions\")", "line": 125, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/runs/index.ts",
+      "function": "runs.get(\"/:id/related\")",
+      "line_start": 239,
+      "line_end": 259,
+      "cwe": "CWE-639",
+      "title": "Recursive run tree readable across tenants (no project/org filter)",
+      "explanation": "The recursive CTE is anchored on `WHERE r1.id = ${id}` and the final SELECT applies no project_id/org_id predicate, even though the adjacent GET /:id handler deliberately restricts rows to `project_id in (select id from project where org_id = ${orgId})` (line 207). Any authenticated user can therefore pass another organisation's run UUID and receive that run plus every descendant run, including input, output, error, params and tags - i.e. full LLM prompt/response content from another tenant. Run UUIDs are exposed in shared public-run links (GET /:id/related is not restricted to is_public = true, unlike /:id/public), so a single shared link yields the whole private trace.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/runs/index.ts", "function": "runs.get(\"/:id/related\")", "line": 240, "role": "source"},
+        {"file": "packages/backend/src/api/v1/runs/index.ts", "function": "runs.get(\"/:id/related\")", "line": 246, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/external-users.ts",
+      "function": "users.get(\"/:id\")",
+      "line_start": 70,
+      "line_end": 77,
+      "cwe": "CWE-639",
+      "title": "End-user PII readable across tenants via sequential external_user IDs",
+      "explanation": "`select * from external_user where id = ${id} limit 1` has no project_id predicate, while the sibling list route (line 31) correctly scopes by project. external_user.id is a `serial` primary key (packages/db/init.sql:49), so any authenticated user can iterate /v1/external-users/1, /2, /3 ... and read every tracked end user of every organisation, including external_id and the free-form `props` JSON that typically holds names, emails and other identity attributes.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/external-users.ts", "function": "users.get(\"/:id\")", "line": 71, "role": "source"},
+        {"file": "packages/backend/src/api/v1/external-users.ts", "function": "users.get(\"/:id\")", "line": 73, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/evaluations/index.ts",
+      "function": "evaluations.get(\"/result/:evaluationId\")",
+      "line_start": 72,
+      "line_end": 89,
+      "cwe": "CWE-639",
+      "title": "Evaluation results readable across tenants",
+      "explanation": "The query joins evaluation_result with dataset_prompt/dataset_prompt_variation filtered only by `er.evaluation_id = ${evaluationId}`; ctx.state.projectId is never used, unlike the GET /:id handler two routes above which filters `and project_id = ${projectId}`. Any authenticated user who learns an evaluation UUID (e.g. from a shared dashboard URL) can read another organisation's model outputs, prompts, per-check results and costs.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/evaluations/index.ts", "function": "evaluations.get(\"/result/:evaluationId\")", "line": 73, "role": "source"},
+        {"file": "packages/backend/src/api/v1/evaluations/index.ts", "function": "evaluations.get(\"/result/:evaluationId\")", "line": 86, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/projects/index.ts",
+      "function": "projects.delete(\"/:projectId\")",
+      "line_start": 70,
+      "line_end": 89,
+      "cwe": "CWE-639",
+      "title": "Any authenticated user can delete another organisation's project",
+      "explanation": "The guard counts projects in the *caller's* org (`select count(*) from project where org_id = ${orgId}`) but the delete then runs `delete from project where id = ${projectId}` on the path parameter with no org_id predicate. authMiddleware only validates project membership for a projectId passed in the query string (auth/utils.ts:117-127), which this route does not use, so the check is never triggered. Any authenticated user whose own org holds more than one project can delete any project UUID, cascading to run, dataset, checklist and radar rows (packages/db/init.sql FKs use `on delete cascade`). Target UUIDs are easy to obtain because a project's public API key is the project UUID and is embedded in client-side SDK code.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/projects/index.ts", "function": "projects.delete(\"/:projectId\")", "line": 71, "role": "source"},
+        {"file": "packages/backend/src/api/v1/projects/index.ts", "function": "projects.delete(\"/:projectId\")", "line": 78, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/projects/index.ts",
+      "function": "projects.patch(\"/:projectId\")",
+      "line_start": 91,
+      "line_end": 106,
+      "cwe": "CWE-639",
+      "title": "Any authenticated user can rename another organisation's project",
+      "explanation": "The handler never reads ctx.state.orgId: it executes `update project set name = ${name} where id = ${projectId}` using only the path parameter. Because authMiddleware only verifies project ownership for a projectId supplied as a query parameter, a request such as PATCH /v1/projects/<victim-uuid> with a valid JWT from any organisation succeeds and modifies the victim's project record.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/projects/index.ts", "function": "projects.patch(\"/:projectId\")", "line": 92, "role": "source"},
+        {"file": "packages/backend/src/api/v1/projects/index.ts", "function": "projects.patch(\"/:projectId\")", "line": 98, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/auth/index.ts",
+      "function": "auth.post(\"/signup\")",
+      "line_start": 117,
+      "line_end": 136,
+      "cwe": "CWE-862",
+      "title": "Self-service join to an arbitrary organisation with no invitation check",
+      "explanation": "When signupMethod === \"join\", the orgId is taken verbatim from the request body (schema at line 22 accepts any string) and used to create an account with role \"member\" and verified: true, then a session JWT is minted. There is no invitation record, no token, no expiry, no admin approval and no server-side seat/plan limit - the only thing standing between an attacker and membership of a target organisation is knowledge of its org UUID, which is handed out as a plain reusable link (packages/frontend/pages/team.tsx:53 builds `${origin}/join?orgId=${org.id}` and it never expires or can be revoked). Anyone who obtains that link, or a former member who kept it, can mint new member accounts at will and then read all of that org's projects, runs, prompts and logs. The frontend's \"team full\" check (packages/frontend/pages/join.tsx) is client-side only and is bypassed by posting directly to the API.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/index.ts", "function": "auth.post(\"/signup\")", "line": 22, "role": "source"},
+        {"file": "packages/backend/src/api/v1/auth/index.ts", "function": "auth.post(\"/signup\")", "line": 118, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/auth/index.ts", "function": "auth.post(\"/signup\")", "line": 126, "role": "sink"},
+        {"file": "packages/backend/src/api/v1/auth/index.ts", "function": "auth.post(\"/signup\")", "line": 128, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/backend/src/api/v1/auth/index.ts",
+      "function": "auth.post(\"/reset-password\")",
+      "line_start": 194,
+      "line_end": 218,
+      "cwe": "CWE-640",
+      "title": "Password reset accepts any valid JWT and ignores the stored recovery token",
+      "explanation": "The handler only checks that the submitted token carries a valid HS256 signature (verifyJwt) and then resets the password of whatever email is in the payload. It never compares the token against account.recovery_token, which /request-password-reset stored for exactly this purpose (line 180), and it never clears that column afterwards. Two consequences: (1) reset links are not single-use and stay valid for the full hour even after the password has been changed, so a link replayed from mail archives, browser history or a proxy log takes over the account again - and the legitimate owner cannot invalidate it; (2) because signJwt emits tokens with no purpose/audience claim, any other token minted by the service that contains an `email` claim is accepted here, including the 30-day session JWT issued at login (line 163) and the long-lived e-mail-verification token (utils/emails.ts:14). A session token that leaks (localStorage via XSS, a shared log, a stale device) therefore escalates from session access to a permanent password change and account takeover, which is strictly more than the token was meant to grant.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/auth/index.ts", "function": "auth.post(\"/reset-password\")", "line": 199, "role": "source"},
+        {"file": "packages/backend/src/api/v1/auth/index.ts", "function": "auth.post(\"/reset-password\")", "line": 203, "role": "propagator"},
+        {"file": "packages/backend/src/api/v1/auth/index.ts", "function": "auth.post(\"/reset-password\")", "line": 208, "role": "sink"}
+      ]
+    },
+    {
+      "file": "packages/frontend/next.config.js",
+      "function": "nextConfig.images.remotePatterns",
+      "line_start": 16,
+      "line_end": 23,
+      "cwe": "CWE-918",
+      "title": "Next.js image optimizer configured as an open proxy, reachable with attacker-controlled run data",
+      "explanation": "remotePatterns allows `hostname: \"**\"`, i.e. every host, so /_next/image?url=<any https URL> makes the Next.js server perform a server-side GET of that URL and return the body. The URL does not have to be guessed by the attacker: run input/output is ingested through the unauthenticated POST /v1/runs/ingest endpoint (packages/backend/src/api/v1/runs/ingest.ts:283, listed in publicRoutes) and is rendered back by SmartViewer -> MessageViewer -> ChatMessage -> ImageMessage, which passes `item.imageUrl.url` straight into next/image (packages/frontend/components/SmartViewer/Message.tsx:139-141, 112-118). Logging a message whose content array contains {type: \"image_url\", imageUrl: {url: \"https://10.0.0.5/admin\"}} makes the Next.js server fetch that internal host whenever a dashboard user views the run, and the optimizer relays the response, turning the deployment into an SSRF pivot into its own network as well as a bandwidth-amplifying open image proxy.",
+      "path": [
+        {"file": "packages/backend/src/api/v1/runs/ingest.ts", "function": "router.post(\"/\")", "line": 283, "role": "source"},
+        {"file": "packages/backend/src/api/v1/runs/ingest.ts", "function": "registerRunEvent", "line": 111, "role": "propagator"},
+        {"file": "packages/frontend/components/Blocks/RunInputOutput.tsx", "function": "RunInputOutput", "line": 262, "role": "propagator"},
+        {"file": "packages/frontend/components/SmartViewer/Message.tsx", "function": "ImageMessage", "line": 139, "role": "propagator"},
+        {"file": "packages/frontend/components/SmartViewer/Message.tsx", "function": "ResponsiveImage", "line": 115, "role": "sink"},
+        {"file": "packages/frontend/next.config.js", "function": "nextConfig.images.remotePatterns", "line": 20, "role": "sink"}
+      ]
+    }
+  ]
+}

@@ -214,9 +214,9 @@ or $1,000 a week. On that rough rate the Sonnet pair needs about 0.7 of a week a
 
 - Scored tables: `eval/results/vlb-pilot.{md,json}`, `eval/results/bountybench-pilot.{md,json}`.
 - Gate 3: `bench/research/{nodegoat,pygoat}/{O-sonnet,O-opus,P-plain-sonnet5,P-plain-opus5}.json`, plus the `P-*/` folders.
-- Raw runs are not in git: `eval/runs-ext/` in the WSL worktree `~/orion-bench` only, so back them up before removing it.
+- Raw runs and logs: `eval/runs-ext/` (`logs/` holds the console logs). Their absolute paths point at the WSL worktree `~/orion-bench`.
 
-Re-scoring is token-free, run from that worktree:
+Re-scoring is token-free. It reads `eval/runs-ext/`:
 
 ```bash
 python -m eval.extbench score --benchmark vlb

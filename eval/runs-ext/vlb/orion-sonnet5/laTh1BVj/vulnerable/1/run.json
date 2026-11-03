@@ -1,0 +1,124 @@
+{
+ "benchmark": "vlb",
+ "task": "laTh1BVj",
+ "repo": "eclipse-ee4j/parsson",
+ "snapshot": "vulnerable",
+ "ref": "82f3f1a4a37f0a72b7ec2404f3f1f8ef92efd6f4",
+ "commit": "82f3f1a4a37f0a72b7ec2404f3f1f8ef92efd6f4",
+ "arm": "orion-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 533.3,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 13,
+  "uncached_in": 250,
+  "cache_read": 4571456,
+  "cache_write": 445091,
+  "out": 118905,
+  "tokens": 5135702,
+  "cli_cost_usd": 3.9369
+ },
+ "status": "ok",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": null,
+ "usage": [
+  {
+   "uncached_in": 18,
+   "cache_read": 197167,
+   "cache_write": 20836,
+   "out": 10987,
+   "cli_cost_usd": 0.23463589499999998
+  },
+  {
+   "uncached_in": 32,
+   "cache_read": 737017,
+   "cache_write": 64954,
+   "out": 12924,
+   "cli_cost_usd": 0.5439665200000001
+  },
+  {
+   "uncached_in": 24,
+   "cache_read": 604245,
+   "cache_write": 83325,
+   "out": 18067,
+   "cli_cost_usd": 0.6443048699999999
+  },
+  {
+   "uncached_in": 32,
+   "cache_read": 964663,
+   "cache_write": 91402,
+   "out": 18712,
+   "cli_cost_usd": 0.756240095
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 143242,
+   "cache_write": 14951,
+   "out": 3677,
+   "cli_cost_usd": 0.127065145
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 203775,
+   "cache_write": 20357,
+   "out": 4692,
+   "cli_cost_usd": 0.17168987
+  },
+  {
+   "uncached_in": 22,
+   "cache_read": 406340,
+   "cache_write": 39702,
+   "out": 7054,
+   "cli_cost_usd": 0.31579074500000004
+  },
+  {
+   "uncached_in": 10,
+   "cache_read": 107239,
+   "cache_write": 8461,
+   "out": 3123,
+   "cli_cost_usd": 0.08795267
+  },
+  {
+   "uncached_in": 12,
+   "cache_read": 131960,
+   "cache_write": 8579,
+   "out": 3909,
+   "cli_cost_usd": 0.10123812000000001
+  },
+  {
+   "uncached_in": 8,
+   "cache_read": 81884,
+   "cache_write": 7136,
+   "out": 3327,
+   "cli_cost_usd": 0.07939067000000001
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 177107,
+   "cache_write": 11726,
+   "out": 3961,
+   "cli_cost_usd": 0.123761145
+  },
+  {
+   "uncached_in": 34,
+   "cache_read": 645482,
+   "cache_write": 44076,
+   "out": 17064,
+   "cli_cost_usd": 0.48032852
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 171335,
+   "cache_write": 29586,
+   "out": 11408,
+   "cli_cost_usd": 0.270570745
+  }
+ ],
+ "orion_run_dir": ".orion/runs/2dcd0334453a25e98e0fcdd6682c6d33728872be/20261031T203429Z",
+ "scan_id": "2dcd0334453a25e98e0fcdd6682c6d33728872be",
+ "graph": "cleared"
+}

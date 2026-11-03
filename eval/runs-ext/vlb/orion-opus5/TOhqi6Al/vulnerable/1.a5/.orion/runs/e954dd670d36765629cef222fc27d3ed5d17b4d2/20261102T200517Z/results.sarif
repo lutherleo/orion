@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1022",
+              "name": "CWE1022",
+              "shortDescription": {
+                "text": "CWE-1022"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1022"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1022.html"
+            },
+            {
+              "id": "CWE-79",
+              "name": "CWE79",
+              "shortDescription": {
+                "text": "CWE-79"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-79"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/79.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-79",
+          "level": "error",
+          "message": {
+            "text": "Stored/reflected DOM XSS via unescaped JSON object KEYS in `json2html`. Attacker-controlled JSON reaches `$.fn.jsonViewer(json, options)` (line 109) -> `json2html(json, options)` (line 122) -> inside json2html the dict branch iterates `_iterator_0 = <operator>.iterator(json)` (line 77) binding `key = _result_0.value`, then builds `var keyRepr = options.withQuotes ? '<span class=\"json-string\">\"' + key + '\"</span>' : key` (lines 80-81) and appends it raw: `html += '<a href class=\"json-toggle\">' + keyRepr + '</a>'` (line 84) and `html += keyRepr` (line 86). The HTML-escaping replace chain (`.replace(/&/g,'&amp;').replace(/</g,'&lt;')...`, line 33) is applied ONLY inside the `typeof json === 'string'` value branch \u2014 `key` never passes through it, and no other escaping call exists in the file. The resulting string is returned to line 122 and written to the DOM with the raw-HTML sink `$(this).html(html)` at line 128 (FLOWS_TO edge arg_index=1 from the line-122 json2html call to the line-128 html call confirms the chain). A JSON payload such as {\"<img src=x onerror=alert(1)>\": 1} executes script in the page.\n\nVerifier (CONFIRM): Re-derived from source: in json2html the HTML-escaping replace chain exists ONLY inside the `typeof json === 'string'` value branch (lines 31-46, replaces at 34-38 and 44). The dict branch (73-99) iterates `for (var key in json)` (77) and builds `keyRepr` from the raw `key` (80-81), emitting it unescaped at line 84 (`'<a href class=\"json-toggle\">' + keyRepr + '</a>'`) and line 86 (`html += keyRepr`). A whole-file grep for replace/escape/DOMPurify/textContent/.text( returns only lines 34-38 and 44, so no sanitizer touches keys. The returned string flows unconditionally from `var html = json2html(json, options)` (122) into the raw-HTML sink `$(this).html(html)` (128) inside the public `$.fn.jsonViewer` API (109); a scoped Cypher query confirms a FLOWS_TO{arg_index:1} edge 122 -> 128. The line-122/128 calls carry reachable_from_entry=false, but that is the documented arrow/anonymous-function under-linking: `json2html` itself is reachable_from_entry=true and an EntryPoint ENTERS_AT target (line 29, exposure \"reachable\"), and the source path is straight-line with no guard, so reach is confirmed by reading the code. A live consumer pattern is in-repo: demo.html:34-45 turns user-pasted text into an object and calls .jsonViewer(input, options). Payload {\"<img src=x onerror=alert(1)>\": 1} takes the line-86 path (isCollapsable(1) is false), emitting the key verbatim into .html() so onerror executes; withQuotes:true is equally vulnerable since key is interpolated raw at line 81. The library escapes values and its CHANGELOG claims \"Escape XML/HTML tags in JSON content\" (:24) and \"Fixed XSS injection\" (:9), so the unescaped key is a real security gap, not accepted design. Version is pinned at 1.4.0 (package.json:3, released 2019-08-19) i.e. not a patched build; exploit_search was unavailable in this environment (\"exploit corpus unavailable: not indexed\"), so no exploit-reference claim is made in either direction and the verdict rests on source+graph evidence alone. The analyst's claimed location is accurate."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "json-viewer/jquery.json-viewer.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 80,
+                  "endLine": 86
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "json2html",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "15cbb744968589557d976818d93d79be023bbe4d"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-1022",
+          "level": "error",
+          "message": {
+            "text": "MISSING rel=\"noopener noreferrer\" ON target=\"_blank\" LINK. At line 41 json2html builds an outbound anchor from JSON-supplied data: `html += '<a href=\"' + json + '\" class=\"json-string\" target=\"_blank\">' + json + '</a>'`. The link opens a new browsing context chosen by the (untrusted) JSON author but carries no `rel` attribute at all -- the link-hardening control is entirely absent from the scan. Consequences: (a) the full URL of the embedding page is leaked to the attacker-chosen third-party origin via the Referer header (no `noreferrer`), and (b) on browsers that do not apply the modern implicit-noopener default, the opened document receives a live `window.opener` handle and can navigate the viewer page (reverse tabnabbing). Missing control = `rel=\"noopener noreferrer\"` on the generated target=_blank anchor.\n\nVerifier (CONFIRM): Independently re-derived from source. json-viewer/jquery.json-viewer.js:41 emits `html += '<a href=\"' + json + '\" class=\"json-string\" target=\"_blank\">' + json + '</a>'` \u2014 a new-browsing-context link whose href comes from caller-supplied (potentially untrusted) JSON, with no `rel` attribute at all. The control is absent repo-wide: grep for noopener|noreferrer|rel= over the whole tree yields only `rel=\"stylesheet\"` in demo.html:8 and README.md:30, and nothing in any .js. The branch is enabled by default (`withLinks: true`, line 115). The library's own unit test at test/jquery.json-viewer.test.js:16 asserts the exact rendered output `<a href=\"http://www.hello.com\" class=\"json-string\" target=\"_blank\">` \u2014 proving the missing rel is present in real emitted HTML, not merely in a string literal. Reachability holds in source via the public API $.fn.jsonViewer (109) -> json2html (122) -> $(this).html(html) (128); the graph's reachable_from_entry:false on lines 122/128 is the documented anonymous-callback (`this.each(function(){...})`) under-linking, so I do not downgrade on it. Severity is LOW, not higher: I corrected two overstatements in the lead \u2014 the default Referrer-Policy (strict-origin-when-cross-origin) leaks only the origin cross-origin, not the full URL, and all current browsers apply implicit noopener to target=_blank, so reverse tabnabbing requires a legacy engine. Genuine defense-in-depth gap (CWE-1022). Exploit-reference grounding unavailable: version pinned exactly at 1.4.0 (package.json:3) but exploit_search returned \"exploit corpus unavailable: not indexed\", so no exploit applies-or-patched signal either way."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "json-viewer/jquery.json-viewer.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 41,
+                  "endLine": 41
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "json2html",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "c4abc4433334ecb7f784e7d19c8e67bbddaf939f"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-79",
+          "level": "error",
+          "message": {
+            "text": "In json2html(), the HTML-escaping protection is applied ONLY to the string-value branch and is absent on the object-key branch, so attacker-controlled JSON object keys reach a jQuery .html() sink unescaped (DOM XSS). At line 32-33 there is an explicitly-labelled protection ('// Escape tags and quotes') that entity-encodes &, <, >, ' and \" for string VALUES. The sibling object branch at lines 80-86 builds `var keyRepr = options.withQuotes ? '<span class=\"json-string\">\"' + key + '\"</span>' : key;` and then `html += '<a href class=\"json-toggle\">' + keyRepr + '</a>'` (line 84) / `html += keyRepr` (line 86) with the raw `key` -- no escape is applied anywhere on that path. The resulting `html` flows into `$(this).html(html)` at line 128. Because `withQuotes` defaults to false (line 114), the default path is line 86, which injects the raw key directly. The protection exists in the same function but was never factored into a shared helper (no htmlEscape/sanitize method exists in the file), so the key path bypasses it entirely. Re-derive: render `$('#x').jsonViewer({'<img src=x onerror=alert(1)>': 1})`.\n\nVerifier (CONFIRM): Re-derived from source independently. json2html() applies HTML entity-encoding ONLY in the `typeof json === 'string'` value branch (lines 33-38, under the explicit comment `// Escape tags and quotes`, plus a second value-only pass at line 44). The sibling object-key branch builds `keyRepr` from the raw `key` at lines 80-81 and appends it to `html` at line 84 (`withQuotes:true`) or line 86 (default) with no escaping on either arm. I read the whole 158-line file: the only `.replace()` calls in it are lines 34-38 and 44, all inside the value branch, and no htmlEscape/sanitize helper exists, so the key path bypasses the protection entirely. `html` reaches the jQuery sink `$(this).html(html)` at line 128 (graph confirms FLOWS_TO {arg_index:1} from the json2html call at line 122 to the line-128 sink; all key-path calls have reachable_from_entry=true). The default `withQuotes: false` (line 114) selects line 86, the fully-raw arm. The repo's own test suite independently proves the raw emission: test/jquery.json-viewer.test.js:30 asserts default output is literally `<li>hello: ...`, so a key of `<img src=x onerror=alert(1)>` is injected verbatim into .html(). CHANGELOG.md:4,9,24 shows three prior XSS hardenings, all on the value path and none on the key path, confirming the asymmetric/incomplete-protection shape. Advisory exploit-reference check could not be performed: version pinned exactly at jquery.json-viewer 1.4.0 (package.json:3) but exploit_search returned \"exploit corpus unavailable: not indexed\", so no module/CVE/version comparison was possible; the verdict rests solely on source and graph evidence I gathered."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "json-viewer/jquery.json-viewer.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 80,
+                  "endLine": 86
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "json2html",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "15cbb744968589557d976818d93d79be023bbe4d"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

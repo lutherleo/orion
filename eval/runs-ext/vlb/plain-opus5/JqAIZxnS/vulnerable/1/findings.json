@@ -1,0 +1,50 @@
+{
+  "findings": [
+    {
+      "file": "jose/backends/native.py",
+      "function": "HMACKey.__init__",
+      "line_start": 39,
+      "line_end": 52,
+      "cwe": "CWE-347",
+      "title": "JWS algorithm/key confusion: asymmetric public key accepted as HMAC secret",
+      "explanation": "When a token header specifies an HMAC algorithm (HS256/384/512), jws.verify builds an HMACKey out of whatever verification key the application supplied. To stop an attacker from exploiting the classic alg-confusion attack (signing an HS256 token with the victim's *public* key as the shared secret), HMACKey.__init__ blocklists key material that looks like a public key. The blocklist only rejects PEM-wrapped keys ('-----BEGIN PUBLIC KEY-----', '-----BEGIN RSA PUBLIC KEY-----', '-----BEGIN CERTIFICATE-----') and OpenSSH RSA ('ssh-rsa'). It does NOT reject OpenSSH-format ECDSA public keys ('ecdsa-sha2-nistp256/384/521'), Ed25519 ('ssh-ed25519'), or DSS ('ssh-dss') public keys. An application that verifies with an ECDSA/Ed25519 public key stored in OpenSSH authorized_keys format while allowing HS256 in its algorithm list lets an attacker — who knows the (public) key — forge arbitrary tokens: they compute HMAC-SHA256(public_key_bytes, header.payload) and the signature verifies. This is an authentication bypass (CVE-2024-33663).",
+      "path": [
+        {"file": "jose/jws.py", "function": "verify", "line": 48, "role": "source"},
+        {"file": "jose/jws.py", "function": "_verify_signature", "line": 249, "role": "propagator"},
+        {"file": "jose/jws.py", "function": "_sig_matches_keys", "line": 208, "role": "propagator"},
+        {"file": "jose/jwk.py", "function": "construct", "line": 79, "role": "propagator"},
+        {"file": "jose/backends/native.py", "function": "HMACKey.__init__", "line": 46, "role": "sink"}
+      ]
+    },
+    {
+      "file": "jose/backends/cryptography_backend.py",
+      "function": "CryptographyHMACKey.__init__",
+      "line_start": 555,
+      "line_end": 568,
+      "cwe": "CWE-347",
+      "title": "JWS algorithm/key confusion: asymmetric public key accepted as HMAC secret (cryptography backend)",
+      "explanation": "Same algorithm/key-confusion flaw as in the native backend, in the preferred (default) cryptography backend. CryptographyHMACKey.__init__ guards against an asymmetric public key being used as an HMAC secret with a blocklist that only catches PEM public keys/certificates and 'ssh-rsa'. OpenSSH-format ECDSA ('ecdsa-sha2-*'), Ed25519 ('ssh-ed25519'), and DSS public keys pass the check and are accepted as the raw HMAC secret. An application verifying JWS/JWT with such a public key while permitting an HMAC algorithm can be tricked into accepting attacker-forged HS256 tokens, because the attacker can compute the HMAC using the publicly known key bytes. This is an authentication/signature-verification bypass (CVE-2024-33663).",
+      "path": [
+        {"file": "jose/jws.py", "function": "verify", "line": 48, "role": "source"},
+        {"file": "jose/jws.py", "function": "_verify_signature", "line": 249, "role": "propagator"},
+        {"file": "jose/jws.py", "function": "_sig_matches_keys", "line": 208, "role": "propagator"},
+        {"file": "jose/jwk.py", "function": "construct", "line": 79, "role": "propagator"},
+        {"file": "jose/backends/cryptography_backend.py", "function": "CryptographyHMACKey.__init__", "line": 562, "role": "sink"}
+      ]
+    },
+    {
+      "file": "jose/jwe.py",
+      "function": "_decompress",
+      "line_start": 437,
+      "line_end": 456,
+      "cwe": "CWE-409",
+      "title": "JWE decompression bomb: unbounded zlib.decompress on attacker-controlled ciphertext",
+      "explanation": "jwe.decrypt accepts a compact JWE string from an untrusted source. When the (attacker-chosen) protected header contains \"zip\":\"DEF\", the decrypted plaintext is passed to _decompress, which calls zlib.decompress with no limit on output size. A small, highly compressible payload (a 'zip bomb') can be crafted to inflate to gigabytes, exhausting memory and causing a denial of service. Because the attacker fully controls both the compression flag and the ciphertext, and only needs to be able to produce a valid JWE for a key the recipient uses (e.g. 'dir' with a shared symmetric key, or any public-key alg), the amplification happens before any application-level size check. This is CVE-2024-33664.",
+      "path": [
+        {"file": "jose/jwe.py", "function": "decrypt", "line": 60, "role": "source"},
+        {"file": "jose/jwe.py", "function": "decrypt", "line": 187, "role": "propagator"},
+        {"file": "jose/jwe.py", "function": "_decompress", "line": 453, "role": "sink"}
+      ]
+    }
+  ]
+}

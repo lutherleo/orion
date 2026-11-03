@@ -1,0 +1,7 @@
+win-orion.xml: tests 1601 -> 1601; new {}; removed 0; changed status 0
+win-te-with-ts.xml: tests 890 -> 897; new {'skipped': 4, 'passed': 3}; removed 0; changed status 0
+win-te.xml: tests 890 -> 897; new {'skipped': 4, 'passed': 3}; removed 0; changed status 0
+wsl-orion.xml: tests 1601 -> 1601; new {}; removed 0; changed status 0
+wsl-te-crlf-checkout.xml: tests 890 -> 897; new {'passed': 5, 'skipped': 2}; removed 0; changed status 0
+wsl-te-with-ts.xml: tests 890 -> 897; new {'passed': 5, 'skipped': 2}; removed 0; changed status 0
+wsl-te.xml: tests 890 -> 897; new {'passed': 5, 'skipped': 2}; removed 0; changed status 0

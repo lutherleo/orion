@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1104",
+              "name": "CWE1104",
+              "shortDescription": {
+                "text": "CWE-1104"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1104"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1104.html"
+            },
+            {
+              "id": "CWE-294",
+              "name": "CWE294",
+              "shortDescription": {
+                "text": "CWE-294"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-294"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/294.html"
+            },
+            {
+              "id": "CWE-319",
+              "name": "CWE319",
+              "shortDescription": {
+                "text": "CWE-319"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-319"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/319.html"
+            },
+            {
+              "id": "CWE-330",
+              "name": "CWE330",
+              "shortDescription": {
+                "text": "CWE-330"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-330"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/330.html"
+            },
+            {
+              "id": "CWE-598",
+              "name": "CWE598",
+              "shortDescription": {
+                "text": "CWE-598"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-598"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/598.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-319",
+          "level": "error",
+          "message": {
+            "text": "ParserResource.writeFlickerFeed() builds its outbound request with `new URL(\"http://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=221160312e1c22ec60ecf336951b0e77&format=json&nojsoncallback=1&per_page=20\")` \u2014 the Flickr API key is both hardcoded in source and transmitted in cleartext over plain HTTP (not HTTPS), so there is no encryption-in-transit control protecting this credential from network eavesdroppers/MITM, and the key is permanently exposed in version control.\n\nVerifier (CONFIRM): Verified directly against the real source: ParserResource.java line 53 (method writeFlickerFeed, called from the JAX-RS @GET @Path(\"/parser\") handler doGet() at line 44-49) constructs `new URL(\"http://api.flickr.com/services/rest/?method=flickr.photos.getRecent&api_key=221160312e1c22ec60ecf336951b0e77&format=json&nojsoncallback=1&per_page=20\")` and immediately calls `url.openStream()` on it. The URL uses plain `http://` (not https), so the hardcoded API key `221160312e1c22ec60ecf336951b0e77` travels in cleartext to api.flickr.com and is also permanently committed in source/version control. Graph query confirms: the CpgCall at ParserResource.java:53 has reachable_from_entry=true, hop_distance=3, and `doGet`/the StreamingOutput.write lambda are registered EntryPoints with exposure=\"reachable\", kind=\"handler\" \u2014 i.e. this is a real, exposed REST endpoint path, not dead code. This is a genuine demo app (org.eclipse.parsson.demos.rest), so the exposed key only grants quota-limited access to Flickr's public read-only getRecent API (not an internal or high-value secret), which caps real-world impact \u2014 hence MEDIUM rather than HIGH/CRITICAL severity."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/rest/src/main/java/org/eclipse/parsson/demos/rest/ParserResource.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 53,
+                  "endLine": 53
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "writeFlickerFeed",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "176f5613e7a2a5ddd46bf2a3960fcebc2be2bc68"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-294",
+          "level": "error",
+          "message": {
+            "text": "TwitterObjectSearch.getSearchStream() builds the OAuth 1.0a signature parameters with a hardcoded, constant `oauth_nonce` value (`\"4b25256957d75b6370f33a4501dc5e7e\"`, marked with a `// TODO` comment) instead of generating a fresh random nonce per request. The OAuth nonce exists specifically to prevent replay of captured signed requests; because it never changes, the anti-replay control is effectively absent/disabled \u2014 any captured request (with its timestamp window) could be replayed.\n\nVerifier (CONFIRM): Source inspection confirms the claim: TwitterObjectSearch.getSearchStream() builds the OAuth 1.0a parameter map with a literal, hardcoded oauth_nonce string instead of a per-request random value, flagged with a \"// TODO\" comment -- i.e. the developer never implemented nonce generation. The oauth_timestamp is computed fresh each call (System.currentTimeMillis()/1000) but oauth_nonce is a constant, so the anti-replay nonce component of the OAuth 1.0a signature scheme is effectively disabled: every signed request this code produces reuses the same nonce. The call is inside TwitterObjectSearch.main (the only EntryPoint in this file, kind=handler, exposure=reachable), so it is unconditionally reached whenever the demo runs -- reachability is not in doubt. This matches CWE-294 (Authentication Bypass by Capture-replay): a captured Authorization header/signature could be more easily replayed since the nonce never varies to disambiguate requests sharing a timestamp second. Severity is tempered because this is example/demo code (parsson's Twitter demo) shipped with blank placeholder credentials in twitterconfig.properties, not a production authentication path serving real users -- the weakness is real but the blast radius is limited to whoever adapts this sample code for their own Twitter API use."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/twitter/src/main/java/org/eclipse/parsson/demos/twitter/TwitterObjectSearch.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 84,
+                  "endLine": 84
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "getSearchStream",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "a0285d2acbe68a18d41105e3bc06f8f1e6547969"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-598",
+          "level": "error",
+          "message": {
+            "text": "FacebookObjectSearch.getSearchStream() appends the Facebook Graph API `access_token` directly into the request URL's query string (`searchUrl + accessToken` where searchUrl ends in `...&access_token=`) instead of sending it via a secure Authorization header (contrast with the Twitter demo in the same repo, which does use an Authorization header for its OAuth token). Secrets placed in a URL query string are commonly leaked via server access logs, proxy logs, browser history, and the Referer header \u2014 this is the standard missing control for credential transmission even though the request itself is over HTTPS.\n\nVerifier (CONFIRM): Verified directly in source: FacebookObjectSearch.getSearchStream() (lines 67-68) builds `searchUrl = \".../search?q=tamil&type=post&access_token=\"` then does `new URL(searchUrl+accessToken)`, placing the Graph API access token in the request URL's query string with no Authorization header set anywhere in the method. The sibling TwitterObjectSearch.getSearchStream() in the same repo (lines 126-146) correctly sends its OAuth credential via `con.addRequestProperty(\"Authorization\", ...)`, confirming the contrast is real and the secure alternative pattern exists in-repo. Graph query confirms the URL-construction call at line 68 is reachable_from_entry=true, hop_distance=3, reached via main() -> getSearchStream() (EntryPoint query shows FacebookObjectSearch.main is a reachable handler entry point), so this is live, reachable code, not dead code."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/facebook/src/main/java/org/eclipse/parsson/demos/facebook/FacebookObjectSearch.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 67,
+                  "endLine": 68
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "getSearchStream",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "4650c836715190901f1f9d9126950c6296831c62"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-330",
+          "level": "error",
+          "message": {
+            "text": "In demos/twitter/src/main/java/.../TwitterObjectSearch.java, getSearchStream() builds the OAuth 1.0a request-signing parameter map with a hardcoded 'oauth_nonce' value (\"4b25256957d75b6370f33a4501dc5e7e\") marked with a '// TODO' comment, instead of generating a fresh random nonce per request. The nonce's security purpose is to make each signed request unique and prevent replay; a constant nonce defeats that protection. The TODO indicates this was a known-incomplete implementation left in place. Both TwitterObjectSearch.main and TwitterStreamSearch.main are EntryPoint methods that reach this code (reachable_from_entry=true on the call site).\n\nVerifier (CONFIRM): Verified directly against real source: TwitterObjectSearch.getSearchStream() builds the OAuth1.0a parameter TreeMap and the 'oauth_nonce' value is the literal hardcoded string \"4b25256957d75b6370f33a4501dc5e7e\" with a \"// TODO\" comment immediately preceding it, rather than a randomly generated nonce. This map is then used to build the HMAC-SHA1 signature base string and the final \"Authorization\" OAuth header sent to the real Twitter search API endpoint \u2014 so the constant nonce is actually used in the live signing/request path, not just dead code. Reachability: graph confirms two EntryPoint/handler nodes (TwitterObjectSearch.main and TwitterStreamSearch.main, both exposure=\"reachable\") exist, and TwitterStreamSearch.main (line 44) directly calls TwitterObjectSearch.getSearchStream(), which itself is called from TwitterObjectSearch.main (line 47) \u2014 matching the source. The CpgCall nodes for the TreeMap construction/assignment/alloc containing this code all have reachable_from_entry=true, hop_distance=3. This is a genuine, known-incomplete (TODO-flagged) weakening of OAuth replay protection: CWE-330 (reuse of a fixed/insufficiently-random value where freshness is a security property)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "demos/twitter/src/main/java/org/eclipse/parsson/demos/twitter/TwitterObjectSearch.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 81,
+                  "endLine": 90
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "getSearchStream",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "c10b54abc33fd0411d05fedcef26fdf1f31ea045"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1104",
+          "level": "error",
+          "message": {
+            "text": "Test-scope dependencies hamcrest-core (1.3, released 2012) and junit (4.13.2, legacy JUnit4 branch) are old/EOL-track versions declared in the project manifest; low exploitability since they are test-only and not shipped in the runtime artifact, but worth a version bump as part of dependency hygiene.\n\nVerifier (CONFIRM): Re-derived independently from both the graph and the real source. Cypher query against scan_id 04a8a41c4ca2bbfdbea3f8f6ce37bbd00afbe802 returns exactly the two rows the analyst cited: hamcrest-core 1.3 and junit 4.13.2. Reading the actual manifests confirms both are declared with Maven scope=test everywhere they are used as direct dependencies: root pom.xml dependencyManagement pins junit to 4.13.2 (lines 424-428) and hamcrest-core to 1.3 with explicit <scope>test</scope> (lines 429-434); impl/pom.xml (lines 99-103) declares the junit dependency with <scope>test</scope>; demos/customprovider-jdk9/pom.xml (lines 81-85) declares hamcrest-core with <scope>test</scope>. Maven excludes test-scope dependencies from the packaged/runtime artifact, so these jars are not shipped in production, matching the analyst's low-exploitability rationale. Additionally, junit 4.13.2 already contains the fix for the one notable JUnit4 CVE (CVE-2020-15250, insecure temp-file permissions in TemporaryFolder, fixed in 4.13.1), so there isn't even a live CVE affecting this exact pinned version; hamcrest-core 1.3 has no significant known CVEs either. exploit_search returned \"corpus unavailable: not indexed\" for both components, so no weaponized-exploit evidence either way -- this doesn't change the verdict since the claim was never about an active exploit, only dependency hygiene. Overall: the lead's factual claims are accurate and verified against source/graph; it is a legitimate but low-severity, non-exploitable hygiene finding, exactly as the analyst scoped it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "pom.xml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 424,
+                  "endLine": 434
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "527888a39a76cd62347ff58242ceda3a721c3138"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

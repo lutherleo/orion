@@ -1,0 +1,45 @@
+{
+  "findings": [
+    {
+      "file": "json-viewer/jquery.json-viewer.js",
+      "function": "json2html",
+      "line_start": 77,
+      "line_end": 95,
+      "cwe": "CWE-79",
+      "title": "DOM-based XSS via unescaped JSON object keys",
+      "explanation": "When rendering a JSON object, json2html() builds the 'keyRepr' HTML fragment directly from the raw object key (`var keyRepr = options.withQuotes ? '<span class=\"json-string\">\"' + key + '\"</span>' : key;`) and concatenates it into the output (`html += '<a href class=\"json-toggle\">' + keyRepr + '</a>';` / `html += keyRepr;`). Unlike string values, which are HTML-escaped at lines 33-38 before being inserted, object property names are never escaped. The resulting HTML string is inserted into the DOM via jQuery's `.html()` call in the jsonViewer plugin method (line 128), which parses and executes any markup it contains. Since this plugin's entire purpose is to render JSON originating from external/untrusted sources (API responses, user-supplied JSON, etc., as shown in demo.html), an attacker who controls any key name in the JSON object (e.g. `{\"<img src=x onerror=alert(1)>\": 1}`) can inject arbitrary HTML/JavaScript that executes in the context of the page embedding the viewer.",
+      "path": [
+        {
+          "file": "json-viewer/jquery.json-viewer.js",
+          "function": "jsonViewer",
+          "line": 122,
+          "role": "source"
+        },
+        {
+          "file": "json-viewer/jquery.json-viewer.js",
+          "function": "json2html",
+          "line": 77,
+          "role": "propagator"
+        },
+        {
+          "file": "json-viewer/jquery.json-viewer.js",
+          "function": "json2html",
+          "line": 80,
+          "role": "propagator"
+        },
+        {
+          "file": "json-viewer/jquery.json-viewer.js",
+          "function": "json2html",
+          "line": 84,
+          "role": "sink"
+        },
+        {
+          "file": "json-viewer/jquery.json-viewer.js",
+          "function": "jsonViewer",
+          "line": 128,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

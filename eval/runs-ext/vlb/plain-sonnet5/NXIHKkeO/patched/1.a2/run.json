@@ -1,0 +1,36 @@
+{
+ "benchmark": "vlb",
+ "task": "NXIHKkeO",
+ "repo": "mmaitre314/picklescan",
+ "snapshot": "patched",
+ "ref": "173c8f2a869ea9b69b543477525ec70611c3c6f4",
+ "commit": "173c8f2a869ea9b69b543477525ec70611c3c6f4",
+ "arm": "plain-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 2,
+ "wall_s": 184.0,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 1,
+  "uncached_in": 3350,
+  "cache_read": 491881,
+  "cache_write": 47259,
+  "out": 15837,
+  "tokens": 558327,
+  "cli_cost_usd": 0.4525
+ },
+ "status": "ok",
+ "findings": true,
+ "usage": [
+  {
+   "uncached_in": 3350,
+   "cache_read": 491881,
+   "cache_write": 47259,
+   "out": 15837,
+   "reasoning": null,
+   "cli_cost_usd": 0.4524822
+  }
+ ]
+}

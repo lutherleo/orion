@@ -1,0 +1,135 @@
+........................................................................ [  4%]
+...............................................s....................FF.. [  9%]
+.........s............FFs...............sss..................s..s.ss...s [ 13%]
+ss.ssss.ssss.................s.s.........................s.............. [ 18%]
+...................................................s.................... [ 23%]
+........................................................................ [ 27%]
+........................................................................ [ 32%]
+...........s..............s.......s.........................s.........s. [ 36%]
+........................................................................ [ 41%]
+........................................................................ [ 46%]
+........................................................................ [ 50%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 64%]
+........................................................................ [ 69%]
+.....................s.................................................. [ 73%]
+........................................................................ [ 78%]
+........................................................................ [ 82%]
+...............................s........................................ [ 87%]
+........................................................................ [ 92%]
+........................................................................ [ 96%]
+..................................................                       [100%]
+=================================== FAILURES ===================================
+__________________ test_spans_from_batch_matches_graph_query ___________________
+tests/test_embed_spans.py:76: in test_spans_from_batch_matches_graph_query
+    scan_id = graph_build.build("fixtures/NodeGoat", None, None,
+orion/graph_build.py:179: in build
+    envelope, _ = _timed(on_event, "parse+export (legacy)",
+orion/graph_build.py:39: in _timed
+    result = fn()
+             ^^^^
+orion/graph_build.py:180: in <lambda>
+    lambda: joern_adapter.export_repo(repo_path, frontend, profile))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+orion/graph/joern_adapter.py:723: in export_repo
+    raise RuntimeError(f"joern-parse failed (rc={r.returncode}):\n{r.stdout}\n{r.stderr}")
+E   RuntimeError: joern-parse failed (rc=1):
+E   
+E   java.lang.AssertionError: Input path does not exist at `/home/lutherleo/orion-harness-check/fixtures/NodeGoat`, exiting.
+E   	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$1(JoernParse.scala:100)
+E   	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$adapted$1(JoernParse.scala:102)
+E   	at scala.util.Try$.apply(Try.scala:195)
+E   	at io.joern.joerncli.JoernParse$.checkInputPath(JoernParse.scala:102)
+E   	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:87)
+E   	at io.joern.joerncli.JoernParse$.run$$anonfun$1(JoernParse.scala:77)
+E   	at scala.util.Success.flatMap(Try.scala:244)
+E   	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:73)
+E   	at io.joern.joerncli.JoernParse$.main(JoernParse.scala:19)
+E   	at io.joern.joerncli.JoernParse.main(JoernParse.scala)
+___________________ test_build_with_concurrent_index_overlap ___________________
+tests/test_embed_spans.py:116: in test_build_with_concurrent_index_overlap
+    graph_build.build("fixtures/NodeGoat", None, None, scan_id=sid, on_batch=_index)
+orion/graph_build.py:179: in build
+    envelope, _ = _timed(on_event, "parse+export (legacy)",
+orion/graph_build.py:39: in _timed
+    result = fn()
+             ^^^^
+orion/graph_build.py:180: in <lambda>
+    lambda: joern_adapter.export_repo(repo_path, frontend, profile))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+orion/graph/joern_adapter.py:723: in export_repo
+    raise RuntimeError(f"joern-parse failed (rc={r.returncode}):\n{r.stdout}\n{r.stderr}")
+E   RuntimeError: joern-parse failed (rc=1):
+E   
+E   java.lang.AssertionError: Input path does not exist at `/home/lutherleo/orion-harness-check/fixtures/NodeGoat`, exiting.
+E   	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$1(JoernParse.scala:100)
+E   	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$adapted$1(JoernParse.scala:102)
+E   	at scala.util.Try$.apply(Try.scala:195)
+E   	at io.joern.joerncli.JoernParse$.checkInputPath(JoernParse.scala:102)
+E   	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:87)
+E   	at io.joern.joerncli.JoernParse$.run$$anonfun$1(JoernParse.scala:77)
+E   	at scala.util.Success.flatMap(Try.scala:244)
+E   	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:73)
+E   	at io.joern.joerncli.JoernParse$.main(JoernParse.scala:19)
+E   	at io.joern.joerncli.JoernParse.main(JoernParse.scala)
+_____________________________ test_build_nodegoat ______________________________
+tests/test_graph_build.py:39: in test_build_nodegoat
+    scan_id = build("fixtures/NodeGoat")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+orion/graph_build.py:179: in build
+    envelope, _ = _timed(on_event, "parse+export (legacy)",
+orion/graph_build.py:39: in _timed
+    result = fn()
+             ^^^^
+orion/graph_build.py:180: in <lambda>
+    lambda: joern_adapter.export_repo(repo_path, frontend, profile))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+orion/graph/joern_adapter.py:723: in export_repo
+    raise RuntimeError(f"joern-parse failed (rc={r.returncode}):\n{r.stdout}\n{r.stderr}")
+E   RuntimeError: joern-parse failed (rc=1):
+E   
+E   java.lang.AssertionError: Input path does not exist at `/home/lutherleo/orion-harness-check/fixtures/NodeGoat`, exiting.
+E   	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$1(JoernParse.scala:100)
+E   	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$adapted$1(JoernParse.scala:102)
+E   	at scala.util.Try$.apply(Try.scala:195)
+E   	at io.joern.joerncli.JoernParse$.checkInputPath(JoernParse.scala:102)
+E   	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:87)
+E   	at io.joern.joerncli.JoernParse$.run$$anonfun$1(JoernParse.scala:77)
+E   	at scala.util.Success.flatMap(Try.scala:244)
+E   	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:73)
+E   	at io.joern.joerncli.JoernParse$.main(JoernParse.scala:19)
+E   	at io.joern.joerncli.JoernParse.main(JoernParse.scala)
+__________________________ test_call_file_attribution __________________________
+tests/test_graph_build.py:61: in test_call_file_attribution
+    scan_id = build("fixtures/NodeGoat")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+orion/graph_build.py:179: in build
+    envelope, _ = _timed(on_event, "parse+export (legacy)",
+orion/graph_build.py:39: in _timed
+    result = fn()
+             ^^^^
+orion/graph_build.py:180: in <lambda>
+    lambda: joern_adapter.export_repo(repo_path, frontend, profile))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+orion/graph/joern_adapter.py:723: in export_repo
+    raise RuntimeError(f"joern-parse failed (rc={r.returncode}):\n{r.stdout}\n{r.stderr}")
+E   RuntimeError: joern-parse failed (rc=1):
+E   
+E   java.lang.AssertionError: Input path does not exist at `/home/lutherleo/orion-harness-check/fixtures/NodeGoat`, exiting.
+E   	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$1(JoernParse.scala:100)
+E   	at io.joern.joerncli.JoernParse$.checkInputPath$$anonfun$adapted$1(JoernParse.scala:102)
+E   	at scala.util.Try$.apply(Try.scala:195)
+E   	at io.joern.joerncli.JoernParse$.checkInputPath(JoernParse.scala:102)
+E   	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:87)
+E   	at io.joern.joerncli.JoernParse$.run$$anonfun$1(JoernParse.scala:77)
+E   	at scala.util.Success.flatMap(Try.scala:244)
+E   	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:73)
+E   	at io.joern.joerncli.JoernParse$.main(JoernParse.scala:19)
+E   	at io.joern.joerncli.JoernParse.main(JoernParse.scala)
+=========================== short test summary info ============================
+FAILED tests/test_embed_spans.py::test_spans_from_batch_matches_graph_query
+FAILED tests/test_embed_spans.py::test_build_with_concurrent_index_overlap - ...
+FAILED tests/test_graph_build.py::test_build_nodegoat - RuntimeError: joern-p...
+FAILED tests/test_graph_build.py::test_call_file_attribution - RuntimeError: ...
+4 failed, 1526 passed, 32 skipped, 62 deselected in 225.17s (0:03:45)

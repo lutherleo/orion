@@ -1,0 +1,9 @@
+sss..ss                                                                  [100%]
+=========================== short test summary info ============================
+SKIPPED [3] tests/test_graph_build.py:28: Neo4j not reachable: Couldn't connect to localhost:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_embed_spans.py:73: Neo4j not reachable: Couldn't connect to localhost:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+SKIPPED [1] tests/test_embed_spans.py:103: Neo4j not reachable: Couldn't connect to localhost:1 (resolved to ('127.0.0.1:1',)):
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 1)) (reason [Errno 111] Connection refused)
+2 passed, 5 skipped in 0.63s

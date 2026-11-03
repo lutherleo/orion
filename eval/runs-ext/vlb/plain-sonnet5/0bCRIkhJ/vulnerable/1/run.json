@@ -1,0 +1,36 @@
+{
+ "benchmark": "vlb",
+ "task": "0bCRIkhJ",
+ "repo": "AhmedAdelFahim/express-xss-sanitizer",
+ "snapshot": "vulnerable",
+ "ref": "58f447a234d6ef17e8ae52300f49e0efe6c08a29",
+ "commit": "58f447a234d6ef17e8ae52300f49e0efe6c08a29",
+ "arm": "plain-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 1.1,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 1,
+  "uncached_in": 0,
+  "cache_read": 0,
+  "cache_write": 0,
+  "out": 0,
+  "tokens": 0,
+  "cli_cost_usd": 0
+ },
+ "status": "crashed",
+ "findings": false,
+ "usage": [
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "reasoning": null,
+   "cli_cost_usd": 0
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+  "scan_id": "17be478417dcb2c9b163a78cc0e765b45e748207",
+  "repo": "/tmp/workspaces/1064bec7b2652c3e/tree",
+  "engine": "claude",
+  "model": "claude-sonnet-5",
+  "settings": {
+    "verify_routing": false,
+    "verify_context": false,
+    "semantic_mode": "vector",
+    "fail_on": "none",
+    "endpoint": false
+  },
+  "leads": [
+    {
+      "index": 0,
+      "shape": "B",
+      "text": "jquery.json-viewer's json2html() renders any string value that matches isUrl() as a clickable `<a href=\"...\" target=\"_blank\">` link, but the generated anchor has no `rel=\"noopener\"` / `rel=\"noreferrer\"` attribute anywhere in the file. Since $.fn.jsonViewer defaults `withLinks: true` and is designed to render arbitrary/untrusted JSON (e.g. an API response) directly into the DOM via $(this).html(html), any URL-shaped string value in that JSON becomes a target=_blank link the viewing user can click, and the linked page gets an unprotected `window.opener` handle back to the host page (reverse tabnabbing / CWE-1022), letting it navigate the opener to a phishing page. This is a missing standard protection (rel=noopener/noreferrer on externally-controlled target=_blank links), not a data-flow bug -- confirmed by grepping the whole file for noopener/noreferrer/rel= and finding zero occurrences while target=\"_blank\" appears exactly once.",
+      "evidence": "Query 1: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND (c.code CONTAINS 'noopener' OR c.code CONTAINS 'noreferrer' OR c.code CONTAINS 'rel=') RETURN c.code,c.line -> 0 rows (control absent anywhere in the only file of the scan). Query 2: MATCH (c:CpgCall) WHERE c.scan_id=$scan_id AND (c.code CONTAINS 'target=' OR c.code CONTAINS '_blank') RETURN c.code,c.line -> exactly one site, line 48: html += '<a href=\"' + json + '\" class=\"json-string\" target=\"_blank\">' + json + '</a>'. Confirmed json2html is reachable_from_entry=true and is itself listed as an EntryPoint (MATCH (e:EntryPoint) WHERE e.scan_id=$scan_id RETURN e.method_full_name,e.exposure,e.kind -> includes json-viewer/jquery.json-viewer.js::program:<lambda>0:json2html, exposure=reachable). Default options confirmed at line 118-124: withLinks: true. Sink confirmed at line 137: $(this).html(html) inserts the fully built string as live DOM/HTML.",
+      "confidence": "MEDIUM",
+      "source_uid": null,
+      "sink_uid": null,
+      "file": "json-viewer/jquery.json-viewer.js",
+      "line_start": 48,
+      "line_end": 48,
+      "function": "json2html",
+      "cwe": "CWE-1022",
+      "path": null
+    },
+    {
+      "index": 1,
+      "shape": "D",
+      "text": "The isUrl() helper in jquery.json-viewer.js uses the regex /^(https?:\\/\\/|ftps?:\\/\\/)?([a-z0-9%-]+\\.){1,}([a-z0-9-]+)?(:(\\d{1,5}))?(\\/([a-z0-9\\-._~:/?#[\\]@!$&'()*+,;=%]+)?)?$/i against the attacker-influenced JSON value rendered by the plugin. The subpattern ([a-z0-9%-]+\\.){1,} nests an unbounded quantifier (the character class '+') inside a group that is itself repeated unbounded ({1,}, i.e. '+') \u2014 the canonical (x+)+ catastrophic-backtracking shape. Its last repetition also overlaps character-class-wise with the following optional ([a-z0-9-]+)? segment, so a crafted string such as many 'a.' pairs (e.g. 'a.'.repeat(30000)) followed by a character that forces the overall ^...$ match to fail can make the engine retry many different ways to split the run between the repeated group and the trailing optional segments, causing a severe slowdown (ReDoS) on the single-threaded JS engine that is rendering this JSON. Taint is confirmed end-to-end: the json2html(json, options) parameter (line 41, itself a FLOWS_TO self-loop / tainted source reached from the plugin's public entry $.fn.jsonViewer) flows via an explicit CpgCall FLOWS_TO edge from htmlEscape(json) (line 45) to isUrl(json) (line 47) and on to urlRegexp.test(string) (line 22), and that test call is reachable_from_entry=true with hop_distance=1.",
+      "evidence": "Query: MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'urlRegexp' RETURN c.uid,c.name,c.code,c.file_path,c.line -> returned the regex literal assignment 'var urlRegexp = /^(https?:\\/\\/|ftps?:\\/\\/)?([a-z0-9%-]+\\.){1,}([a-z0-9-]+)?(:(\\d{1,5}))?(\\/([a-z0-9\\-._~:/?#[\\]@!$&'()*+,;=%]+)?)?$/i' at json-viewer/jquery.json-viewer.js:21 and 'urlRegexp.test(string)' at line 22. Query: MATCH (a:CpgCall {scan_id:$scan_id})-[:FLOWS_TO {scan_id:$scan_id}]->(b:CpgCall {scan_id:$scan_id}) WHERE a.uid='b0c6c46ad4a12badb51987d6b814691f6bd7d343' ... -> returned edges htmlEscape(json)[line45] -> isUrl(json)[line47] and htmlEscape(json)[line45] -> urlRegexp.test(string)[line22]. Query confirming reachability: MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.uid='c1c6a3443fc63f833a622c12487ac5a9f6e4e1ab' RETURN c.reachable_from_entry,c.hop_distance -> reachable_from_entry=true, hop_distance=1. Also confirmed only one file (json-viewer/jquery.json-viewer.js) exists in this scan via MATCH (f:CpgFile {scan_id:$scan_id}) RETURN DISTINCT f.file_path, and all other regex literals in the file (/&/g, /</g, />/g, /'/g, /\"/g, /&quot;/g) are simple single-character literals with no quantifiers, so urlRegexp is the only catastrophic-backtracking candidate.",
+      "confidence": "HIGH",
+      "source_uid": null,
+      "sink_uid": null,
+      "file": "json-viewer/jquery.json-viewer.js",
+      "line_start": 20,
+      "line_end": 22,
+      "function": "isUrl",
+      "cwe": "CWE-1333",
+      "path": null
+    },
+    {
+      "index": 2,
+      "shape": "D",
+      "text": "The scan's declared Dependency set is small and stale: jquery ^3.6.0 (runtime peer dependency required by this plugin), plus devDependencies eslint ^7.28.0, eslint-plugin-jest ^24.3.6, and jest ^27.0.4. jquery 3.6.0 is the only one shipped to the browser at runtime; it predates several subsequent jQuery security/bugfix releases (3.7.x) and should be checked against the current jQuery CVE list and upgraded. eslint/jest/eslint-plugin-jest are dev-only tooling (not shipped to production) but are multiple major versions behind current releases, which is still a components-with-known-vulnerabilities / unmaintained-dependency concern for the build pipeline.",
+      "evidence": "Query: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version ORDER BY name -> rows: {eslint, ^7.28.0}, {eslint-plugin-jest, ^24.3.6}, {jest, ^27.0.4}, {jquery, ^3.6.0}. No exploit/CVE lookup tool was used (out of scope for this session's tool access); this flags version staleness only, which should be verified against a CVE database by the downstream verifier.",
+      "confidence": "LOW",
+      "source_uid": null,
+      "sink_uid": null,
+      "file": null,
+      "line_start": null,
+      "line_end": null,
+      "function": null,
+      "cwe": "CWE-1104",
+      "path": null
+    }
+  ]
+}

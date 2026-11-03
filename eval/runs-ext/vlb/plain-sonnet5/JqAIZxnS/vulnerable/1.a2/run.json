@@ -1,0 +1,36 @@
+{
+ "benchmark": "vlb",
+ "task": "JqAIZxnS",
+ "repo": "mpdavis/python-jose",
+ "snapshot": "vulnerable",
+ "ref": "b4a0e4f3dbeeec671d7e72e50337626b15197e83",
+ "commit": "b4a0e4f3dbeeec671d7e72e50337626b15197e83",
+ "arm": "plain-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 2,
+ "wall_s": 235.5,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 1,
+  "uncached_in": 3734,
+  "cache_read": 1301706,
+  "cache_write": 83163,
+  "out": 19679,
+  "tokens": 1408282,
+  "cli_cost_usd": 0.7973
+ },
+ "status": "ok",
+ "findings": true,
+ "usage": [
+  {
+   "uncached_in": 3734,
+   "cache_read": 1301706,
+   "cache_write": 83163,
+   "out": 19679,
+   "reasoning": null,
+   "cli_cost_usd": 0.7972512
+  }
+ ]
+}

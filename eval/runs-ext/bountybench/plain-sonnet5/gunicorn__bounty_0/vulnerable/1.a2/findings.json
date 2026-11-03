@@ -1,0 +1,74 @@
+{
+  "findings": [
+    {
+      "file": "gunicorn/http/message.py",
+      "function": "Message.set_body_reader",
+      "line_start": 125,
+      "line_end": 154,
+      "cwe": "CWE-444",
+      "title": "HTTP request smuggling via lax Transfer-Encoding/Content-Length handling",
+      "explanation": "set_body_reader() decides how to frame the request body by scanning all parsed headers: it sets chunked=True if ANY Transfer-Encoding header value (case-insensitively) equals exactly 'chunked', and otherwise falls back to Content-Length. It never rejects a request that carries both a Content-Length header and a Transfer-Encoding header (it silently prefers chunked framing), and it never rejects duplicate/contradictory Transfer-Encoding headers. Verified experimentally: a request with 'Content-Length: 4' AND 'Transfer-Encoding: chunked' is parsed as chunked by gunicorn, and a request with two Transfer-Encoding headers ('identity' then 'chunked') is also parsed as chunked. RFC 9112 §6.1 requires a server to reject messages that combine Content-Length and Transfer-Encoding, specifically to avoid this ambiguity. Because gunicorn instead picks a framing by scanning for any match, a front-end proxy/load balancer that makes a different framing decision (e.g. one that uses Content-Length, or that only looks at the first Transfer-Encoding header) will disagree with gunicorn about where one request ends and the next begins. An attacker can smuggle a second, hidden HTTP request inside the body of the first as interpreted by the front end but not by gunicorn (or vice versa), enabling cache poisoning, request hijacking, authentication/authorization bypass of front-end access controls, and SSRF-style request injection against the backend application. This is the same class of issue fixed upstream in gunicorn 22.0.0 (CVE-2024-1135); this codebase is version 21.2.0, which predates that fix.",
+      "path": [
+        {
+          "file": "gunicorn/http/message.py",
+          "function": "Message.parse_headers",
+          "line": 88,
+          "role": "source"
+        },
+        {
+          "file": "gunicorn/http/message.py",
+          "function": "Request.parse",
+          "line": 233,
+          "role": "propagator"
+        },
+        {
+          "file": "gunicorn/http/message.py",
+          "function": "Message.set_body_reader",
+          "line": 134,
+          "role": "sink"
+        },
+        {
+          "file": "gunicorn/http/message.py",
+          "function": "Message.set_body_reader",
+          "line": 138,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "gunicorn/http/wsgi.py",
+      "function": "create",
+      "line_start": 120,
+      "line_end": 185,
+      "cwe": "CWE-454",
+      "title": "Client-controlled SCRIPT_NAME/PATH_INFO via raw request header",
+      "explanation": "While building the WSGI environ, create() copies any client-supplied header literally named 'SCRIPT_NAME' straight into the trusted script_name variable (line 127-128), which is then used verbatim as environ['SCRIPT_NAME'] and to split req.path into environ['PATH_INFO'] (lines 181-185: path_info.split(script_name, 1)[1]). The underscore character is a legal HTTP header token character (RFC 7230 tchar), so a remote client can send a header such as 'Script_Name: foo' and have it accepted as a normal request header. Verified experimentally: sending 'GET /foo/admin/secret HTTP/1.1' with header 'Script_Name: foo' produces environ['SCRIPT_NAME']=='foo' and environ['PATH_INFO']=='/admin/secret', i.e. the client fully controls the split point between SCRIPT_NAME and PATH_INFO. SCRIPT_NAME/PATH_INFO are meant to be an assumed-immutable, deployment-controlled pair of CGI/WSGI parameters; many frameworks and WSGI middlewares use them to reconstruct the effective request path, to decide which mounted sub-application should handle a request, or to build canonical/self-referential URLs for redirects and link generation. Letting an untrusted client set SCRIPT_NAME directly lets it desynchronize the path the gunicorn-fronted application believes it is serving from the path that was actually requested, which can be leveraged to bypass prefix-based authorization checks, confuse routing in mounted sub-applications, or corrupt URLs built from these values.",
+      "path": [
+        {
+          "file": "gunicorn/http/message.py",
+          "function": "Message.parse_headers",
+          "line": 121,
+          "role": "source"
+        },
+        {
+          "file": "gunicorn/http/wsgi.py",
+          "function": "create",
+          "line": 127,
+          "role": "propagator"
+        },
+        {
+          "file": "gunicorn/http/wsgi.py",
+          "function": "create",
+          "line": 183,
+          "role": "sink"
+        },
+        {
+          "file": "gunicorn/http/wsgi.py",
+          "function": "create",
+          "line": 185,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

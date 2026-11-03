@@ -1,0 +1,4 @@
+nodegoat default profile express FLOWS_TO 217 {'sources': 428, 'sinks': 73, 'flows': 73, 'sink_rules': '2026-11-02'} {'code_exec': 3, 'log': 34, 'nosql': 10, 'redirect': 5, 'render': 21}
+nodegoat lm profile express+lm FLOWS_TO 217 {'sources': 428, 'sinks': 73, 'flows': 73, 'sink_rules': '2026-11-02'} {'code_exec': 3, 'log': 34, 'nosql': 10, 'redirect': 5, 'render': 21}
+pygoat default profile generic FLOWS_TO 1076 {'sources': 3627, 'sinks': 93, 'flows': 93, 'sink_rules': '2026-11-02'} {'code_exec': 12, 'redirect': 63, 'sql': 18}
+pygoat lm profile generic+lm FLOWS_TO 1076 {'sources': 3627, 'sinks': 161, 'flows': 161, 'sink_rules': '2026-11-02'} {'code_exec': 12, 'deserialize': 7, 'path': 50, 'prototype_pollution': 1, 'redirect': 63, 'sql': 18, 'ssrf': 9, 'template': 1}

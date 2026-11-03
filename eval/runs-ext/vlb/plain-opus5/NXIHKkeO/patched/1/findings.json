@@ -1,0 +1,32 @@
+{"findings": [
+  {
+    "file": "src/picklescan/scanner.py",
+    "function": "scan_7z_bytes",
+    "line_start": 437,
+    "line_end": 447,
+    "cwe": "CWE-22",
+    "title": "Path traversal via unsanitized 7z archive member names",
+    "explanation": "Member names are taken straight from the untrusted archive (archive.getnames(), line 438), filtered only on their suffix (line 439), and then joined to the temporary directory with os.path.join(tmpdir, file_name) (line 444) without verifying the result stays inside tmpdir. os.path.join does not contain traversal: a member named '/etc/passwd.data' yields '/etc/passwd.data' (an absolute member name discards tmpdir entirely) and '../../../../home/user/id_rsa.pkl' resolves outside tmpdir. os.path.isfile() then succeeds for any pre-existing file at that host path and scan_file_path() opens and disassembles it (line 447), so a crafted .7z lets the attacker read files anywhere the scanner process can reach and probe for their existence; results are observable because any global imports found are logged at WARNING level and counted in the scan summary that the CLI prints by default. The only constraint on the payload is that the name end in one of _pickle_file_extensions ('.pkl', '.pickle', '.joblib', '.dat', '.data'). The same unvalidated names are also handed to archive.extract(path=tmpdir, targets=targets) on line 442, attempting extraction outside the temp directory (7z-slip write primitive); that write depends on py7zr's own sanitization, but the traversal read on lines 444-447 is entirely first-party and unconditional. The code path is reachable from every entry point with purely attacker-supplied content: scan_file_path/scan_directory_path/scan_url/scan_huggingface_model -> scan_bytes -> _is_7z_file -> scan_7z_bytes (line 569), and also from scan_pytorch (line 525), so a .bin/.pt model file whose bytes start with the 7z magic triggers it too.",
+    "path": [
+      {"file": "src/picklescan/scanner.py", "function": "scan_7z_bytes", "line": 438, "role": "source"},
+      {"file": "src/picklescan/scanner.py", "function": "scan_7z_bytes", "line": 439, "role": "propagator"},
+      {"file": "src/picklescan/scanner.py", "function": "scan_7z_bytes", "line": 444, "role": "propagator"},
+      {"file": "src/picklescan/scanner.py", "function": "scan_7z_bytes", "line": 447, "role": "sink"}
+    ]
+  },
+  {
+    "file": "src/picklescan/scanner.py",
+    "function": "_http_get",
+    "line_start": 256,
+    "line_end": 262,
+    "cwe": "CWE-918",
+    "title": "SSRF through blindly followed HTTP redirect target",
+    "explanation": "On an HTTP 302 the function recursively re-requests the raw Location response header (line 262) with no validation whatsoever: the new host is not checked against the original or against an expected host such as huggingface.co, there is no allow/deny list for internal addresses, and no redirect-depth limit. The recursive call re-enters line 256, which opens http.client.HTTPSConnection(parsed_url.netloc) to whatever host:port the remote server named - the URL scheme in Location is ignored, so the destination is attacker-chosen while the connection is always made. Any server the scanner is pointed at (and any attacker able to tamper with such a response) can therefore redirect picklescan into the host's internal network, e.g. Location: https://169.254.169.254/latest/meta-data/ or https://127.0.0.1:8080/, reaching services that are not reachable from outside. The fetched body is returned to the caller and parsed as a pickle/zip, and its global imports and scan counters are printed by the CLI, which turns this into a semi-blind read primitive for internal endpoints; a redirect loop additionally recurses until RecursionError. This is exercised on the normal happy path rather than only in a corner case: scan_huggingface_model builds https://huggingface.co/{repo_id}/resolve/main/{file_name} (line 588) and calls _http_get (line 589), and Hugging Face answers those resolve URLs with 302s, so the redirect destination for a user-named third-party model repository is routinely controlled by a party other than the user running the scan.",
+    "path": [
+      {"file": "src/picklescan/scanner.py", "function": "scan_huggingface_model", "line": 589, "role": "propagator"},
+      {"file": "src/picklescan/scanner.py", "function": "_http_get", "line": 262, "role": "source"},
+      {"file": "src/picklescan/scanner.py", "function": "_http_get", "line": 253, "role": "propagator"},
+      {"file": "src/picklescan/scanner.py", "function": "_http_get", "line": 256, "role": "sink"}
+    ]
+  }
+]}

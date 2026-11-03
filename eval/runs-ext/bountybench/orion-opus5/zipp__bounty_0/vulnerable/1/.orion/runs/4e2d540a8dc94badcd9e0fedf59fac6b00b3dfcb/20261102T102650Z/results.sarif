@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1333",
+              "name": "CWE1333",
+              "shortDescription": {
+                "text": "CWE-1333"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1333"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1333.html"
+            },
+            {
+              "id": "CWE-20",
+              "name": "CWE20",
+              "shortDescription": {
+                "text": "CWE-20"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-20"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/20.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-20",
+          "level": "error",
+          "message": {
+            "text": "Regex injection via unescaped glob bracket-set: attacker-controlled `pattern` passed to the public entry point `zipp.Path.glob` (zipp/__init__.py:401, EntryPoint hop_distance=0) flows into `re.compile(prefix + tr.translate(pattern))` at zipp/__init__.py:407. Along the way, `Translator.replace` (zipp/glob.py:59-68) returns `match.group('set') or (re.escape(match.group(0))...)` \u2014 i.e. when `separate()`'s named group `(?P<set>[\\[].*?[\\]])` (zipp/glob.py:106) matches a bracket expression, the raw pattern substring is returned with `re.escape` BYPASSED and spliced verbatim into the compiled regex. Because the `.*?` in the `set` group stops at the FIRST `]`, a pattern whose class ends in a backslash-escaped bracket (e.g. `Path(zf).glob('[a\\\\]')`) injects an unterminated character class into the final regex `(?s:[a\\])\\Z`, changing the regex's structure and raising an uncaught `re.error` out of `glob()` (whose only documented/guarded error is the `ValueError` raised at line 403 for an empty pattern). Callers that validate only `ValueError` crash. Same flow reaches `rglob` (zipp/__init__.py:411-412) via `self.glob(f'**/{pattern}')`.\n\nVerifier (CONFIRM): Re-derived independently from source. zipp/glob.py:63 `return match.group('set') or (re.escape(match.group(0))...)` returns the raw bracket-expression substring with re.escape bypassed, and separate() at glob.py:106 delimits that group with `(?P<set>[\\[].*?[\\]])` whose non-greedy body stops at the FIRST `]`. The unescaped substring is joined at glob.py:57, wrapped as `rf'(?s:{pattern})\\Z'` at glob.py:42, and compiled at zipp/__init__.py:407, so attacker-controlled glob pattern text reaches re.compile verbatim. Reach is graph-confirmed, not an arrow-function artifact: Path.glob (line 401) and Path.rglob (line 411) are both EntryPoint{kind:'handler', exposure:'reachable'} with hop_distance=0, and the calls `tr.translate(pattern)`, `separate(self.star_not_empty(pattern))`, `match.group('set')`, `re.compile(prefix + tr.translate(pattern))` and `self.glob(f'**/{pattern}')` all carry reachable_from_entry=true. Two PoCs follow from CPython's re parser: `glob('[z-a]')` yields `(?s:[z-a])\\Z` -> re.error \"bad character range z-a\" (set branch raises when hi<lo), and `glob('[a\\\\]')` yields `(?s:[a\\])\\Z` where `\\]` is consumed as an escaped bracket, leaving the class open -> re.error \"bad escape \\Z\". re.error subclasses Exception, not ValueError, whereas the module's entire error contract is ValueError (__init__.py:403, glob.py:82, tests/test_path.py:504), so callers guarding ValueError crash. A non-erroring corruption variant also exists: `'[a\\\\]*'` compiles as `(?s:[a\\][^/]*)\\Z`, swallowing the `[^/]*` that `*` translated to into the character class, silently changing which files match. I downgrade severity versus the analyst: all non-class text is unconditionally re.escape'd, so `(`, `)`, `+` and nested quantifiers cannot be injected (no ReDoS beyond ordinary glob), and `prefix = re.escape(self.at)` at __init__.py:405 is escaped so the confinement root cannot be escaped - impact is availability/robustness only, requiring an application to pass an untrusted glob pattern to zipp.Path.glob/rglob. Version pinned as zipp 3.19.0 (NEWS.rst:1); exploit_search returned \"exploit corpus unavailable: not indexed\", so no exploit-reference evidence was used either way."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "zipp/glob.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 63,
+                  "endLine": 64
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "replace",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "ac84a2ac2e3fb8f65c18662a13db5397e518f9c5"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-1333",
+          "level": "error",
+          "message": {
+            "text": "The `restrict_rglob` protection at zipp/glob.py:70-82 is an incomplete fix for the glob ReDoS it was written to prevent: it only rejects `**` when mixed *inside* a segment (`'**' in segment and segment != '**'`), so a pattern made of repeated standalone `**` segments such as `**/**/**/**/**/**/x` passes validation and is then translated by `replace()` (glob.py:64) into the chained-wildcard regex `.*/.*/.*/.*/.*/.*/x`, which is compiled at zipp/__init__.py:407 (`matches = re.compile(prefix + tr.translate(pattern)).fullmatch`) and run against every entry name. Chained `.*` separated by literals is the classic catastrophic-backtracking shape, giving super-linear blowup on non-matching long filenames. The exposure is widened by `Path.rglob` (zipp/__init__.py:411-412) which itself prepends a `**/` segment: `return self.glob(f'**/{pattern}')`, so a caller-supplied `rglob('**/**/**/...')` compounds it. The regression tests that would catch exactly this are the `@pytest.mark.flaky`-suppressed ones in lead 1, and the scanner independently ranked this construction as its top dynamic_regex finding.\n\nVerifier (CONFIRM): Re-derived independently from source. restrict_rglob (zipp/glob.py:70-82) raises only when a segment both contains '**' and is not exactly '**' (line 81), so a pattern of repeated standalone '**' segments (e.g. '**/**/**/**/x') passes validation. The in-source doctest at glob.py:53-54 ('**/*' -> '.*/[^/][^/]*') proves that replace() maps each '**' to '.*' and that '/' is left unescaped by re.escape, so '**/**/**/x' translates to '(?s:.*/.*/.*/x)\\Z'. That regex is compiled and run with fullmatch against every zip entry name at zipp/__init__.py:407-409, and the graph confirms that call is reachable (reachable_from_entry=true, hop_distance=1) with Path.glob and Path.rglob both EntryPoints (exposure='reachable'); rglob adds a further '**/' at line 412. Because '.' matches '/' under (?s:), k chained '.*/' groups force the backtracking engine to enumerate increasing k-subsets of the m slash positions in a non-matching name: C(m,k) attempts, e.g. entry ('a/'*30)+'b.txt' with pattern ('**/'*15)+'nomatch' gives C(30,15) ~ 1.55e8 backtracks for a single name, and 60 slashes with 30 '**' gives C(60,30) ~ 1.2e17 (effective hang). k is unbounded. Two sub-claims of the lead are wrong and I corrected them: the premise that restrict_rglob was written as a ReDoS fix is unsupported (no NEWS entry; the message mirrors pathlib's correctness restriction), and the @pytest.mark.flaky complexity tests could not catch this since they all use the fixed benign pattern '*.txt' (tests/test_complexity.py:79-107) and vary zip size only. The core defect -- incomplete pattern validation yielding an attacker-shapeable super-linear regex on a reachable public API -- is real. Severity held to MEDIUM: it is a library DoS that requires an attacker-influenced glob/rglob pattern (attacker control of the zip alone is insufficient, since a fixed '**/*.txt' stays linear). Exploit-catalog grounding was not possible: exploit_search returned 'exploit corpus unavailable: not indexed', so no CVE/version range was compared; tree is v3.19.0 per NEWS.rst:1."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "zipp/glob.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 70,
+                  "endLine": 82
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "Translator.restrict_rglob",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "32440af66f232aeae790a235d2006af85197ec11"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1333",
+          "level": "error",
+          "message": {
+            "text": "Pattern-amplification ReDoS: the regex COMPILED at zipp/__init__.py:407 (`re.compile(prefix + tr.translate(pattern))`) is assembled from the caller-supplied glob `pattern`, and Translator.replace (zipp/glob.py:59-68) expands every `*` into the unbounded quantifier `[^/]*` and every `**` segment into `.*`. A pattern with k stars therefore yields k independent unbounded quantifiers separated by literal text (e.g. glob `*a*a*a*a*a*a*a*a*a*a*z` -> regex `(?s:[^/]*a[^/]*a...[^/]*z)\\Z`). That compiled object is then applied as `.fullmatch` to EVERY member name of the archive (`filter(matches, names)` at line 409, `names` built from `self.root.filelist` at line 408). On a non-matching name of length n, CPython's backtracking engine explores O(n^k) splits, so a short pattern (~40 chars) against ordinary archive names causes super-linear CPU blowup. The only input validation on the path is `if not pattern: raise ValueError` (line 402) and `restrict_rglob` (zipp/glob.py:70-82), which constrains only WHERE `**` may appear, never how many stars a pattern may contain. Re-derive by calling `zipp.Path(z).glob('*a'*20+'*z')` on an archive whose names are long and non-matching.\n\nVerifier (CONFIRM): Independently re-derived. zipp/__init__.py:401-409 compiles a regex assembled from the caller-supplied glob `pattern` (line 407, `re.compile(prefix + tr.translate(pattern)).fullmatch`) and applies it to every archive member name (line 408 `names` from `self.root.filelist`, line 409 `filter(matches, names)`). zipp/glob.py:59-68 `replace()` expands each `*` into the unbounded quantifier `[^{seps}]*` and each `**` into `.*`; glob.py:42 `extend` wraps as `(?s:...)\\Z`. The only guards are `if not pattern` (zipp/__init__.py:402-403) and `restrict_rglob` (glob.py:70-82), which merely rejects `**` that is not a whole path segment -- it blocks ADJACENT stars but places no bound on the NUMBER of stars when separated by a literal or `?`. `star_not_empty` (glob.py:84-94) only rewrites a segment that is exactly `*`, leaving multi-star segments untouched. A grep over all *.py found no pattern-length cap, star-count cap, or regex timeout. CPython's `sre` has no memoization, so k sequential ambiguous quantifiers backtrack combinatorially: `'*a'*20+'*z'` -> `(?s:[^/]*a[^/]*a...[^/]*z)\\Z` costs C(m,20) attempts on a single-segment name with m 'a's and no 'z' (m=40 => ~1.4e11); the stronger `'*?'*20+'z'` -> `(?s:([^/]*[^/]){20}z)\\Z` is maximally ambiguous (both operands accept the same class) and needs NO specific characters, costing ~C(59,19) ~ 1e15 on any ordinary non-matching 60-char filename segment. One correction to the lead's framing: the naive `'*'*k` payload is NOT exploitable (restrict_rglob raises ValueError); the literal/`?` interleaving is required, which the cited payload does satisfy. Reachability is positive, not negative: my own query shows the line-407 `compile` and line-409 `filter` calls, and `Path.glob`/`Path.rglob`, all with reachable_from_entry=true, hop_distance=1. The coverage gap is also real: tests/test_complexity.py:79-107 hardcodes the single-star pattern '*.txt' in all three glob complexity tests and varies only archive depth/width, so pattern-side complexity is unguarded. Severity MEDIUM rather than HIGH because exploitation requires the embedding application to pass an untrusted glob pattern to Path.glob/rglob. Advisory exploit_search returned 'exploit corpus unavailable: not indexed', and the version is dynamic (setuptools_scm, NEWS.rst tops at v3.19.0) so no patched/unpatched claim is made."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "zipp/__init__.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 407,
+                  "endLine": 409
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "glob",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "c3cab2c2460c43421b6e16f746fd85d9238edb3a"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1333",
+          "level": "error",
+          "message": {
+            "text": "Quadratic backtracking in the `separate()` regex literal at zipp/glob.py:106: `r'([^\\[]+)|(?P<set>[\\[].*?[\\]])|([\\[][^\\]]*$)'` is run with re.finditer directly over the caller-supplied glob pattern. For a pattern consisting of m unmatched `[` characters (e.g. `'['*5000`), at each of the m start positions alternative 1 `([^\\[]+)` fails immediately, alternative 2 `(?P<set>[\\[].*?[\\]])` expands `.*?` all the way to end-of-string looking for a `]` that never appears, and only then alternative 3 matches \u2014 giving O(m^2) character inspections before Path.glob even reaches re.compile. This is polynomial rather than exponential (there is no nested quantifier such as (a+)+ in this literal), so it is a lower-severity amplification than lead 1, but it is pattern-controlled, unguarded, and reached on every Path.glob/Path.rglob call. Re-derive by timing `zipp.Path(z).glob('['*20000)`.\n\nVerifier (CONFIRM): The defect class, location and reachability are real and independently verified, but the analyst's mechanism and repro are wrong and I am correcting them. VERIFIED: zipp/glob.py:106 runs re.finditer(r'([^\\[]+)|(?P<set>[\\[].*?[\\]])|([\\[][^\\]]*$)', pattern) directly over the caller-supplied glob pattern, with no length cap or bracket-balance check (the only validation is `if not pattern` at __init__.py:402 and the `**`-segment rule at glob.py:70-82). Reach path re-derived in real source: Path.glob (__init__.py:401-409) -> tr.translate(pattern) (line 407) -> translate_core (glob.py:31) -> separate(self.star_not_empty(pattern)) (glob.py:57) -> line 106; rglob (411-412) funnels into the same path. CORRECTION: the analyst's stated trigger `'['*m` is NOT quadratic. At pos 0 alt1 fails O(1), alt2 scans ~m chars and fails, then alt3 `[\\[][^\\]]*$` consumes P[1..m-1] and `$` matches at end-of-string, producing ONE match spanning (0,m); finditer then resumes at index m = end, so there are no further start positions. Total cost O(m) -- linear. The analyst's own clause \"and only then alternative 3 matches\" is exactly what prevents the m repetitions their O(m^2) estimate assumes, so `zipp.Path(z).glob('['*20000)` would return in microseconds. A genuine quadratic trigger does exist at the same line, which I constructed myself: for the alternation to fail at a `[` and force finditer to advance one char, alt2 must fail (needs a newline between the `[` and any `]`, since `.` excludes \\n with no DOTALL) AND alt3 must fail (needs a `]` later in the string so `[^\\]]*` cannot reach a `$` position; `$` without MULTILINE matches only at end-of-string or before a FINAL newline). P = '['*m + '\\n' + ']' satisfies both: at each i in 0..m-1, alt2 scans ~(m-i) chars and stalls at the \\n, alt3 consumes to index m+1 where `$` fails on `]` and ~(m-i) backtracks all fail, so the position fails and finditer advances one char -- Sum(m-i) = O(m^2). sre cannot skip positions (alt1's [^\\[] union alt2/3's [\\[] is the universal first-char set) and CPython re has no memoization. Caveats keeping severity LOW: Bash was disabled so this is analytic derivation from documented re semantics rather than measured timing; the amplification is polynomial not exponential; every :EntryPoint in this scan is a test function (tests/test_path.py, tests/test_complexity.py) because zipp is a library, so exploitability requires a downstream consumer to pass attacker-controlled glob patterns to Path.glob. tests/test_complexity.py asserts linear glob complexity but only varies ZIP content (depth/width, lines 80-107), never pattern length, so it does not cover this. exploit_search returned \"exploit corpus unavailable: not indexed\" and the version is dynamic via setuptools_scm (pyproject.toml:22, NEWS.rst top = v3.19.0), so I could not pin an exact version -- exploit evidence is UNKNOWN and the verdict rests on source analysis alone; the known zipp CVE-2024-5569 is a crafted-zip infinite loop, unrelated to this regex."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "zipp/glob.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 106,
+                  "endLine": 106
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "separate",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "f081d98655f7d87607159c6661e3db735de452b3"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

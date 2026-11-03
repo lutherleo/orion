@@ -1,0 +1,13 @@
+﻿unchanged: 8 passed, 4 skipped in 2.17s
+no _WINDOWS check: 8 passed, 4 skipped in 1.42s
+no func check: 1 failed, 7 passed, 4 skipped in 2.54s
+    test_the_retry_is_only_for_a_refused_delete
+no PermissionError check: 1 failed, 7 passed, 4 skipped in 0.50s
+    test_the_retry_is_only_for_a_refused_delete
+no islink check: 8 passed, 4 skipped in 0.49s
+no isjunction check: 1 failed, 7 passed, 4 skipped in 0.56s
+    test_the_retry_skips_a_junction
+#5's code (f244ee0): 3 failed, 6 passed, 3 skipped in 0.58s
+    test_the_retry_skips_a_junction
+    test_the_retry_is_only_for_a_refused_delete
+    test_the_retry_skips_a_symlink

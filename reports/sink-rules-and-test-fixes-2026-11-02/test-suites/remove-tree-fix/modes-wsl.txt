@@ -1,0 +1,6 @@
+﻿== #5's code (f244ee0)
+before: outside file 0o644 | outside dir 0o755 | tree 0o700 | ro 0o500 | file in ro 0o644
+after:  outside file 0o200 | outside dir 0o200 | tree 0o200 | ro 0o200 | file in ro 0o200
+== the fix
+before: outside file 0o644 | outside dir 0o755 | tree 0o700 | ro 0o500 | file in ro 0o644
+after:  outside file 0o644 | outside dir 0o755 | tree 0o700 | ro 0o500 | file in ro 0o644

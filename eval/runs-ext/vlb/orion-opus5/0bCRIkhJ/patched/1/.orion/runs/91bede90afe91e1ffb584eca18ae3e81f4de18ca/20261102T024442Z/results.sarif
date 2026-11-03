@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-79",
+              "name": "CWE79",
+              "shortDescription": {
+                "text": "CWE-79"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-79"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/79.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-79",
+          "level": "error",
+          "message": {
+            "text": "Object property NAMES are never sanitized -- only property values. In the object branch of `sanitize` (lib/sanitize.js:51-60), `Object.keys(data).forEach((key) => { ... data[key] = sanitizeHtml(item, ...) })` sanitizes the VALUE `item = data[key]` and writes it back under the ORIGINAL, unsanitized `key`. An attacker who controls JSON body / query-string property names (e.g. POST body `{\"<img src=x onerror=alert(1)>\": \"ok\"}`, or query `?<script>alert(1)</script>=1`) has that payload pass through the sanitizer completely untouched and reach the application inside `req.body` / `req.query`. Any app that renders object keys (key/value tables, form builders, `Object.keys(...)` loops in a template, error messages echoing field names) gets stored/reflected XSS despite the middleware being installed. The same gap applies to the `allowedKeys` skip at line 52, which additionally exempts an entire subtree from sanitization when its key matches.\n\nVerifier (CONFIRM): Re-derived from source independently. In the object branch of `sanitize` (lib/sanitize.js:51-61) only property VALUES are passed to `sanitizeHtml`; the attacker-controlled property NAME is reused verbatim as the assignment target (`data[key] = sanitizeHtml(item, ...)` at :57 and `data[key] = sanitize(options, item, ...)` at :59). I read the full 72-line module: `sanitizeHtml` is called exactly three times (:37, :42, :57) and its first argument is always `data` or `item`, never `key`, and no statement anywhere rewrites, re-keys or deletes a key. The code runs on every request \u2014 index.js:7-18 pipes req.body/params/headers/query through sanitize() \u2014 and the graph confirms the forEach at lib/sanitize.js:51 is reachable_from_entry=true at hop_distance=1 (the false flags on the inner line-55..59 operator nodes are the documented arrow-function under-linking artifact; the callback body obviously executes). Attacker controls key names on two surfaces: JSON bodies (JSON.parse preserves arbitrary own property names) and query strings (qs URL-decodes key names, so `?<script>alert(1)</script>=1` becomes that literal key). Header names are limited to HTTP tokens and req.params names come from the route pattern, so those are not vectors \u2014 a narrowing of the analyst's claim. The test suite never exercises this: every \"dirty\" test (test/test.js:155-209, 264+) uses benign keys a/b/c and asserts only on values, so the key surface is wholly untested. Consequently a package whose stated contract is \"sanitizes user input data (in req.body, req.query, req.headers and req.params) to prevent Cross Site Scripting\" leaves half of the attacker-controlled surface untouched \u2014 incomplete sanitization of a security control. TWO CORRECTIONS to the analyst: (1) the `allowedKeys` sub-claim is NOT a vulnerability \u2014 README.md:35-45 documents it as opt-in developer configuration, not attacker-controlled, so I reject that half; (2) the block ends at line 61, not 59. Severity held to MEDIUM rather than HIGH because this is a library with no HTML sink in-repo: impact requires the consuming app to render key names unescaped (validation errors echoing unknown field names, key/value tables, form builders) \u2014 plausible and exactly what users of this middleware believe they are protected against, but not guaranteed. Version pinned exactly to express-xss-sanitizer 2.0.1 (package.json:3); the one published CVE, CVE-2025-59364 (unbounded recursion), is already fixed here (guard at lib/sanitize.js:33-35, claimed at README.md:113), so this is a distinct gap and not a rehash of a patched issue. The Metasploit corpus returned \"exploit corpus unavailable: not indexed\", so exploit-reference evidence is absent and weighed neither way."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/sanitize.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 51,
+                  "endLine": 61
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "sanitize",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "2af276c7ea53fcea2d9be19462abb5a3c3e9dea9"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

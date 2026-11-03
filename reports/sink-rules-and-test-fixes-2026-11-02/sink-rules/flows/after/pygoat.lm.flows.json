@@ -1,0 +1,1612 @@
+[
+{
+"rank": 0,
+"cat": "code_exec",
+"file": "introduction/views.py",
+"line": 588,
+"name": "eval",
+"code": "ImageMath.eval(function_str, img = img, b = b, r = r, g = g)",
+"path_len": 1,
+"uid": "a59a42dba507684c88ff68f8208d88999dab5680"
+},
+{
+"rank": 1,
+"cat": "code_exec",
+"file": "challenge/views.py",
+"line": 50,
+"name": "Popen",
+"code": "subprocess.Popen(command.split(\" \"), stdout = subprocess.PIPE)",
+"path_len": 1,
+"uid": "4d7cc26b86af7c498f4857e4770712f3e1f76d4b"
+},
+{
+"rank": 2,
+"cat": "code_exec",
+"file": "introduction/views.py",
+"line": 430,
+"name": "Popen",
+"code": "subprocess.Popen(command, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)",
+"path_len": 1,
+"uid": "8b001db762f843642feea4eec58f31d384c5096b"
+},
+{
+"rank": 3,
+"cat": "code_exec",
+"file": "introduction/views.py",
+"line": 245,
+"name": "<operator>.assignment",
+"code": "comment_obj = tmp1 = comments.objects\ncomments.objects.create(name = 'System', comment = 'Default comment for XXE lab')",
+"path_len": 1,
+"uid": "627f64605c8123600402946bf85aa12bdc244393"
+},
+{
+"rank": 4,
+"cat": "code_exec",
+"file": "challenge/views.py",
+"line": 81,
+"name": "Popen",
+"code": "subprocess.Popen(command.split(\" \"), stdout = subprocess.PIPE)",
+"path_len": 1,
+"uid": "78c3ebdabb6961c58fb58cea4552c0a5e3cedfa5"
+},
+{
+"rank": 5,
+"cat": "code_exec",
+"file": "introduction/mitre.py",
+"line": 218,
+"name": "<operator>.assignment",
+"code": "result = eval(expression)",
+"path_len": 1,
+"uid": "f8927312cfe839c0bd1c55dd39afc711a9ce8efe"
+},
+{
+"rank": 6,
+"cat": "code_exec",
+"file": "introduction/mitre.py",
+"line": 218,
+"name": "eval",
+"code": "eval(expression)",
+"path_len": 1,
+"uid": "35aefc9e86bf549550f429aa1e21ff9ecc2924fd"
+},
+{
+"rank": 7,
+"cat": "code_exec",
+"file": "introduction/mitre.py",
+"line": 233,
+"name": "Popen",
+"code": "subprocess.Popen(command, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)",
+"path_len": 1,
+"uid": "74c0f3946629e0ff7a8736034bf96975f957b45a"
+},
+{
+"rank": 8,
+"cat": "deserialize",
+"file": "introduction/views.py",
+"line": 214,
+"name": "<operator>.assignment",
+"code": "admin = pickle.loads(token)",
+"path_len": 1,
+"uid": "2ce9176c34b3a5cb3a528c66356b52d0dbec7120"
+},
+{
+"rank": 9,
+"cat": "deserialize",
+"file": "introduction/views.py",
+"line": 214,
+"name": "<operator>.fieldAccess",
+"code": "pickle.loads",
+"path_len": 1,
+"uid": "73864ce3b71ff0384d022ac3961244baf3ff17b9"
+},
+{
+"rank": 10,
+"cat": "deserialize",
+"file": "introduction/views.py",
+"line": 214,
+"name": "loads",
+"code": "pickle.loads(token)",
+"path_len": 1,
+"uid": "45d28dd0e26658823b70a04e8218917fbd99c370"
+},
+{
+"rank": 11,
+"cat": "code_exec",
+"file": "introduction/views.py",
+"line": 460,
+"name": "<operator>.assignment",
+"code": "output = eval(val)",
+"path_len": 1,
+"uid": "1eae681cc4093ddcf68119a095dff6d45d6b23c2"
+},
+{
+"rank": 12,
+"cat": "code_exec",
+"file": "introduction/views.py",
+"line": 460,
+"name": "eval",
+"code": "eval(val)",
+"path_len": 1,
+"uid": "c45c0daab157248d7ea72202096b8cbfabb3ff45"
+},
+{
+"rank": 13,
+"cat": "deserialize",
+"file": "introduction/views.py",
+"line": 560,
+"name": "<operator>.assignment",
+"code": "data = yaml.load(file, yaml.Loader)",
+"path_len": 1,
+"uid": "bd0b4e2f7bbf16d10fce779891d383d3479f7e7f"
+},
+{
+"rank": 14,
+"cat": "deserialize",
+"file": "introduction/views.py",
+"line": 560,
+"name": "<operator>.fieldAccess",
+"code": "yaml.load",
+"path_len": 1,
+"uid": "7c26d886b484aee747c0f3ee1cf10c8dc7ea2cfd"
+},
+{
+"rank": 15,
+"cat": "deserialize",
+"file": "introduction/views.py",
+"line": 560,
+"name": "load",
+"code": "yaml.load(file, yaml.Loader)",
+"path_len": 1,
+"uid": "bd0c82af6682525e44c6778bebe9b2a20d495df3"
+},
+{
+"rank": 16,
+"cat": "deserialize",
+"file": "introduction/views.py",
+"line": 560,
+"name": "<operator>.fieldAccess",
+"code": "yaml.Loader",
+"path_len": 1,
+"uid": "fa3596d1dc65162599c51e9b01deb39605eac09e"
+},
+{
+"rank": 17,
+"cat": "code_exec",
+"file": "introduction/views.py",
+"line": 588,
+"name": "<operator>.assignment",
+"code": "output = ImageMath.eval(function_str, img = img, b = b, r = r, g = g)",
+"path_len": 1,
+"uid": "67574577a232a91d408410b94e8a98877be1c2e7"
+},
+{
+"rank": 18,
+"cat": "code_exec",
+"file": "introduction/views.py",
+"line": 588,
+"name": "<operator>.fieldAccess",
+"code": "ImageMath.eval",
+"path_len": 1,
+"uid": "7754f99b2218f60a2387f64b69c8d87d0418a14f"
+},
+{
+"rank": 19,
+"cat": "template",
+"file": "dockerized_labs/broken_auth_lab/app.py",
+"line": 100,
+"name": "render_template",
+"code": "render_template('reset.html', token = token)",
+"path_len": 1,
+"uid": "44eaa312558c8299018d6170e163079d98f640e6"
+},
+{
+"rank": 20,
+"cat": "sql",
+"file": "introduction/mitre.py",
+"line": 247,
+"name": "<operator>.indexAccess",
+"code": "tmp3['raw_err']",
+"path_len": 1,
+"uid": "8390bf3b253cbb8494736f5d5ae86ab1121f5152"
+},
+{
+"rank": 21,
+"cat": "sql",
+"file": "introduction/mitre.py",
+"line": 247,
+"name": "<operator>.assignment",
+"code": "tmp3['raw_err'] = str(err)",
+"path_len": 1,
+"uid": "8ca82cb91a4a2c24c33b4233901dcc19dc65233d"
+},
+{
+"rank": 22,
+"cat": "sql",
+"file": "introduction/mitre.py",
+"line": 247,
+"name": "<operator>.indexAccess",
+"code": "tmp3['raw_res']",
+"path_len": 1,
+"uid": "2e997d430a25c2af8536a36aab27b8cf0925689a"
+},
+{
+"rank": 23,
+"cat": "sql",
+"file": "introduction/mitre.py",
+"line": 247,
+"name": "<operator>.assignment",
+"code": "tmp3['raw_res'] = str(res)",
+"path_len": 1,
+"uid": "596b95f64a0552565150edc9456fb38ea42fe258"
+},
+{
+"rank": 24,
+"cat": "ssrf",
+"file": "introduction/playground/A6/soln.py",
+"line": 9,
+"name": "<operator>.assignment",
+"code": "response = requests.get(url)",
+"path_len": 1,
+"uid": "902bcf9ce93d099518d84f6061c9efbf4c2395d7"
+},
+{
+"rank": 25,
+"cat": "ssrf",
+"file": "introduction/playground/A6/soln.py",
+"line": 9,
+"name": "<operator>.fieldAccess",
+"code": "requests.get",
+"path_len": 1,
+"uid": "4308ccfe0530fc9fef99714e3c1656c0a1946ff1"
+},
+{
+"rank": 26,
+"cat": "ssrf",
+"file": "introduction/playground/A6/soln.py",
+"line": 9,
+"name": "get",
+"code": "requests.get(url)",
+"path_len": 1,
+"uid": "90f51774792134ea6e53ed40993b560a47557928"
+},
+{
+"rank": 27,
+"cat": "ssrf",
+"file": "introduction/playground/A6/utility.py",
+"line": 9,
+"name": "<operator>.assignment",
+"code": "response = requests.get(url)",
+"path_len": 1,
+"uid": "4706eeaa2217277b0c48a96f6353070b3f70147b"
+},
+{
+"rank": 28,
+"cat": "ssrf",
+"file": "introduction/playground/A6/utility.py",
+"line": 9,
+"name": "<operator>.fieldAccess",
+"code": "requests.get",
+"path_len": 1,
+"uid": "a62e620fdfadcc3cb5dd42f2b045ef368118517e"
+},
+{
+"rank": 29,
+"cat": "ssrf",
+"file": "introduction/playground/A6/utility.py",
+"line": 9,
+"name": "get",
+"code": "requests.get(url)",
+"path_len": 1,
+"uid": "6098e4b1f9a30e8e8158a37fc59baff15699b47d"
+},
+{
+"rank": 30,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 101,
+"name": "<operator>.indexAccess",
+"code": "tmp5['query']",
+"path_len": 1,
+"uid": "264d64e19674966f45f5deb89539f741aad66a73"
+},
+{
+"rank": 31,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 101,
+"name": "<operator>.assignment",
+"code": "tmp5['query'] = q",
+"path_len": 1,
+"uid": "0c217893d8b085c12a5d524e24d03688211ed7a5"
+},
+{
+"rank": 32,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 158,
+"name": "<operator>.assignment",
+"code": "sql_query = \"SELECT * FROM introduction_login WHERE user='\" + name + \"' AND password='\" + password + \"'\"",
+"path_len": 1,
+"uid": "75473e2e6d74eae2066e216a65ab1a3844d0f124"
+},
+{
+"rank": 33,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 162,
+"name": "<operator>.assignment",
+"code": "val = tmp3 = login.objects\nlogin.objects.raw(sql_query)",
+"path_len": 1,
+"uid": "798452d0f2da9fe3cb7e705cde6ff02d8f623e44"
+},
+{
+"rank": 34,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 162,
+"name": "raw",
+"code": "login.objects.raw(sql_query)",
+"path_len": 1,
+"uid": "613a2c5aea321c7eb8abaad1e8caec507bfba8e3"
+},
+{
+"rank": 35,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 162,
+"name": "<operator>.fieldAccess",
+"code": "tmp3.raw",
+"path_len": 1,
+"uid": "746688f7232dcc0dd3d55d89ce0e56d1b983539f"
+},
+{
+"rank": 36,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 168,
+"name": "<operator>.assignment",
+"code": "tmp4[\"sql_error\"] = sql_query",
+"path_len": 1,
+"uid": "6fc4956bd83287520f65959aecb3885da9074853"
+},
+{
+"rank": 37,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 180,
+"name": "<operator>.assignment",
+"code": "tmp6[\"sql_error\"] = sql_query",
+"path_len": 1,
+"uid": "76a865463207cf761bdba835e825abaac370fb8e"
+},
+{
+"rank": 38,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 864,
+"name": "<operator>.assignment",
+"code": "sql_query = \"SELECT * FROM introduction_sql_lab_table WHERE id='\" + name + \"'AND password='\" + password + \"'\"",
+"path_len": 1,
+"uid": "ab919a119f2a2ea637d44fcf37402e2aa1a80a05"
+},
+{
+"rank": 39,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 878,
+"name": "<operator>.assignment",
+"code": "user = tmp2 = sql_lab_table.objects\nsql_lab_table.objects.raw(sql_query)",
+"path_len": 1,
+"uid": "aadba20c8263f8703dc69fb61db471f078279a5f"
+},
+{
+"rank": 40,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 878,
+"name": "raw",
+"code": "sql_lab_table.objects.raw(sql_query)",
+"path_len": 1,
+"uid": "19e91e1f5edbef33eb33a0d9feadc6055ad51b6f"
+},
+{
+"rank": 41,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 878,
+"name": "<operator>.fieldAccess",
+"code": "tmp2.raw",
+"path_len": 1,
+"uid": "951820f5d92bda83176ae76c2f64a746eae9e397"
+},
+{
+"rank": 42,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 886,
+"name": "<operator>.assignment",
+"code": "tmp3[\"sql_error\"] = sql_query",
+"path_len": 1,
+"uid": "49f3190a1d71f82622b39fd133da2c274def23f9"
+},
+{
+"rank": 43,
+"cat": "sql",
+"file": "introduction/views.py",
+"line": 897,
+"name": "<operator>.assignment",
+"code": "tmp5[\"sql_error\"] = sql_query",
+"path_len": 1,
+"uid": "e7d74f18ffa3c49f8d6900b39605545db21b25a0"
+},
+{
+"rank": 44,
+"cat": "ssrf",
+"file": "introduction/views.py",
+"line": 963,
+"name": "<operator>.assignment",
+"code": "response = requests.get(url)",
+"path_len": 1,
+"uid": "e1b1ea981558556f1f7335dbc40e117eada02daa"
+},
+{
+"rank": 45,
+"cat": "ssrf",
+"file": "introduction/views.py",
+"line": 963,
+"name": "<operator>.fieldAccess",
+"code": "requests.get",
+"path_len": 1,
+"uid": "526e65de027d72876fe7330c52a2b2b2f835d2d4"
+},
+{
+"rank": 46,
+"cat": "ssrf",
+"file": "introduction/views.py",
+"line": 963,
+"name": "get",
+"code": "requests.get(url)",
+"path_len": 1,
+"uid": "f58d4394cb1999f2476cbbdf7a07d7e425c7d4e9"
+},
+{
+"rank": 47,
+"cat": "prototype_pollution",
+"file": "introduction/views.py",
+"line": 985,
+"name": "<operator>.assignment",
+"code": "prepend_code = \"{% extends 'introduction/base.html' %}\\\n                {% block content %}{% block title %}\\\n                <title>SSTI-Blogs</title>\\\n                {% endblock %}\"",
+"path_len": 1,
+"uid": "f77ba8225d65298411658a991b16b1cb74efbf8f"
+},
+{
+"rank": 48,
+"cat": "path",
+"file": "challenge/management/commands/populate_challenges.py",
+"line": 14,
+"name": "join",
+"code": "os.path.join('challenge', 'challenge.json')",
+"path_len": 1,
+"uid": "27497afe1a463518a38c3104c8ec1ef35ba73bdf"
+},
+{
+"rank": 49,
+"cat": "path",
+"file": "challenge/management/commands/populate_challenges.py",
+"line": 17,
+"name": "open",
+"code": "open(file_path, 'r')",
+"path_len": 1,
+"uid": "fbf0e5a518f18f6ef4cbdc79307534deeded9916"
+},
+{
+"rank": 50,
+"cat": "path",
+"file": "introduction/playground/A9/archive.py",
+"line": 48,
+"name": "open",
+"code": "open('test.log', 'a')",
+"path_len": 1,
+"uid": "df54092e5cdb433c84360cf558637a891609794b"
+},
+{
+"rank": 51,
+"cat": "path",
+"file": "introduction/playground/A9/archive.py",
+"line": 48,
+"name": "<operator>.assignment",
+"code": "f = open('test.log', 'a')",
+"path_len": 1,
+"uid": "3a0013ff1a9a0af0996b2fd6e2f98f0b9003c759"
+},
+{
+"rank": 52,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 430,
+"name": "<operator>.assignment",
+"code": "process = subprocess.Popen(command, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)",
+"path_len": 1,
+"uid": "bd71fddd7bb56100f5f4004254e2451c5647808c"
+},
+{
+"rank": 53,
+"cat": "path",
+"file": "challenge/management/commands/populate_challenges.py",
+"line": 14,
+"name": "<operator>.assignment",
+"code": "file_path = tmp0 = os.path\nos.path.join('challenge', 'challenge.json')",
+"path_len": 1,
+"uid": "fec502b773b3b93f5142dca8fd7e2fec9aceb84b"
+},
+{
+"rank": 54,
+"cat": "path",
+"file": "challenge/management/commands/populate_challenges.py",
+"line": 17,
+"name": "<operator>.assignment",
+"code": "manager_tmp0 = open(file_path, 'r')",
+"path_len": 1,
+"uid": "63d44994a37c6c56dcac5e3edd45b3711fbd37a0"
+},
+{
+"rank": 55,
+"cat": "path",
+"file": "challenge/management/commands/populate_challenge.py",
+"line": 12,
+"name": "<operator>.assignment",
+"code": "manager_tmp0 = open(filename, \"r\")",
+"path_len": 1,
+"uid": "37331796f63aa892b7e35cb67c9e7880f5917b7d"
+},
+{
+"rank": 56,
+"cat": "path",
+"file": "challenge/management/commands/populate_challenge.py",
+"line": 12,
+"name": "open",
+"code": "open(filename, \"r\")",
+"path_len": 1,
+"uid": "49c37d77e27810710a74646f4d6f01209cb7f271"
+},
+{
+"rank": 57,
+"cat": "path",
+"file": "challenge/views.py",
+"line": 50,
+"name": "<operator>.assignment",
+"code": "process = subprocess.Popen(command.split(\" \"), stdout = subprocess.PIPE)",
+"path_len": 1,
+"uid": "c65352474428746a1fa81a4018344a9b3daa442b"
+},
+{
+"rank": 58,
+"cat": "path",
+"file": "challenge/views.py",
+"line": 81,
+"name": "<operator>.assignment",
+"code": "process = subprocess.Popen(command.split(\" \"), stdout = subprocess.PIPE)",
+"path_len": 1,
+"uid": "751de16199834a498f1d2b9f71ab9db280de9b16"
+},
+{
+"rank": 59,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 67,
+"name": "<operator>.assignment",
+"code": "log_filename = tmp4 = os.path\nos.path.join(dirname, \"playground/A9/main.py\")",
+"path_len": 1,
+"uid": "5029f8c13c6c61c96f474eaa46d3f5ddf1816a8b"
+},
+{
+"rank": 60,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 67,
+"name": "join",
+"code": "os.path.join(dirname, \"playground/A9/main.py\")",
+"path_len": 1,
+"uid": "e6609bf2e21204e37982ba868f09ba09f93db27f"
+},
+{
+"rank": 61,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 68,
+"name": "<operator>.assignment",
+"code": "api_filename = tmp5 = os.path\nos.path.join(dirname, \"playground/A9/api.py\")",
+"path_len": 1,
+"uid": "4847f6621efc034b0223491200535c2c5432c584"
+},
+{
+"rank": 62,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 68,
+"name": "join",
+"code": "os.path.join(dirname, \"playground/A9/api.py\")",
+"path_len": 1,
+"uid": "ebdf6cbe1ee31881a93dd97c277537daa44a9a86"
+},
+{
+"rank": 63,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 69,
+"name": "<operator>.assignment",
+"code": "f = open(log_filename, \"w\")",
+"path_len": 1,
+"uid": "8d09b33c024457dc60d39bdcc54375f5e312f428"
+},
+{
+"rank": 64,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 69,
+"name": "open",
+"code": "open(log_filename, \"w\")",
+"path_len": 1,
+"uid": "720f3c563e7cd7b5c4c78b21f76f78922250a5d0"
+},
+{
+"rank": 65,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 72,
+"name": "<operator>.assignment",
+"code": "f = open(api_filename, \"w\")",
+"path_len": 1,
+"uid": "ba6dad0605071a9e174aab8e8717c3a012e35ad6"
+},
+{
+"rank": 66,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 72,
+"name": "open",
+"code": "open(api_filename, \"w\")",
+"path_len": 1,
+"uid": "a73f4923f4ae9be03a189eafd496373c461db5e2"
+},
+{
+"rank": 67,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 76,
+"name": "<operator>.assignment",
+"code": "f = open('test.log', 'w')",
+"path_len": 1,
+"uid": "0390be5bee43a9e5eb6e7312ecd6f4dcbc002e37"
+},
+{
+"rank": 68,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 76,
+"name": "open",
+"code": "open('test.log', 'w')",
+"path_len": 1,
+"uid": "a7abed53d954f21ccb1aa835e6ea493f4ac50653"
+},
+{
+"rank": 69,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 85,
+"name": "<operator>.assignment",
+"code": "f = open('test.log', 'r')",
+"path_len": 1,
+"uid": "47a0c095f3e801ee57b797dd263e08139e890ffe"
+},
+{
+"rank": 70,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 85,
+"name": "open",
+"code": "open('test.log', 'r')",
+"path_len": 1,
+"uid": "1ba807afcbfb91b8f03ec6e7405832f4c0937ca7"
+},
+{
+"rank": 71,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 132,
+"name": "<operator>.assignment",
+"code": "filename = tmp3 = os.path\nos.path.join(dirname, \"playground/A6/utility.py\")",
+"path_len": 1,
+"uid": "5ef782991edc97ad324610cdfef6475b2adb00b8"
+},
+{
+"rank": 72,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 132,
+"name": "join",
+"code": "os.path.join(dirname, \"playground/A6/utility.py\")",
+"path_len": 1,
+"uid": "58a92ac2479c1cc02eb21f972e2f94f51d6da29e"
+},
+{
+"rank": 73,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 133,
+"name": "<operator>.assignment",
+"code": "f = open(filename, \"w\")",
+"path_len": 1,
+"uid": "58cc4a6df64a547f3d038f6f6ef4e7d1e4c07389"
+},
+{
+"rank": 74,
+"cat": "path",
+"file": "introduction/apis.py",
+"line": 133,
+"name": "open",
+"code": "open(filename, \"w\")",
+"path_len": 1,
+"uid": "462ef27362c53e53f08f19389a39ae007cf08f17"
+},
+{
+"rank": 75,
+"cat": "path",
+"file": "introduction/mitre.py",
+"line": 233,
+"name": "<operator>.assignment",
+"code": "process = subprocess.Popen(command, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE)",
+"path_len": 1,
+"uid": "c5f616bcf931aca6bfac78d66b8769d9ab60eee2"
+},
+{
+"rank": 76,
+"cat": "path",
+"file": "introduction/playground/A9/archive.py",
+"line": 54,
+"name": "<operator>.assignment",
+"code": "f = open('test.log', 'a')",
+"path_len": 1,
+"uid": "aa7fcd4322c3b81e9f7a49f4d62df5a63f5cddea"
+},
+{
+"rank": 77,
+"cat": "path",
+"file": "introduction/playground/A9/archive.py",
+"line": 54,
+"name": "open",
+"code": "open('test.log', 'a')",
+"path_len": 1,
+"uid": "cc5af6b3b7e0bcfbf957f584d73ba8d280a57905"
+},
+{
+"rank": 78,
+"cat": "path",
+"file": "introduction/playground/A9/archive.py",
+"line": 60,
+"name": "<operator>.assignment",
+"code": "f = open('test.log', 'a')",
+"path_len": 1,
+"uid": "26caf367bb53c44e68de64052c8e8e1d10308bd2"
+},
+{
+"rank": 79,
+"cat": "path",
+"file": "introduction/playground/A9/archive.py",
+"line": 60,
+"name": "open",
+"code": "open('test.log', 'a')",
+"path_len": 1,
+"uid": "832b522cc14b6069ec9d1a363707ae655c919f3b"
+},
+{
+"rank": 80,
+"cat": "path",
+"file": "introduction/playground/ssrf/main.py",
+"line": 7,
+"name": "<operator>.assignment",
+"code": "filename = tmp1 = os.path\nos.path.join(dirname, file)",
+"path_len": 1,
+"uid": "2949366a95868cb6b0463ed6966e8d1a2fab2c40"
+},
+{
+"rank": 81,
+"cat": "path",
+"file": "introduction/playground/ssrf/main.py",
+"line": 7,
+"name": "join",
+"code": "os.path.join(dirname, file)",
+"path_len": 1,
+"uid": "88f2ee3eb1d58c875b98a4cadff0481724f61d3d"
+},
+{
+"rank": 82,
+"cat": "path",
+"file": "introduction/playground/ssrf/main.py",
+"line": 8,
+"name": "<operator>.assignment",
+"code": "file = open(filename, \"r\")",
+"path_len": 1,
+"uid": "ad26805abe62715cac2eb115d87b00a90bb7020c"
+},
+{
+"rank": 83,
+"cat": "path",
+"file": "introduction/playground/ssrf/main.py",
+"line": 8,
+"name": "open",
+"code": "open(filename, \"r\")",
+"path_len": 1,
+"uid": "8be79f418ca8ecc2bf1a7a5bf7c78bbda16f4975"
+},
+{
+"rank": 84,
+"cat": "path",
+"file": "introduction/utility.py",
+"line": 34,
+"name": "<operator>.assignment",
+"code": "filename = tmp12 = os.path\nos.path.join(dirname, \"playground/ssrf/main.py\")",
+"path_len": 1,
+"uid": "5c6b3048ffa495fbe06c16f4eb146d1dd40f4af2"
+},
+{
+"rank": 85,
+"cat": "path",
+"file": "introduction/utility.py",
+"line": 34,
+"name": "join",
+"code": "os.path.join(dirname, \"playground/ssrf/main.py\")",
+"path_len": 1,
+"uid": "e41c6b916723ff56372f222fb707c96c8b3642ff"
+},
+{
+"rank": 86,
+"cat": "path",
+"file": "introduction/utility.py",
+"line": 35,
+"name": "<operator>.assignment",
+"code": "f = open(filename, \"w\")",
+"path_len": 1,
+"uid": "f45936a2fd0163516ad488c7c2caa447739487d4"
+},
+{
+"rank": 87,
+"cat": "path",
+"file": "introduction/utility.py",
+"line": 35,
+"name": "open",
+"code": "open(filename, \"w\")",
+"path_len": 1,
+"uid": "2169da0a955a9d1862a4ce90e01364bbb122d7fe"
+},
+{
+"rank": 88,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 584,
+"name": "<operator>.assignment",
+"code": "img = Image.open(file)",
+"path_len": 1,
+"uid": "5707a5ae6e2d1834b9853fd40509f9a7201cc49b"
+},
+{
+"rank": 89,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 584,
+"name": "open",
+"code": "Image.open(file)",
+"path_len": 1,
+"uid": "f95531d2b1700b37891cd38e8774a49a1b1a89fe"
+},
+{
+"rank": 90,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 926,
+"name": "<operator>.assignment",
+"code": "filename = tmp2 = os.path\nos.path.join(dirname, file)",
+"path_len": 1,
+"uid": "034d01a773125b2b15b56f1d171d8004dc68e6fb"
+},
+{
+"rank": 91,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 926,
+"name": "join",
+"code": "os.path.join(dirname, file)",
+"path_len": 1,
+"uid": "a661f3f4f658f66b3b270d12785efc5cd8dd691a"
+},
+{
+"rank": 92,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 927,
+"name": "<operator>.assignment",
+"code": "file = open(filename, \"r\")",
+"path_len": 1,
+"uid": "912128495874a6d4140c20e20e922b4102828b54"
+},
+{
+"rank": 93,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 927,
+"name": "open",
+"code": "open(filename, \"r\")",
+"path_len": 1,
+"uid": "210de8b857b4875a057e721ddb763e08c70cf66b"
+},
+{
+"rank": 94,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 994,
+"name": "<operator>.assignment",
+"code": "filename = tmp5 = os.path\nos.path.join(dirname, f\"templates/Lab_2021/A3_Injection/Blogs/{id}.html\")",
+"path_len": 1,
+"uid": "c19ea0172d676806dd31281ff95e3b07847c216a"
+},
+{
+"rank": 95,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 994,
+"name": "join",
+"code": "os.path.join(dirname, f\"templates/Lab_2021/A3_Injection/Blogs/{id}.html\")",
+"path_len": 1,
+"uid": "93015251023364bf56dfc42ad0b04614406d329e"
+},
+{
+"rank": 96,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 995,
+"name": "<operator>.assignment",
+"code": "file = open(filename, \"w+\")",
+"path_len": 1,
+"uid": "735a82c86425e89e68d86a52545abcec40eff807"
+},
+{
+"rank": 97,
+"cat": "path",
+"file": "introduction/views.py",
+"line": 995,
+"name": "open",
+"code": "open(filename, \"w+\")",
+"path_len": 1,
+"uid": "04c42ad86b9519854c275f6dd9e8713685dee86a"
+},
+{
+"rank": 98,
+"cat": "redirect",
+"file": "challenge/views.py",
+"line": 14,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "c8e23b2ccda9da3d5265cc06fc75746adcd4fe73"
+},
+{
+"rank": 99,
+"cat": "redirect",
+"file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+"line": 62,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "a95939502abf7646b45677bec95455c48692171a"
+},
+{
+"rank": 100,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 231,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "507c198eecbec041e88de65fb33493333ad79bf2"
+},
+{
+"rank": 101,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 252,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "a648ed20136017c833f37c47fffd28238db80896"
+},
+{
+"rank": 102,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 450,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "0398788f4c287ccc51ff0a6cd34a9168d8ba7661"
+},
+{
+"rank": 103,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 478,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "7b16a6932867497157a0f730b223a719ef032a66"
+},
+{
+"rank": 104,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 916,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "0a5bde88ace39718a14ddccc629a6786deb82fd7"
+},
+{
+"rank": 105,
+"cat": "redirect",
+"file": "introduction/mitre.py",
+"line": 174,
+"name": "redirect",
+"code": "redirect('/mitre/9/lab/login')",
+"path_len": 1,
+"uid": "a46d355da964bbb18a0b327b2989bfe204df26d3"
+},
+{
+"rank": 106,
+"cat": "redirect",
+"file": "introduction/mitre.py",
+"line": 170,
+"name": "redirect",
+"code": "redirect(\"/mitre/9/lab/transaction\")",
+"path_len": 1,
+"uid": "8806cae1e922c7a6775913b55f8c4ff93d5b921e"
+},
+{
+"rank": 107,
+"cat": "redirect",
+"file": "introduction/mitre.py",
+"line": 170,
+"name": "<operator>.assignment",
+"code": "response = redirect(\"/mitre/9/lab/transaction\")",
+"path_len": 1,
+"uid": "f249bb44612b4e7f2018d79667d8393991a2cec9"
+},
+{
+"rank": 108,
+"cat": "redirect",
+"file": "challenge/views.py",
+"line": 30,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "9c08a09e444fd3bb410a0eed9348fd16c764b848"
+},
+{
+"rank": 109,
+"cat": "redirect",
+"file": "challenge/views.py",
+"line": 70,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "01d13da45cdf61334031bc6c6393c70312bbd8bf"
+},
+{
+"rank": 110,
+"cat": "redirect",
+"file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+"line": 30,
+"name": "redirect",
+"code": "redirect('profile')",
+"path_len": 1,
+"uid": "398a08f33b7a87ea2e7574c7854dba4db70b1cfd"
+},
+{
+"rank": 111,
+"cat": "redirect",
+"file": "dockerized_labs/sensitive_data_exposure/dataexposure/views.py",
+"line": 138,
+"name": "redirect",
+"code": "redirect('index')",
+"path_len": 1,
+"uid": "354ef7fead7a884fed900266fd51102eefd87580"
+},
+{
+"rank": 112,
+"cat": "redirect",
+"file": "introduction/mitre.py",
+"line": 186,
+"name": "redirect",
+"code": "redirect('/mitre/9/lab/login')",
+"path_len": 1,
+"uid": "3c2ec5453173f8a3d3421f83bee454327afded9e"
+},
+{
+"rank": 113,
+"cat": "redirect",
+"file": "introduction/mitre.py",
+"line": 189,
+"name": "redirect",
+"code": "redirect('/mitre/9/lab/login')",
+"path_len": 1,
+"uid": "22b693ed5341f1a7829109b363c21d000156fb56"
+},
+{
+"rank": 114,
+"cat": "redirect",
+"file": "introduction/mitre.py",
+"line": 198,
+"name": "redirect",
+"code": "redirect('/mitre/9/lab/login')",
+"path_len": 1,
+"uid": "801a0cf80a361a5694d6a023ae9b0e41bc996ca1"
+},
+{
+"rank": 115,
+"cat": "redirect",
+"file": "introduction/mitre.py",
+"line": 208,
+"name": "redirect",
+"code": "redirect('/mitre/9/lab/transaction')",
+"path_len": 1,
+"uid": "783afac3a91c85c93aad79077dac716b2e0798ec"
+},
+{
+"rank": 116,
+"cat": "redirect",
+"file": "introduction/mitre.py",
+"line": 210,
+"name": "redirect",
+"code": "redirect('/mitre/9/lab/transaction')",
+"path_len": 1,
+"uid": "5abb52c2b37cf530d1b516e96c3b5a1a3173ce89"
+},
+{
+"rank": 117,
+"cat": "redirect",
+"file": "introduction/mitre.py",
+"line": 221,
+"name": "redirect",
+"code": "redirect('/mitre/25/lab/')",
+"path_len": 1,
+"uid": "2aa98eef7e7db5b0cabc578a290df46e3a977e0f"
+},
+{
+"rank": 118,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 53,
+"name": "redirect",
+"code": "redirect('/')",
+"path_len": 1,
+"uid": "365f9d47edcca6bbee1abfa07c5f8cc07b5ccbf8"
+},
+{
+"rank": 119,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 73,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "badd23eb20c78da61363a09d2673c57f11613690"
+},
+{
+"rank": 120,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 81,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "400d69d7d3277b29d177fcb5fa659958aed5c9f2"
+},
+{
+"rank": 121,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 91,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "181d4099bf972716375e498ccec849b8bbfdbe21"
+},
+{
+"rank": 122,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 103,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "74056b930b54da4b130c17df5376369d0e3977b7"
+},
+{
+"rank": 123,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 120,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "4b1c6aacb0bcc6ba25bcdc94db8b4f909da55700"
+},
+{
+"rank": 124,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 136,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "380236e2d6385c27355fb2258c1cb4ac0eacce69"
+},
+{
+"rank": 125,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 145,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "f4e84e13baae4674896ddad96cb68f5db27a7470"
+},
+{
+"rank": 126,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 189,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "937caec9fc7d71ec0ed66d9f3ca41ff41d7f5b4e"
+},
+{
+"rank": 127,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 197,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "fae459a6eb32494c5f7dc51bc836229ec7f32f08"
+},
+{
+"rank": 128,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 221,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "a7f54cc55bdc4b83c6f19e3fb9fce50864978e19"
+},
+{
+"rank": 129,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 237,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "86ba931c004625d4b09f145d7e58f78d44bc13f6"
+},
+{
+"rank": 130,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 340,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "ec3108ac08dfd35ccc4e5c51570463edb284dcf6"
+},
+{
+"rank": 131,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 381,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "cc3e2e922b1c276259b0cfc5cf4f7915ab04cd2f"
+},
+{
+"rank": 132,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 390,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "b784ae4eb1ee951dd3cf66b0b4a4ac1f9073310d"
+},
+{
+"rank": 133,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 396,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "7d2458871031537891913a4ae48a2b12a1950970"
+},
+{
+"rank": 134,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 413,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "ee8c56de1ce5ef31386d826740b08f668447c313"
+},
+{
+"rank": 135,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 469,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "c57c8ed373734551666ec2914e72b7d88e774106"
+},
+{
+"rank": 136,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 486,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "e3587f416d060f0b75cd8b08882f74a14775ab8e"
+},
+{
+"rank": 137,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 527,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "6da993984fc8b33ee9e598599dc9ec7955fa3ca0"
+},
+{
+"rank": 138,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 533,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "2edeb2ed88e861c115edd0f86b59e4a74379ef82"
+},
+{
+"rank": 139,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 549,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "9103291a9071f0397f0ba153d48495faa78f81dd"
+},
+{
+"rank": 140,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 569,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "10db59f017fb0f34b3c86375f031a4bc4bf45388"
+},
+{
+"rank": 141,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 576,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "429291cd1765777fe1132b10d3a9fc437feb1bf5"
+},
+{
+"rank": 142,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 618,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "af2d96ceaf0a290a9308bccad18499a58786811d"
+},
+{
+"rank": 143,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 634,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "2b442bfc58755a755ae9372b8e33e57ea5481dc5"
+},
+{
+"rank": 144,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 686,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "9ed31963b62ea0fe4d5abeadf58138f102fd4213"
+},
+{
+"rank": 145,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 730,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "a73da7f7123bbb48812729c8e48dac5071eddfe5"
+},
+{
+"rank": 146,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 741,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "6db8a26eae3234c80caa1c3041e3b698bf94e2ed"
+},
+{
+"rank": 147,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 751,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "5500ee13990bdb50eb87ee914358bbec2de29c8a"
+},
+{
+"rank": 148,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 787,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "6f7a15df58b0361da7a2d368d40884e5821d81c8"
+},
+{
+"rank": 149,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 824,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "ec1fcc9cc01c7e63411bc0cf7e93ee036a0afd57"
+},
+{
+"rank": 150,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 839,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "2066e0b2d07093c95492c78b236d6c3a188ae3a5"
+},
+{
+"rank": 151,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 849,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "c461a9863317acdb42a6feb96d143eb9d1f6a560"
+},
+{
+"rank": 152,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 904,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "8987d2364563783215f42c94ef64676176e5decd"
+},
+{
+"rank": 153,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 933,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "11e5eba9bf67f018f92d475bc1d5d724f9ee72ab"
+},
+{
+"rank": 154,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 939,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "b5a06697c2ee06d63c7df43471692a1fd9c12caf"
+},
+{
+"rank": 155,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 973,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "279a22258a547f3f6d94a7e7d843909cef5b22d2"
+},
+{
+"rank": 156,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 998,
+"name": "redirect",
+"code": "redirect(f'blog/{id}')",
+"path_len": 1,
+"uid": "b7356ed74120320348e3bcc434d1283cab128a6d"
+},
+{
+"rank": 157,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 1000,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "192c9ba08e906716603ea00e3a9bd3d547cbd9f4"
+},
+{
+"rank": 158,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 1016,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "cd3dad2a6606a634ff657f4e7c23274739445a99"
+},
+{
+"rank": 159,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 1032,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "f29ecf42136afde6853c2a78df2aa14c05baef95"
+},
+{
+"rank": 160,
+"cat": "redirect",
+"file": "introduction/views.py",
+"line": 1092,
+"name": "redirect",
+"code": "redirect('login')",
+"path_len": 1,
+"uid": "968fc9931d7a0d0736e4444584f110901d936cfa"
+}
+]

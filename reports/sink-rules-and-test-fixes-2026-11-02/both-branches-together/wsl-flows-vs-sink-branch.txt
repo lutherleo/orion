@@ -1,0 +1,37 @@
+
+== nodegoat.default: 73 -> 73
+   code_exec              3 -> 3   
+   nosql                 10 -> 10  
+   redirect               5 -> 5   
+   render                21 -> 21  
+   log                   34 -> 34  
+   same sink and category 73, added 0, dropped 0, re-filed 0
+   top 5 after: code_exec contributions.js:28; code_exec contributions.js:33; code_exec contributions.js:34; nosql allocations-dao.js:57; nosql allocations-dao.js:78
+
+== nodegoat.lm: 73 -> 73
+   code_exec              3 -> 3   
+   nosql                 10 -> 10  
+   redirect               5 -> 5   
+   render                21 -> 21  
+   log                   34 -> 34  
+   same sink and category 73, added 0, dropped 0, re-filed 0
+   top 5 after: code_exec contributions.js:28; code_exec contributions.js:33; code_exec contributions.js:34; nosql allocations-dao.js:57; nosql allocations-dao.js:78
+
+== pygoat.default: 93 -> 93
+   code_exec             12 -> 12  
+   sql                   18 -> 18  
+   redirect              63 -> 63  
+   same sink and category 93, added 0, dropped 0, re-filed 0
+   top 5 after: code_exec views.py:588; code_exec views.py:50; code_exec views.py:430; code_exec views.py:245; code_exec views.py:81
+
+== pygoat.lm: 161 -> 161
+   code_exec             12 -> 12  
+   deserialize            7 -> 7   
+   sql                   18 -> 18  
+   ssrf                   9 -> 9   
+   template               1 -> 1   
+   prototype_pollution    1 -> 1   
+   path                  50 -> 50  
+   redirect              63 -> 63  
+   same sink and category 161, added 0, dropped 0, re-filed 0
+   top 5 after: code_exec views.py:588; code_exec views.py:50; code_exec views.py:430; code_exec views.py:245; code_exec views.py:81

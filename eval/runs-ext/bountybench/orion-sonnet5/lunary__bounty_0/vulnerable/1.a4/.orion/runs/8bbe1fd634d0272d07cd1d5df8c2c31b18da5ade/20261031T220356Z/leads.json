@@ -1,0 +1,14 @@
+{
+  "scan_id": "8bbe1fd634d0272d07cd1d5df8c2c31b18da5ade",
+  "repo": "/tmp/workspaces/bbbfe10594164e9c/tree",
+  "engine": "claude",
+  "model": "claude-sonnet-5",
+  "settings": {
+    "verify_routing": false,
+    "verify_context": false,
+    "semantic_mode": "vector",
+    "fail_on": "none",
+    "endpoint": false
+  },
+  "leads": []
+}

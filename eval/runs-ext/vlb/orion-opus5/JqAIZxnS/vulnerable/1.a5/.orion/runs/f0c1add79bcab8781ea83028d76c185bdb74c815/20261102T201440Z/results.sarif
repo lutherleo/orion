@@ -1,0 +1,565 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1395",
+              "name": "CWE1395",
+              "shortDescription": {
+                "text": "CWE-1395"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1395"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1395.html"
+            },
+            {
+              "id": "CWE-20",
+              "name": "CWE20",
+              "shortDescription": {
+                "text": "CWE-20"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-20"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/20.html"
+            },
+            {
+              "id": "CWE-208",
+              "name": "CWE208",
+              "shortDescription": {
+                "text": "CWE-208"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-208"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/208.html"
+            },
+            {
+              "id": "CWE-327",
+              "name": "CWE327",
+              "shortDescription": {
+                "text": "CWE-327"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-327"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/327.html"
+            },
+            {
+              "id": "CWE-347",
+              "name": "CWE347",
+              "shortDescription": {
+                "text": "CWE-347"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-347"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/347.html"
+            },
+            {
+              "id": "CWE-409",
+              "name": "CWE409",
+              "shortDescription": {
+                "text": "CWE-409"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-409"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/409.html"
+            },
+            {
+              "id": "CWE-696",
+              "name": "CWE696",
+              "shortDescription": {
+                "text": "CWE-696"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-696"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/696.html"
+            },
+            {
+              "id": "CWE-863",
+              "name": "CWE863",
+              "shortDescription": {
+                "text": "CWE-863"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-863"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/863.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-409",
+          "level": "error",
+          "message": {
+            "text": "JWE decompression bomb (zip bomb) in jose/jwe.py: attacker-controlled `jwe_str` (parameter of the EntryPoint method `decrypt`, jose/jwe.py:60) flows through `_jwe_compact_deserialize(jwe_str)` (line 79, which unpacks attacker-controlled `header`, `cipher_text`, `iv`, `auth_tag`) into `_decrypt_and_auth(...)` (line 178), and the resulting `plain_text` is passed to `_decompress(header.get(\"zip\"), plain_text)` at line 187, which reaches `zlib.decompress(compressed)` at jose/jwe.py:453 with NO `max_length`/size cap and no post-decompression length check. The attacker also controls the `zip` header value selecting the DEF (deflate) branch (line 452 `zip == ZIPS.DEF`). Critically, the authentication at line 240 is not a barrier for public-key JWE algorithms (RSA-OAEP / RSA1_5 / ECDH-ES are in ALGORITHMS.SUPPORTED): any attacker who knows the recipient's PUBLIC key can legitimately produce a correctly-authenticated JWE containing a highly-compressed payload, so the tag check passes and decompression proceeds. A ~50KB token can expand to multiple GB, causing unbounded memory allocation and denial of service.\n\nVerifier (CONFIRM): Independently re-derived and confirmed. jose/jwe.py:453 calls zlib.decompress(compressed) with no max_length and no post-decompression length check; a repo-wide grep for max_length|decompressobj|MAX_|LIMIT across jose/ finds only _MAX_RECOVERY_ATTEMPTS in rsa_backend.py:52, so no cap exists anywhere in the library. The attacker-controlled flow is present in real source: decrypt(jwe_str, key) at jwe.py:60 -> _jwe_compact_deserialize(jwe_str) at line 79 (which imposes NO length limit on jwe_str, lines 256-327) -> _decrypt_and_auth(...) at line 178 -> _decompress(header.get(\"zip\"), plain_text) at line 187 -> zlib.decompress at 453, with the DEF branch selected by the attacker-supplied \"zip\" header at line 452. Decompression occurs before the cek_valid gate at line 189. The authentication at line 240 is genuinely not a barrier: constants.py:70 includes RSA_KW in ALGORITHMS.SUPPORTED, and RSA_KW = {RSA1_5, RSA-OAEP, RSA-OAEP-256} (constants.py:54), so any party holding only the recipient's PUBLIC key can mint a correctly-authenticated JWE carrying a highly-compressed payload and the tag check passes legitimately. Graph confirms exploitability: lines 79/178/187/452/453 are all reachable_from_entry=true with hop_distance=1 (zlib.decompress uid 37f07b7e8019228b7edca4c498c6ff78372e6264), and jose/jwe.py:<module>.decrypt (line 60) is an EntryPoint with exposure='reachable', kind='handler'; jwe.decrypt is the documented public API (docs/jwe/index.rst:70). TWO CORRECTIONS to the analyst: (1) ECDH-ES is NOT in ALGORITHMS.SUPPORTED -- constants.py:70 excludes EC_KW, which appears only in ALL (line 72); the public-key argument survives on RSA_KW alone so the conclusion is unaffected. (2) \"~50KB expands to multiple GB\" is overstated -- zlib's maximum ratio is ~1032:1, so 50KB of ciphertext yields ~50MB; multi-GB requires a multi-MB token, which is still achievable because nothing bounds jwe_str length. Version pinned at 3.3.0 (jose/__init__.py:1) with CHANGELOG.md:3 showing \"3.4.0 -- UNPUBLISHED\" containing only \"Remove support for python 3.6\", matching CVE-2024-33664 (JWT bomb, affects python-jose through 3.3.0, fixed in 3.4.0); the 3.4.0 size-limit fix is demonstrably absent. Caveat: exploit_search returned \"exploit corpus unavailable: not indexed\", so the CVE mapping rests on my own source reading plus the pinned version, not on an exploit-module citation. Severity MEDIUM: memory-exhaustion DoS only, no auth bypass or code execution, and it requires the consuming application to call jwe.decrypt on untrusted input."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jwe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 437,
+                  "endLine": 456
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_decompress",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "e8420edff207ffdbdef9beaad3b6bf664f3b8213"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-347",
+          "level": "error",
+          "message": {
+            "text": "JWS/JWT algorithm-confusion via an INCOMPLETE HMAC-secret blocklist, enabling signature forgery. Attacker-controlled `alg` is read from the untrusted token header at jose/jws.py:250 (`alg = header.get(\"alg\")`) and flows unsanitized into key construction: jose/jws.py:257 `_get_keys(key)` -> jose/jws.py:208 `jwk.construct(key, alg)` -> jose/jwk.py:76-79 `key_class = get_key(algorithm); key_class(key_data, algorithm)` -> jose/backends/native.py:23 `HMACKey.__init__(key, algorithm)`. HMACKey guards against using an asymmetric public key as an HMAC secret with a hardcoded blocklist at jose/backends/native.py:39, but that list is only `[b\"-----BEGIN PUBLIC KEY-----\", b\"-----BEGIN RSA PUBLIC KEY-----\", b\"-----BEGIN CERTIFICATE-----\", b\"ssh-rsa\"]` - it OMITS the OpenSSH ECDSA prefixes (`ecdsa-sha2-nistp256`/`nistp384`/`nistp521`) and Ed25519 (`ssh-ed25519`), as well as `ssh-dss`. An application that verifies tokens using an OpenSSH-format EC/Ed25519 public key (e.g. an `authorized_keys`-style blob) while HS256 is reachable will construct `HMACKey(b\"ecdsa-sha2-nistp256 AAAA...\", \"HS256\")`; the blocklist check at line 46 (`any(string_value in key for string_value in invalid_strings)`) does not match, so line 52 sets `self.prepared_key = key` and the PUBLIC key becomes the HMAC secret. An attacker who knows that public key can then mint a token with `alg: HS256` and a valid HMAC, forging arbitrary authenticated claims.\n\nVerifier (CONFIRM): Independently re-derived and confirmed. The HMAC-secret blocklist that exists specifically to stop asymmetric public keys being used as HMAC secrets contains only 4 entries, and `ssh-rsa` is the only SSH key type covered; a repo-wide grep for `ecdsa-sha2|ssh-ed25519|ssh-dss|BEGIN OPENSSH` returns zero hits, so the omission is total and unpatched. The attacker fully controls `alg`: jws.py:250 reads it from the header JSON-parsed at jws.py:185 out of the untrusted token before any signature verification, and the only gate (jws.py:254) is opt-in -- it fires solely when `algorithms is not None`, while jose/jwt.py:55 declares `decode(token, key, algorithms=None, ...)`, so `jwt.decode(token, key)` imposes no algorithm restriction whatsoever. The taint reaches HMACKey via jws.py:257 `_get_keys` -> jws.py:208 `jwk.construct(key, alg)` -> jwk.py:76-79 `get_key(algorithm)`/`key_class(key_data, algorithm)`, with jwk.py:34-35 routing any HMAC alg to HMACKey and HS256 in ALGORITHMS.HMAC/SUPPORTED (constants.py:52,70). An app verifying with an OpenSSH-format EC/Ed25519/DSS public key therefore constructs HMACKey(b\"ecdsa-sha2-nistp256 AAAA...\", \"HS256\"), the line-46/562 check misses, prepared_key becomes the PUBLIC key, and anyone who knows that key can mint a valid HS256 token -- full signature forgery. tests/algorithms/test_HMAC.py:15-30 proves the guard is a deliberate control whose gap is simply untested. TWO CORRECTIONS to the analyst: (1) the location was incomplete -- the analyst cited only native.py, the FALLBACK backend, but backends/__init__.py:28 prefers CryptographyHMACKey whenever `cryptography` is installed (the standard install), and that class carries the IDENTICAL incomplete blocklist at cryptography_backend.py:555-568, so the primary path was missed; (2) exploitability is narrower than claimed -- PEM EC public keys ARE blocked by the generic `-----BEGIN PUBLIC KEY-----` entry and CryptographyECKey (cryptography_backend.py:81-96) parses only PEM, so the live gap requires the app to supply OpenSSH-format key bytes, a real but non-default configuration. Version pinned to 3.3.0 (jose/__init__.py:1), inside the CVE-2024-33663 range (\"through 3.3.0\", algorithm confusion with OpenSSH ECDSA keys) with no backported fix in source; exploit_search was unavailable (corpus not indexed), so the version comparison rests on the pinned manifest plus unpatched source. Severity held to MEDIUM rather than HIGH because of the key-format precondition."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/backends/cryptography_backend.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 555,
+                  "endLine": 568
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "59eebf6dbeeaeab7489a6ec7c52cce3a3527d8a4"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-208",
+          "level": "error",
+          "message": {
+            "text": "Non-constant-time comparison of the attacker-supplied JWE authentication tag in jose/jwe.py:240 (`if auth_tag != auth_tag_check: raise JWEError(\"Invalid JWE Auth Tag\")`), inside `_decrypt_and_auth`. The `auth_tag` operand is attacker-controlled: it is parsed from the untrusted token at jose/jwe.py:79 (`auth_tag = tmp0[5]` from `_jwe_compact_deserialize(jwe_str)`) and passed into `_decrypt_and_auth` at line 178 (FLOWS_TO arg_index 6), while `auth_tag_check` is the locally computed HMAC from line 232 `_auth_tag(cipher_text, iv, aad, mac_key, key_len)`. Python's `!=` on bytes is a short-circuiting byte-wise comparison, so its execution time is proportional to the length of the matching prefix, leaking the correct tag one byte at a time to an attacker who can time many decrypt attempts - permitting forgery of the AES-CBC-HMAC-SHA2 authentication tag. This is demonstrably an oversight rather than an accepted risk: the same codebase uses the constant-time primitive `hmac.compare_digest(sig, self.sign(msg))` at jose/backends/native.py:69 for JWS signatures. Additionally, line 239 performs `encryption_key.decrypt(cipher_text, iv, aad, auth_tag)` BEFORE the tag comparison at line 240, i.e. decrypt-then-verify ordering on the HMAC_AUTH_TAG path.\n\nVerifier (CONFIRM): Independently re-derived and confirmed against source. jose/jwe.py:240 compares the attacker-supplied JWE authentication tag against the locally computed HMAC using Python's non-constant-time `!=` operator instead of hmac.compare_digest. The tainted operand is genuinely attacker-controlled: _jwe_compact_deserialize base64url-decodes the 5th dot-segment of the untrusted token into auth_tag (jwe.py:323, returned :327), destructured at jwe.py:79 and passed to _decrypt_and_auth at jwe.py:178. The secret operand auth_tag_check is the truncated HMAC from jwe.py:232 -> _auth_tag -> mac_key.sign (jwe.py:571-575). The oversight framing is correct: a repo-wide grep shows jwe.py:240 is the ONLY MAC/tag comparison in the codebase using a bare operator, while jose/backends/native.py:69 correctly uses hmac.compare_digest(sig, self.sign(msg)) for JWS. I found one fact that strengthens the lead beyond the analyst's claim: AESKey.decrypt in cryptography_backend.py:490-515 ignores its `tag` argument entirely on the CBC path (:504-511 only decrypts and PKCS7-unpads; `tag` is consumed only in the GCM branch :495-503), so jwe.py:240 is the SOLE authentication check for all A*CBC-HS* tokens, not a redundant one. The decrypt-then-verify ordering is also real: :239 unpads attacker-chosen ciphertext before :240 authenticates, and the outcomes are caller-distinguishable because cryptography_backend.py:514 wraps the unpad error and jwe.py:181-182 re-raises it as JWEError(e) (\"Invalid padding bytes\") versus jwe.py:241's \"Invalid JWE Auth Tag\" - a CBC padding-oracle surface. Reachability confirmed in both source (public jwe.decrypt -> :178 -> :240) and graph (reachable_from_entry=true, hop_distance=1). Severity held to MEDIUM rather than HIGH: the timing channel itself is memcmp-scale over a <=32-byte tag, buried under base64/JSON/HMAC-SHA2/AES-CBC work per request, so remote byte-at-a-time tag recovery is impractical in isolation; the MEDIUM rating is driven primarily by the unauthenticated-unpad ordering at the same site. I corrected the location from the analyst's 240-240 to 239-241 to span the decrypt-before-verify. Exploit-reference check could not be performed: the corpus returned \"exploit corpus unavailable: not indexed\", so no published-module/version-range comparison was made for python-jose 3.3.0 (pinned at jose/__init__.py:1); this was not used as evidence either for or against."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jwe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 239,
+                  "endLine": 241
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_decrypt_and_auth",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "7da55daa8c3536fbb8346d247ae12f8ef9ad9fc8"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-347",
+          "level": "error",
+          "message": {
+            "text": "The JWS algorithm allowlist is silently disabled when `algorithms` is None, letting the attacker-controlled token header choose the verification algorithm. At jose/jws.py:254 the guard is `if algorithms is not None and alg not in algorithms: raise JWSError(\"The specified alg value is not allowed\")` - the `algorithms is not None` conjunct means that when a caller passes `algorithms=None`, NO check is performed and the attacker-supplied `alg` from jose/jws.py:250 (`alg = header.get(\"alg\")`) is used directly for key construction at jose/jws.py:208 `jwk.construct(key, alg)` and for signature dispatch at line 259 `_sig_matches_keys(keys, signing_input, signature, alg)`. This None value is reachable from the public API: jose/jwt.py:141 forwards the caller's parameter verbatim via `jws.verify(token, key, algorithms, verify=verify_signature)`. This is the enabling precondition that makes the HMAC key-confusion lead (jose/backends/native.py:39) exploitable, and it means a library consumer who omits an explicit algorithms allowlist gets attacker-chosen cryptography rather than a safe default.\n\nVerifier (CONFIRM): Re-derived from source. jose/jws.py:254 guards the algorithm allowlist with `if algorithms is not None and alg not in algorithms:` \u2014 the `algorithms is not None` conjunct disables the check entirely when the parameter is None, and None is the declared default both at the internal sink (jose/jws.py:249 `_verify_signature(..., algorithms=None)`) and at the public API (jose/jwt.py:55 `def decode(token, key, algorithms=None, ...)`), which forwards it verbatim at jose/jwt.py:141 `jws.verify(token, key, algorithms, verify=verify_signature)`. The `alg` used downstream is attacker-controlled: jose/jws.py:250 `alg = header.get(\"alg\")` reads the unverified header decoded in `_load` (jws.py:185), and that value then selects the key class and verification primitive at jose/jws.py:208 `key = jwk.construct(key, alg)` (via jose/jwk.py:76 `get_key(algorithm)`) and the dispatch at jose/jws.py:259 `_sig_matches_keys(keys, signing_input, signature, alg)`. My own graph query confirms reach: the line-254 `<operator>.logicalAnd`, line-250 `header.get(\"alg\")`, line-259 `_sig_matches_keys` and line-208 `jwk.construct(key, alg)` all have reachable_from_entry=true, hop_distance=1. So `jwt.decode(token, key)` applies no algorithm restriction and lets the token choose its own verification algorithm (CWE-347 / algorithm-confusion precondition). I bounded the impact myself rather than accepting the analyst's framing, which is why severity is MEDIUM not HIGH: `alg:\"none\"` does NOT bypass, because \"none\" is absent from ALGORITHMS.KEYS (constants.py:86, empty dict) and from HMAC/RSA/EC/AES/DIR, so jwk.construct raises JWKError at jwk.py:78 (called at jws.py:208, outside the try at 209); and the classic RS->HS PEM confusion is blocked by the `invalid_strings` check present in BOTH backends (jose/backends/native.py:39-50 and jose/backends/cryptography_backend.py:555-564) plus the `kty == \"oct\"` check for JWK dicts (native.py:55-56). The residual real vector is that this guard list contains no `ecdsa-sha2-*` entry (grep over jose/ found none), so an OpenSSH-format EC public key can still be fed to HMACKey \u2014 a vector that is only reachable because the allowlist is off; version is pinned at 3.3.0 (jose/__init__.py:1), within the affected range of the known python-jose EC key-confusion issue fixed in 3.4.0. Advisory note: exploit_search returned \"exploit corpus unavailable: not indexed\", so I have no catalog module/CVE citation and do not count that as support either way. The weakness itself is confirmed on source and graph evidence; exploitation depends on a consumer omitting the `algorithms` argument."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jws.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 254,
+                  "endLine": 255
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_verify_signature",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "522a0c1e450d7b49c4730eee551eaff8962aa0a2"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-696",
+          "level": "error",
+          "message": {
+            "text": "MISSING MAC-BEFORE-DECRYPT ORDERING in JWE AES-CBC-HMAC: in `_decrypt_and_auth` (jose/jwe.py), the ciphertext is decrypted AND PKCS7-unpadded at line 239 (`plaintext = encryption_key.decrypt(cipher_text, iv, aad, auth_tag)`) and only AFTERWARDS is the HMAC authentication tag compared, at line 240 (`auth_tag != auth_tag_check`). For the `A*CBC-HS*` enc values the callee is CryptographyAESKey.decrypt (jose/backends/cryptography_backend.py:490), whose non-GCM branch runs `decryptor.update/finalize` (lines 507-508) and then `PKCS7(...).unpadder().update(padded_plain_text)` (lines 509-510) with no MAC check of its own. A PKCS7 unpadding failure therefore raises a different error than the `JWEError(\"Invalid JWE Auth Tag\")` raised at line 241, giving an attacker a padding oracle (Vaudenay/Lucky-13 class) against attacker-submitted JWE tokens. The required control -- verify the HMAC tag over (aad||iv||ciphertext||al) BEFORE performing any CBC decryption or unpadding -- is absent.\n\nVerifier (CONFIRM): Re-derived independently from source. In _decrypt_and_auth (jose/jwe.py:230-243) the AES-CBC ciphertext is decrypted and PKCS7-unpadded at line 239 and the HMAC tag is only compared afterwards at lines 240-241, so attacker-controlled ciphertext is processed by the unpadder before any authentication. The callee for A*CBC-HS* enc values is CryptographyAESKey.decrypt (jose/backends/cryptography_backend.py:490); its non-GCM else-branch (504-511) runs decryptor.update/finalize then PKCS7 unpadder.update/finalize with no MAC check of its own (only the GCM branch at 495-503 authenticates). constants.py:67 confirms A128CBC_HS256/A192CBC_HS384/A256CBC_HS512 route into the HMAC_AUTH_TAG branch. Critically, _auth_tag (jwe.py:571-574) computes the MAC over aad+iv+ciphertext+al, i.e. Encrypt-then-MAC per RFC 7518 5.2.2, so the tag is fully verifiable BEFORE decryption, and auth_tag_check is already available at line 232 -- the fix is a trivial reorder of 240-241 above 239. This proves the missing MAC-before-decrypt ordering is a real defect, not an inherent constraint. The code also violates its own stated requirement in the comment at jwe.py:175-176 (\"rejecting the input without emitting any decrypted output if the JWE Authentication Tag is incorrect\"). Reachability verified in source: public jwe.decrypt() (line 60) calls _decrypt_and_auth at line 178 with no prior tag verification anywhere in lines 79-178; the graph independently reports reachable_from_entry=true, hop_distance=1 for lines 178/232/239/240/241. Severity held at MEDIUM rather than HIGH because a padding failure and a tag mismatch both ultimately surface as JWEError (backend rewraps at cryptography_backend.py:514-515, jwe.py:181-182 rewraps again) with differing messages, so the strength of the padding oracle depends on whether the embedding application exposes the distinct message/behavior; an application returning a uniform error leaks only through the weaker timing channel. Exploit-reference check could not corroborate: the Metasploit corpus returned \"exploit corpus unavailable: not indexed\", so no module/CVE/version comparison was possible and it contributed nothing to this verdict either way."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jwe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 239,
+                  "endLine": 241
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_decrypt_and_auth",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "47faec10f0ac9d40768198417b0cd7782292b2d0"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-327",
+          "level": "error",
+          "message": {
+            "text": "INCOMPLETE asymmetric-key blocklist guarding HMAC secrets (algorithm-confusion control is only partial): HMACKey.__init__ (jose/backends/native.py:23) defends against passing an asymmetric public key as an HMAC shared secret via `invalid_strings` at line 39, but that list contains only FOUR prefixes -- b\"-----BEGIN PUBLIC KEY-----\", b\"-----BEGIN RSA PUBLIC KEY-----\", b\"-----BEGIN CERTIFICATE-----\", b\"ssh-rsa\". It omits OpenSSH ECDSA keys (`ecdsa-sha2-nistp256/384/521`), OpenSSH Ed25519 keys (`ssh-ed25519`), `-----BEGIN EC PUBLIC KEY-----`, and PGP public-key blocks. A verifier that holds such a public key and calls verification with an attacker-chosen header `alg: HS256` will have that public key silently accepted as the HMAC secret (`self.prepared_key = key`, line 52), letting an attacker who knows the public key forge valid signatures. The construction site is jose/jws.py:208 `jwk.construct(key, alg)` inside `_sig_matches_keys`, where `alg` comes from the untrusted header.\n\nVerifier (CONFIRM): Re-derived from source. (a) The asymmetric-key blocklist guarding the HMAC shared secret contains exactly four prefixes (b\"-----BEGIN PUBLIC KEY-----\", b\"-----BEGIN RSA PUBLIC KEY-----\", b\"-----BEGIN CERTIFICATE-----\", b\"ssh-rsa\") and omits the other OpenSSH public-key line formats (ecdsa-sha2-nistp256/384/521, ssh-ed25519) and PGP public-key blocks; since `ssh-rsa` IS listed, catching OpenSSH-format keys is demonstrably the control's intent, so the omission is a real partial-control gap, not a design choice. On miss, execution falls through to `self.prepared_key = key`, making the public key the HMAC secret. (b) The gap is broader than the analyst claimed: the identical 4-entry list is duplicated in jose/backends/cryptography_backend.py:555-566 (CryptographyHMACKey.__init__), and jose/backends/__init__.py:28-30 binds `HMACKey` to that class whenever `cryptography` is importable, so the defect sits in the default production path, not only the native fallback. (c) The untrusted-alg reach is confirmed in source, not just the graph: jose/jws.py:250 reads `alg` from the unauthenticated header; jose/jws.py:254 gates the allowlist on `if algorithms is not None`; jose/jwt.py:55 declares `algorithms=None` by default and jwt.py:141 forwards it unchanged, so a plain `jwt.decode(token, pubkey)` performs no alg restriction; jose/jws.py:208 `jwk.construct(key, alg)` then routes through jwk.py:34-35 to HMACKey for HS256/384/512. An attacker who knows the verifier's public key can thus forge a token with `alg: HS256`. (d) Version pinned at 3.3.0 (jose/__init__.py:1) with CHANGELOG.md:3 showing 3.4.0 UNPUBLISHED containing only \"Remove support for python 3.6\" -- the hardening is absent, matching CVE-2024-33663 (python-jose through 3.3.0, algorithm confusion with OpenSSH ECDSA keys). Advisory exploit_search could not corroborate: the corpus returned \"exploit corpus unavailable: not indexed\", so the version comparison rests solely on the in-repo manifest/changelog. Two consumer-side preconditions are required (verifier supplies a raw OpenSSH-format public key AND omits `algorithms=`), but both are reachable with the library's own defaults, so this is a genuine library-level weakness. Minor correction to the lead: \"-----BEGIN EC PUBLIC KEY-----\" is not a real serialization format (EC public keys use SPKI \"BEGIN PUBLIC KEY\", which IS blocked), so that listed omission is not meaningful."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/backends/native.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 39,
+                  "endLine": 52
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "HMACKey.__init__",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "670d00fa2392b26b045e479e54643e4e0cc12b0f"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-863",
+          "level": "error",
+          "message": {
+            "text": "MISSING AUDIENCE ENFORCEMENT when the `aud` claim is absent: `_validate_aud` (jose/jwt.py:316) begins with the test `\"aud\" not in claims` at line 336, and the graph contains NO call nodes at all between line 336 and line 341 -- i.e. that branch performs an unconditional early return with no `raise`, even when the caller explicitly supplied an expected `audience`. The next executed statement is line 341 `audience_claims = claims[\"aud\"]`. Combined with `require_aud` defaulting to False (jose/jwt.py:114), a token that simply omits `aud` is accepted by an application that passes `audience=\"my-api\"`, so a token minted for a different relying party (same issuer/key) is accepted -- cross-audience token replay. The enforcement for the present-`aud` case does exist (line 348 `audience not in audience_claims` -> line 349 `raise JWTClaimsError(\"Invalid audience\")`), which is what makes the absent-`aud` gap an asymmetric hole.\n\nVerifier (CONFIRM): Re-derived from source: jose/jwt.py:336-339 `_validate_aud` returns unconditionally when the `aud` claim is absent, with the rejecting `raise` left commented out, so the caller-supplied `audience` argument is silently discarded. Nothing upstream compensates: `_validate_claims` (jwt.py:462-465) only enforces presence for `require_*` options that are truthy, and `require_aud` defaults to False (jwt.py:124), while `verify_aud` defaults True (jwt.py:116) so `_validate_aud` is invoked (jwt.py:481-482) and merely no-ops. The present-`aud` path by contrast does reject (jwt.py:348-349 `raise JWTClaimsError(\"Invalid audience\")`), making the absent-`aud` case an asymmetric authorization gap. The behavior is pinned by the project's own test: tests/test_jwt.py:349-353 `test_aud_empty_claim` decodes a token built from the `{\"a\": \"b\"}` fixture (tests/test_jwt.py:12-14, no `aud`) with `audience=\"audience\"` and asserts success. Reachability is genuine, not an under-linking artifact: jose/jwt.py:336 has reachable_from_entry=true, hop_distance=1, matching the source path from the public `decode()` entry (jwt.py:156-164). Net effect: a token minted for a different relying party under the same issuer/key but omitting `aud` is accepted by an app that passes `audience=\"my-api\"` \u2014 cross-audience token replay. Severity MEDIUM, not HIGH: RFC 7519 4.1.3 only mandates rejection when `aud` is present, and an opt-in mitigation (`options={\"require_aud\": True}`) exists, so exploitation needs an attacker-obtainable same-key token lacking `aud`. Exploit-reference check could not be performed \u2014 the Metasploit corpus returned \"exploit corpus unavailable: not indexed\" \u2014 so no patched/unpatched inference is drawn from it; version pinned exactly to python-jose 3.3.0 (jose/__init__.py:1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jwt.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 336,
+                  "endLine": 339
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_validate_aud",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "8a2074fab905c39f8bc901c8a2aa72925f30f949"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-20",
+          "level": "error",
+          "message": {
+            "text": "NO `crit` HEADER PROCESSING ANYWHERE in the library: RFC 7515 s4.1.11 requires that a recipient REJECT a JWS/JWE whose protected header carries a `crit` member naming extensions the implementation does not understand. A repo-wide search for the string 'crit' across every CpgCall.code in the scan returned zero rows, so neither jose/jws.py's `_verify_signature`/`_load` nor jose/jwe.py's `_jwe_compact_deserialize` inspects it. `_jwe_compact_deserialize` only validates that the header is a JSON Mapping (jose/jwe.py:304-305) and `decrypt` only checks `alg`/`enc` membership (jose/jwe.py:92-98), so a token marking a security-relevant extension as critical is silently accepted and the extension ignored -- defeating any downstream security semantics the sender attached to it.\n\nVerifier (CONFIRM): Independently re-derived and true. A repo-wide case-insensitive grep for 'crit' across the entire tree returns exactly ONE match, and it is a COMMENT (jose/jwe.py:83) -- no code path processes the `crit` header. I reproduced the graph query myself (0 CpgCall rows). Reading jose/jws.py in full: `_load` (172-202) validates only segment splitting, base64 padding and `isinstance(header, Mapping)`; `_verify_signature` (249-264) reads only `alg`. The strongest evidence -- better than the analyst's -- is jose/jwe.py:81-98, where the code transcribes the RFC 7516 s5.2 requirement verbatim as a comment (\"...or by the \\\"crit\\\" Header Parameter value...\") and then implements only `alg`/`enc` membership checks in ALGORITHMS.SUPPORTED. I also ruled out a mitigating strict-header policy: no general unknown-header rejection exists anywhere; only alg/enc/kid/typ are ever read, so `crit` is not mooted. Reachability is NOT a downgrade factor here -- decrypt (L60), _jwe_compact_deserialize (L256), jws.verify (L48), _verify_signature (L249) and jwt.decode (L55) all carry reachable_from_entry=true, hop_distance=0 as public library API. Three corrections to the analyst: (1) the claimed anchor jwe.py:300-305 is merely where crit ISN'T (just json.loads + Mapping check) -- the real anchor is jwe.py:81-98; (2) CWE-347 is wrong, since signature and AEAD tag verification are fully intact and nothing cryptographic is bypassed -- the correct class is CWE-20; (3) severity is LOW, not as implied: python-jose implements no crit-eligible extensions itself, so an attacker adding `crit` bypasses no in-library check and gains nothing directly. The genuine risk is interop/defense-in-depth -- a producer attaching a security-relevant critical extension has it silently ignored by a python-jose consumer, which RFC 7515 s4.1.11 says MUST be rejected. This fails open on policy metadata, not on crypto. I checked the b64:false (RFC 7797) angle too: it fails closed with JWSError(\"Invalid payload padding\"), not a bypass. Version pinned to python-jose 3.3.0 (jose/__init__.py:1); exploit_search returned \"exploit corpus unavailable: not indexed\", so I claim neither a weaponized exploit nor patched status from it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jwe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 81,
+                  "endLine": 98
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_jwe_compact_deserialize",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "7fd8a055445cc6b4169f711f3709dbbb56e4aaf3"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        },
+        {
+          "ruleId": "CWE-409",
+          "level": "error",
+          "message": {
+            "text": "PROTECTION APPLIED TOO LATE (ordering): jwe.decrypt computes the `cek_valid` flag early (jose/jwe.py:127/138/144) as the Bleichenbacher/MMA mitigation, but only consults it in the very last statement, line 189 `plain_text if cek_valid else None`. Before that gate is reached, line 187 runs `_decompress(header.get(\"zip\"), plain_text)` on attacker-controlled data with an attacker-controlled `zip` header value. So the full decompression is performed even when the content-encryption key was never validly unwrapped (cek_valid=False, set at line 144), making the zlib decompression reachable on tokens the library has already decided to reject -- unbounded decompression of attacker data (zip-bomb amplification, the python-jose CVE-2024-33664 shape). The guard exists and is simply evaluated after the expensive attacker-driven work rather than before it.\n\nVerifier (CONFIRM): CONFIRMED as a vulnerability, but the analyst's MECHANISM is WRONG and I am correcting it. (1) REFUTED \u2014 the claimed \"protection applied too late\" ordering is not exploitable: when cek_valid=False is set at jose/jwe.py:144, cek_bytes is replaced by a random CEK (line 152), so _decrypt_and_auth at line 178 necessarily fails \u2014 for GCM, AESGCM.decrypt raises InvalidTag -> JWEError (cryptography_backend.py:502-503, 514-515); for CBC+HMAC, `auth_tag != auth_tag_check` raises JWEError at jwe.py:240-241. Both propagate through the except at jwe.py:181-182, so line 187 `_decompress(...)` is NEVER reached on the cek_valid=False branch. The only route to 187 with cek_valid=False is the `dir` branch (line 127 `cek_valid = encrypted_key == b\"\"`; encrypted_key is not covered by the AAD, line 167 `aad = protected_header`), but reaching 187 there still requires a ciphertext already authenticated under the recipient's real key, so the ordering grants the attacker no capability they lacked. The cek_valid gate is therefore not the defect. (2) CONFIRMED \u2014 the real, independent defect is that `_decompress` performs UNBOUNDED decompression: jose/jwe.py:453 `decompressed = zlib.decompress(compressed)` with no `max_length` and no size cap anywhere in the package (grep for max_length|decompressobj|MAX_|limit across jose/ returns only unrelated RSA constants in rsa_backend.py:52). This is reachable on the NORMAL cek_valid=True path: with an asymmetric alg (e.g. RSA-OAEP) an attacker needs only the recipient's PUBLIC key to mint a fully valid token \u2014 own CEK wrapped to the public key (unwrap_key succeeds, cek_valid=True at line 138), valid auth tag, header `zip: DEF` (ZIPS.SUPPORTED = {DEF, None}, constants.py:92-95) \u2014 whose ~1MB ciphertext expands to gigabytes at line 453, causing memory exhaustion before the line 189 gate is ever relevant. This is CVE-2024-33664 / GHSA-cjwg-qfpm-7377; the tree pins __version__ = \"3.3.0\" (jose/__init__.py:1), inside the affected range (<= 3.3.0, fixed in 3.4.0). The exploit_search corpus returned \"exploit corpus unavailable: not indexed\", so the version comparison rests on source + advisory range, not on a Metasploit module. The analyst's CWE-409 and sink line 187 are correct; the cek_valid/ordering rationale and the claim that decompression runs on rejected tokens are not."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/jwe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 448,
+                  "endLine": 456
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "decrypt",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "4062f678075188bc064a550a77089a786d70c3c1"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-347",
+          "level": "error",
+          "message": {
+            "text": "Second, independent copy of the same incomplete denylist LITERAL in the cryptography backend: jose/backends/cryptography_backend.py line 555 defines the identical `invalid_strings = [b\"-----BEGIN PUBLIC KEY-----\", b\"-----BEGIN RSA PUBLIC KEY-----\", b\"-----BEGIN CERTIFICATE-----\", b\"ssh-rsa\"]` inside CryptographyHMACKey.__init__, enforced at line 562 with `any(string_value in key for string_value in invalid_strings)` and raising JWKError at lines 563-564. Because the list is duplicated rather than shared, fixing only one backend leaves the other exploitable, and this is the backend actually selected when the `cryptography` package is installed (the default install path). Same omissions as the native copy: OpenSSH ECDSA/Ed25519/DSA prefixes and PEM EC/OPENSSH public-key headers all bypass the guard, so an OpenSSH-format EC public key is accepted as an HMAC secret and the key is assigned to self.prepared_key at line 568.\n\nVerifier (CONFIRM): Re-derived independently. The exact denylist literal, its enforcement, and the unguarded assignment are present verbatim in CryptographyHMACKey.__init__ at jose/backends/cryptography_backend.py:555-568, and it is a true second copy of the identical 4-entry list in jose/backends/native.py:39-50 (grep shows only these two sites; no shared constant), so patching one backend leaves the other exploitable. This is the backend actually used by default: jose/backends/__init__.py:27-30 binds HMACKey = CryptographyHMACKey and only falls back to native on ImportError. The guard is the SOLE mitigation on a fully attacker-influenced path: jwt.decode defaults algorithms=None (jwt.py:55,141), _verify_signature only enforces the header alg when algorithms is not None (jws.py:249-255), and _sig_matches_keys calls jwk.construct(key, alg) with the attacker-chosen alg (jws.py:208), which jwk.get_key maps HS256->HMACKey (jwk.py:34-35). The list omits the OpenSSH wire-format prefixes ecdsa-sha2-nistp256/384/521, ssh-ed25519 and ssh-dss, so such a public key passes line 562 and is stored as the HMAC secret at line 568 -- the classic asymmetric-to-HMAC algorithm-confusion token-forgery primitive. Version is pinned to python-jose 3.3.0 (jose/__init__.py:1) with CHANGELOG.md:3 showing \"3.4.0 -- UNPUBLISHED\" and no security entry, i.e. pre-fix and squarely inside the CVE-2024-33663 range (\"python-jose through 3.3.0 ... algorithm confusion with OpenSSH ECDSA keys and other key formats\"), whose upstream fix was exactly extending this denylist. exploit_search could not be used as corroboration (corpus returned \"exploit corpus unavailable: not indexed\"), so the version comparison rests on the in-repo version string alone. Two corrections to the analyst: PEM EC public keys use \"-----BEGIN PUBLIC KEY-----\" which IS blocked and no \"BEGIN OPENSSH PUBLIC KEY\" header exists, so only the OpenSSH wire prefixes are real omissions; and exploitability is narrower than claimed because jose's own EC/RSA loaders are PEM-only (cryptography_backend.py:87,265; ecdsa_backend.py:65), so the attack needs a mixed/multi-key store (jws.py:217-246) plus an unconstrained algorithms argument. Severity MEDIUM rather than HIGH for that reason."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jose/backends/cryptography_backend.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 555,
+                  "endLine": 568
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "CryptographyHMACKey.__init__",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "aea51c3b1a83e8e4475e16d5eb97a29bef1521e0"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1395",
+          "level": "error",
+          "message": {
+            "text": "Declared dependency `ecdsa` uses the version specifier LITERAL `!= 0.15`, an exclusion with no lower bound, so dependency resolution may install arbitrarily old and known-vulnerable releases (e.g. 0.13.x, affected by CVE-2019-14853 malformed-signature DoS and CVE-2019-14859 signature-malleability). This pin shape is the defect: it blacklists exactly one bad version instead of requiring a minimum safe one. The pure-Python `ecdsa` library is used for real EC signature verification in this repo (jose/backends/ecdsa_backend.py maps NIST256p/NIST384p/NIST521p curves and constructs ecdsa.ellipticcurve.Point / ecdsa.SigningKey / ecdsa.VerifyingKey), and it additionally carries CVE-2024-23342 (Minerva timing side-channel on ECDSA nonce handling) for which upstream ships no fix, so ES256/ES384/ES512 signing here is side-channel exposed regardless of the resolved version.\n\nVerifier (CONFIRM): The pin-shape defect is present in the source exactly as described, and I verified it independently. setup.cfg:35 declares `ecdsa != 0.15` in install_requires -- an exclusion-only specifier with NO lower bound. This is anomalous within its own block: the two sibling requirements on lines 36-37 both carry floors (`rsa >=4.0, <5.0, !=4.4, !=4.1.1` and `pyasn1 >=0.4.1, <0.5.0`), so the missing floor is not a project-wide style. requirements.txt:3 repeats the same specifier, and the graph confirms :Dependency{name:'ecdsa', version:'!= 0.15'}. I searched the entire tree (pyproject.toml, requirements-dev.txt, requirements-rtd.txt, tox.ini) for any other ecdsa bound and found none; there is no lockfile and no vendored copy, so the floor is genuinely unbounded.\n\nThe dependency is load-bearing and reachable, so this is not a dead pin: jose/jwk.py:40-43 routes every ALGORITHMS.EC algorithm to ECKey; jose/backends/__init__.py:17-20 resolves ECKey to the pure-Python ecdsa backend whenever `cryptography` import fails; and `cryptography` is only an OPTIONAL extra (setup.cfg:43-44), so a default `pip install python-jose` uses this backend for ES256/ES384/ES512. The graph shows ECDSAECKey.__init__, _process_jwk, sign and verify all with reachable_from_entry=true, hop_distance=0, and ecdsa_backend.py:98-109 performs real signing/verification via the pure-Python library.\n\nTwo corrections to the analyst. (1) The claimed location jose/backends/ecdsa_backend.py:25-33 is the USAGE site, not the defect; a pin-shape defect lives in the manifest, so the location is setup.cfg:35 (secondary: requirements.txt:3). (2) The analyst cited uid b6342736d2e1512e55bf4cce29d760a7312171c7 as line 95 / 'ecdsa.ellipticcurve.Point(...)'; the graph actually places that uid at line 137 ('key_size = self.prepared_key.curve.baselen'). The Point(...) call does exist, but at line 95 under a different node -- substance holds, one citation was mislabelled.\n\nScope limits I will not paper over. exploit_search returned \"exploit corpus unavailable: not indexed\", so I grounded NO published exploit module. With no lockfile I cannot pin an exact resolved ecdsa version, so per the version-pinning rule exploitability of CVE-2019-14853 / CVE-2019-14859 (both fixed in ecdsa 0.13.3) is UNKNOWN rather than demonstrated: pip's default resolution selects the newest compatible release and lands on an already-patched build. The unbounded floor only materialises under resolver backtracking, external constraint pressure, or a pre-pinned old environment -- a real but conditional risk. CVE-2024-23342 (Minerva timing side-channel, no upstream fix) is version-independent, and I verified its structural precondition myself in non-constant-time pure-Python signing at ecdsa_backend.py:98-101, but exploiting it requires a co-resident attacker with fine-grained timing access to a signing oracle.\n\nI therefore confirm the shape-D pin defect at LOW severity -- a genuine dependency-resolution hygiene / supply-chain hardening issue, not a directly exploitable code flaw."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "setup.cfg",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 35,
+                  "endLine": 35
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "49ced96fe32e8f33235a4b3b6dd553d677795504"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

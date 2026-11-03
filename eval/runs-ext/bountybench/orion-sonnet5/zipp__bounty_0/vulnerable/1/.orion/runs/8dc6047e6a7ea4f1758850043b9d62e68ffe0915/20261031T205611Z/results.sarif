@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1333",
+              "name": "CWE1333",
+              "shortDescription": {
+                "text": "CWE-1333"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1333"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1333.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-1333",
+          "level": "error",
+          "message": {
+            "text": "zipp/glob.py's Translator.translate_core (used by Path.glob/Path.rglob) compiles a caller-supplied glob pattern into a regex that is then run against every entry in the archive's name list, with no length or complexity cap on the incoming pattern and no timeout/backtracking guard around the resulting regex match -- restrict_rglob only rejects a '**' that is not alone in a path segment, it does not bound overall pattern size. Path.glob, Path.rglob and Translator.translate are all entry-point-reachable (hop_distance=0), so a caller that forwards an attacker-influenced glob pattern into Path.glob gets no resource-exhaustion protection from the library.\n\nVerifier (CONFIRM): Read zipp/glob.py directly: Translator.translate_core (lines 44-57) calls self.restrict_rglob(pattern) then builds a regex via separate()/replace() with NO length or complexity bound on `pattern` anywhere in the call chain. restrict_rglob (lines 70-82) only raises if '**' appears in a segment that isn't the whole segment (`if any('**' in segment and segment != '**' for segment in segments): raise ValueError(...)`) -- it does nothing to bound overall pattern size or wildcard count. The replace() method (lines 59-68) turns every literal '*' into `[^{seps}]*` and every '**' into '.*', so a pattern with many alternating literal-chars and '*' in one segment (e.g. 'a*a*a*a*...*a') compiles into a regex with many back-to-back unbounded wildcard groups separated by literals (e.g. `a[^/]*a[^/]*a[^/]*...a`) -- the textbook catastrophic-backtracking shape for a backtracking engine like Python's `re`, with no outer bound on how large the attacker can make it. Confirmed the actual call site: zipp/__init__.py Path.glob (line 401-409) takes `pattern` directly from the caller, does only an empty-string check, then does `re.compile(prefix + tr.translate(pattern)).fullmatch` against every `data.filename` in `self.root.filelist` -- no timeout, no re.DOTALL-safe limiter, no length cap before compiling/matching. Path.rglob (line 411-412) just forwards to glob() with `f'**/{pattern}'`. Queried the graph (scan_id=8dc6047e6a7ea4f1758850043b9d62e68ffe0915): Path.glob, Path.rglob, Translator.translate, and Translator.translate_core are all reachable_from_entry=true with hop_distance=0 (zipp/__init__.py:401, zipp/__init__.py:411, zipp/glob.py:27, zipp/glob.py:44), matching the analyst's reachability claim exactly. This repo is the zipp library itself (only test files call .glob()/.rglob()), so there is no concrete in-repo attacker-to-sink path demonstrated -- the finding is a library-level weakness: any downstream caller that forwards an untrusted glob pattern into Path.glob/rglob inherits this unbounded-regex-construction/match risk. exploit_search returned 'corpus unavailable: not indexed', so I could not cross-check a published Metasploit module/CVE for this exact zipp version (no (:Dependency) node for zipp exists in the graph either, so I could not pin an exact version) -- this is noted as an unresolved advisory gap, not used to reject."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "zipp/glob.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 44,
+                  "endLine": 82
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "Translator.translate_core",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "75df38bc4a750077c08abbe146952ca247ccf3bf"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1333",
+          "level": "error",
+          "message": {
+            "text": "Path.glob(pattern) is a public API entry point whose 'pattern' argument is attacker-controlled (EntryPoint, reachable_from_entry=true, hop_distance=0). It is passed to Translator.translate(pattern), which builds a DOTALL regex literal via self.extend: rf'(?s:{pattern})\\Z'. Inside translate_core/replace, every literal '**' segment in the caller-supplied glob pattern is converted via re.escape(...).replace('\\\\*\\\\*', r'.*') into an unanchored '.*' fragment, and consecutive '**' segments (a syntactically valid glob, e.g. '**/**/**/**/x') are joined only by the literal path separator, producing a composed pattern such as (?s:.*/.*/.*/.*/x)\\Z. Because the wrapper is DOTALL, each '.*' can consume separators too, so the fragments fully overlap -- a classic multi-wildcard catastrophic-backtracking shape functionally equivalent to nested quantifiers like (.*)* . This compiled pattern is then applied with .fullmatch against every filename pulled from the (potentially attacker-supplied) zip archive's filelist at zipp/__init__.py:407-409, so both the glob pattern and/or the zip entry names can be attacker-influenced. A crafted multi-'**' pattern matched against a crafted/non-matching long filename can drive Python's backtracking re engine into superlinear/exponential time, causing a denial of service. The repo's own tests/test_complexity.py (test_baseline_regex_complexity, test_glob_depth, test_glob_width) explicitly assert constant/linear-time behavior for this exact glob-matching path, confirming the maintainers treat this code as a regex-complexity risk area.\n\nVerifier (CONFIRM): Re-derived independently from source + graph, not from the analyst's narrative. (1) Source at zipp/__init__.py:401-409 shows Path.glob(self, pattern) builds `re.compile(re.escape(self.at) + tr.translate(pattern)).fullmatch` and applies it to every `data.filename` in `self.root.filelist` (zip entry names) \u2014 pattern is a direct, unsanitized parameter of a public method. (2) zipp/glob.py:27-42 (Translator.translate/extend) confirms the regex is wrapped `rf'(?s:{pattern})\\Z'`. (3) zipp/glob.py:59-68 (Translator.replace) confirms every literal '**' is turned into an unanchored `.*` via `re.escape(match.group(0)).replace('\\\\*\\\\*', r'.*')...`, joined only by the literal separator from the original pattern text. (4) zipp/glob.py:70-82 (restrict_rglob) only enforces that '**' occupies a whole segment \u2014 it never bounds how many '**' segments a pattern may contain, so a caller-supplied pattern like '**/**/**/**/x' is accepted and compiles to a chain of several un-anchored `.*` tokens separated only by '/'. Because '.' already matches '/' in Python's re (independent of the (?s:) DOTALL flag, which only affects '\\n'), these sequential wildcard tokens overlap ambiguously when matched against a filename containing many '/'-like characters, which is the standard \"multiple-ambiguous-wildcard\" ReDoS shape (polynomial blowup whose degree grows with the number of '**' segments the attacker chooses to supply) \u2014 a real instance of CWE-1333, not merely nested-quantifier mimicry. (5) Graph confirms reachability independent of the analyst: `MATCH (m:CpgMethod) WHERE file_path='zipp/__init__.py' AND name IN ['glob','rglob','match']` returns all three with reachable_from_entry=true, hop_distance=0, and matching `EntryPoint` nodes (exposure='reachable', kind='handler') exist for Path.glob/Path.rglob; the re.compile/fullmatch/translate/translate_core call sites at __init__.py:407 and glob.py:27/31/44 are all reachable_from_entry=true at hop_distance=1 from those entry points. (6) tests/test_complexity.py (test_baseline_regex_complexity, test_glob_depth, test_glob_width, lines 70-97) does assert constant/linear big-O for this exact glob-match path, though only for a simple `*.txt` pattern \u2014 it does not itself exercise the multi-'**' case, so it corroborates complexity-risk awareness but is not direct proof of the specific multi-wildcard blowup (I verified the regex-construction mechanism analytically rather than by executing it, since no code-execution tool was available in this session). Exploit-reference check: mcp__orion__exploit_search returned \"not indexed\" (corpus unavailable) for 'zipp glob pattern regular expression denial of service', so I could not cross-check against a published module/CVE version range; I did not find a NEWS.rst entry describing a fix for this exact multi-'**' issue in this snapshot (top entry is v3.19.0), so patched-status is unconfirmed either way \u2014 treat exploitability/patch-state as unverified by that channel, independent of the source-level confirmation above."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "zipp/glob.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 59,
+                  "endLine": 68
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "Translator.replace",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "82084926fc5e7ab8351a9135fc4e8f76f1c72d2c"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

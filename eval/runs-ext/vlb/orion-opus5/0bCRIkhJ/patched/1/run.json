@@ -1,0 +1,271 @@
+{
+ "benchmark": "vlb",
+ "task": "0bCRIkhJ",
+ "repo": "AhmedAdelFahim/express-xss-sanitizer",
+ "snapshot": "patched",
+ "ref": "62d6542a2a57298da7a2e02de623454007e4f6d6",
+ "commit": "62d6542a2a57298da7a2e02de623454007e4f6d6",
+ "arm": "orion-opus5",
+ "model": "claude-opus-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 542.5,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 34,
+  "uncached_in": 156,
+  "cache_read": 2289051,
+  "cache_write": 298125,
+  "out": 122308,
+  "tokens": 2709640,
+  "cli_cost_usd": 7.2114
+ },
+ "status": "aborted",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": "  verdict reason:    verifier call failed: claude -p exited 1 | stderr: (empty) | stdout_tail: t\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"safety_stops\":0,\"is_error\":true,\"num_turns\":1,\"subtype\":\"success\",\"api_error_status\":429,\"api_error_origin\":\"first_party\",\"api_error\":\"usage_limit_reached\",\"result\":\"You've hit your 5-hour limit \u00b7 resets 12:10am (America/New_York)\",\"type\":\"result\",\"duration_ms\":315,\"uuid\":\"cc4b411d-5207-489a-8c75-361744d97294\",\"queued_turn_count\":0,\"result_index\":0,\"model_usage_since_last_result\":{}}",
+ "usage": [
+  {
+   "uncached_in": 24,
+   "cache_read": 338475,
+   "cache_write": 38543,
+   "out": 17266,
+   "cli_cost_usd": 0.991315995
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 287329,
+   "cache_write": 44648,
+   "out": 19950,
+   "cli_cost_usd": 1.0936073700000002
+  },
+  {
+   "uncached_in": 28,
+   "cache_read": 561821,
+   "cache_write": 62053,
+   "out": 23341,
+   "cli_cost_usd": 1.49171862
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 263393,
+   "cache_write": 55087,
+   "out": 26568,
+   "cli_cost_usd": 1.35308337
+  },
+  {
+   "uncached_in": 12,
+   "cache_read": 137293,
+   "cache_write": 18035,
+   "out": 7664,
+   "cli_cost_usd": 0.44277236999999997
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 252997,
+   "cache_write": 19067,
+   "out": 8176,
+   "cli_cost_usd": 0.5216685
+  },
+  {
+   "uncached_in": 2,
+   "cache_read": 17428,
+   "cache_write": 1655,
+   "out": 193,
+   "cli_cost_usd": 0.030098999999999997
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 206052,
+   "cache_write": 21776,
+   "out": 8464,
+   "cli_cost_usd": 0.5351246199999999
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 224263,
+   "cache_write": 37261,
+   "out": 10686,
+   "cli_cost_usd": 0.7519714999999999
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  }
+ ],
+ "orion_run_dir": ".orion/runs/91bede90afe91e1ffb584eca18ae3e81f4de18ca/20261102T024442Z",
+ "scan_id": "91bede90afe91e1ffb584eca18ae3e81f4de18ca",
+ "graph": "cleared"
+}

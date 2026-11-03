@@ -1,0 +1,20 @@
+{
+  "findings": [
+    {
+      "file": "lib/sanitize.js",
+      "function": "sanitize",
+      "line_start": 50,
+      "line_end": 61,
+      "cwe": "CWE-79",
+      "title": "Object/array property (key) names are never sanitized, only their values",
+      "explanation": "The whole purpose of this package, as stated in package.json/README, is to sanitize req.body/req.query/req.params/req.headers so attacker-supplied HTML/JS cannot reach the application unescaped. In the object branch of sanitize(), only the value `item = data[key]` is run through sanitizeHtml(); the property name `key` itself is taken verbatim from Object.keys(data) and reused unchanged when building the result (`data[key] = ...`). For req.body (JSON) and req.query (URL-encoded query string) the attacker fully controls the key names, e.g. a JSON body of {\"<img src=x onerror=alert(1)>\":1} or a query string of ?<script>alert(1)</script>=1 produces an object whose malicious key survives the middleware untouched. Any application code that reflects object/array keys into an HTML response (debug/admin views that dump Object.keys(req.query) or req.body, form-field-name echoing, log/report viewers, etc.) remains exploitable to XSS even after this 'xss sanitizer' middleware has run, giving developers a false sense of safety.",
+      "path": [
+        { "file": "index.js", "function": "middleware", "line": 9, "role": "source" },
+        { "file": "index.js", "function": "middleware", "line": 12, "role": "source" },
+        { "file": "lib/sanitize.js", "function": "sanitize", "line": 51, "role": "propagator" },
+        { "file": "lib/sanitize.js", "function": "sanitize", "line": 55, "role": "propagator" },
+        { "file": "lib/sanitize.js", "function": "sanitize", "line": 59, "role": "sink" }
+      ]
+    }
+  ]
+}

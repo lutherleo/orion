@@ -1,0 +1,145 @@
+nodegoat default profile express FLOWS_TO 217 {'sources': 428, 'sinks': 73, 'flows': 73, 'sink_rules': '2026-11-02'} {'code_exec': 3, 'log': 34, 'nosql': 10, 'redirect': 5, 'render': 21}
+nodegoat lm profile express+lm FLOWS_TO 217 {'sources': 428, 'sinks': 73, 'flows': 73, 'sink_rules': '2026-11-02'} {'code_exec': 3, 'log': 34, 'nosql': 10, 'redirect': 5, 'render': 21}
+pygoat default profile generic FLOWS_TO 1076 {'sources': 3627, 'sinks': 93, 'flows': 93, 'sink_rules': '2026-11-02'} {'code_exec': 12, 'redirect': 63, 'sql': 18}
+pygoat lm profile generic+lm FLOWS_TO 1076 {'sources': 3627, 'sinks': 161, 'flows': 161, 'sink_rules': '2026-11-02'} {'code_exec': 12, 'deserialize': 7, 'path': 50, 'prototype_pollution': 1, 'redirect': 63, 'sql': 18, 'ssrf': 9, 'template': 1}
+
+== nodegoat.default: 111 -> 73
+   code_exec              3 -> 3   
+   nosql                 10 -> 10  
+   redirect               8 -> 5   
+   render                30 -> 21  
+   log                   60 -> 34  
+   same sink and category 73, added 0, dropped 38, re-filed 0
+   top 5 after: code_exec contributions.js:28; code_exec contributions.js:33; code_exec contributions.js:34; nosql allocations-dao.js:57; nosql allocations-dao.js:78
+   - log        app/data/user-dao.js:57 <operator>.fieldAccess | this.validateLogin
+   - log        app/data/user-dao.js:57 <operator>.assignment | this.validateLogin = (userName, password, callback) => {
+   - log        app/routes/index.js:24 <operator>.assignment | const isLoggedIn = sessionHandler.isLoggedInMiddleware
+   - log        app/routes/index.js:24 <operator>.fieldAccess | sessionHandler.isLoggedInMiddleware
+   - log        app/routes/index.js:33 get | app.get("/login", sessionHandler.displayLoginPage)
+   - log        app/routes/index.js:33 <operator>.fieldAccess | sessionHandler.displayLoginPage
+   - log        app/routes/index.js:34 <operator>.fieldAccess | sessionHandler.handleLoginRequest
+   - log        app/routes/index.js:34 post | app.post("/login", sessionHandler.handleLoginRequest)
+   - log        app/routes/index.js:41 get | app.get("/logout", sessionHandler.displayLogoutPage)
+   - log        app/routes/index.js:41 <operator>.fieldAccess | sessionHandler.displayLogoutPage
+   - log        app/routes/index.js:44 get | app.get("/dashboard", isLoggedIn, sessionHandler.displayWelcomePage)
+   - log        app/routes/index.js:47 get | app.get("/profile", isLoggedIn, profileHandler.displayProfile)
+   - log        app/routes/index.js:48 post | app.post("/profile", isLoggedIn, profileHandler.handleProfileUpdate)
+   - log        app/routes/index.js:51 get | app.get("/contributions", isLoggedIn, contributionsHandler.displayContributions)
+   - log        app/routes/index.js:52 post | app.post("/contributions", isLoggedIn, contributionsHandler.handleContributionsU
+   - log        app/routes/index.js:55 get | app.get("/benefits", isLoggedIn, benefitsHandler.displayBenefits)
+   - log        app/routes/index.js:56 post | app.post("/benefits", isLoggedIn, benefitsHandler.updateBenefits)
+   - log        app/routes/index.js:63 get | app.get("/allocations/:userId", isLoggedIn, allocationsHandler.displayAllocation
+   - log        app/routes/index.js:66 get | app.get("/memos", isLoggedIn, memosHandler.displayMemos)
+   - log        app/routes/index.js:67 post | app.post("/memos", isLoggedIn, memosHandler.addMemos)
+   - log        app/routes/index.js:76 get | app.get("/research", isLoggedIn, researchHandler.displayResearch)
+   - log        app/routes/session.js:36 <operator>.fieldAccess | this.isLoggedInMiddleware
+   - log        app/routes/session.js:44 <operator>.fieldAccess | this.displayLoginPage
+   - log        app/routes/session.js:53 <operator>.fieldAccess | this.handleLoginRequest
+   - log        app/routes/session.js:58 validateLogin | userDAO.validateLogin(userName, password, (err, user) => {
+   - log        app/routes/session.js:121 <operator>.fieldAccess | this.displayLogoutPage
+   - redirect   app/routes/index.js:70 get | app.get("/learn", isLoggedIn, (req, res) => {
+   - redirect   app/routes/session.js:27 getUserById | userDAO.getUserById(req.session.userId, (err, user) => {
+   - redirect   app/routes/session.js:122 destroy | req.session.destroy(() => res.redirect("/"))
+   - render     app/routes/allocations.js:23 getByUserIdAndThreshold | allocationsDAO.getByUserIdAndThreshold(userId, threshold, (err, allocations) => 
+   - render     app/routes/benefits.js:35 updateBenefits | benefitsDAO.updateBenefits(userId, benefitStartDate, (error) => {
+   - render     app/routes/contributions.js:17 getByUserId | contributionsDAO.getByUserId(userId, (error, contrib) => {
+   - render     app/routes/contributions.js:65 update | contributionsDAO.update(userId, preTax, afterTax, roth, (err, contributions) => 
+   - render     app/routes/profile.js:20 getByUserId | profile.getByUserId(parseInt(userId), (err, doc) => {
+   - render     app/routes/profile.js:82 updateUser | profile.updateUser(
+   - render     app/routes/session.js:220 addUser | userDAO.addUser(userName, firstName, lastName, password, email, (err, user) => {
+   - render     app/routes/session.js:234 regenerate | req.session.regenerate(() => {
+   - render     app/routes/session.js:266 getUserById | userDAO.getUserById(userId, (err, doc) => {
+
+== nodegoat.lm: 111 -> 73
+   code_exec              3 -> 3   
+   nosql                 10 -> 10  
+   redirect               8 -> 5   
+   render                30 -> 21  
+   log                   60 -> 34  
+   same sink and category 73, added 0, dropped 38, re-filed 0
+   top 5 after: code_exec contributions.js:28; code_exec contributions.js:33; code_exec contributions.js:34; nosql allocations-dao.js:57; nosql allocations-dao.js:78
+   - log        app/data/user-dao.js:57 <operator>.fieldAccess | this.validateLogin
+   - log        app/data/user-dao.js:57 <operator>.assignment | this.validateLogin = (userName, password, callback) => {
+   - log        app/routes/index.js:24 <operator>.assignment | const isLoggedIn = sessionHandler.isLoggedInMiddleware
+   - log        app/routes/index.js:24 <operator>.fieldAccess | sessionHandler.isLoggedInMiddleware
+   - log        app/routes/index.js:33 get | app.get("/login", sessionHandler.displayLoginPage)
+   - log        app/routes/index.js:33 <operator>.fieldAccess | sessionHandler.displayLoginPage
+   - log        app/routes/index.js:34 <operator>.fieldAccess | sessionHandler.handleLoginRequest
+   - log        app/routes/index.js:34 post | app.post("/login", sessionHandler.handleLoginRequest)
+   - log        app/routes/index.js:41 get | app.get("/logout", sessionHandler.displayLogoutPage)
+   - log        app/routes/index.js:41 <operator>.fieldAccess | sessionHandler.displayLogoutPage
+   - log        app/routes/index.js:44 get | app.get("/dashboard", isLoggedIn, sessionHandler.displayWelcomePage)
+   - log        app/routes/index.js:47 get | app.get("/profile", isLoggedIn, profileHandler.displayProfile)
+   - log        app/routes/index.js:48 post | app.post("/profile", isLoggedIn, profileHandler.handleProfileUpdate)
+   - log        app/routes/index.js:51 get | app.get("/contributions", isLoggedIn, contributionsHandler.displayContributions)
+   - log        app/routes/index.js:52 post | app.post("/contributions", isLoggedIn, contributionsHandler.handleContributionsU
+   - log        app/routes/index.js:55 get | app.get("/benefits", isLoggedIn, benefitsHandler.displayBenefits)
+   - log        app/routes/index.js:56 post | app.post("/benefits", isLoggedIn, benefitsHandler.updateBenefits)
+   - log        app/routes/index.js:63 get | app.get("/allocations/:userId", isLoggedIn, allocationsHandler.displayAllocation
+   - log        app/routes/index.js:66 get | app.get("/memos", isLoggedIn, memosHandler.displayMemos)
+   - log        app/routes/index.js:67 post | app.post("/memos", isLoggedIn, memosHandler.addMemos)
+   - log        app/routes/index.js:76 get | app.get("/research", isLoggedIn, researchHandler.displayResearch)
+   - log        app/routes/session.js:36 <operator>.fieldAccess | this.isLoggedInMiddleware
+   - log        app/routes/session.js:44 <operator>.fieldAccess | this.displayLoginPage
+   - log        app/routes/session.js:53 <operator>.fieldAccess | this.handleLoginRequest
+   - log        app/routes/session.js:58 validateLogin | userDAO.validateLogin(userName, password, (err, user) => {
+   - log        app/routes/session.js:121 <operator>.fieldAccess | this.displayLogoutPage
+   - redirect   app/routes/index.js:70 get | app.get("/learn", isLoggedIn, (req, res) => {
+   - redirect   app/routes/session.js:27 getUserById | userDAO.getUserById(req.session.userId, (err, user) => {
+   - redirect   app/routes/session.js:122 destroy | req.session.destroy(() => res.redirect("/"))
+   - render     app/routes/allocations.js:23 getByUserIdAndThreshold | allocationsDAO.getByUserIdAndThreshold(userId, threshold, (err, allocations) => 
+   - render     app/routes/benefits.js:35 updateBenefits | benefitsDAO.updateBenefits(userId, benefitStartDate, (error) => {
+   - render     app/routes/contributions.js:17 getByUserId | contributionsDAO.getByUserId(userId, (error, contrib) => {
+   - render     app/routes/contributions.js:65 update | contributionsDAO.update(userId, preTax, afterTax, roth, (err, contributions) => 
+   - render     app/routes/profile.js:20 getByUserId | profile.getByUserId(parseInt(userId), (err, doc) => {
+   - render     app/routes/profile.js:82 updateUser | profile.updateUser(
+   - render     app/routes/session.js:220 addUser | userDAO.addUser(userName, firstName, lastName, password, email, (err, user) => {
+   - render     app/routes/session.js:234 regenerate | req.session.regenerate(() => {
+   - render     app/routes/session.js:266 getUserById | userDAO.getUserById(userId, (err, doc) => {
+
+== pygoat.default: 98 -> 93
+   code_exec              9 -> 12  
+   sql                   26 -> 18  
+   redirect              63 -> 63  
+   same sink and category 89, added 4, dropped 9, re-filed 0
+   top 5 after: code_exec views.py:588; code_exec views.py:50; code_exec views.py:430; code_exec views.py:245; code_exec views.py:81
+   + code_exec  rank   1 challenge/views.py:50 Popen | subprocess.Popen(command.split(" "), stdout = subprocess.PIPE)
+   + code_exec  rank   2 introduction/views.py:430 Popen | subprocess.Popen(command, shell = True, stdout = subprocess.PIPE, stderr = subpr
+   + code_exec  rank   4 challenge/views.py:81 Popen | subprocess.Popen(command.split(" "), stdout = subprocess.PIPE)
+   + code_exec  rank   7 introduction/mitre.py:233 Popen | subprocess.Popen(command, shell = True, stdout = subprocess.PIPE, stderr = subpr
+   - code_exec  introduction/views.py:245 create | comments.objects.create(name = 'System', comment = 'Default comment for XXE lab'
+   - sql        introduction/mitre.py:247 JsonResponse | JsonResponse({'raw_res':str(res), 'raw_err':str(err), 'ports':ports})
+   - sql        introduction/views.py:101 render | render(request, 'Lab/XSS/xss_lab.html', {'query':q})
+   - sql        introduction/views.py:159 print | print(sql_query)
+   - sql        introduction/views.py:165 render | render(request, 'Lab/SQL/sql_lab.html', {"wrongpass":password, "sql_error":sql_q
+   - sql        introduction/views.py:177 render | render(request, 'Lab/SQL/sql_lab.html', {"wrongpass":password, "sql_error":sql_q
+   - sql        introduction/views.py:875 print | print(sql_query)
+   - sql        introduction/views.py:883 render | render(request, 'Lab_2021/A3_Injection/sql_lab.html', {"wrongpass":password, "sq
+   - sql        introduction/views.py:894 render | render(request, 'Lab_2021/A3_Injection/sql_lab.html', {"wrongpass":password, "sq
+
+== pygoat.lm: 170 -> 161
+   code_exec              9 -> 12  
+   deserialize            7 -> 7   
+   sql                   26 -> 18  
+   ssrf                   9 -> 9   
+   template               1 -> 1   
+   prototype_pollution    1 -> 1   
+   path                  54 -> 50  
+   redirect              63 -> 63  
+   same sink and category 157, added 0, dropped 9, re-filed 4
+   top 5 after: code_exec views.py:588; code_exec views.py:50; code_exec views.py:430; code_exec views.py:245; code_exec views.py:81
+   - code_exec  introduction/views.py:245 create | comments.objects.create(name = 'System', comment = 'Default comment for XXE lab'
+   - sql        introduction/mitre.py:247 JsonResponse | JsonResponse({'raw_res':str(res), 'raw_err':str(err), 'ports':ports})
+   - sql        introduction/views.py:101 render | render(request, 'Lab/XSS/xss_lab.html', {'query':q})
+   - sql        introduction/views.py:159 print | print(sql_query)
+   - sql        introduction/views.py:165 render | render(request, 'Lab/SQL/sql_lab.html', {"wrongpass":password, "sql_error":sql_q
+   - sql        introduction/views.py:177 render | render(request, 'Lab/SQL/sql_lab.html', {"wrongpass":password, "sql_error":sql_q
+   - sql        introduction/views.py:875 print | print(sql_query)
+   - sql        introduction/views.py:883 render | render(request, 'Lab_2021/A3_Injection/sql_lab.html', {"wrongpass":password, "sq
+   - sql        introduction/views.py:894 render | render(request, 'Lab_2021/A3_Injection/sql_lab.html', {"wrongpass":password, "sq
+   ~ path -> code_exec introduction/mitre.py:233 Popen | subprocess.Popen(command, shell = True, stdout = subprocess.PIPE, stderr = subpr
+   ~ path -> code_exec challenge/views.py:50 Popen | subprocess.Popen(command.split(" "), stdout = subprocess.PIPE)
+   ~ path -> code_exec challenge/views.py:81 Popen | subprocess.Popen(command.split(" "), stdout = subprocess.PIPE)
+   ~ path -> code_exec introduction/views.py:430 Popen | subprocess.Popen(command, shell = True, stdout = subprocess.PIPE, stderr = subpr
+
+[exited with code 0]

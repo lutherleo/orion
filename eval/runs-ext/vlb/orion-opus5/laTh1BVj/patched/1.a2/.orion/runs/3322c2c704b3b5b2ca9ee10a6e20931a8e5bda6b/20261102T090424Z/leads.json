@@ -1,0 +1,14 @@
+{
+  "scan_id": "3322c2c704b3b5b2ca9ee10a6e20931a8e5bda6b",
+  "repo": "/tmp/workspaces/5e269726ed57e402/tree",
+  "engine": "claude",
+  "model": "claude-opus-5",
+  "settings": {
+    "verify_routing": false,
+    "verify_context": false,
+    "semantic_mode": "vector",
+    "fail_on": "none",
+    "endpoint": false
+  },
+  "leads": []
+}

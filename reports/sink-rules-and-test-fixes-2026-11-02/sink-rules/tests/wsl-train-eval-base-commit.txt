@@ -1,0 +1,58 @@
+....................................................FF.................. [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 24%]
+..............................FF.F..FFF.FFF.FFFFFFFF...F.FFF.F..FFFFFFFF [ 33%]
+F.FFFF.....FF.....FF.............................................s...... [ 41%]
+........................................................................ [ 49%]
+.ss..................................................................... [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 74%]
+........................................................................ [ 82%]
+........................................................................ [ 91%]
+.......................................................FF............... [ 99%]
+.....                                                                    [100%]
+=========================== short test summary info ============================
+FAILED train/tests/test_convert.py::test_merge_lora_folds_the_delta_unquantized_and_copies_the_rest
+FAILED train/tests/test_convert.py::test_merge_lora_refuses_an_existing_out_dir_and_unknown_modules
+FAILED train/tests/test_stage1_build.py::test_build_writes_examples_ledger_and_resumes
+FAILED train/tests/test_stage1_build.py::test_one_snapshot_serves_all_pairs_of_a_repo_and_missing_fix_is_recorded
+FAILED train/tests/test_stage1_build.py::test_sigint_finishes_current_pair_then_stops
+FAILED train/tests/test_stage1_build.py::test_resume_reconciles_out_jsonl_after_a_crash
+FAILED train/tests/test_stage1_build.py::test_reconcile_keeps_rows_of_ledgered_pairs
+FAILED train/tests/test_stage1_cases.py::test_single_function_fix_gives_vuln_patched_negatives
+FAILED train/tests/test_stage1_cases.py::test_annotation_beats_changed_functions
+FAILED train/tests/test_stage1_cases.py::test_deleted_function_keeps_vulnerable_drops_patched
+FAILED train/tests/test_stage1_cases.py::test_sprawling_and_test_only_fixes_yield_nothing
+FAILED train/tests/test_stage1_cases.py::test_patched_example_does_not_mutate_the_vulnerable_index
+FAILED train/tests/test_stage1_cases.py::test_sink_location_resolves_by_suffix_and_locations_by_line
+FAILED train/tests/test_stage1_cases.py::test_unresolvable_annotation_falls_back_to_changed_function
+FAILED train/tests/test_stage1_cases.py::test_add_only_hunk_anchors_on_insertion_line
+FAILED train/tests/test_stage1_cases.py::test_multi_tier_and_unknown_class - ...
+FAILED train/tests/test_stage1_cases.py::test_unchanged_patched_function_gets_no_patched_example
+FAILED train/tests/test_stage1_cases.py::test_negative_never_nested_in_or_around_a_target
+FAILED train/tests/test_stage1_cases.py::test_annotated_functions_past_the_cap_are_never_negatives
+FAILED train/tests/test_stage1_cases.py::test_insertion_strictly_inside_a_body_is_a_target
+FAILED train/tests/test_stage1_cases.py::test_unchanged_long_function_does_not_get_both_labels
+FAILED train/tests/test_stage1_cases.py::test_overloads_each_get_their_own_patched_code
+FAILED train/tests/test_stage1_cases.py::test_moved_unchanged_helper_is_not_a_target
+FAILED train/tests/test_stage1_cases.py::test_annotated_targets_are_kept_even_when_unchanged
+FAILED train/tests/test_stage2.py::test_cases_from_graph_vuln_patched_and_negative
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec0]
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec1]
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec2]
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_patched_scan_has_no_flows
+FAILED train/tests/test_stage2.py::test_negatives_never_touch_a_fix_site_and_are_seeded
+FAILED train/tests/test_stage2.py::test_negative_sampling_is_deterministic_per_seed
+FAILED train/tests/test_stage2.py::test_negatives_come_only_from_the_flows_the_runtime_judges
+FAILED train/tests/test_stage2.py::test_gold_flow_ranked_past_the_runtime_cap_is_still_found
+FAILED train/tests/test_stage2.py::test_graph_cases_reports_why_the_patched_example_is_missing
+FAILED train/tests/test_stage2.py::test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink
+FAILED train/tests/test_stage2.py::test_pair_without_a_fix_site_node_on_the_gold_path_is_skipped_with_a_reason
+FAILED train/tests/test_stage2.py::test_fix_site_of_an_add_only_hunk_is_its_insertion_line
+FAILED train/tests/test_stage2.py::test_build_writes_examples_one_ledger_line_and_evicts_both_scans
+FAILED train/tests/test_stage2.py::test_build_with_templates_adds_traces_carrying_pair_id_and_split
+FAILED train/tests/test_stage2.py::test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts
+FAILED train/tests/test_stage2.py::test_a_case_whose_trace_is_dropped_keeps_its_single_step_row
+FAILED eval/tests/test_shim.py::test_shim_tees_stdout_to_usage_log - FileNotF...
+FAILED eval/tests/test_shim.py::test_shim_overwrites_usage_log_each_run - Fil...
+43 failed, 823 passed, 3 skipped in 19.86s

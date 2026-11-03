@@ -1,0 +1,49 @@
+{
+  "findings": [
+    {
+      "file": "lib/sanitize.js",
+      "function": "sanitize",
+      "line_start": 50,
+      "line_end": 62,
+      "cwe": "CWE-79",
+      "title": "Object property names are never sanitized",
+      "explanation": "The object branch of the recursive walker iterates Object.keys(data) and sanitizes only the *values* (data[key] = sanitizeHtml(item)). The key strings themselves are copied into the result verbatim and are never passed to sanitizeHtml. Property names in req.body, req.query, req.params and req.headers are entirely attacker-controlled: a request body of {\"<img src=x onerror=alert(1)>\": \"v\"} or a query string of ?<img%20src=x%20onerror=alert(1)>=1 yields a req.body/req.query whose key holds a raw, unescaped HTML payload. Verified empirically with an instrumented sanitizer: for input {\"<script>alert(1)</script>\":\"value\"} the sanitizer was invoked only on \"value\", and the result key remained \"<script>alert(1)</script>\". Because this middleware is advertised as making req.body/req.query/req.params/req.headers safe from XSS, downstream code that reflects key names into a response (enumerating unexpected fields, building validation/error messages such as `Unknown field: ${key}`, or rendering a key/value table) executes attacker script despite the sanitizer being correctly installed.",
+      "path": [
+        {"file": "index.js", "function": "middleware", "line": 9, "role": "source"},
+        {"file": "index.js", "function": "middleware", "line": 12, "role": "source"},
+        {"file": "lib/sanitize.js", "function": "prepareSanitize", "line": 68, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "sanitize", "line": 51, "role": "sink"}
+      ]
+    },
+    {
+      "file": "lib/sanitize.js",
+      "function": "sanitize",
+      "line_start": 52,
+      "line_end": 54,
+      "cwe": "CWE-79",
+      "title": "allowedKeys exempts whole subtrees at any nesting depth",
+      "explanation": "The allowedKeys check is evaluated on every object at every recursion level and, when a key matches, the function returns early for that property so the entire value is left untouched rather than merely skipping a scalar. There is no path scoping, so a configuration such as xss({allowedKeys: ['name']}) - documented as exempting a single field - actually exempts any property called 'name' anywhere in the input tree, and exempts it even when the attacker supplies an object or array instead of the expected string. Since the attacker controls the shape of the JSON body, they can relocate arbitrary payloads into an unsanitized region at will. Verified empirically: sanitize({outer:{name:{deep:'<script>alert(1)</script>'}}, other:'<script>alert(1)</script>'}, {allowedKeys:['name']}) returned the nested payload completely raw (the sanitizer was invoked only for the 'other' value), giving a full bypass that preserves <script> tags, not just the limited HTML-injection of a permissive allowlist.",
+      "path": [
+        {"file": "index.js", "function": "middleware", "line": 9, "role": "source"},
+        {"file": "lib/sanitize.js", "function": "prepareSanitize", "line": 68, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "sanitize", "line": 59, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "sanitize", "line": 53, "role": "sink"}
+      ]
+    },
+    {
+      "file": "lib/sanitize.js",
+      "function": "initializeOptions",
+      "line_start": 14,
+      "line_end": 20,
+      "cwe": "CWE-79",
+      "title": "Empty allowedTags/allowedAttributes silently discarded, failing open to permissive defaults",
+      "explanation": "Both option guards require a non-empty collection: allowedTags is only forwarded when options.allowedTags.length > 0, and allowedAttributes only when Object.keys(options.allowedAttributes).length > 0. An empty array and an empty object are the canonical way to express the *strictest* policy - 'allow no tags at all' / 'allow no attributes at all' - but here they are treated as 'unspecified' and dropped from sanitizerOptions. sanitizeHtml then merges the resulting {} with sanitize-html's own defaults, so the effective policy silently becomes the permissive default allowlist (p, div, a, b, table, span, ... with a[href|name|target] and img[src|srcset|...]) instead of the empty one the developer explicitly configured. This is a fail-open on a security control: xss({allowedTags: [], allowedAttributes: {}}) is a reasonable configuration for an API that must reject all markup, yet attacker HTML such as <a href=\"https://evil.example/login\">Click</a> or injected table/div markup survives, enabling HTML injection, content spoofing and credential-phishing overlays in the rendered page. Verified empirically with an instrumented sanitizer: for options {allowedTags: [], allowedAttributes: {}} the options object reaching sanitizeHtml was empty and the effective allowlists were the library defaults. Note the default tag list excludes script and event-handler attributes, so this yields HTML injection rather than immediate script execution - but the configured policy is nonetheless entirely defeated. The guards are also redundant, since the hasOwn() check on line 8 already blocks the Object.prototype pollution vector they appear intended to address.",
+      "path": [
+        {"file": "lib/sanitize.js", "function": "initializeOptions", "line": 14, "role": "source"},
+        {"file": "lib/sanitize.js", "function": "initializeOptions", "line": 18, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "initializeOptions", "line": 28, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "sanitize", "line": 37, "role": "sink"}
+      ]
+    }
+  ]
+}

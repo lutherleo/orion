@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-937",
+              "name": "CWE937",
+              "shortDescription": {
+                "text": "CWE-937"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-937"
+                ],
+                "security-severity": "3.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/937.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-937",
+          "level": "warning",
+          "message": {
+            "text": "Dependency enumeration for this scan (components-with-known-vulnerabilities class): declared third-party dependencies are normalize-url ^7.0.3, parse-path ^7.0.0, pkgroll ^1.4.0, and tester ^1.3.1. No CVE/advisory database lookup tool was available in this session's allowed toolset (only run_cypher/semantic_search), so I could not confirm any of these as outdated/EOL/known-vulnerable from queried data alone -- surfacing the full declared set here so an independent verifier with vulnerability-DB access can check each name@version against current advisories (normalize-url and parse-path are runtime deps reachable from the parseUrl entry point's data flow; pkgroll and tester appear to be build/test tooling only).\n\nVerifier (INCONCLUSIVE): I independently re-ran the analyst's Cypher query and it returned the same 4 dependency rows. I then cross-checked against the real source: /tmp/workspaces/33995ded263630b3/tree/package.json confirms the exact same declarations \u2014 dependencies: normalize-url ^7.0.3, parse-path ^7.0.0 (lines 43-46); devDependencies: pkgroll ^1.4.0, tester ^1.3.1, normalize-url ^7.0.3 (lines 38-42). So the factual substrate of the lead (the dependency list itself) is real and accurately reported, not fabricated or mis-attributed. However, the lead as framed makes no actual vulnerability claim \u2014 the analyst explicitly states they could not confirm any of these as outdated/EOL/known-vulnerable. I attempted to close that gap myself: mcp__orion__exploit_search (the only vulnerability-reference tool available to me) returned \"exploit corpus unavailable: not indexed\" for all four package names, so I have no in-session tool evidence of a CVE/advisory matching these exact declared version ranges. There is also no lockfile (package-lock.json/pnpm-lock.yaml) or node_modules in the tree, so I cannot even pin the exact resolved versions beyond the semver ranges in package.json \u2014 ^7.0.3/^7.0.0 could resolve to any current 7.x patch. Without a working CVE database/advisory lookup and without a pinned exact version, I cannot establish that any of these components is actually vulnerable, nor can I rule it out. This matches a genuine evidence gap rather than a disprovable claim, so per the rules I cannot CONFIRM (no concrete vulnerability evidence) and should not REJECT either (the dependency data itself is accurate and the packages are real, current third-party components whose vuln status is simply unverifiable with the tools available this session)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 38,
+                  "endLine": 46
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "c52576e8c210548fb2025ecb8c49d2502af16c3a"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "LOW",
+            "decision": "INCONCLUSIVE",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "LOW",
+            "security-severity": "3.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+E               	at io.joern.joerncli.JoernParse$.checkInputPath(JoernParse.scala:102)
+E               	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:87)
+E               	at io.joern.joerncli.JoernParse$.run$$anonfun$1(JoernParse.scala:77)
+E               	at scala.util.Success.flatMap(Try.scala:244)
+E               	at io.joern.joerncli.JoernParse$.run(JoernParse.scala:73)
+E               	at io.joern.joerncli.JoernParse$.main(JoernParse.scala:19)
+E               	at io.joern.joerncli.JoernParse.main(JoernParse.scala)
+
+orion/graph/joern_adapter.py:723: RuntimeError
+=========================== short test summary info ============================
+FAILED tests/test_embed_spans.py::test_spans_from_batch_matches_graph_query
+FAILED tests/test_embed_spans.py::test_build_with_concurrent_index_overlap - ...
+FAILED tests/test_graph_build.py::test_build_nodegoat - RuntimeError: joern-p...
+FAILED tests/test_graph_build.py::test_call_file_attribution - RuntimeError: ...
+4 failed, 1587 passed, 32 skipped, 62 deselected in 223.95s (0:03:43)
+
+[exited with code 0]

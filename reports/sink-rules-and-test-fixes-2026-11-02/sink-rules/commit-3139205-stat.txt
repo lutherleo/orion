@@ -1,0 +1,8 @@
+﻿ CLAUDE.md                          |  25 ++-
+ orion/graph/pathfind.py            |  58 ++++--
+ orion/graph/profiles.py            |  21 +-
+ tests/golden/nodegoat_default.json | 411 +++++--------------------------------
+ tests/golden/nodegoat_lm.json      | 411 +++++--------------------------------
+ tests/test_graph_snapshot.py       |   9 +
+ tests/test_sink_rules.py           | 116 ++++++++++-
+ 7 files changed, 312 insertions(+), 739 deletions(-)

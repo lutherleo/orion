@@ -1,0 +1,103 @@
+{
+ "benchmark": "vlb",
+ "task": "TOhqi6Al",
+ "repo": "abodelot/jquery.json-viewer",
+ "snapshot": "patched",
+ "ref": "fe890813fc3980e60d5ba0f41834c8581b3e6361",
+ "commit": "fe890813fc3980e60d5ba0f41834c8581b3e6361",
+ "arm": "orion-opus5",
+ "model": "claude-opus-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 4,
+ "wall_s": 633.8,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 10,
+  "uncached_in": 188,
+  "cache_read": 2295941,
+  "cache_write": 384206,
+  "out": 148749,
+  "tokens": 2829084,
+  "cli_cost_usd": 8.7392
+ },
+ "status": "ok",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": null,
+ "usage": [
+  {
+   "uncached_in": 22,
+   "cache_read": 230103,
+   "cache_write": 41440,
+   "out": 15278,
+   "cli_cost_usd": 0.9148775250000001
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 206125,
+   "cache_write": 41035,
+   "out": 18349,
+   "cli_cost_usd": 0.9752441200000002
+  },
+  {
+   "uncached_in": 32,
+   "cache_read": 391886,
+   "cache_write": 53047,
+   "out": 22563,
+   "cli_cost_usd": 1.29474037
+  },
+  {
+   "uncached_in": 24,
+   "cache_read": 377459,
+   "cache_write": 66461,
+   "out": 25001,
+   "cli_cost_usd": 1.4839696199999999
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 180271,
+   "cache_write": 35497,
+   "out": 9877,
+   "cli_cost_usd": 0.694540745
+  },
+  {
+   "uncached_in": 22,
+   "cache_read": 293518,
+   "cache_write": 38350,
+   "out": 11364,
+   "cli_cost_usd": 0.8171611200000001
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 158290,
+   "cache_write": 34444,
+   "out": 11263,
+   "cli_cost_usd": 0.7076076199999999
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 159803,
+   "cache_write": 12776,
+   "out": 6845,
+   "cli_cost_usd": 0.380873995
+  },
+  {
+   "uncached_in": 12,
+   "cache_read": 147545,
+   "cache_write": 50765,
+   "out": 19466,
+   "cli_cost_usd": 1.07070787
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 150941,
+   "cache_write": 10391,
+   "out": 8743,
+   "cli_cost_usd": 0.399483495
+  }
+ ],
+ "orion_run_dir": ".orion/runs/11e37e507b7931a5e11e39580ac13322a149419e/20261102T051402Z",
+ "scan_id": "11e37e507b7931a5e11e39580ac13322a149419e",
+ "graph": "cleared"
+}

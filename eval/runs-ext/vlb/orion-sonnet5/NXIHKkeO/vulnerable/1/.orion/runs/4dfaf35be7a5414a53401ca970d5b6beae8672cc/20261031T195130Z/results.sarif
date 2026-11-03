@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-22",
+              "name": "CWE22",
+              "shortDescription": {
+                "text": "CWE-22"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-22"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/22.html"
+            },
+            {
+              "id": "CWE-400",
+              "name": "CWE400",
+              "shortDescription": {
+                "text": "CWE-400"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-400"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/400.html"
+            },
+            {
+              "id": "CWE-601",
+              "name": "CWE601",
+              "shortDescription": {
+                "text": "CWE-601"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-601"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/601.html"
+            },
+            {
+              "id": "CWE-693",
+              "name": "CWE693",
+              "shortDescription": {
+                "text": "CWE-693"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-693"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/693.html"
+            },
+            {
+              "id": "CWE-918",
+              "name": "CWE918",
+              "shortDescription": {
+                "text": "CWE-918"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-918"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/918.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-918",
+          "level": "error",
+          "message": {
+            "text": "scan_url(url) is a call-graph-root (EntryPoint) whose `url` parameter is fully attacker-controlled and flows unsanitized into _http_get(url): urllib.parse.urlparse(url) feeds parsed_url.netloc directly into http.client.HTTPSConnection(parsed_url.netloc) and parsed_url.path/query directly into conn.request(\"GET\", path_and_query), with no host/scheme allowlist. On a 302 response, _http_get recursively calls itself with response.headers[\"Location\"] (attacker/server-controlled) with no depth limit and no re-validation, so a malicious/compromised server can redirect the scanner to arbitrary internal hosts. This is a Server-Side Request Forgery sink: any caller that passes user-supplied input into scan_url (e.g. a web service letting users submit a model URL to scan) lets the attacker make the scanning host issue HTTPS connections to arbitrary network destinations, chained through unlimited redirects.\n\nVerifier (CONFIRM): Re-derived independently from the real source (not the analyst's say-so): src/picklescan/scanner.py:240-259 defines `_http_get(url)` which calls `urllib.parse.urlparse(url)`, passes `parsed_url.netloc` straight into `http.client.HTTPSConnection(...)` and `parsed_url.path`/`query` straight into `conn.request(\"GET\", path_and_query)` with zero host/scheme allowlisting anywhere in the module. On `response.status == 302` it recurses as `_http_get(response.headers[\"Location\"])` with no depth limit and no re-validation of the new target \u2014 so a malicious or compromised HTTPS endpoint can redirect the scanning process to any other host:port (including internal/cloud-metadata addresses) and the second request is issued with the exact same unchecked logic. `scan_url(url)` (line 608-611) is a thin passthrough: `return scan_bytes(io.BytesIO(_http_get(url)), url)` \u2014 the `url` parameter flows unmodified into the vulnerable sink. cli.py:66 shows one real caller passing attacker-controllable input (`args.url`) straight through, confirming the parameter is meant to carry external input end-to-end. Graph queries against scan_id 4dfaf35be7a5414a53401ca970d5b6beae8672cc confirm: scan_url is a graph root (EntryPoint ep.method_full_name='...scan_url', hop_distance 0) and every call in the chain (urlparse\u2192HTTPSConnection, urlparse\u2192conn.request, getresponse\u2192_http_get(Location)) is reachable_from_entry=true with real FLOWS_TO edges exactly as the analyst described. Note: the EntryPoint 'handler' label here is applied broadly to nearly every top-level function in the module (including private helpers like _http_get itself) so it only establishes call-graph-root status, not network-handler status by itself \u2014 but the claim text correctly frames it only as \"call-graph-root\", and the actual SSRF/open-redirect-chaining mechanism is fully verified in source independent of that label. exploit_search returned no indexed corpus (not a Metasploit-catalog-type finding, which is expected for this kind of library-level SSRF) so that check is inconclusive/inapplicable, not contradicting."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 240,
+                  "endLine": 259
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_http_get",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "9c10416d6d89cfb783d5cfcb22aa1617a27d939a"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-693",
+          "level": "error",
+          "message": {
+            "text": "picklescan's own pass/fail verdict (and the CLI exit code CI pipelines rely on) only counts globals classified SafetyLevel.Dangerous toward issues_count; globals that are neither in the _safe_globals allowlist nor the _unsafe_globals denylist fall into SafetyLevel.Suspicious and are added to the globals list but never increment issues_count. Since cli.py's main() computes `sys.exit(0 if scan_result.issues_count == 0 else 1)`, a pickle/pytorch file whose __reduce__ target is an as-yet-unlisted (novel) module/function is reported only as 'suspicious' in the (opt-in, -g flag) globals listing but makes the overall scan exit 0 / 'no issues' \u2014 the standard control of 'fail closed on anything not explicitly vetted safe' is absent from the actual gating decision, even though the classifier itself defaults unknowns to Suspicious rather than Innocuous.\n\nVerifier (CONFIRM): Re-derived directly from source, independent of the analyst. In scanner.py's `_build_scan_result_from_raw_globals` (lines 358-393), each raw global resolved from a pickle's GLOBAL/STACK_GLOBAL opcode is classified: \"unknown\" in module/name -> Dangerous (issues_count+=1, line 379-382); match in the hardcoded `_unsafe_globals` denylist -> Dangerous (issues_count+=1, line 383-386); match in `_safe_globals` allowlist -> Innocuous (line 387-388, no counter touched, correct since it's vetted-safe); else (not in either list) -> `g.safety = SafetyLevel.Suspicious` (line 389-390) with NO increment to issues_count. ScanResult.merge() (line 46-51) only sums issues_count, never touching Suspicious globals either. cli.py's main() (line 76) computes `return 0 if scan_result.issues_count == 0 else 1`, and `sys.exit(main())` (line 83) is invoked via the registered console-script entry point `picklescan = picklescan.cli:main` (confirmed in setup.cfg line 32) -- i.e., this is the actual, real-world CLI entry a CI pipeline runs. The `_unsafe_globals`/`_safe_globals` dicts (lines 66-188) are small, hand-maintained, finite lists, so any `__reduce__`/GLOBAL target referencing a module/function not yet enumerated there is classified Suspicious and is silently excluded from the exit-code decision -- the scan exits 0 (\"no issues\") even though a genuinely novel dangerous callable was present and is only visible via the opt-in `-g/--globals` listing. This is a real, exploitable gap in the tool's own primary security gate, not a graph artifact: the graph's `reachable_from_entry=false` on cli.py's main()/module body is a known limitation of the EntryPoint model (built for request-handler style entries) and does not reflect reality for a console_scripts CLI entry point that setup.cfg proves is the actual invocation path."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/cli.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 76,
+                  "endLine": 76
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "main",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "527314c26ee58892a4d60ac37ea4536292749840"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-601",
+          "level": "error",
+          "message": {
+            "text": "_http_get (used by scan_url and scan_huggingface_model to fetch attacker/third-party-supplied URLs, e.g. a Hugging Face repo's sibling file list and model binaries) follows HTTP 302 redirects by recursively calling `_http_get(response.headers[\"Location\"])` with no cap on redirect count and no check that the Location host/scheme matches an expected allowlist (e.g. still huggingface.co, still https). A malicious or compromised server can redirect indefinitely (unbounded recursion / DoS) or redirect the scanner to an arbitrary attacker-chosen host, and picklescan will blindly follow it.\n\nVerifier (CONFIRM): Re-derived directly from source. `_http_get` (src/picklescan/scanner.py:240-259) is the single HTTP fetch primitive used by both `scan_url` (line 611: `scan_bytes(io.BytesIO(_http_get(url)), url)`, where `url` is a fully caller/attacker-supplied argument) and `scan_huggingface_model` (lines 561 and 572: `_http_get(f\"https://huggingface.co/{repo_id}/resolve/main/{file_name}\")`, fetching attacker-influenced Hugging Face model binaries). On a 302 response, the function recurses with `return _http_get(response.headers[\"Location\"])` (line 252) \u2014 the Location header value is passed straight back into `_http_get` with zero validation: no redirect-count/depth cap (no counter, no max-redirect parameter anywhere in the function or file), and no check that the new URL's scheme/host matches the original `parsed_url.netloc`/scheme (the only two uses of `netloc`/`scheme` in the file are building the *initial* connection and formatting the error message on line 255, neither of which compares against the Location header). I verified this with a direct grep across the whole file for `redirect|netloc|scheme|allowlist|Location` and found no comparison logic at all. The graph corroborates reachability: `_http_get` has `reachable_from_entry=true`, `hop_distance=0`. Net effect: a malicious/compromised server (or a MITM/compromised CDN in the redirect chain) can (a) redirect indefinitely causing unbounded recursion (stack-exhaustion DoS), or (b) redirect the scanner to an arbitrary attacker-chosen scheme/host, and `_http_get` will blindly follow and fetch from it, then feed the result into the pickle/zip scanner \u2014 a classic unvalidated-redirect / open-redirect-follow issue (CWE-601), with a secondary unbounded-recursion DoS angle (CWE-674)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 240,
+                  "endLine": 259
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_http_get",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "8a188632ccfe7639910f272b87d8f4b4a1fde7b8"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-400",
+          "level": "error",
+          "message": {
+            "text": "_http_get opens `http.client.HTTPSConnection(parsed_url.netloc)` with no `timeout=` argument, so a malicious or slow remote host (reached via scan_url/scan_huggingface_model) can hold the connection open indefinitely and hang the scan \u2014 there is no connection/read timeout control anywhere in the networking code.\n\nVerifier (CONFIRM): Read the actual source: `_http_get` (src/picklescan/scanner.py:240-259) opens `http.client.HTTPSConnection(parsed_url.netloc)` at line 246 with only the netloc positional argument \u2014 no `timeout=` kwarg. A package-wide grep for \"timeout\" and \"signal.alarm\" across all of src/picklescan returns zero matches, confirming no timeout is set anywhere (not in this function, not via `socket.setdefaulttimeout()`, not via an outer watchdog/signal). `HTTPSConnection` without an explicit timeout defaults to blocking indefinitely (no OS-level bound), so `conn.request()`/`conn.getresponse()` at lines 248-249 can hang forever against a slow or non-responding/malicious remote host. Graph confirms this is reachable from real entry points: `src/picklescan/scanner.py:<module>._http_get` has `reachable_from_entry=true, hop_distance=0`, and both its callers `scan_url` (line 608\u2192611) and `scan_huggingface_model` (lines 557, 561, 572) are likewise `reachable_from_entry=true, hop_distance=0` \u2014 i.e. these are themselves top-level library entry points that take attacker-influenced input (an arbitrary URL / HF repo_id) and feed it straight into the unbounded HTTPS call. Note: the redirect-following recursive call at line 252 (`_http_get(response.headers[\"Location\"])`) makes the lack of a per-request timeout even more consequential, since an attacker-controlled redirect chain compounds the hang risk. This matches the analyst's claim; I only correct/tighten the cited range to the whole function body."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 240,
+                  "endLine": 259
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "_http_get",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "209f91da266f3c31e61699fa2069fb3cc351f057"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-22",
+          "level": "error",
+          "message": {
+            "text": "scan_7z_bytes extracts attacker-supplied archive members by name from an untrusted .7z file (`archive.extract(path=tmpdir, targets=targets)` where targets come straight from `archive.getnames()` filtered only by file-extension suffix) and then re-derives the on-disk path via `os.path.join(tmpdir, file_name)` to open/scan it \u2014 picklescan's own code never normalizes/validates that the resulting path stays inside tmpdir (no realpath+prefix check, no rejection of '..' or absolute member names) before extracting/opening it, i.e. the standard archive-extraction containment check is absent in-repo.\n\nVerifier (CONFIRM): Read the real source directly and independently re-derived the claim. In src/picklescan/scanner.py, scan_7z_bytes (lines 415-436) filters 7z archive member names from archive.getnames() purely by extension suffix (line 426: `f.endswith(tuple(_pickle_file_extensions))`), passes those attacker-controlled names straight to `archive.extract(path=tmpdir, targets=targets)` (line 429), then independently reconstructs the on-disk path with `file_path = os.path.join(tmpdir, file_name)` (line 431) and opens/scans it via `scan_file_path(file_path)` (line 434, which does `open(path, \"rb\")` at line 604). No normalization/containment check (no realpath, no commonpath/abspath-prefix check, no rejection of '..' or absolute member names) exists anywhere in this function or in scan_file_path \u2014 confirmed by reading the full function body end-to-end. This is a real, independently-exploitable pattern even setting aside py7zr's own extraction safety: in Python, `os.path.join(tmpdir, file_name)` silently discards `tmpdir` and returns `file_name` verbatim whenever `file_name` is an absolute path, and relative `../` components are preserved un-normalized \u2014 so a crafted 7z member name ending in one of the whitelisted suffixes (.pkl/.pickle/.joblib/.dat/.data) that is absolute or contains traversal segments causes `os.path.isfile`/`open` at line 433-434 to resolve outside tmpdir, i.e., CWE-22. (The orchestrator's requirements.txt pins py7zr==0.22.0; I could not inspect py7zr's own extract()-path sanitization since the package isn't vendored/installed in this environment and the exploit-reference corpus is unindexed here, so whether archive.extract() can also be made to *write* outside tmpdir during extraction remains unverified \u2014 but the read-side containment gap in picklescan's own code stands regardless of that.) Reachability is strongly confirmed, not just plausible: querying the graph shows every call in lines 429-434 has reachable_from_entry=true, and scan_7z_bytes itself is registered as an EntryPoint/handler with hop_distance=0 (it is a public API function reachable directly, and is also called from scan_bytes at scanner.py:508/552, which is invoked from the public scan_file_path/scan_url/scan_directory_path entry points) \u2014 exactly the \"scan an untrusted file\" usage this security tool exists for. Note the asymmetry with the adjacent scan_zip_bytes (line 439+), which reads ZIP members in-memory via `zip.open(file_name)` and never calls `zip.extract()` to disk, so it has no analogous disk-path reconstruction step \u2014 underscoring that the 7z path specifically lacks the containment check the analyst flagged."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/picklescan/scanner.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 415,
+                  "endLine": 436
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "scan_7z_bytes",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "fb1e0ec148bbb7d9406657f7ca165999634227ed"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

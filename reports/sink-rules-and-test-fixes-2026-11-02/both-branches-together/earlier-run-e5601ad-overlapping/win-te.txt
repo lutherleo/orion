@@ -1,0 +1,26 @@
+﻿.......................................ssssssssss...ss.................. [  8%]
+........................................................................ [ 16%]
+..........s.F........................................................... [ 24%]
+..............................ss.s..ssssssssssssssssssssssssss..ssssssss [ 33%]
+ssssss.....ss.....ss......s......................................s...... [ 41%]
+..........................s............................................. [ 49%]
+.ss..................................................................... [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 74%]
+........................................................................ [ 82%]
+........................................................................ [ 91%]
+......................................................sss............... [ 99%]
+.....                                                                    [100%]
+================================== FAILURES ===================================
+_____________________ test_collect_then_build_end_to_end ______________________
+/mnt/c/Users/h/AppData/Local/Temp/claude/C--Users-h-Downloads-orion--claude-worktrees-vibrant-villani-d0c165/f7950741-8940-447e-85ba-5fcb86e0cc14/scratchpad/combined/train/tests/test_mine.py:42: in test_collect_then_build_end_to_end
+    ???
+train\mine.py:259: in build
+    f.write(tables(st))
+..\..\..\..\..\..\Programs\Python\Python312\Lib\encodings\cp1252.py:19: in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   UnicodeEncodeError: 'charmap' codec can't encode character '\u2264' in position 333: character maps to <undefined>
+=========================== short test summary info ===========================
+FAILED train/tests/test_mine.py::test_collect_then_build_end_to_end - Unicode...
+1 failed, 800 passed, 68 skipped in 47.93s

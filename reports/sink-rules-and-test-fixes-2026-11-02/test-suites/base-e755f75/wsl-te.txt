@@ -1,0 +1,326 @@
+....................................................FF.................. [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 24%]
+..............................FF.F..FFF.FFF.FFFFFFFF...F.FFF.F..FFFFFFFF [ 33%]
+F.FFFF.....FF.....FF.............................................s...... [ 41%]
+........................................................................ [ 49%]
+.ss..................................................................... [ 57%]
+........................................................................ [ 66%]
+........................................................................ [ 74%]
+........................................................................ [ 82%]
+........................................................................ [ 91%]
+........................................................................ [ 99%]
+.....                                                                    [100%]
+=================================== FAILURES ===================================
+_______ test_merge_lora_folds_the_delta_unquantized_and_copies_the_rest ________
+train/tests/test_convert.py:48: in test_merge_lora_folds_the_delta_unquantized_and_copies_the_rest
+    import mlx.core as mx
+E   ModuleNotFoundError: No module named 'mlx'
+_______ test_merge_lora_refuses_an_existing_out_dir_and_unknown_modules ________
+train/tests/test_convert.py:67: in test_merge_lora_refuses_an_existing_out_dir_and_unknown_modules
+    import mlx.core as mx
+E   ModuleNotFoundError: No module named 'mlx'
+________________ test_build_writes_examples_ledger_and_resumes _________________
+train/tests/test_stage1_build.py:49: in test_build_writes_examples_ledger_and_resumes
+    rows = _lines(tmp_path / "out.jsonl")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+train/tests/test_stage1_build.py:40: in _lines
+    return [json.loads(l) for l in open(p).read().splitlines()]
+                                   ^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-lutherleo/pytest-8/test_build_writes_examples_led0/out.jsonl'
+___ test_one_snapshot_serves_all_pairs_of_a_repo_and_missing_fix_is_recorded ___
+train/tests/test_stage1_build.py:72: in test_one_snapshot_serves_all_pairs_of_a_repo_and_missing_fix_is_recorded
+    assert led["A"]["status"] == led["B"]["status"] == "ok" and led["C"]["status"] == "commit_missing"
+E   AssertionError: assert ('skipped' == 'ok'
+E     
+E     - ok
+E     + skipped)
+_________________ test_sigint_finishes_current_pair_then_stops _________________
+train/tests/test_stage1_build.py:96: in test_sigint_finishes_current_pair_then_stops
+    assert [l["id"] for l in _lines(tmp_path / "led.jsonl")] == ["A"] and _lines(tmp_path / "led.jsonl")[0]["status"] == "ok"
+E   AssertionError: assert (['A'] == ['A']
+E     
+E     Use -v to get more diff and 'skipped' == 'ok'
+E     
+E     - ok
+E     + skipped)
+________________ test_resume_reconciles_out_jsonl_after_a_crash ________________
+train/tests/test_stage1_build.py:123: in test_resume_reconciles_out_jsonl_after_a_crash
+    n = len(_lines(out))
+            ^^^^^^^^^^^
+train/tests/test_stage1_build.py:40: in _lines
+    return [json.loads(l) for l in open(p).read().splitlines()]
+                                   ^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-lutherleo/pytest-8/test_resume_reconciles_out_jso0/out.jsonl'
+_________________ test_reconcile_keeps_rows_of_ledgered_pairs __________________
+train/tests/test_stage1_build.py:135: in test_reconcile_keeps_rows_of_ledgered_pairs
+    n = len(_lines(tmp_path / "out.jsonl"))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+train/tests/test_stage1_build.py:40: in _lines
+    return [json.loads(l) for l in open(p).read().splitlines()]
+                                   ^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/pytest-of-lutherleo/pytest-8/test_reconcile_keeps_rows_of_l0/out.jsonl'
+____________ test_single_function_fix_gives_vuln_patched_negatives _____________
+train/tests/test_stage1_cases.py:18: in test_single_function_fix_gives_vuln_patched_negatives
+    assert [e["label"] for e in ex] == ["vulnerable", "patched", "negative", "negative"]
+E   AssertionError: assert [] == ['vulnerable'...', 'negative']
+E     
+E     Right contains 4 more items, first extra item: 'vulnerable'
+E     Use -v to get more diff
+___________________ test_annotation_beats_changed_functions ____________________
+train/tests/test_stage1_cases.py:33: in test_annotation_beats_changed_functions
+    assert ex[0]["lead"]["function"] == "third" and ex[0]["lead"]["line"] == 12 and rec["tiers"] == {"annotated": 1}
+           ^^^^^
+E   IndexError: list index out of range
+_____________ test_deleted_function_keeps_vulnerable_drops_patched _____________
+train/tests/test_stage1_cases.py:39: in test_deleted_function_keeps_vulnerable_drops_patched
+    assert [e["label"] for e in ex] == ["vulnerable"] and "patched_missing" in rec["reason"]
+E   AssertionError: assert ([] == ['vulnerable']
+E     
+E     Right contains one more item: 'vulnerable'
+E     Use -v to get more diff)
+_______________ test_sprawling_and_test_only_fixes_yield_nothing _______________
+train/tests/test_stage1_cases.py:48: in test_sprawling_and_test_only_fixes_yield_nothing
+    assert ex == [] and rec["reason"] == "sprawling"
+E   AssertionError: assert ([] == []
+E     
+E     Use -v to get more diff and 'no_target' == 'sprawling'
+E     
+E     - sprawling
+E     + no_target)
+__________ test_patched_example_does_not_mutate_the_vulnerable_index ___________
+train/tests/test_stage1_cases.py:66: in test_patched_example_does_not_mutate_the_vulnerable_index
+    assert "q = 'SELECT '" in ex[0]["case"]["snippets"][0]["code"]
+                              ^^^^^
+E   IndexError: list index out of range
+_________ test_sink_location_resolves_by_suffix_and_locations_by_line __________
+train/tests/test_stage1_cases.py:74: in test_sink_location_resolves_by_suffix_and_locations_by_line
+    assert [(x["tier"], x["name"], x["anchor_old"]) for x in t] == [("annotated", "third", 12)]
+E   AssertionError: assert [] == [('annotated', 'third', 12)]
+E     
+E     Right contains one more item: ('annotated', 'third', 12)
+E     Use -v to get more diff
+_________ test_unresolvable_annotation_falls_back_to_changed_function __________
+train/tests/test_stage1_cases.py:82: in test_unresolvable_annotation_falls_back_to_changed_function
+    assert t[0]["tier"] == "single" and t[0]["name"] == "view"
+           ^^^^
+E   IndexError: list index out of range
+_________________ test_add_only_hunk_anchors_on_insertion_line _________________
+train/tests/test_stage1_cases.py:88: in test_add_only_hunk_anchors_on_insertion_line
+    assert t[0]["name"] == "other" and t[0]["anchor_old"] == 7
+           ^^^^
+E   IndexError: list index out of range
+______________________ test_multi_tier_and_unknown_class _______________________
+train/tests/test_stage1_cases.py:94: in test_multi_tier_and_unknown_class
+    assert [x["tier"] for x in t] == ["multi", "multi"]
+E   AssertionError: assert [] == ['multi', 'multi']
+E     
+E     Right contains 2 more items, first extra item: 'multi'
+E     Use -v to get more diff
+___________ test_unchanged_patched_function_gets_no_patched_example ____________
+train/tests/test_stage1_cases.py:102: in test_unchanged_patched_function_gets_no_patched_example
+    assert [e["label"] for e in ex] == ["vulnerable"] and "patched_unchanged" in rec["reason"]
+E   AssertionError: assert ([] == ['vulnerable']
+E     
+E     Right contains one more item: 'vulnerable'
+E     Use -v to get more diff)
+_______________ test_negative_never_nested_in_or_around_a_target _______________
+train/tests/test_stage1_cases.py:130: in test_negative_never_nested_in_or_around_a_target
+    assert [e["label"] for e in ex] == ["vulnerable", "patched"]
+E   AssertionError: assert [] == ['vulnerable', 'patched']
+E     
+E     Right contains 2 more items, first extra item: 'vulnerable'
+E     Use -v to get more diff
+__________ test_annotated_functions_past_the_cap_are_never_negatives ___________
+train/tests/test_stage1_cases.py:145: in test_annotated_functions_past_the_cap_are_never_negatives
+    assert rec["n_targets"] == 3 and "negative" not in [e["label"] for e in ex]
+E   assert (0 == 3)
+______________ test_insertion_strictly_inside_a_body_is_a_target _______________
+train/tests/test_stage1_cases.py:167: in test_insertion_strictly_inside_a_body_is_a_target
+    assert [x["name"] for x in t] == ["f"]
+E   AssertionError: assert [] == ['f']
+E     
+E     Right contains one more item: 'f'
+E     Use -v to get more diff
+____________ test_unchanged_long_function_does_not_get_both_labels _____________
+train/tests/test_stage1_cases.py:187: in test_unchanged_long_function_does_not_get_both_labels
+    assert [e["label"] for e in ex] == ["vulnerable"] and "patched_unchanged" in rec["reason"]
+E   AssertionError: assert ([] == ['vulnerable']
+E     
+E     Right contains one more item: 'vulnerable'
+E     Use -v to get more diff)
+________________ test_overloads_each_get_their_own_patched_code ________________
+train/tests/test_stage1_cases.py:200: in test_overloads_each_get_their_own_patched_code
+    assert len(pat) == 2 and any("check(a)" in c for c in pat) and any("safe(a) + b" in c for c in pat)
+E   assert (0 == 2)
+E    +  where 0 = len([])
+_________________ test_moved_unchanged_helper_is_not_a_target __________________
+train/tests/test_stage1_cases.py:223: in test_moved_unchanged_helper_is_not_a_target
+    assert [(e["label"], (e["lead"] or {}).get("function")) for e in ex] == [("vulnerable", "view"), ("patched", None)]
+E   AssertionError: assert [] == [('vulnerable...tched', None)]
+E     
+E     Right contains 2 more items, first extra item: ('vulnerable', 'view')
+E     Use -v to get more diff
+_____________ test_annotated_targets_are_kept_even_when_unchanged ______________
+train/tests/test_stage1_cases.py:245: in test_annotated_targets_are_kept_even_when_unchanged
+    assert [e["label"] for e in ex] == ["vulnerable"] and rec["tiers"] == {"annotated": 1}
+E   AssertionError: assert ([] == ['vulnerable']
+E     
+E     Right contains one more item: 'vulnerable'
+E     Use -v to get more diff)
+_______________ test_cases_from_graph_vuln_patched_and_negative ________________
+train/tests/test_stage2.py:123: in test_cases_from_graph_vuln_patched_and_negative
+    assert [e["label"] for e in ex] == ["vulnerable", "patched", "negative"] and all(e["stage"] == 2 for e in ex)
+E   AssertionError: assert ([] == ['vulnerable'...', 'negative']
+E     
+E     Right contains 3 more items, first extra item: 'vulnerable'
+E     Use -v to get more diff)
+___ test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec0] ____
+train/tests/test_stage2.py:137: in test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt
+    assert [e["label"] for e in run_cases(graph(), trees, rec)] == ["vulnerable", "negative"]
+E   AssertionError: assert [] == ['vulnerable', 'negative']
+E     
+E     Right contains 2 more items, first extra item: 'vulnerable'
+E     Use -v to get more diff
+___ test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec1] ____
+train/tests/test_stage2.py:137: in test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt
+    assert [e["label"] for e in run_cases(graph(), trees, rec)] == ["vulnerable", "negative"]
+E   AssertionError: assert [] == ['vulnerable', 'negative']
+E     
+E     Right contains 2 more items, first extra item: 'vulnerable'
+E     Use -v to get more diff
+___ test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec2] ____
+train/tests/test_stage2.py:137: in test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt
+    assert [e["label"] for e in run_cases(graph(), trees, rec)] == ["vulnerable", "negative"]
+E   AssertionError: assert [] == ['vulnerable', 'negative']
+E     
+E     Right contains 2 more items, first extra item: 'vulnerable'
+E     Use -v to get more diff
+_________ test_patched_example_omitted_when_patched_scan_has_no_flows __________
+train/tests/test_stage2.py:141: in test_patched_example_omitted_when_patched_scan_has_no_flows
+    assert [e["label"] for e in run_cases(graph(patched_flows=False), trees)] == ["vulnerable", "negative"]
+E   AssertionError: assert [] == ['vulnerable', 'negative']
+E     
+E     Right contains 2 more items, first extra item: 'vulnerable'
+E     Use -v to get more diff
+_____________ test_negatives_never_touch_a_fix_site_and_are_seeded _____________
+train/tests/test_stage2.py:150: in test_negatives_never_touch_a_fix_site_and_are_seeded
+    assert [e["case"]["sink_uid"] for e in ex if e["label"] == "negative"] == ["bk"]
+E   AssertionError: assert [] == ['bk']
+E     
+E     Right contains one more item: 'bk'
+E     Use -v to get more diff
+_______________ test_negative_sampling_is_deterministic_per_seed _______________
+train/tests/test_stage2.py:163: in test_negative_sampling_is_deterministic_per_seed
+    assert pick(0) == pick(0) and len(pick(0)) == 3
+E   assert ([] == []
+E     
+E     Use -v to get more diff and 0 == 3)
+E    +  where 0 = len([])
+E    +    where [] = <function test_negative_sampling_is_deterministic_per_seed.<locals>.<lambda> at 0x7c17ac5168e0>(0)
+__________ test_negatives_come_only_from_the_flows_the_runtime_judges __________
+train/tests/test_stage2.py:181: in test_negatives_come_only_from_the_flows_the_runtime_judges
+    assert max(neg) < engine.DEFAULT_MAX_FLOWS and len(neg) == engine.DEFAULT_MAX_FLOWS - 1    # all but gold
+           ^^^^^^^^
+E   ValueError: max() iterable argument is empty
+__________ test_gold_flow_ranked_past_the_runtime_cap_is_still_found ___________
+train/tests/test_stage2.py:191: in test_gold_flow_ranked_past_the_runtime_cap_is_still_found
+    assert [e["label"] for e in ex][:1] == ["vulnerable"] and ex[0]["case"]["rank"] == 99
+E   AssertionError: assert ([] == ['vulnerable']
+E     
+E     Right contains one more item: 'vulnerable'
+E     Use -v to get more diff)
+_________ test_graph_cases_reports_why_the_patched_example_is_missing __________
+train/tests/test_stage2.py:201: in test_graph_cases_reports_why_the_patched_example_is_missing
+    assert why == ["flow_gone"]
+E   AssertionError: assert ['no_snippet'] == ['flow_gone']
+E     
+E     At index 0 diff: 'no_snippet' != 'flow_gone'
+E     Use -v to get more diff
+_________ test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink _________
+train/tests/test_stage2.py:227: in test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink
+    (v,) = ex
+    ^^^^
+E   ValueError: not enough values to unpack (expected 1, got 0)
+_ test_pair_without_a_fix_site_node_on_the_gold_path_is_skipped_with_a_reason __
+train/tests/test_stage2.py:240: in test_pair_without_a_fix_site_node_on_the_gold_path_is_skipped_with_a_reason
+    assert ex == [] and why == ["no_fix_site_node"]          # never a fallback to the sink
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: assert ([] == []
+E     
+E     Use -v to get more diff and ['no_snippet'] == ['no_fix_site_node']
+E     
+E     At index 0 diff: 'no_snippet' != 'no_fix_site_node'
+E     Use -v to get more diff)
+___________ test_fix_site_of_an_add_only_hunk_is_its_insertion_line ____________
+train/tests/test_stage2.py:245: in test_fix_site_of_an_add_only_hunk_is_its_insertion_line
+    (v, *_), _ = stage2._graph_cases(graph(), yrec(), PAIR, *trees, budget=cases.CaseBudget(), n_negatives=0,
+    ^^^^^^^
+E   ValueError: not enough values to unpack (expected at least 1, got 0)
+_______ test_build_writes_examples_one_ledger_line_and_evicts_both_scans _______
+train/tests/test_stage2.py:352: in test_build_writes_examples_one_ledger_line_and_evicts_both_scans
+    assert [r["label"] for r in rows] == ["vulnerable", "patched", "negative"]
+E   AssertionError: assert [] == ['vulnerable'...', 'negative']
+E     
+E     Right contains 3 more items, first extra item: 'vulnerable'
+E     Use -v to get more diff
+_______ test_build_with_templates_adds_traces_carrying_pair_id_and_split _______
+train/tests/test_stage2.py:367: in test_build_with_templates_adds_traces_carrying_pair_id_and_split
+    assert len(traces) == 3 and all(t["meta"]["pair_id"] == "P" and t["meta"]["split"] == "train" for t in traces)
+E   assert (0 == 3)
+E    +  where 0 = len([])
+_ test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts _
+train/tests/test_stage2.py:435: in test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts
+    assert sum("actions" in r for r in rows) == 3 and not any("label" in r and "actions" not in r for r in rows)
+E   assert (0 == 3)
+E    +  where 0 = sum(<generator object test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts.<locals>.<genexpr> at 0x7c17ac4f1f20>)
+_________ test_a_case_whose_trace_is_dropped_keeps_its_single_step_row _________
+train/tests/test_stage2.py:463: in test_a_case_whose_trace_is_dropped_keeps_its_single_step_row
+    assert [r["label"] for r in rows if "actions" not in r] == ["patched"]
+E   AssertionError: assert [] == ['patched']
+E     
+E     Right contains one more item: 'patched'
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED train/tests/test_convert.py::test_merge_lora_folds_the_delta_unquantized_and_copies_the_rest
+FAILED train/tests/test_convert.py::test_merge_lora_refuses_an_existing_out_dir_and_unknown_modules
+FAILED train/tests/test_stage1_build.py::test_build_writes_examples_ledger_and_resumes
+FAILED train/tests/test_stage1_build.py::test_one_snapshot_serves_all_pairs_of_a_repo_and_missing_fix_is_recorded
+FAILED train/tests/test_stage1_build.py::test_sigint_finishes_current_pair_then_stops
+FAILED train/tests/test_stage1_build.py::test_resume_reconciles_out_jsonl_after_a_crash
+FAILED train/tests/test_stage1_build.py::test_reconcile_keeps_rows_of_ledgered_pairs
+FAILED train/tests/test_stage1_cases.py::test_single_function_fix_gives_vuln_patched_negatives
+FAILED train/tests/test_stage1_cases.py::test_annotation_beats_changed_functions
+FAILED train/tests/test_stage1_cases.py::test_deleted_function_keeps_vulnerable_drops_patched
+FAILED train/tests/test_stage1_cases.py::test_sprawling_and_test_only_fixes_yield_nothing
+FAILED train/tests/test_stage1_cases.py::test_patched_example_does_not_mutate_the_vulnerable_index
+FAILED train/tests/test_stage1_cases.py::test_sink_location_resolves_by_suffix_and_locations_by_line
+FAILED train/tests/test_stage1_cases.py::test_unresolvable_annotation_falls_back_to_changed_function
+FAILED train/tests/test_stage1_cases.py::test_add_only_hunk_anchors_on_insertion_line
+FAILED train/tests/test_stage1_cases.py::test_multi_tier_and_unknown_class - ...
+FAILED train/tests/test_stage1_cases.py::test_unchanged_patched_function_gets_no_patched_example
+FAILED train/tests/test_stage1_cases.py::test_negative_never_nested_in_or_around_a_target
+FAILED train/tests/test_stage1_cases.py::test_annotated_functions_past_the_cap_are_never_negatives
+FAILED train/tests/test_stage1_cases.py::test_insertion_strictly_inside_a_body_is_a_target
+FAILED train/tests/test_stage1_cases.py::test_unchanged_long_function_does_not_get_both_labels
+FAILED train/tests/test_stage1_cases.py::test_overloads_each_get_their_own_patched_code
+FAILED train/tests/test_stage1_cases.py::test_moved_unchanged_helper_is_not_a_target
+FAILED train/tests/test_stage1_cases.py::test_annotated_targets_are_kept_even_when_unchanged
+FAILED train/tests/test_stage2.py::test_cases_from_graph_vuln_patched_and_negative
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec0]
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec1]
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_flow_gone_unresolved_or_unbuilt[rec2]
+FAILED train/tests/test_stage2.py::test_patched_example_omitted_when_patched_scan_has_no_flows
+FAILED train/tests/test_stage2.py::test_negatives_never_touch_a_fix_site_and_are_seeded
+FAILED train/tests/test_stage2.py::test_negative_sampling_is_deterministic_per_seed
+FAILED train/tests/test_stage2.py::test_negatives_come_only_from_the_flows_the_runtime_judges
+FAILED train/tests/test_stage2.py::test_gold_flow_ranked_past_the_runtime_cap_is_still_found
+FAILED train/tests/test_stage2.py::test_graph_cases_reports_why_the_patched_example_is_missing
+FAILED train/tests/test_stage2.py::test_lead_is_the_fix_site_node_on_the_gold_path_not_the_sink
+FAILED train/tests/test_stage2.py::test_pair_without_a_fix_site_node_on_the_gold_path_is_skipped_with_a_reason
+FAILED train/tests/test_stage2.py::test_fix_site_of_an_add_only_hunk_is_its_insertion_line
+FAILED train/tests/test_stage2.py::test_build_writes_examples_one_ledger_line_and_evicts_both_scans
+FAILED train/tests/test_stage2.py::test_build_with_templates_adds_traces_carrying_pair_id_and_split
+FAILED train/tests/test_stage2.py::test_a_case_with_a_trace_is_written_only_as_the_trace_and_export_has_no_conflicting_prompts
+FAILED train/tests/test_stage2.py::test_a_case_whose_trace_is_dropped_keeps_its_single_step_row
+41 failed, 825 passed, 3 skipped in 17.97s

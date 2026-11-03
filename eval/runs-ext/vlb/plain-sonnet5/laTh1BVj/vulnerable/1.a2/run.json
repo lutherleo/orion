@@ -1,0 +1,36 @@
+{
+ "benchmark": "vlb",
+ "task": "laTh1BVj",
+ "repo": "eclipse-ee4j/parsson",
+ "snapshot": "vulnerable",
+ "ref": "82f3f1a4a37f0a72b7ec2404f3f1f8ef92efd6f4",
+ "commit": "82f3f1a4a37f0a72b7ec2404f3f1f8ef92efd6f4",
+ "arm": "plain-sonnet5",
+ "model": "claude-sonnet-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 2,
+ "wall_s": 85.1,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 1,
+  "uncached_in": 3480,
+  "cache_read": 569551,
+  "cache_write": 47403,
+  "out": 6891,
+  "tokens": 627325,
+  "cli_cost_usd": 0.3794
+ },
+ "status": "ok",
+ "findings": true,
+ "usage": [
+  {
+   "uncached_in": 3480,
+   "cache_read": 569551,
+   "cache_write": 47403,
+   "out": 6891,
+   "reasoning": null,
+   "cli_cost_usd": 0.3793922
+  }
+ ]
+}

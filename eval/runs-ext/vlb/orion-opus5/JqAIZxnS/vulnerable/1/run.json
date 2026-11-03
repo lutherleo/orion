@@ -1,0 +1,425 @@
+{
+ "benchmark": "vlb",
+ "task": "JqAIZxnS",
+ "repo": "mpdavis/python-jose",
+ "snapshot": "vulnerable",
+ "ref": "b4a0e4f3dbeeec671d7e72e50337626b15197e83",
+ "commit": "b4a0e4f3dbeeec671d7e72e50337626b15197e83",
+ "arm": "orion-opus5",
+ "model": "claude-opus-5",
+ "effort": "xhigh",
+ "run_no": 1,
+ "attempt": 1,
+ "wall_s": 1006.7,
+ "orion_commit": "3e46ac2de90896c5c28ef78dbe78f7d4839c9038",
+ "usage_total": {
+  "calls": 56,
+  "uncached_in": 386,
+  "cache_read": 7446937,
+  "cache_write": 658646,
+  "out": 231302,
+  "tokens": 8337271,
+  "cli_cost_usd": 16.2792
+ },
+ "status": "aborted",
+ "rc": 0,
+ "incomplete": false,
+ "limit_line": "  verdict reason:    verifier call failed: claude -p exited 1 | stderr: (empty) | stdout_tail: et\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"safety_stops\":0,\"is_error\":true,\"num_turns\":1,\"subtype\":\"success\",\"api_error_status\":429,\"api_error_origin\":\"first_party\",\"api_error\":\"usage_limit_reached\",\"result\":\"You've hit your 5-hour limit \u00b7 resets 5:10am (America/New_York)\",\"type\":\"result\",\"duration_ms\":393,\"uuid\":\"337180c5-9d90-4988-85b1-d7c02c15bf87\",\"queued_turn_count\":0,\"result_index\":0,\"model_usage_since_last_result\":{}}",
+ "usage": [
+  {
+   "uncached_in": 32,
+   "cache_read": 620265,
+   "cache_write": 64002,
+   "out": 24227,
+   "cli_cost_usd": 1.5640163699999998
+  },
+  {
+   "uncached_in": 42,
+   "cache_read": 1067605,
+   "cache_write": 76675,
+   "out": 26261,
+   "cli_cost_usd": 1.966650995
+  },
+  {
+   "uncached_in": 42,
+   "cache_read": 1335497,
+   "cache_write": 106858,
+   "out": 30613,
+   "cli_cost_usd": 2.56897785
+  },
+  {
+   "uncached_in": 38,
+   "cache_read": 1176452,
+   "cache_write": 119221,
+   "out": 31966,
+   "cli_cost_usd": 2.6532997249999997
+  },
+  {
+   "uncached_in": 22,
+   "cache_read": 310459,
+   "cache_write": 26447,
+   "out": 8433,
+   "cli_cost_usd": 0.633920745
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 221043,
+   "cache_write": 23967,
+   "out": 9949,
+   "cli_cost_usd": 0.60208812
+  },
+  {
+   "uncached_in": 14,
+   "cache_read": 178929,
+   "cache_write": 23851,
+   "out": 10185,
+   "cli_cost_usd": 0.58558662
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 299524,
+   "cache_write": 30132,
+   "out": 12028,
+   "cli_cost_usd": 0.75516062
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 216043,
+   "cache_write": 15515,
+   "out": 8808,
+   "cli_cost_usd": 0.48549524499999996
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 235283,
+   "cache_write": 17290,
+   "out": 7448,
+   "cli_cost_usd": 0.479384995
+  },
+  {
+   "uncached_in": 20,
+   "cache_read": 311046,
+   "cache_write": 29126,
+   "out": 9120,
+   "cli_cost_usd": 0.67866912
+  },
+  {
+   "uncached_in": 30,
+   "cache_read": 479417,
+   "cache_write": 30434,
+   "out": 13560,
+   "cli_cost_usd": 0.886951995
+  },
+  {
+   "uncached_in": 16,
+   "cache_read": 187964,
+   "cache_write": 14008,
+   "out": 8229,
+   "cli_cost_usd": 0.44195387
+  },
+  {
+   "uncached_in": 8,
+   "cache_read": 83940,
+   "cache_write": 9739,
+   "out": 1450,
+   "cli_cost_usd": 0.17564999999999997
+  },
+  {
+   "uncached_in": 24,
+   "cache_read": 361893,
+   "cache_write": 25805,
+   "out": 12297,
+   "cli_cost_usd": 0.7465415
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 8,
+   "cache_read": 82954,
+   "cache_write": 12934,
+   "out": 4670,
+   "cli_cost_usd": 0.28760699999999995
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 18,
+   "cache_read": 278623,
+   "cache_write": 32642,
+   "out": 12058,
+   "cli_cost_usd": 0.7672715
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  },
+  {
+   "uncached_in": 0,
+   "cache_read": 0,
+   "cache_write": 0,
+   "out": 0,
+   "cli_cost_usd": 0
+  }
+ ],
+ "orion_run_dir": ".orion/runs/cf68c2fed282270a30e95a113a25bf6f930a63e1/20261102T060430Z",
+ "scan_id": "cf68c2fed282270a30e95a113a25bf6f930a63e1",
+ "graph": "cleared"
+}

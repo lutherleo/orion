@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "file": "src/index.js",
+      "function": "parseUrl",
+      "line_start": 66,
+      "line_end": 79,
+      "cwe": "CWE-918",
+      "title": "Host confusion in git-URL fallback parser enables SSRF / allowlist bypass",
+      "explanation": "When parse-path cannot parse the input (parsed.parse_failed), parseUrl re-parses the raw attacker-supplied string with the hand-rolled GIT_RE (line 38) and assigns parsed.resource and parsed.host from capture group 4, which is the character class ([\\w\\.\\-@]+). That class includes '@', so userinfo is captured as part of the host instead of being separated from it. The returned 'resource'/'host' fields are therefore not the real network destination, even though the API documents resource as 'The url domain (including subdomains)'. Verified against the real code in this repo: parseUrl('git@github.com@169.254.169.254:latest/meta-data', false) returns host = resource = 'github.com@169.254.169.254', user = 'git'; parseUrl('https://github.com@127.0.0.1:999999/x/y', false) returns host = 'github.com@127.0.0.1'. A consumer that validates the parsed host against an allowlist with prefix/equality/suffix logic sees a trusted 'github.com...' value and permits the request, but any URL rebuilt from that value (e.g. 'https://' + resource + pathname) or any git/ssh client fed the original string resolves to the attacker-controlled trailing host -- 169.254.169.254 (cloud metadata) or 127.0.0.1 (internal services). The http(s):// alternative of GIT_RE is reachable in practice because WHATWG `new URL()` rejects URLs with an out-of-range port, which makes parse-path fail and hands plain http/https URLs to this ssh fallback; parseUrl('http://user:s3cr3t@github.com:999999/a/b', false) returns host = 'user' while the real host is github.com, and additionally forces protocols = ['ssh'], protocol = 'ssh' and user = 'git' onto an http input, so protocol-based authorization decisions are also wrong. The same defect is present verbatim in the shipped build artifacts dist/index.js:74-87 (the package 'main') and dist/index.mjs:67-80.",
+      "path": [
+        { "file": "src/index.js", "function": "parseUrl", "line": 35, "role": "source" },
+        { "file": "src/index.js", "function": "parseUrl", "line": 63, "role": "propagator" },
+        { "file": "src/index.js", "function": "parseUrl", "line": 67, "role": "propagator" },
+        { "file": "src/index.js", "function": "parseUrl", "line": 71, "role": "sink" },
+        { "file": "src/index.js", "function": "parseUrl", "line": 72, "role": "sink" }
+      ]
+    },
+    {
+      "file": "src/index.js",
+      "function": "parseUrl",
+      "line_start": 38,
+      "line_end": 38,
+      "cwe": "CWE-20",
+      "title": "Unanchored GIT_RE silently truncates the URL, so parsed components misrepresent the input",
+      "explanation": "GIT_RE is anchored only at the start ('^') and has no terminating '$'. Because String.prototype.match with a non-global regex returns the first match of any prefix, any input tail made of characters outside the path class ([\\~,\\.\\w,\\-,\\_,\\/]) is silently discarded instead of causing a parse error, and parseUrl still reports parse_failed = false (line 75) -- signalling a fully successful parse. Verified against the real code in this repo: parseUrl('git@github.com:org/repo.git@evil.com', false) returns host = 'github.com' and pathname = '/org/repo.git' while href retains the complete attacker string 'git@github.com:org/repo.git@evil.com'; the same truncation drops '?redirect=http://evil.com', '#@evil.com/x', and ':../../evil' (parseUrl('git@github.com:safe/repo:../../evil', false) yields pathname '/safe/repo'). This splits the URL into a sanitized view and an unsanitized view of the same string: a consumer that authorizes on the parsed host/pathname but then acts on parsed.href or on the original input operates on data the validation step never examined, bypassing the check. The truncation also mangles credentials into the wrong fields -- parseUrl('http://user:s3cr3t@github.com:999999/a/b', false) places the secret in pathname as '/s3cr3t@git' while reporting password = '' -- so userinfo leaks into fields that callers routinely log or echo. Adding a '$' anchor (and rejecting non-matching input) is the upstream remediation. The same unanchored pattern ships in dist/index.js:46 and dist/index.mjs:39.",
+      "path": [
+        { "file": "src/index.js", "function": "parseUrl", "line": 35, "role": "source" },
+        { "file": "src/index.js", "function": "parseUrl", "line": 38, "role": "propagator" },
+        { "file": "src/index.js", "function": "parseUrl", "line": 67, "role": "propagator" },
+        { "file": "src/index.js", "function": "parseUrl", "line": 74, "role": "sink" },
+        { "file": "src/index.js", "function": "parseUrl", "line": 75, "role": "sink" }
+      ]
+    }
+  ]
+}

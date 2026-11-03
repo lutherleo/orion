@@ -1,0 +1,21 @@
+{
+  "arm": "P",
+  "label": "P-plain-sonnet5",
+  "eval_arm": "plain-sonnet5",
+  "benchmark": "pygoat",
+  "fixture_commit": "19d17cc8874861142b330636d068bbde54e86b85",
+  "model": "claude-sonnet-5",
+  "effort": "xhigh",
+  "status": "crashed",
+  "usage": [
+    {
+      "uncached_in": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "out": 0,
+      "reasoning": null
+    }
+  ],
+  "wallclock_s": 0.6,
+  "findings": []
+}

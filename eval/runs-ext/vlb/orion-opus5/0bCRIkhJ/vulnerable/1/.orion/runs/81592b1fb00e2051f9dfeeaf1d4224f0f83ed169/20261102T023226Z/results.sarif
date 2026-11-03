@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-1188",
+              "name": "CWE1188",
+              "shortDescription": {
+                "text": "CWE-1188"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1188"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/1188.html"
+            },
+            {
+              "id": "CWE-674",
+              "name": "CWE674",
+              "shortDescription": {
+                "text": "CWE-674"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-674"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/674.html"
+            },
+            {
+              "id": "CWE-79",
+              "name": "CWE79",
+              "shortDescription": {
+                "text": "CWE-79"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-79"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/79.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-79",
+          "level": "error",
+          "message": {
+            "text": "Attacker-controlled OBJECT PROPERTY NAMES are never sanitized. In lib/sanitize.js:42 the object branch does `Object.keys(data).forEach((key) => { ... data[key] = sanitizeHtml(item, ...) ... })` -- only the VALUE at each key is passed through sanitizeHtml; the key string itself is never rewritten or validated. Attacker input reaches here from index.js:9 (`req[k] = sanitize(req[k], options)` for body/params/headers) and index.js:12 (`sanitize(req.query, options)`). So a request body/query of the form {\"<img src=x onerror=alert(1)>\": \"benign\"} passes completely through the middleware with the HTML payload intact in the key. Any consuming app that renders or echoes request-object keys (e.g. iterating req.body to build an HTML form/table, or serializing the object into a template) gets stored/reflected XSS despite the sanitizer being installed. This defeats the library's stated contract that everything in req is XSS-safe.\n\nVerifier (CONFIRM): Re-derived independently from source. In lib/sanitize.js:41-53 the object branch iterates Object.keys(data) and sanitizes only the VALUE (data[key] = sanitizeHtml(item, ...) at line 48, or recurses at line 50); the key string is used solely as a subscript and in the allowedKeys.includes(key) check (grep: key appears only at lines 42,43,46,48,50). It is never escaped, rewritten, or deleted, and the object is mutated in place, so attacker-supplied property names pass through verbatim. Graph confirms only three sanitizeHtml call sites exist in the entire scan (lib/sanitize.js:28 on `data`, :33 on `item`, :48 on `item`) and none receives `key`. Reachability holds despite the graph marking index.js:9/12 reachable_from_entry=false (arrow-function under-linking of the middleware closure returned by middleware()): source shows index.js:9 passes req.body/params/headers and index.js:12 passes req.query directly into sanitize, and `xss` is the exported entry at index.js:24; lib/sanitize.js:42 itself is reachable_from_entry=true, hop=1. Exploit: POST body {\"<img src=x onerror=alert(1)>\":\"benign\"} or GET ?<img src=x onerror=alert(1)>=1 returns with the payload intact in the key, defeating README line 2's claim that req.body/query/headers/params are sanitized against XSS. The 1317-line test suite asserts only on values and has no key-sanitization test, so this is an untested gap rather than a documented limitation. Severity held at MEDIUM rather than HIGH because this is a library with no rendering sink of its own: XSS fires only in consumers that echo key names (field dumps, dynamic form/table builders, \"unknown field: X\" errors), making it an incomplete-sanitization failure of a security control. Advisory exploit-reference check was unavailable (exploit corpus not indexed), and dependency versions are ranges only (sanitize-html ~2.13.0, no lockfile) \u2014 immaterial, as the defect is in this repo's own code, not a dependency CVE."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/sanitize.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 42,
+                  "endLine": 52
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "sanitize",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "2af276c7ea53fcea2d9be19462abb5a3c3e9dea9"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "HIGH",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-674",
+          "level": "error",
+          "message": {
+            "text": "Unbounded attacker-controlled recursion depth -> stack-exhaustion DoS. The `sanitize` function recurses at lib/sanitize.js:36 (`sanitize(options, item)` inside the Array.map branch) and lib/sanitize.js:50 (`sanitize(options, item)` inside the object branch) with NO depth counter, NO visited-set, and NO cycle guard -- the function's only parameters are `options` and `data`. Attacker fully controls nesting depth of a JSON body (body-parser is a declared dependency) or of a bracketed query string, so a request like {\"a\":{\"a\":{\"a\": ... }}} nested a few thousand levels deep drives recursion past the V8 stack limit, throwing a RangeError inside the synchronous middleware before next() at index.js:19 -- an unhandled exception per request, giving cheap remote DoS of every route behind the middleware.\n\nVerifier (CONFIRM): Independently confirmed the structural defect: `sanitize` (lib/sanitize.js:26) takes only `(options, data)` and recurses unconditionally at line 36 (inside the `data.map` arrow) and line 50 (inside the `Object.keys(...).forEach` arrow) with no depth counter, no visited set and no cycle guard \u2014 a repo-wide grep for `depth|WeakSet|Set(|seen|visited|maxDepth` finds zero guards in index.js/lib/sanitize.js, and the graph reports the method's parameters as exactly [this:0, options:1, data:2]. The sink is genuinely reachable: index.js:5-21 returns a synchronous middleware that calls sanitize on req.body (line 9) and req.query (line 12) before next() (line 19); the graph has EntryPoint{kind:handler, exposure:reachable} -> index.js::program:middleware and both recursion calls at reachable_from_entry=true, hop_distance=2. Attacker controls nesting depth via a JSON body in the documented deployment (bodyParser.json() + xss(), test/test.js:17-19, README.md:23-25): at body-parser's default 100 kb a nested-array payload reaches ~50k levels while sanitize consumes ~3 JS frames per level (sanitize -> map/forEach -> arrow -> sanitize), overflowing Node's ~11k-frame stack at ~3-4k levels, so a depth window where the body parses but sanitize throws RangeError always exists. Two of the analyst's sub-claims are WRONG and I corrected them: (1) the bracketed query-string vector is not viable because qs enforces depth:5 by default; (2) it is not an \"unhandled exception\" \u2014 Express's Layer.handleRequest try/catches synchronous middleware and forwards to next(err), so the result is a 500 per request plus CPU/heap amplification, not a process crash. Also, body-parser/express are devDependencies (package.json:36-47), not runtime deps, and the README's own `limit:'1kb'` example would cap depth near ~500 levels and defeat the attack \u2014 so impact is deployment-dependent. CWE-674 confirmed; severity downgraded to MEDIUM."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/sanitize.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 26,
+                  "endLine": 55
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "sanitize",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "791ccd255ac9b9024341b1619cd7e4794ec00941"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-1188",
+          "level": "error",
+          "message": {
+            "text": "Fail-open on the strictest configuration: initializeOptions() only forwards allowedTags into sanitizerOptions when `options.allowedTags.length > 0`, and only forwards allowedAttributes when `Object.keys(options.allowedAttributes).length > 0`. A developer who explicitly requests the MOST restrictive policy -- `allowedTags: []` (strip every tag) or `allowedAttributes: {}` (strip every attribute) -- has that setting silently discarded, leaving sanitizerOptions without the key, so sanitize-html falls back to its built-in permissive default allowlist instead of stripping everything. The requested control is silently disabled rather than enforced; the app believes all HTML is removed while a default tag/attribute allowlist is actually in force.\n\nVerifier (CONFIRM): Re-derived from source. lib/sanitize.js:12-18 gates forwarding on `options.allowedTags.length > 0` and `Object.keys(options.allowedAttributes).length > 0`, so the two strictest possible policies -- `allowedTags: []` (strip all tags) and `allowedAttributes: {}` (strip all attributes) -- are silently dropped and never reach sanitize-html; lines 20-23 show no other path can set them, and sanitizerOptions goes unmodified into sanitizeHtml() at lines 28/33/48. The resulting fallback is not theoretical: the project's own test at test/test.js:1228-1274 exercises `sanitizerOptions === {}` and asserts that `<p onclick>`, `<h1 onclick>`, `<h6>` and `<a href=\"/\">` all survive -- exactly the state a caller requesting \"strip everything\" is silently placed in, with sanitize-html's built-in default allowlist in force. No doc or test sanctions empty-as-defaults (grep for `allowedTags: []` / `allowedAttributes: {}` across the repo: zero matches), and README.md:38-45 presents allowedTags purely as an allowlist, so `[]` naturally reads as \"allow nothing\". Reachability is the package's public API (index.js:5-21 `xss()` middleware over req.body/params/headers/query, plus exported `sanitize` at index.js:25); the graph's reachable_from_entry=false on index.js:9/:12 is the known arrow-function under-linking artifact (sibling rows at index.js:5 and lib/sanitize.js:6 are reach:true) and does not downgrade a library whose entry point is the exported middleware. Severity held to MEDIUM rather than HIGH because the fallback is sanitize-html's *default* allowlist, which still strips <script>, <img> and on* handlers (same test: a:'', c:'', onclick removed) and limits href to safe schemes -- so the realized impact is HTML injection / content spoofing and the silent disabling of an explicitly requested control, not direct script execution. Advisory exploit_search could not be completed (corpus reports \"exploit corpus unavailable: not indexed\"); irrelevant here since the defect is in this repo's option plumbing, not in sanitize-html ~2.13.0 itself."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/sanitize.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12,
+                  "endLine": 18
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "initializeOptions",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "1cddf903d1e609d35354458894bf305858ee7a6d"
+          },
+          "properties": {
+            "shape": "B",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+﻿unchanged: 10 passed, 2 skipped in 0.05s
+no _WINDOWS check: 1 failed, 9 passed, 2 skipped in 0.09s
+    test_remove_tree_changes_no_mode_on_posix
+no func check: 1 failed, 9 passed, 2 skipped in 0.09s
+    test_the_retry_is_only_for_a_refused_delete
+no PermissionError check: 1 failed, 9 passed, 2 skipped in 0.05s
+    test_the_retry_is_only_for_a_refused_delete
+no islink check: 1 failed, 9 passed, 2 skipped in 0.05s
+    test_the_retry_skips_a_symlink
+no isjunction check: 10 passed, 2 skipped in 0.04s
+#5's code (f244ee0): 5 failed, 5 passed, 2 skipped in 0.05s
+    test_remove_tree_does_not_raise_on_an_unreadable_folder
+    test_remove_tree_changes_no_mode_on_posix
+    test_remove_tree_on_a_symlink_leaves_its_target_alone
+    test_the_retry_is_only_for_a_refused_delete
+    test_the_retry_skips_a_symlink

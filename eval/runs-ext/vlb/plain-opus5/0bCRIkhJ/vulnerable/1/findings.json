@@ -1,0 +1,63 @@
+{
+  "findings": [
+    {
+      "file": "lib/sanitize.js",
+      "function": "sanitize",
+      "line_start": 42,
+      "line_end": 52,
+      "cwe": "CWE-79",
+      "title": "Object property names are never sanitized (XSS sanitizer bypass via attacker-chosen keys)",
+      "explanation": "The object branch of sanitize() enumerates Object.keys(data) and only rewrites the *values* (data[key] = sanitizeHtml(item)). The key strings themselves are never passed through sanitizeHtml and are copied through verbatim at every nesting depth. Property names in req.body (JSON or urlencoded), req.query and req.headers are fully attacker-controlled, so a request such as POST /x {\"<img src=x onerror=alert(1)>\":\"v\"} or GET /x?<svg onload=alert(1)>=1 or a custom header named 'x-<img src=x onerror=alert(1)>' leaves the payload intact in the object the middleware hands to the application. Verified by executing lib/sanitize.js and index.js: body/query/headers values came back escaped while the keys were returned unchanged. Any application that renders key names into HTML - dynamic form/table rendering, 'unknown field: <key>' validation errors, admin request-log views, Object.entries loops in a template - gets reflected or stored XSS even though it correctly installed this middleware, because the library's documented contract ('sanitizes user input data in req.body, req.query, req.headers and req.params to prevent XSS') is only half implemented.",
+      "path": [
+        {"file": "index.js", "function": "middleware", "line": 9, "role": "source"},
+        {"file": "index.js", "function": "middleware", "line": 12, "role": "source"},
+        {"file": "lib/sanitize.js", "function": "prepareSanitize", "line": 59, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "sanitize", "line": 42, "role": "sink"}
+      ]
+    },
+    {
+      "file": "lib/sanitize.js",
+      "function": "sanitize",
+      "line_start": 43,
+      "line_end": 45,
+      "cwe": "CWE-79",
+      "title": "allowedKeys is matched at any nesting depth and skips the entire subtree unsanitized",
+      "explanation": "The allowedKeys exemption is applied on every recursive call, at every depth, and when a key matches the function returns immediately without descending, so the whole value - nested objects, arrays and all strings inside them - is left unsanitized. Because the attacker chooses where keys appear in the payload, a single exempted field name documented for top-level use (README example: allowedKeys: ['name']) becomes an unsanitized channel anywhere in the request. Verified by execution: with {allowedKeys:['name']}, the input {\"profile\":{\"bio\":{\"name\":\"<script>alert(1)</script>\"}},\"items\":[{\"name\":\"<img src=x onerror=alert(2)>\"}],\"other\":\"clean\"} returned both payloads byte-for-byte while 'other' was sanitized. The developer exempted one known top-level field; the attacker gets exemption for deeply nested objects and array elements they control, which the application has no reason to treat as raw HTML. There is no depth restriction, no path anchoring, and no way to scope the exemption.",
+      "path": [
+        {"file": "index.js", "function": "middleware", "line": 9, "role": "source"},
+        {"file": "lib/sanitize.js", "function": "prepareSanitize", "line": 59, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "sanitize", "line": 50, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "sanitize", "line": 43, "role": "sink"}
+      ]
+    },
+    {
+      "file": "lib/sanitize.js",
+      "function": "initializeOptions",
+      "line_start": 12,
+      "line_end": 18,
+      "cwe": "CWE-1188",
+      "title": "Restrictive sanitizer options are silently discarded and replaced by permissive sanitize-html defaults (fail open)",
+      "explanation": "initializeOptions only forwards allowedTags when options.allowedTags.length > 0, and only forwards allowedAttributes when Object.keys(options.allowedAttributes).length > 0. The two most restrictive configurations a developer can write are therefore thrown away: xss({allowedTags: []}) ('strip every tag') and xss({allowedAttributes: {}}) ('allow no attributes') both leave sanitizerOptions as {}. A non-array value such as allowedTags: 'h1' is dropped the same way by the Array.isArray guard on line 12, with no error or warning. sanitize-html merges a supplied options object over its own defaults (Object.assign({}, sanitizeHtml.defaults, options)), so {} means the full default allowlist is used instead of the empty one requested: tags including a, div, span, p, b and the table elements, plus the default attribute allowlist a[href,name,target] and img[src,srcset,...]. Verified by execution: the options object reaching sanitizeHtml for both {allowedTags: []} and {allowedAttributes: {}} was {}. The result is a silent fail-open - markup the developer explicitly configured to remove is preserved, allowing HTML injection into the page (attacker-controlled <a href=\"https://evil.example\"> phishing links, target-based reverse tabnabbing, content/UI spoofing and layout takeover). Script-executing tags are not in sanitize-html's defaults, so this does not by itself yield JavaScript execution; the vulnerability is that the configured security control is discarded and a weaker policy is substituted without the developer's knowledge.",
+      "path": [
+        {"file": "index.js", "function": "middleware", "line": 9, "role": "source"},
+        {"file": "lib/sanitize.js", "function": "initializeOptions", "line": 12, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "initializeOptions", "line": 16, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "sanitize", "line": 28, "role": "sink"}
+      ]
+    },
+    {
+      "file": "lib/sanitize.js",
+      "function": "sanitize",
+      "line_start": 26,
+      "line_end": 55,
+      "cwe": "CWE-674",
+      "title": "Uncontrolled recursion over untrusted input causes stack exhaustion",
+      "explanation": "sanitize() recurses once per nesting level of the input (lines 36 and 50) with no depth limit, visited-node tracking, or iterative fallback, and it is driven directly by attacker-supplied request data. Verified by execution: a JSON body of nesting depth 5000 - only about 30 KB, well inside the 100 KB default limit of express.json()/body-parser - makes sanitize() throw 'RangeError: Maximum call stack size exceeded'; depth 1000 still completes, so the threshold is easily probed and exceeded. The throw happens synchronously inside the middleware, so Express routes it to the error handler and the practical impact is a cheap-to-generate 500 per request plus the stack and CPU consumed walking the structure, rather than a process crash; the README's suggested 1 KB body limit would blunt it, but the library enforces no limit of its own and the default Express configuration is vulnerable. Note that the traversal itself is not prototype-polluting: keys like __proto__ coming from JSON.parse are own writable data properties, so data[key] = ... writes the own property instead of invoking the inherited setter (confirmed by execution - Object.prototype was untouched).",
+      "path": [
+        {"file": "index.js", "function": "middleware", "line": 9, "role": "source"},
+        {"file": "lib/sanitize.js", "function": "prepareSanitize", "line": 59, "role": "propagator"},
+        {"file": "lib/sanitize.js", "function": "sanitize", "line": 50, "role": "sink"}
+      ]
+    }
+  ]
+}

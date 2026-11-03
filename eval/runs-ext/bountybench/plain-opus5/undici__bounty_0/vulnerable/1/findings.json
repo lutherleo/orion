@@ -1,0 +1,132 @@
+{
+  "findings": [
+    {
+      "file": "lib/dispatcher/client-h1.js",
+      "function": "writeH1",
+      "line_start": 972,
+      "line_end": 974,
+      "cwe": "CWE-93",
+      "title": "CRLF injection / request splitting via the `upgrade` (`protocol`) dispatch option",
+      "explanation": "Every other value that is interpolated into the raw HTTP/1.1 request line and header block is validated first: `path` is checked against `invalidPathRegex`, `method` with `isValidHTTPToken`, and every header name/value with `isValidHTTPToken`/`isValidHeaderChar` (lib/core/request.js). The `upgrade` option is only type-checked (`typeof upgrade !== 'string'`, lib/core/request.js:64-66) and is then written verbatim into the serialized request here: `header += \"connection: upgrade\\r\\nupgrade: ${upgrade}\\r\\n\"`. A CR/LF in that value therefore terminates the header and lets the caller append arbitrary headers or an entire second request. Reachable from the public API as `undici.upgrade(url, { protocol })` / `client.upgrade({ protocol })`, where `protocol` becomes `opts.upgrade` (lib/api/api-upgrade.js:94), so an application that derives the upgrade protocol from user input gets header injection and request smuggling. Verified: `client.upgrade({ path: '/', protocol: 'websocket\\r\\nX-Injected-Header: evil\\r\\n\\r\\nGET /admin HTTP/1.1\\r\\nHost: 127.0.0.1' })` puts two complete requests on the socket: \"GET / HTTP/1.1\\r\\nhost: ...\\r\\nconnection: upgrade\\r\\nupgrade: websocket\\r\\nX-Injected-Header: evil\\r\\n\\r\\nGET /admin HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\n\\r\\n\".",
+      "path": [
+        {
+          "file": "lib/api/api-upgrade.js",
+          "function": "upgrade",
+          "line": 94,
+          "role": "source"
+        },
+        {
+          "file": "lib/core/request.js",
+          "function": "Request",
+          "line": 64,
+          "role": "propagator"
+        },
+        {
+          "file": "lib/core/request.js",
+          "function": "Request",
+          "line": 135,
+          "role": "propagator"
+        },
+        {
+          "file": "lib/dispatcher/client-h1.js",
+          "function": "writeH1",
+          "line": 973,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "lib/handler/redirect-handler.js",
+      "function": "shouldRemoveHeader",
+      "line_start": 197,
+      "line_end": 209,
+      "cwe": "CWE-200",
+      "title": "`proxy-authorization` credentials forwarded to a different origin when following a redirect",
+      "explanation": "When `RedirectHandler` follows a redirect to a different origin it strips only `host`, `authorization` and `cookie` (the length checks `header.length === 13 || header.length === 6` plus the name comparison). `proxy-authorization` (length 19) is never removed, so the credential is replayed to whatever origin the redirect `Location` header names. The target origin is fully attacker-controlled: it comes from the response of the first server (parseLocation at line 184-194, applied at line 113-119). The same leak was fixed for `fetch` (lib/web/fetch/index.js deletes `proxy-authorization` on cross-origin redirect) but not on this path, which is what `undici.request/stream/pipeline` with `maxRedirections` uses. Verified: a request to origin A with headers `authorization`, `cookie`, `proxy-authorization` that is 302-redirected to origin B arrives at B with `authorization` and `cookie` removed but `proxy-authorization: Basic ...` intact.",
+      "path": [
+        {
+          "file": "lib/handler/redirect-handler.js",
+          "function": "parseLocation",
+          "line": 190,
+          "role": "source"
+        },
+        {
+          "file": "lib/handler/redirect-handler.js",
+          "function": "RedirectHandler.onHeaders",
+          "line": 119,
+          "role": "propagator"
+        },
+        {
+          "file": "lib/handler/redirect-handler.js",
+          "function": "cleanRequestHeaders",
+          "line": 216,
+          "role": "propagator"
+        },
+        {
+          "file": "lib/handler/redirect-handler.js",
+          "function": "shouldRemoveHeader",
+          "line": 206,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "lib/web/fetch/body.js",
+      "function": "extractBody",
+      "line_start": 130,
+      "line_end": 134,
+      "cwe": "CWE-93",
+      "title": "Unvalidated blob `type` injected into multipart/form-data body (form field injection)",
+      "explanation": "`extractBody` writes a form entry's MIME type straight into the multipart body (`Content-Type: ${value.type || 'application/octet-stream'}\\r\\n\\r\\n`). Entry names and filenames are escaped (`%0A`/`%0D`/`%22`) and the native `Blob`/`File` constructors reject types containing characters outside U+0020-U+007E, but `FileLike` - the wrapper used for duck-typed blob-likes (`isBlobLike`, accepted because `FormData.append` converts with `{ strict: false }`) - copies `options.type` without any validation (lib/web/fetch/file.js:119-120, where the spec step is left as a `TODO`). An application that appends a blob-like object whose `type` it took from untrusted data (e.g. a forwarding/proxy helper that reuses an upstream content-type) therefore lets the attacker close the part and inject extra parts. Verified: appending `{ [Symbol.toStringTag]: 'Blob', size, stream, arrayBuffer, type: 'text/plain\\r\\n\\r\\nINJECTED-BODY\\r\\n------formdata-undici-0x\\r\\nContent-Disposition: form-data; name=\"admin\"\\r\\n\\r\\ntrue' }` produces a request body containing an additional, fully-formed `admin=true` form field.",
+      "path": [
+        {
+          "file": "lib/web/fetch/formdata.js",
+          "function": "makeEntry",
+          "line": 236,
+          "role": "source"
+        },
+        {
+          "file": "lib/web/fetch/file.js",
+          "function": "FileLike",
+          "line": 120,
+          "role": "propagator"
+        },
+        {
+          "file": "lib/web/fetch/body.js",
+          "function": "extractBody",
+          "line": 132,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "lib/web/fetch/util.js",
+      "function": "isURLPotentiallyTrustworthy.isOriginPotentiallyTrustworthy",
+      "line_start": 534,
+      "line_end": 538,
+      "cwe": "CWE-346",
+      "title": "Trustworthy-origin check matches any hostname containing the substring \"localhost.\"",
+      "explanation": "The secure-origin test uses `originAsURL.hostname.includes('localhost.')`, a substring match, instead of only accepting `localhost`, `*.localhost` and `localhost.`. Any attacker-registrable plaintext host whose name contains that substring is therefore classified as potentially trustworthy: verified that `isURLPotentiallyTrustworthy(new URL('http://localhost.attacker.com/'))` and `http://my-localhost.evil.net/` both return `true`. The function gates the referrer downgrade protection in `determineRequestsReferrer` (lines 417-418 and 440): under the default policy `strict-origin-when-cross-origin`, a request to an insecure cross-origin URL should yield `no-referrer`, but because the attacker's `http://` origin is treated as trustworthy the code falls through and sends `Referer: <configured global origin>` in cleartext to that host, leaking the client's origin over an unencrypted channel and defeating the `strict-origin`/`no-referrer-when-downgrade` policies as well.",
+      "path": [
+        {
+          "file": "lib/web/fetch/index.js",
+          "function": "mainFetch",
+          "line": 550,
+          "role": "source"
+        },
+        {
+          "file": "lib/web/fetch/util.js",
+          "function": "determineRequestsReferrer",
+          "line": 440,
+          "role": "propagator"
+        },
+        {
+          "file": "lib/web/fetch/util.js",
+          "function": "isURLPotentiallyTrustworthy.isOriginPotentiallyTrustworthy",
+          "line": 536,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

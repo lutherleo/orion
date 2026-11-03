@@ -1,0 +1,66 @@
+preflight: all prerequisites present.
+
+=== arm O (opus) on nodegoat ===
+[eval] building graph for /home/lutherleo/orion-bench/fixtures/NodeGoat …
+/home/lutherleo/.cache/huggingface/modules/transformers_modules/jinaai/jina_hyphen_bert_hyphen_v2_hyphen_qk_hyphen_post_hyphen_norm/3baf9e3ac750e76e8edd3019170176884695fb94/configuration_bert.py:29: UserWarning: optimum is not installed. To use OnnxConfig and BertOnnxConfig, make sure that `optimum` package is installed
+  warnings.warn("optimum is not installed. To use OnnxConfig and BertOnnxConfig, make sure that `optimum` package is installed")
+
+arm O-opus / nodegoat: recall 14/15 (checkable 14), FP-candidates 2, 8384181 tokens, $20.1400 priced, 1169.3s
+[eval] wrote /home/lutherleo/orion-bench/bench/research/nodegoat/O-opus.json
+
+=== arm O (opus) on pygoat ===
+[eval] building graph for /home/lutherleo/orion-bench/fixtures/pygoat …
+
+arm O-opus / pygoat: recall 14/16 (checkable 15), FP-candidates 9, 8525111 tokens, $18.1410 priced, 2128.6s
+[eval] wrote /home/lutherleo/orion-bench/bench/research/pygoat/O-opus.json
+
+=== arm P (plain-opus5, eval's plain arm) on nodegoat ===
+[P] nodegoat: status ok, wrote /home/lutherleo/orion-bench/bench/research/nodegoat/P-plain-opus5.json
+
+=== arm P (plain-opus5, eval's plain arm) on pygoat ===
+[P] pygoat: status ok, wrote /home/lutherleo/orion-bench/bench/research/pygoat/P-plain-opus5.json
+(plots skipped: No module named 'matplotlib')
+
+Paste into bench/research/REPORT.md, then commit bench/research/*/O-*.json, P-*.json + the plots:
+
+**nodegoat**
+
+| Arm | Recall | FP candidates (verdicts) | Tokens / cost | Wall-clock |
+|---|---|---|---|---|
+| Opus 5, no Orion (C) | 15 / 15 | 5 | 326k / $0.61 | 139s |
+| Semgrep (D) | 4 / 15 | 26 | 0k / $0.00 | 28s |
+| Orion + opus | 14 / 15 | 2 (31C/0I/2R/0E) | 8384k / $20.14 | 1169s |
+
+**pygoat**
+
+| Arm | Recall | FP candidates (verdicts) | Tokens / cost | Wall-clock |
+|---|---|---|---|---|
+| Opus 5, no Orion (C) | 14 / 16 | 10 | 446k / $0.84 | 174s |
+| Semgrep (D) | 7 / 16 | 85 | 0k / $0.00 | 72s |
+| Orion + opus | 14 / 16 | 9 (34C/0I/0R/0E) | 8525k / $18.14 | 2129s |
+
+The same results through eval's frozen matcher (Gate 3):
+
+**nodegoat** (eval matcher: L1 file + function or line +/-10, L2 + CWE family, one-to-one; keys proposed, NOT signed: dev evidence on draft keys)
+
+| Arm | L1 caught (location only) | L2 caught (+ CWE) | missed (L1) | duplicates | unmatched | no CWE | unlocated |
+|---|---|---|---|---|---|---|---|
+| C | 15 / 15 | 0 / 15 | - | 3 | 3 | 21 | 0 of 21 |
+| D | 5 / 15 | 0 / 15 | A1-2, A1-3, A2-2, A4, A6, A7, A8, A9, SSRF, ReDoS | 10 | 20 | 35 | 1 of 35 |
+| P-plain-sonnet5 | 5 / 15 | 5 / 15 | A1-3, A2-1, A3, A5, A6, A7, A8, A9, A10, ReDoS | 0 | 8 | 0 | 0 of 13 |
+| P-plain-opus5 | 12 / 15 | 11 / 15 | A5, A6, A9 | 3 | 4 | 0 | 0 of 19 |
+| O-opus | 15 / 15 | 13 / 15 | - | 12 | 4 | 0 | 0 of 31 |
+
+L1 does not check the bug TYPE: with many keys in one repo, a finding of another class near a fix site is credited. Only L2 checks the type, and a finding without a CWE can never reach it.
+
+**pygoat** (eval matcher: L1 file + function or line +/-10, L2 + CWE family, one-to-one; keys proposed, NOT signed: dev evidence on draft keys)
+
+| Arm | L1 caught (location only) | L2 caught (+ CWE) | missed (L1) | duplicates | unmatched | no CWE | unlocated |
+|---|---|---|---|---|---|---|---|
+| C | 15 / 16 | 0 / 16 | COMPONENTS | 9 | 6 | 30 | 0 of 30 |
+| D | 13 / 16 | 0 / 16 | XSS, LOGGING, COMPONENTS | 39 | 83 | 135 | 5 of 135 |
+| P-plain-sonnet5 | 14 / 16 | 12 / 16 | LOGGING, COMPONENTS | 14 | 4 | 0 | 0 of 32 |
+| P-plain-opus5 | 15 / 16 | 14 / 16 | COMPONENTS | 21 | 4 | 0 | 0 of 40 |
+| O-opus | 13 / 16 | 12 / 16 | SSTI, DESIGN-OTP, LOGGING | 16 | 5 | 0 | 0 of 34 |
+
+L1 does not check the bug TYPE: with many keys in one repo, a finding of another class near a fix site is credited. Only L2 checks the type, and a finding without a CWE can never reach it.

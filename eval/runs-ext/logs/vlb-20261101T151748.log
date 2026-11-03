@@ -1,0 +1,26 @@
+[1/10] plain-sonnet5 0bCRIkhJ vulnerable run 1: mirroring AhmedAdelFahim/express-xss-sanitizer
+[1/10] plain-sonnet5 0bCRIkhJ vulnerable run 1: attempt 2, 58f447a234d6 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/0bCRIkhJ/vulnerable/1.a2
+[1/10] plain-sonnet5 0bCRIkhJ vulnerable run 1: ok in 185.4s, 359866 tokens, CLI $0.415
+[2/10] plain-sonnet5 0bCRIkhJ patched run 1: attempt 2, 62d6542a2a57 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/0bCRIkhJ/patched/1.a2
+[2/10] plain-sonnet5 0bCRIkhJ patched run 1: ok in 279.6s, 600119 tokens, CLI $0.65
+[3/10] plain-sonnet5 TOhqi6Al vulnerable run 1: mirroring abodelot/jquery.json-viewer
+[3/10] plain-sonnet5 TOhqi6Al vulnerable run 1: attempt 2, 71e62bbe5cb8 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/TOhqi6Al/vulnerable/1.a2
+[3/10] plain-sonnet5 TOhqi6Al vulnerable run 1: ok in 79.8s, 316581 tokens, CLI $0.2241
+[4/10] plain-sonnet5 TOhqi6Al patched run 1: attempt 2, fe890813fc39 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/TOhqi6Al/patched/1.a2
+[4/10] plain-sonnet5 TOhqi6Al patched run 1: ok in 229.3s, 670550 tokens, CLI $0.4741
+[5/10] plain-sonnet5 NXIHKkeO vulnerable run 1: mirroring mmaitre314/picklescan
+[5/10] plain-sonnet5 NXIHKkeO vulnerable run 1: attempt 2, b0292af34a06 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/NXIHKkeO/vulnerable/1.a2
+[5/10] plain-sonnet5 NXIHKkeO vulnerable run 1: ok in 777.7s, 2547710 tokens, CLI $1.5211
+[6/10] plain-sonnet5 NXIHKkeO patched run 1: attempt 2, 173c8f2a869e -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/NXIHKkeO/patched/1.a2
+[6/10] plain-sonnet5 NXIHKkeO patched run 1: ok in 184.0s, 558327 tokens, CLI $0.4525
+[7/10] plain-sonnet5 JqAIZxnS vulnerable run 1: mirroring mpdavis/python-jose
+[7/10] plain-sonnet5 JqAIZxnS vulnerable run 1: attempt 2, b4a0e4f3dbee -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/JqAIZxnS/vulnerable/1.a2
+[7/10] plain-sonnet5 JqAIZxnS vulnerable run 1: ok in 235.5s, 1408282 tokens, CLI $0.7973
+[8/10] plain-sonnet5 JqAIZxnS patched run 1: attempt 2, 8e1f521a7588 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/JqAIZxnS/patched/1.a2
+[8/10] plain-sonnet5 JqAIZxnS patched run 1: ok in 184.8s, 1071767 tokens, CLI $0.6352
+[9/10] plain-sonnet5 laTh1BVj vulnerable run 1: mirroring eclipse-ee4j/parsson
+[9/10] plain-sonnet5 laTh1BVj vulnerable run 1: attempt 2, 82f3f1a4a37f -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/laTh1BVj/vulnerable/1.a2
+[9/10] plain-sonnet5 laTh1BVj vulnerable run 1: ok in 85.1s, 627325 tokens, CLI $0.3794
+[10/10] plain-sonnet5 laTh1BVj patched run 1: attempt 2, 9dd5ad5f871f -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/laTh1BVj/patched/1.a2
+[10/10] plain-sonnet5 laTh1BVj patched run 1: ok in 119.5s, 1624394 tokens, CLI $0.856
+done: {'ok': 10, 'aborted_retries': 0, 'failed': 0, 'skipped': 0}

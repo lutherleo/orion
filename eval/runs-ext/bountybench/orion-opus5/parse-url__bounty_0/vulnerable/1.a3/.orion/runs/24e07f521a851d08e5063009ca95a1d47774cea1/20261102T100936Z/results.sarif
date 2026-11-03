@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Orion",
+          "informationUri": "https://github.com/lutherleo/orion",
+          "rules": [
+            {
+              "id": "CWE-20",
+              "name": "CWE20",
+              "shortDescription": {
+                "text": "CWE-20"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-20"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/20.html"
+            },
+            {
+              "id": "CWE-436",
+              "name": "CWE436",
+              "shortDescription": {
+                "text": "CWE-436"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-436"
+                ],
+                "security-severity": "5.5"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/436.html"
+            },
+            {
+              "id": "CWE-918",
+              "name": "CWE918",
+              "shortDescription": {
+                "text": "CWE-918"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-918"
+                ],
+                "security-severity": "8.0"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/918.html"
+            }
+          ]
+        }
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "the scanned repository"
+          }
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-918",
+          "level": "error",
+          "message": {
+            "text": "Host/authority confusion in parse-url's git-ssh fallback: attacker-controlled `url` reaches `parsed.href.match(GIT_RE)` (src/index.js:67), and `parsed.resource` and `parsed.host` are then assigned from `matched[4]` (src/index.js:71-72) \u2014 capture group 4 of GIT_RE is `([\\w\\.\\-@]+)`, a greedy class that PERMITS the `@` character. For an input that parse-path marks `parse_failed` (e.g. `https://evil.com@good.com/p` or `git@evil.com@good.com/x`), group 4 greedily captures the entire `evil.com@good.com` span, so the returned `host`/`resource` is not the true URL authority. Consumers of parse-url use `parsed.resource`/`parsed.host` to choose a connection target or to make allowlist/host-validation decisions, so the returned authority disagrees with what an HTTP/SSH client would actually contact \u2014 SSRF / access-control bypass. Note the hand-rolled regex OVERRIDES the real parser's output rather than validating it, and `parsed.parse_failed` is reset to false (L75) so callers see the result as a clean parse.\n\nVerifier (CONFIRM): Re-derived from source. src/index.js:38 defines GIT_RE whose 4th capture group is ([\\w\\.\\-@]+) \u2014 I counted the groups myself L-to-R (g1 outer, g2 scheme alternation, g3 (s)?, g4 host class, g5 (/|:), g6/g7 path), confirming group 4 is the authority slot and that it permits and greedily consumes '@'. On the parse_failed path (L66) the function then OVERRIDES the real parser: parsed.resource = matched[4] (L71), parsed.host = matched[4] (L72), parsed.user is hardcoded to \"git\" discarding the real userinfo (L73), and parsed.parse_failed is reset to false (L75), so callers see a clean parse. Because GIT_RE is unanchored at the end and its host class allows multiple '@', an input that WHATWG new URL() rejects but GIT_RE matches yields host/resource that is NOT the authority an SSH/HTTP client would contact \u2014 e.g. `git@evil.com@good.com:org/repo.git` gives host=\"evil.com@good.com\" while ssh(1) would connect to good.com; `https://evil.com@good.com:99999/p` (port overflow makes new URL throw) likewise gives host=\"evil.com@good.com\". The branch is NOT dead: the package's own test at test/index.mjs:120-135 expects protocols:[\"ssh\"], user:\"git\", pathname:\"/my-org/my-repo.git\", port:\"\" for `git@github.my-enterprise.com:my-org/my-repo.git` \u2014 values only L69-75 can set, with port:\"\"/password:\"\" being parse-path's failure-branch defaults, proving scp-style URLs reach GIT_RE. Reachability confirmed by my own Cypher: EntryPoint{kind:\"handler\", exposure:\"reachable\"} -> src/index.js::program:parseUrl (L35), and L67/L71/L72/L75 all reachable_from_entry=true, hop_distance=1, with a FLOWS_TO chain normalizeUrl@60 -> parsePath@63 -> parsed.href.match(GIT_RE)@67. Same defect ships in the build artifacts (dist/index.js:46,74-83; dist/index.mjs:39,67-76). Two corrections to the analyst: (a) their PoC `https://evil.com@good.com/p` does NOT reach the branch \u2014 new URL() parses it successfully (username=\"evil.com\", host=\"good.com\") so parse_failed=false; the scp-style and port-overflow variants do. (b) Impact is downstream/consumer-dependent since this library makes no network call itself, so the SSRF/allowlist-bypass is realized in consumers (git-url-parse / git-up and similar) that trust parsed.host/parsed.resource as the connection target or allowlist key. exploit_search was unavailable (\"exploit corpus unavailable: not indexed\"), so no exploit-module/CVE version comparison was performed and none is claimed as evidence; version is pinned as parse-url 8.0.0 at package.json:3."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/index.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 66,
+                  "endLine": 75
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parseUrl",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "e9cebb0218ca2f1ee67e89df23bf4f8a742b2250"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        },
+        {
+          "ruleId": "CWE-436",
+          "level": "error",
+          "message": {
+            "text": "Protocol downgrade/confusion: when the GIT_RE fallback matches, src/index.js:69-70 unconditionally hardcodes `parsed.protocols = [\"ssh\"]` and `parsed.protocol = \"ssh\"`, but GIT_RE's leading alternation is `^(git@|http(s)?:\\/\\/)` \u2014 it explicitly ACCEPTS `http://` and `https://` inputs, not just `git@`. So an attacker-supplied `http://`/`https://` URL that parse-path fails on is relabelled as protocol \"ssh\" (and `parsed.user` is forced to \"git\" at L73). Any consumer that branches on `parsed.protocol` or allowlists protocols (a very common parse-url usage) is given a scheme that contradicts the input, enabling scheme-based validation bypass or routing the request through an unintended transport.\n\nVerifier (CONFIRM): Re-derived from source, the lead's structural claim is exactly right. src/index.js:38 defines GIT_RE with the alternation `(git@|http(s)?:\\/\\/)`, which explicitly accepts http:// and https:// inputs. In the `parse_failed` fallback at src/index.js:66-75, once `parsed.href.match(GIT_RE)` is truthy the code unconditionally hardcodes `parsed.protocols=[\"ssh\"]` (L69), `parsed.protocol=\"ssh\"` (L70), forges `parsed.user=\"git\"` (L73), and clears `parsed.parse_failed=false` (L75). Capture groups 2 and 3 - the ones that record WHICH scheme matched - are never read anywhere in the file, so nothing conditions the relabelling on the input actually being an ssh/git URL. The result: an http(s) URL is returned to the caller tagged as protocol \"ssh\", with an injected \"git\" user, its port silently dropped, and parse_failed=false so the forged result is indistinguishable from a clean parse. This is an interpretation conflict (CWE-436) in a library whose sole contract is to report a URL's protocol; consumers that allowlist or branch on `.protocol` (the dominant parse-url usage) get a scheme contradicting the input. I verified this is live shipped code, not dead src: dist/index.js:46,74-87 is logically identical and package.json:5 makes dist/index.js the `main` entry. The fallback branch is genuinely exercised - test/index.mjs:185-189 asserts parseUrl(\"foo\") throws \"URL parsing failed\", reachable only via the parse_failed===true guard at L66, confirming parse-path@7 sets parse_failed for inputs its new URL() rejects. My own graph queries show every call on L69-75 with reachable_from_entry=true and hop_distance=1, and src/index.js::program:parseUrl as an EntryPoint with exposure=reachable, so no reachability downgrade applies. Concrete trigger I derived: `https://evil.com:1234567890/path` - a port above 65535 is a spec-mandated WHATWG URL parse failure, so new URL() throws and parse_failed becomes true, then GIT_RE matches with group2=\"https://\", group4=\"evil.com\", group5=\":\", group7=\"1234567890/path\", yielding protocol \"ssh\" / user \"git\" / host \"evil.com\". Caveats I am explicit about: parse-path@7 is neither vendored nor in the graph (CpgFile lists only example/index.js and src/index.js) and Bash is disabled, so I could not read that dependency or execute the trigger - the \"invalid port => parse_failed\" step rests on the in-repo test plus the URL spec rather than direct observation; the unconditional-relabelling defect itself is confirmed purely by direct source reading and does not depend on it. The mandated exploit_search cross-check returned \"exploit corpus unavailable: not indexed\", so no version-range comparison could be performed and I do not claim a weaponized exploit; the pinned version is exactly 8.0.0 (package.json:3). I widened the analyst's location from 69-73 to 69-75, since L75's `parse_failed=false` is what lets the forged scheme escape as a successful parse. Severity MEDIUM rather than HIGH because impact is contingent on the downstream consumer's use of .protocol and no sink exists in this repo; it rises to HIGH for consumers that enforce scheme allowlists on that field."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/index.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 69,
+                  "endLine": 75
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parseUrl",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "efe6750b32f3b667b08310986f90aa4cbf138e06"
+          },
+          "properties": {
+            "shape": "A",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-436",
+          "level": "error",
+          "message": {
+            "text": "The JSDoc contains an explicit acknowledgement that the normalization protection does not cover the ssh/git path \u2014 'For SSH urls, normalize won't work.' (src/index.js:19, inside the parseUrl doc block). That documented gap lines up exactly with the GIT_RE fallback at lines 66-75, which is the branch that fabricates security-relevant output fields. Concretely, GIT_RE at line 38 accepts `http(s)?:\\/\\/` in its first alternative, and its capture group 4 is `([\\w\\.\\-@]+)` which PERMITS the `@` character; that group is assigned to BOTH `parsed.resource` (line 71) and `parsed.host` (line 72) while `parsed.protocol` is hard-overwritten to the string 'ssh' (line 70) and `parsed.protocols` to ['ssh'] (line 69). So an http(s)-prefixed input that fails parse-path gets relabelled with protocol 'ssh' and a `host` that may embed userinfo \u2014 protocol and host confusion in the returned object, which is the SSRF-relevant decision data consumers act on. The maintainer-documented 'normalize won't work' note means the one sanitizer in the file is known not to defend this path.\n\nVerifier (CONFIRM): Re-derived independently from source. All claimed structure is present: the JSDoc gap note at src/index.js:19, GIT_RE at line 38 whose first alternative accepts `http(s)?:\\/\\/` and whose capture group 4 is `([\\w\\.\\-@]+)` (permits `@`), and the fallback at lines 66-79 that assigns G4 to BOTH `parsed.resource` (71) and `parsed.host` (72) while hard-overwriting `parsed.protocol=\"ssh\"` (70), `parsed.protocols=[\"ssh\"]` (69), `parsed.user=\"git\"` (73 - the analyst missed this, it strengthens the claim) and clearing `parsed.parse_failed=false` (75). I verified group numbering by opening-paren order (G4 = the host/userinfo group, G6 = the path group used at line 74), and validated my reading of the greedy G4 against the project's own passing test. Crucially I established the branch is LIVE, not dead code: test/index.mjs:72-86 feeds `git@github.com:IonicaBizau/git-stats.git` and expects host \"github.com\"/protocol \"ssh\"/parse_failed false, output only this fallback can produce since `new URL()` rejects that string. parse-path ^7.0.0 (package.json:45, confirmed via :Dependency) gates parse_failed on WHATWG `new URL()`, and two spec-defined failure modes preserve an http(s) prefix while still matching GIT_RE, so http(s) input genuinely reaches the ssh relabelling. The logic is in the shipped artifact (package.json:5 main -> dist/index.js; dist/index.js:74-87 identical, no added guard), and the graph shows lines 69-75 reachable_from_entry=true at hop_distance=1 from the sole public entry point parseUrl (src/index.js:35). Two corrections to the lead: (a) the JSDoc \"normalize won't work\" note is weaker evidence than framed, since `normalize` DEFAULTS TO false at line 35, so the one sanitizer is absent by default regardless of the SSH caveat; (b) CWE-918 is imprecise, because the branch only fires when WHATWG URL rejects the input, so no fetchable destination diverges from the reported host unless a downstream consumer rebuilds the request from the returned components. That consumer dependence caps severity at MEDIUM; the deterministic, non-consumer-dependent defect is protocol/identity confusion (CWE-436). ADVISORY NOTE: exploit_search returned \"exploit corpus unavailable: not indexed\", so the exploit/version cross-check could not run and I assert no CVE or module identifiers; this verdict rests solely on the source and graph evidence I gathered."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/index.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 66,
+                  "endLine": 79
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parseUrl",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "efe6750b32f3b667b08310986f90aa4cbf138e06"
+          },
+          "properties": {
+            "shape": "C",
+            "confidence": "LOW",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "MEDIUM",
+            "security-severity": "5.5"
+          }
+        },
+        {
+          "ruleId": "CWE-20",
+          "level": "error",
+          "message": {
+            "text": "The GIT_RE literal at src/index.js:38 captures the \"host\" with the character class ([\\w\\.\\-@]+), which includes the userinfo delimiter '@'. Capture group 4 is then assigned verbatim to BOTH parsed.resource (line 71) and parsed.host (line 72). Because '@' is an allowed host character, a URL such as \"git@github.com@evil.com:path\" has group 4 greedily capture \"github.com@evil.com\", so parsed.host is not a hostname at all but a userinfo+host pair. Under SSH/URL semantics the effective host is the LAST @-segment (evil.com), so a downstream consumer that allowlists on parsed.host with a prefix/startsWith/contains check on \"github.com\" passes the check while the connection actually targets evil.com -- host-spoofing leading to SSRF. The danger is entirely in the literal's character class, not in the match() call. PRECONDITION the verifier must confirm: this branch only executes when parsed.parse_failed is true (line 66), i.e. only for inputs that parse-path itself failed to parse, so the verifier should check whether parse-path fails on a double-'@' git URL.\n\nVerifier (CONFIRM): Re-derived independently and the lead holds. src/index.js:38 defines GIT_RE whose group 4 character class is ([\\w\\.\\-@]+) \u2014 it literally admits '@', the userinfo delimiter, as a host character, while excluding ':' and '/'. For input \"git@github.com@evil.com:IonicaBizau/x.git\" the greediest (and immediately successful, non-backtracking) match gives group2=\"git@\", group4=\"github.com@evil.com\", group5=\":\", group7=\"IonicaBizau/x.git\". That value is then assigned verbatim and unvalidated to BOTH parsed.resource (line 71) and parsed.host (line 72); the only upstream guards are a type/empty check (46-48), a 2048-char length cap (50-52) and optional normalize-url (54-61, default false and documented at line 19 as not applying to SSH urls). The analyst's precondition is CONFIRMED rather than merely assumed: the branch needs parsed.parse_failed===true, and the project's own README:128-141 and test/index.mjs:71-86 show parseUrl(\"git@github.com:IonicaBizau/git-stats.git\") returning protocols:['ssh'], protocol:'ssh', user:'git', pathname:'/IonicaBizau/git-stats.git' \u2014 values hardcoded ONLY inside the if (parsed.parse_failed) block at lines 69-75 (pathname is literally `/${matched[6]}`), with no other code path in src/index.js producing them. So parse-path does fail on scp-style git@host:path and this branch is the normal, documented, test-asserted path for every such URL. Reach is solid: the sole EntryPoint is src/index.js::program:parseUrl at line 35 (kind 'handler', exposure 'reachable') and url is its parameter \u2014 this is the entire public API of a published npm package; the graph marks the lines 66-77 calls reachable_from_entry=true, hop_distance=1. Impact: under both WHATWG URL semantics (last '@' terminates userinfo) and OpenSSH scp-style parsing (strrchr on '@'), the effective host of \"github.com@evil.com\" is evil.com, so resource/host \u2014 documented at README:196 and src/index.js:26 as \"The url domain (including subdomains)\" \u2014 is returned as a userinfo+host pair, and a consumer that prefix/substring-allowlists on it passes while the connection targets the attacker's host; parsed.user is simultaneously hardcoded to \"git\", swallowing the real userinfo. Honest limit on severity: exploitation requires a downstream consumer doing a non-exact match (startsWith/contains) or reassembling a connect string, since a strict equality allowlist would reject \u2014 the standard shape of a library-level host-spoofing defect. Version is pinned exactly to parse-url 8.0.0 (package.json:3), i.e. pre-8.1.0; the exploit catalog was unavailable (\"exploit corpus unavailable: not indexed\"), so no Metasploit module or CVE range is cited and the verdict rests solely on source and graph evidence I gathered here."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/index.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 38,
+                  "endLine": 72
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "parseUrl",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orion/v1": "eb5013dc67edb219242d40d22633bd9fe4ac7b87"
+          },
+          "properties": {
+            "shape": "D",
+            "confidence": "MEDIUM",
+            "decision": "CONFIRM",
+            "sinkCentrality": 0.0,
+            "verifyRoute": "full",
+            "severity": "HIGH",
+            "security-severity": "8.0"
+          }
+        }
+      ],
+      "properties": {
+        "unlocated": 0
+      }
+    }
+  ]
+}

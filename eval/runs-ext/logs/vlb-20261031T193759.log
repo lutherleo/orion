@@ -1,0 +1,66 @@
+[1/10] plain-sonnet5 0bCRIkhJ vulnerable run 1: mirroring AhmedAdelFahim/express-xss-sanitizer
+[1/10] plain-sonnet5 0bCRIkhJ vulnerable run 1: attempt 1, 58f447a234d6 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/0bCRIkhJ/vulnerable/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[1/10] plain-sonnet5 0bCRIkhJ vulnerable run 1: crashed in 1.1s, 0 tokens, CLI $0
+[2/10] plain-sonnet5 0bCRIkhJ patched run 1: attempt 1, 62d6542a2a57 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/0bCRIkhJ/patched/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[2/10] plain-sonnet5 0bCRIkhJ patched run 1: crashed in 0.7s, 0 tokens, CLI $0
+[3/10] plain-sonnet5 TOhqi6Al vulnerable run 1: mirroring abodelot/jquery.json-viewer
+[3/10] plain-sonnet5 TOhqi6Al vulnerable run 1: attempt 1, 71e62bbe5cb8 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/TOhqi6Al/vulnerable/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[3/10] plain-sonnet5 TOhqi6Al vulnerable run 1: crashed in 0.7s, 0 tokens, CLI $0
+[4/10] plain-sonnet5 TOhqi6Al patched run 1: attempt 1, fe890813fc39 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/TOhqi6Al/patched/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[4/10] plain-sonnet5 TOhqi6Al patched run 1: crashed in 0.8s, 0 tokens, CLI $0
+[5/10] plain-sonnet5 NXIHKkeO vulnerable run 1: mirroring mmaitre314/picklescan
+[5/10] plain-sonnet5 NXIHKkeO vulnerable run 1: attempt 1, b0292af34a06 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/NXIHKkeO/vulnerable/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[5/10] plain-sonnet5 NXIHKkeO vulnerable run 1: crashed in 0.8s, 0 tokens, CLI $0
+[6/10] plain-sonnet5 NXIHKkeO patched run 1: attempt 1, 173c8f2a869e -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/NXIHKkeO/patched/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[6/10] plain-sonnet5 NXIHKkeO patched run 1: crashed in 0.7s, 0 tokens, CLI $0
+[7/10] plain-sonnet5 JqAIZxnS vulnerable run 1: mirroring mpdavis/python-jose
+[7/10] plain-sonnet5 JqAIZxnS vulnerable run 1: attempt 1, b4a0e4f3dbee -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/JqAIZxnS/vulnerable/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[7/10] plain-sonnet5 JqAIZxnS vulnerable run 1: crashed in 0.7s, 0 tokens, CLI $0
+[8/10] plain-sonnet5 JqAIZxnS patched run 1: attempt 1, 8e1f521a7588 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/JqAIZxnS/patched/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[8/10] plain-sonnet5 JqAIZxnS patched run 1: crashed in 0.8s, 0 tokens, CLI $0
+[9/10] plain-sonnet5 laTh1BVj vulnerable run 1: mirroring eclipse-ee4j/parsson
+[9/10] plain-sonnet5 laTh1BVj vulnerable run 1: attempt 1, 82f3f1a4a37f -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/laTh1BVj/vulnerable/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[9/10] plain-sonnet5 laTh1BVj vulnerable run 1: crashed in 0.8s, 0 tokens, CLI $0
+[10/10] plain-sonnet5 laTh1BVj patched run 1: attempt 1, 9dd5ad5f871f -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/plain-sonnet5/laTh1BVj/patched/1
+    
+    Error: sandbox required but unavailable: sandbox is enabled but dependencies are missing: socat not installed · install missing tools (e.g. apt install bubblewrap socat) or see https://code.claude.com/docs/en/sandboxing
+      sandbox.failIfUnavailable is set — refusing to start without a working sandbox.
+    
+[10/10] plain-sonnet5 laTh1BVj patched run 1: crashed in 0.8s, 0 tokens, CLI $0
+done: {'ok': 0, 'aborted_retries': 0, 'failed': 10, 'skipped': 0}

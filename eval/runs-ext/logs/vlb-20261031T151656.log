@@ -1,0 +1,376 @@
+[1/2] orion-sonnet5 0bCRIkhJ vulnerable run 1: mirroring AhmedAdelFahim/express-xss-sanitizer
+[1/2] orion-sonnet5 0bCRIkhJ vulnerable run 1: attempt 1, 58f447a234d6 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/orion-sonnet5/0bCRIkhJ/vulnerable/1
+    /home/lutherleo/.cache/huggingface/modules/transformers_modules/jinaai/jina_hyphen_bert_hyphen_v2_hyphen_qk_hyphen_post_hyphen_norm/3baf9e3ac750e76e8edd3019170176884695fb94/configuration_bert.py:29: UserWarning: optimum is not installed. To use OnnxConfig and BertOnnxConfig, make sure that `opti
+      warnings.warn("optimum is not installed. To use OnnxConfig and BertOnnxConfig, make sure that `optimum` package is installed")
+    scan_id: 35b809f722c102a7d9f5d507944eab50d4ab49ac
+    run log: .orion/runs/35b809f722c102a7d9f5d507944eab50d4ab49ac/20261031T191657Z/progress.jsonl
+    [build/start] - building graph for /tmp/workspaces/176cdb969b79ca52/tree
+    [build/timing] - parse (cpg.bin): 4.9s
+    [build/timing] - consume (stream envelope): 6.7s
+    [build/timing] - normalize: 0.0s
+    [build/timing] - reachability: 0.0s
+    [build/timing] - reachability: 25/40 methods, 77/148 calls reachable from an entry point
+    [build/timing] - centrality: 0.2s
+    [build/timing] - centrality: 102 reachable nodes, max betweenness 0.012
+    [build/timing] - pathfind: 0.0s
+    [build/timing] - pathfind: 0 candidate flows from 72 sources to 0 sink hits
+    [build/timing] - shortlists: 0.0s
+    [build/timing] - shortlists: B 8, C 0, D 12 candidates from 2 source files
+    [build/start] - indexing semantic embeddings (concurrent with persist)
+    [build/timing] - persist: 2.6s
+    [build/done] - semantic index complete
+    [build/timing] - persist split -- clear 0.7s, nodes 0.2s, edges 0.4s
+    [build/timing] - TOTAL graph build: 21.5s (367 nodes, 345 edges)
+    [build/done] - graph build complete
+    [build/done] - exploit corpus not indexed (run `orion index-exploits` to enable)
+    [discover/start] - discovery fleet starting (377 nodes, per-shape timeout 422s)
+    [discover/start] shape=A - shape A sweep starting
+    [discover/start] shape=B - shape B sweep starting
+    [discover/start] shape=C - shape C sweep starting
+    [discover/start] shape=D - shape D sweep starting
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND (c.code =~ '(?i).*(fixme|todo|disabled|insecure|temporary|workaround|vulnerable|hack|bypass|unsafe|no.?longer|removed|re-?enable|disable).*') RETURN c.uid, c.name, c.code, c.file_path, c.line, c.reachable_from_entry, c.ce
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id RETURN count(c) AS total, count(c.code) AS with_code
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND c.code CONTAINS 'TODO' RETURN c.uid, c.name, c.code, c.file_path, c.line LIMIT 50
+    [discover/tool] shape=C - MATCH (f:CpgFile) WHERE f.scan_id = $scan_id RETURN f.file_path ORDER BY f.file_path LIMIT 200
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id RETURN c.file_path, c.line, c.name, c.code ORDER BY c.file_path, c.line
+    [discover/tool] shape=C - MATCH (m:CpgMethod) WHERE m.scan_id = $scan_id RETURN m.full_name, m.name, m.file_path, m.line, m.is_external, m.reachable_from_entry, m.hop_distance, m.centrality ORDER BY m.file_path, m.line
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND c.file_path = 'lib/sanitize.js' AND c.line >= 10 RETURN c.line, c.name, c.code, c.reachable_from_entry, c.centrality ORDER BY c.line
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND (c.code CONTAINS 'allowedKeys' OR c.code CONTAINS 'allowedTags' OR c.code CONTAINS 'allowedAttributes') RETURN c.file_path, c.line, c.name, c.code ORDER BY c.file_path, c.line
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND (c.code =~ '(?i).*(legacy|deprecated|skip|override|force|allow.?all|bypass|weak|loose|trust|dangerous|xss|sanit).*') RETURN c.file_path, c.line, c.name, c.code ORDER BY c.file_path, c.line
+    [discover/tool] shape=C - MATCH (d:Dependency) WHERE d.scan_id = $scan_id RETURN d.name, d.version
+    [discover/tool] shape=C - MATCH (e:EntryPoint) WHERE e.scan_id = $scan_id RETURN e.method_full_name, e.exposure, e.kind
+    [discover/usage] shape=C - {"model": "", "input_tokens": 14, "output_tokens": 5648, "cache_creation_input_tokens": 48469, "cache_read_input_tokens": 168870, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 48469, "total_cost_usd": 0.28849352500000003, "num_turns": 16}
+    [discover/done] shape=C - 0 lead(s)
+    [discover/tool] shape=B - MATCH (e:EntryPoint {scan_id:$scan_id}) RETURN e.method_full_name AS method, e.exposure AS exposure, e.kind AS kind ORDER BY method
+    [discover/tool] shape=B - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name AS name, d.version AS version ORDER BY name
+    [discover/tool] shape=B - MATCH (f:CpgFile {scan_id:$scan_id}) RETURN f.file_path AS file_path ORDER BY file_path
+    [discover/tool] shape=B - MATCH (m:CphMethod {scan_id:$scan_id}) RETURN m.full_name LIMIT 1
+    [discover/tool] shape=B - MATCH (m:CpgMethod {scan_id:$scan_id}) RETURN m.name AS name, m.full_name AS full_name, m.file_path AS file_path, m.line AS line, m.is_external AS is_external ORDER BY file_path, line
+    [discover/tool] shape=B - MATCH (c:CpgCall {scan_id:$scan_id}) RETURN c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line, c.reachable_from_entry AS reach, c.centrality AS centrality ORDER BY c.file_path, c.line
+    [discover/tool] shape=B - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line >= 10 RETURN c.name AS name, c.code AS code, c.line AS line ORDER BY c.line
+    [discover/tool] shape=B - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line >= 57 RETURN c.name AS name, c.code AS code, c.line AS line ORDER BY c.line
+    [discover/tool] shape=B - MATCH (c1:CpgCall {scan_id:$scan_id})-[r:FLOWS_TO {scan_id:$scan_id}]->(c2:CpgCall {scan_id:$scan_id}) WHERE c1.uid = c2.uid RETURN c1.uid AS uid, c1.name AS name, c1.code AS code, c1.file_path AS file_path, c1.line AS line
+    [discover/tool] shape=B - MATCH (m:CpgModule {scan_id:$scan_id}) RETURN m.import_name AS import_name, m.language AS language
+    [discover/tool] shape=B - MATCH (cf:CandidateFlow {scan_id:$scan_id}) RETURN cf.sink_category AS sink_category, cf.rank AS rank, cf.source_uid AS source_uid, cf.sink_uid AS sink_uid ORDER BY cf.rank LIMIT 25
+    [discover/usage] shape=B - {"model": "", "input_tokens": 18, "output_tokens": 9994, "cache_creation_input_tokens": 36450, "cache_read_input_tokens": 186042, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 36450, "total_cost_usd": 0.28512077, "num_turns": 15}
+    [discover/done] shape=B - 1 lead(s)
+    [discover/tool] shape=D - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name AS name, d.version AS version ORDER BY name
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code =~ '.*/.*' AND (c.name IN ['test','match','exec','matchAll','replace','replaceAll','search','split'] OR c.code CONTAINS 'RegExp' OR c.code CONTAINS '=~') RETURN c.uid, c.name, c.code, c.file_path, c.line, c.reachable_fro
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'RegExp' OR c.name = 'RegExp' RETURN c.uid, c.name, c.code, c.file_path, c.line, c.reachable_from_entry, c.hop_distance, c.centrality LIMIT 100
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.name IN ['test','match','exec','matchAll','replace','replaceAll','search','split'] RETURN c.uid, c.name, c.code, c.file_path, c.line, c.reachable_from_entry, c.hop_distance, c.centrality LIMIT 150
+    [discover/tool] shape=D - MATCH (f:CpgFile {scan_id:$scan_id}) RETURN f.file_path ORDER BY f.file_path
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS '+)+' OR c.code CONTAINS '*)*' OR c.code CONTAINS '+)*' OR c.code CONTAINS '*)+' OR c.code CONTAINS '+)?' OR c.code CONTAINS '.*.*' RETURN c.uid, c.name, c.code, c.file_path, c.line LIMIT 50
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) RETURN c.uid, c.name, c.code, c.file_path, c.line, c.reachable_from_entry, c.hop_distance, c.centrality ORDER BY c.file_path, c.line
+    [discover/tool] shape=D - MATCH (m:CpgMethod {scan_id:$scan_id}) RETURN m.full_name, m.name, m.file_path, m.line, m.is_external, m.reachable_from_entry, m.hop_distance, m.centrality ORDER BY m.file_path, m.line
+    [discover/tool] shape=D - MATCH (e:EntryPoint {scan_id:$scan_id})-[:ENTERS_AT]->(m:CpgMethod {scan_id:$scan_id}) RETURN e.method_full_name, e.exposure, e.kind, m.file_path, m.line, m.centrality
+    [discover/tool] shape=D - MATCH (cf:CandidateFlow {scan_id:$scan_id}) RETURN cf.uid, cf.source_uid, cf.sink_uid, cf.sink_category, cf.rank LIMIT 25
+    [discover/usage] shape=D - {"model": "", "input_tokens": 18, "output_tokens": 11798, "cache_creation_input_tokens": 41307, "cache_read_input_tokens": 202920, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 41307, "total_cost_usd": 0.326773245, "num_turns": 18}
+    [discover/done] shape=D - 3 lead(s)
+    [discover/tool] shape=A - MATCH (cf:CandidateFlow {scan_id:$scan_id}) RETURN cf.rank, cf.sink_category, cf.source_uid, cf.sink_uid, cf.path_uids ORDER BY cf.rank
+    [discover/tool] shape=A - MATCH (e:EntryPoint {scan_id:$scan_id}) RETURN e.method_full_name, e.exposure, e.kind LIMIT 50
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id})-[r:FLOWS_TO {scan_id:$scan_id}]->(c2:CpgCall {scan_id:$scan_id}) WHERE c.uid = c2.uid RETURN c.uid, c.name, c.code, c.file_path, c.line, c.reachable_from_entry, c.hop_distance, c.centrality LIMIT 100
+    [discover/tool] shape=A - MATCH (f:CpgFile {scan_id:$scan_id}) RETURN f.file_path ORDER BY f.file_path
+    [discover/tool] shape=A - MATCH (m:CpgMethod {scan_id:$scan_id}) WHERE m.file_path IN ['index.js','lib/sanitize.js'] RETURN m.full_name, m.name, m.file_path, m.line, m.reachable_from_entry, m.hop_distance, m.centrality ORDER BY m.file_path, m.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) RETURN c.uid, c.name, c.code, c.file_path, c.line, c.reachable_from_entry, c.hop_distance, c.centrality ORDER BY c.file_path, c.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line >= 7 RETURN c.uid, c.name, c.code, c.line, c.reachable_from_entry, c.hop_distance, c.centrality ORDER BY c.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line >= 34 AND c.line <= 95 RETURN c.uid, c.name, c.code, c.line, c.reachable_from_entry, c.hop_distance, c.centrality ORDER BY c.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.name IN ['eval','Function','exec','execSync','find','findOne','$where','redirect','render','send','log','query','sanitizeHtml'] RETURN c.uid, c.name, c.code, c.file_path, c.line, c.reachable_from_entry, c.hop_distance, c.cent
+    [discover/tool] shape=A - MATCH (m:CpgModule {scan_id:$scan_id}) RETURN m.import_name, m.language
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) RETURN DISTINCT c.name ORDER BY c.name
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.method_full_name IS NOT NULL RETURN DISTINCT c.method_full_name ORDER BY c.method_full_name
+    [discover/tool] shape=A - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version
+    [discover/usage] shape=A - {"model": "", "input_tokens": 22, "output_tokens": 15537, "cache_creation_input_tokens": 56257, "cache_read_input_tokens": 289677, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 56257, "total_cost_usd": 0.44250352000000004, "num_turns": 17}
+    [discover/done] shape=A - 0 lead(s)
+    [discover/done] - 4 candidate leads
+    [verify/start] - verifying 4 leads
+    [verify/start] shape=B lead=0 - The exported Express XSS-sanitization middleware (module.exports.xss = middleware, in index.js) explicitly sanitizes req.body, req.params, req.headers, and req.query via sanitize(req[k], options), but
+    [verify/start] shape=D lead=1 - sanitize-html (~2.13.0) is the sole third-party sanitization engine this package delegates all XSS neutralization to (lib/sanitize.js calls sanitizeHtml(data, options.sanitizerOptions) for every strin
+    [verify/start] shape=D lead=2 - Declared dependency body-parser is pinned with a floating caret range (^1.19.0 = >=1.19.0 <2.0.0), which does not exclude pre-1.20.3 releases. body-parser has a publicly documented DoS weakness in ver
+    [verify/start] shape=D lead=3 - express is declared at ^5.0.1, i.e. the first patch release of the newly-GA'd Express 5 major line, with a caret range open to any later 5.x. Express is not actually `require()`'d anywhere in this pac
+    [?/tool] - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version ORDER BY d.name
+    [?/tool] - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'require' RETURN c.code, c.file_path, c.line ORDER BY c.file_path, c.line
+    [?/usage] - {"model": "", "input_tokens": 10, "output_tokens": 4557, "cache_creation_input_tokens": 24890, "cache_read_input_tokens": 86142, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 24890, "total_cost_usd": 0.16347627, "num_turns": 12}
+    [verify/verdict] shape=D lead=3 - REJECT
+    [?/tool] - MATCH (f:CpgFile) WHERE f.scan_id = $scan_id RETURN f.file_path
+    [?/tool] - MATCH (e:EntryPoint) WHERE e.scan_id = $scan_id RETURN e.method_full_name, e.exposure, e.kind
+    [?/tool] - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND toLower(c.code) CONTAINS 'cookie' RETURN c.file_path, c.line, c.code
+    [?/tool] - MATCH (cf:CandidateFlow) WHERE cf.scan_id = $scan_id RETURN cf.uid, cf.source_uid, cf.sink_uid, cf.sink_category, cf.rank LIMIT 25
+    [?/usage] - {"model": "", "input_tokens": 14, "output_tokens": 6207, "cache_creation_input_tokens": 43535, "cache_read_input_tokens": 185396, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 43535, "total_cost_usd": 0.27676681999999997, "num_turns": 16}
+    [verify/verdict] shape=B lead=0 - REJECT
+    [?/tool] - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version ORDER BY d.name
+    [?/usage] - {"model": "", "input_tokens": 12, "output_tokens": 6944, "cache_creation_input_tokens": 27440, "cache_read_input_tokens": 107781, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 27440, "total_cost_usd": 0.20181707, "num_turns": 13}
+    [verify/verdict] shape=D lead=2 - REJECT
+    [?/tool] - MATCH (d:Dependency {scan_id:$scan_id}) WHERE d.name CONTAINS 'sanitize' RETURN d.name, d.version
+    [?/tool] - MATCH (m:CpgMethod {scan_id:$scan_id}) WHERE m.full_name CONTAINS 'sanitize.js' RETURN m.full_name, m.name, m.centrality, m.reachable_from_entry, m.hop_distance ORDER BY m.centrality DESC
+    [?/tool] - MATCH (m:CpgMethod {scan_id:$scan_id}) RETURN m.full_name, m.centrality ORDER BY m.centrality DESC LIMIT 5
+    [?/usage] - {"model": "", "input_tokens": 14, "output_tokens": 8554, "cache_creation_input_tokens": 29145, "cache_read_input_tokens": 135764, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 29145, "total_cost_usd": 0.23077754500000003, "num_turns": 15}
+    [verify/verdict] shape=D lead=1 - INCONCLUSIVE
+    [verify/done] - 4 verdicts
+    [report/start] - rendering 4 verdicts
+    [report/done] - report rendered
+    
+    ======================================================================
+    Orion: 4 candidate leads (1 INCONCLUSIVE, 3 REJECT)
+    
+    [INCONCLUSIVE] lead 1 - shape D - confidence MEDIUM
+      location:          lib/sanitize.js:26-55 (sanitize) CWE-937 MEDIUM
+      claim:             sanitize-html (~2.13.0) is the sole third-party sanitization engine this package delegates all XSS neutralization to (lib/sanitize.js calls sanitizeHtml(data, options.sanitizerOptions) for every string field of req.body/req.params/req.headers/req.query). The call graph confi
+      lead evidence:     MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version -> sanitize-html ~2.13.0. Cross-checked with MATCH (m:CpgMethod {scan_id:$scan_id}) RETURN m.full_name,... -> lib/sanitize.js::program:sanitize has centrality=0.011770019107173875, reachable_from_entry=true, ho
+      verdict reason:    All of the lead's concrete, checkable claims about architecture verify as true against source and graph, but the lead does not identify an actual known vulnerability in sanitize-html 2.13.0 — it is a forward-looking risk flag ("check the changelog"), and I could not resolve 
+      verifier evidence: package.json:34 `"sanitize-html": "~2.13.0"`; lib/sanitize.js:26-55 (sanitize function calling sanitizeHtml at lines 28,33,48); Cypher: MATCH (m:CpgMethod {scan_id:$scan_id}) RETURN m.full_name,m.centrality ORDER BY m.centrality DESC LIMIT 5 -> top row lib/sanitize.js::progr
+    
+    [REJECT] lead 0 - shape B - confidence MEDIUM
+      location:          index.js:5-21 (index.js::program:middleware) CWE-79 LOW
+      claim:             The exported Express XSS-sanitization middleware (module.exports.xss = middleware, in index.js) explicitly sanitizes req.body, req.params, req.headers, and req.query via sanitize(req[k], options), but never includes 'cookies' in the sanitized-keys list and never touches req.
+      lead evidence:     run_cypher on CpgCall/CpgMethod for file_path='index.js' returned the full middleware body: "function middleware(options = {}) { return (req, res, next) => { ['body', 'params', 'headers'].forEach((k) => { if (req[k]) { req[k] = sanitize(req[k], options); } }); const sanitize
+      verdict reason:    The underlying code fact is accurate (index.js only sanitizes req.body/params/headers/query; req.cookies is never touched) but this is not a vulnerability in the scanned codebase — it is the library's documented, intentional scope, and no actual vulnerable code path (sink, a
+      verifier evidence: index.js:5-21 (middleware body, matches analyst's quote exactly — only ['body','params','headers'].forEach(...) plus a separate req.query sanitize; req.cookies never referenced); package.json:4 and README.md:2,64 (library explicitly documents it only covers body/query/header
+    
+    [REJECT] lead 2 - shape D - confidence LOW
+      location:          CWE-1104 LOW
+      claim:             Declared dependency body-parser is pinned with a floating caret range (^1.19.0 = >=1.19.0 <2.0.0), which does not exclude pre-1.20.3 releases. body-parser has a publicly documented DoS weakness in versions prior to 1.20.3 (urlencoded parsing). Because the range is unbounded 
+      lead evidence:     MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version ORDER BY name -> returned body-parser ^1.19.0 among the 12 declared Dependency nodes for this scan_id. exploit_search('body-parser denial of service vulnerability') returned no results (corpus unindexed in this
+      verdict reason:    The declared range package.json:37 "body-parser": "^1.19.0" is real, but it sits under devDependencies, and grep of the whole source tree shows body-parser is required only in test/test.js:10 and in README.md usage examples -- never in the package's actual runtime code (inde
+      verifier evidence: package.json line 37: "body-parser": "^1.19.0" under devDependencies (confirmed via run_cypher MATCH (d:Dependency {scan_id}) returning the same ^1.19.0 value among 12 Dependency nodes). Grep for 'body-parser' across the tree: only hits in test/test.js:10 and README.md:18,49
+    
+    [REJECT] lead 3 - shape D - confidence LOW
+      location:          CWE-1104
+      claim:             express is declared at ^5.0.1, i.e. the first patch release of the newly-GA'd Express 5 major line, with a caret range open to any later 5.x. Express is not actually `require()`'d anywhere in this package's own two source files (index.js, lib/sanitize.js) -- it only appears 
+      lead evidence:     MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version -> express ^5.0.1. Cross-checked against the full CpgCall dump (148 rows, index.js + lib/sanitize.js) which contains only require('./lib/sanitize') and require('sanitize-html') -- no require('express') or requi
+      verdict reason:    Re-derived the lead's facts from source and graph and they check out, but they don't add up to an exploitable finding in this package. package.json (lines 36-48) lists express under devDependencies at ^5.0.1 alongside body-parser, chai, mocha, supertest — i.e. the test-tooli
+      verifier evidence: package.json lines 33-48: dependencies={sanitize-html ~2.13.0}, devDependencies include express ^5.0.1, body-parser ^1.19.0, mocha, supertest, chai. index.js:3 `require('./lib/sanitize')`; lib/sanitize.js:3 `require('sanitize-html')` — no require('express')/require('body-par
+    
+    
+    report, verdicts and SARIF saved under .orion/runs/35b809f722c102a7d9f5d507944eab50d4ab49ac/20261031T191657Z
+    wrote 4 verdicts to /home/lutherleo/orion-bench/eval/runs-ext/vlb/orion-sonnet5/0bCRIkhJ/vulnerable/1/verdicts.json
+[1/2] orion-sonnet5 0bCRIkhJ vulnerable run 1: ok in 316.5s, 1739446 tokens, CLI $2.2157
+[2/2] orion-sonnet5 0bCRIkhJ patched run 1: attempt 1, 62d6542a2a57 -> /home/lutherleo/orion-bench/eval/runs-ext/vlb/orion-sonnet5/0bCRIkhJ/patched/1
+    /home/lutherleo/.cache/huggingface/modules/transformers_modules/jinaai/jina_hyphen_bert_hyphen_v2_hyphen_qk_hyphen_post_hyphen_norm/3baf9e3ac750e76e8edd3019170176884695fb94/configuration_bert.py:29: UserWarning: optimum is not installed. To use OnnxConfig and BertOnnxConfig, make sure that `opti
+      warnings.warn("optimum is not installed. To use OnnxConfig and BertOnnxConfig, make sure that `optimum` package is installed")
+    scan_id: 1fa1d2becc579e43515ae153fe53bb03237c055d
+    run log: .orion/runs/1fa1d2becc579e43515ae153fe53bb03237c055d/20261031T192213Z/progress.jsonl
+    [build/start] - building graph for /tmp/workspaces/7178a408dc740c43/tree
+    [build/timing] - parse (cpg.bin): 4.2s
+    [build/timing] - consume (stream envelope): 6.4s
+    [build/timing] - normalize: 0.0s
+    [build/timing] - reachability: 0.0s
+    [build/timing] - reachability: 27/43 methods, 100/174 calls reachable from an entry point
+    [build/timing] - centrality: 0.1s
+    [build/timing] - centrality: 127 reachable nodes, max betweenness 0.012
+    [build/timing] - pathfind: 0.0s
+    [build/timing] - pathfind: 0 candidate flows from 95 sources to 0 sink hits
+    [build/timing] - shortlists: 0.0s
+    [build/timing] - shortlists: B 8, C 0, D 12 candidates from 2 source files
+    [build/start] - indexing semantic embeddings (concurrent with persist)
+    [build/timing] - persist: 0.8s
+    [build/done] - semantic index complete
+    [build/timing] - persist split -- clear 0.4s, nodes 0.1s, edges 0.1s
+    [build/timing] - TOTAL graph build: 17.0s (406 nodes, 403 edges)
+    [build/done] - graph build complete
+    [build/done] - exploit corpus not indexed (run `orion index-exploits` to enable)
+    [discover/start] - discovery fleet starting (416 nodes, per-shape timeout 422s)
+    [discover/start] shape=A - shape A sweep starting
+    [discover/start] shape=B - shape B sweep starting
+    [discover/start] shape=C - shape C sweep starting
+    [discover/start] shape=D - shape D sweep starting
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND (
+      toLower(c.code) CONTAINS 'todo' OR
+      toLower(c.code) CONTAINS 'fixme' OR
+      toLower(c.code) CONTAINS 'disabled' OR
+      toLower(c.code) CONTAINS 'insecure' OR
+      toLower(c.code) CONTAINS 'temporary' OR
+      toLower(c.code) CONTAINS 'temp fix' OR
+      toLower(c.code) CONTAINS 'workaround' OR
+      toLower(c.code) CONTAINS 'vulnerable' OR
+      toLower(c.code) CONTAINS 'hack' OR
+      toLower(c.code) CONTAINS 'bypass' OR
+      toLower(c.code) CONTAINS 'unsafe' OR
+      toLower(c.code) CONTAINS 'xxx' OR
+      toLower(c.code) CONTAINS 'commented'
+    )
+    RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line, c.reachable_from_entry AS reach, c.centrality AS centrality
+    ORDER BY c.file_path, c.line
+    LIMIT 100
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND (
+      toLower(c.code) CONTAINS 'skip' OR
+      toLower(c.code) CONTAINS 'allow' OR
+      toLower(c.code) CONTAINS 'debug' OR
+      toLower(c.code) CONTAINS 'dev' OR
+      toLower(c.code) CONTAINS 'legacy' OR
+      toLower(c.code) CONTAINS 'old' OR
+      toLower(c.code) CONTAINS 'noop' OR
+      toLower(c.code) CONTAINS 'ignore' OR
+      toLower(c.code) CONTAINS 'false' OR
+      toLower(c.code) CONTAINS 'comment'
+    )
+    RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line
+    ORDER BY c.file_path, c.line
+    LIMIT 150
+    [discover/tool] shape=C - MATCH (f:CpgFile) WHERE f.scan_id = $scan_id RETURN DISTINCT f.file_path AS file_path ORDER BY file_path
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND (c.name = 'use' OR c.name CONTAINS 'xss' OR toLower(c.code) CONTAINS 'xss') RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line ORDER BY c.file_path, c.line LIMIT 100
+    [discover/tool] shape=C - MATCH (e:EntryPoint) WHERE e.scan_id = $scan_id RETURN e.uid AS uid, e.method_full_name AS method_full_name, e.exposure AS exposure, e.kind AS kind LIMIT 50
+    [discover/tool] shape=C - MATCH (cf:CandidateFlow) WHERE cf.scan_id = $scan_id RETURN cf.uid AS uid, cf.source_uid AS source_uid, cf.sink_uid AS sink_uid, cf.sink_category AS sink_category, cf.rank AS rank, cf.path_uids AS path_uids ORDER BY cf.rank LIMIT 50
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND (
+      toLower(c.code) CONTAINS 'revert' OR
+      toLower(c.code) CONTAINS 'remove' OR
+      toLower(c.code) CONTAINS 'deprecat' OR
+      toLower(c.code) CONTAINS 'no longer' OR
+      toLower(c.code) CONTAINS 'danger' OR
+      toLower(c.code) CONTAINS 'caution' OR
+      toLower(c.code) CONTAINS 'warning' OR
+      toLower(c.code) CONTAINS 'note:' OR
+      toLower(c.code) CONTAINS 'patch' OR
+      toLower(c.code) CONTAINS 'secure' OR
+      toLower(c.code) CONTAINS 'escape' OR
+      toLower(c.code) CONTAINS 'sanitiz' OR
+      toLower(c.code) CONTAINS 'freeze' OR
+      toLower(c.code) CONTAINS 'writable' OR
+      toLower(c.code) CONTAINS 'configurable'
+    )
+    RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line
+    ORDER BY c.file_path, c.line
+    LIMIT 100
+    [discover/tool] shape=C - MATCH (m:CpgMethod) WHERE m.scan_id = $scan_id RETURN m.full_name AS full_name, m.name AS name, m.file_path AS file_path, m.line AS line, m.is_external AS is_external ORDER BY m.file_path, m.line LIMIT 100
+    [discover/tool] shape=C - MATCH (d:Dependency) WHERE d.scan_id = $scan_id RETURN d.name AS name, d.version AS version LIMIT 50
+    [discover/tool] shape=C - MATCH (c:CpgCall) WHERE c.scan_id = $scan_id AND (
+      toLower(c.code) CONTAINS 'fix' OR
+      toLower(c.code) CONTAINS 'override' OR
+      toLower(c.code) CONTAINS 'force' OR
+      toLower(c.code) CONTAINS 'stub' OR
+      toLower(c.code) CONTAINS 'mock' OR
+      toLower(c.code) CONTAINS 'placeholder' OR
+      toLower(c.code) CONTAINS 'incomplete' OR
+      toLower(c.code) CONTAINS 'known issue' OR
+      toLower(c.code) CONTAINS 'security' OR
+      toLower(c.code) CONTAINS 'cve' OR
+      toLower(c.code) CONTAINS 'exploit'
+    )
+    RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line
+    ORDER BY c.file_path, c.line
+    LIMIT 100
+    [discover/usage] shape=C - {"model": "", "input_tokens": 18, "output_tokens": 7076, "cache_creation_input_tokens": 28660, "cache_read_input_tokens": 224752, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 28660, "total_cost_usd": 0.23359001999999998, "num_turns": 14}
+    [discover/done] shape=C - 0 lead(s)
+    [discover/tool] shape=B - MATCH (f:CpgFile {scan_id:$scan_id}) RETURN f.file_path AS file_path ORDER BY file_path
+    [discover/tool] shape=B - MATCH (e:EntryPoint {scan_id:$scan_id}) RETURN e.method_full_name AS method, e.exposure AS exposure, e.kind AS kind ORDER BY method
+    [discover/tool] shape=B - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name AS name, d.version AS version ORDER BY name
+    [discover/tool] shape=B - MATCH (m:CpgMethod {scan_id:$scan_id}) RETURN m.full_name AS full_name, m.name AS name, m.file_path AS file_path, m.line AS line, m.is_external AS is_external, m.reachable_from_entry AS reachable, m.hop_distance AS hop, m.centrality AS centrality ORDER BY file_path, lin
+    [discover/tool] shape=B - MATCH (c:CpgCall {scan_id:$scan_id}) RETURN c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line, c.method_full_name AS method_full_name, c.reachable_from_entry AS reachable, c.centrality AS centrality ORDER BY file_path, line
+    [discover/tool] shape=B - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line >= 10 RETURN c.name AS name, c.code AS code, c.line AS line, c.method_full_name AS method_full_name ORDER BY c.line
+    [discover/tool] shape=B - MATCH (m:CpgMethod {scan_id:$scan_id, name:'sanitize', file_path:'lib/sanitize.js'}) RETURN m.full_name AS full_name, m.line AS line
+    [discover/tool] shape=B - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'cookie' OR c.code CONTAINS 'Cookie' RETURN c.code AS code, c.file_path AS file_path, c.line AS line
+    [discover/tool] shape=B - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'helmet' OR c.code CONTAINS 'csrf' OR c.code CONTAINS 'CSRF' OR c.code CONTAINS 'X-Frame' OR c.code CONTAINS 'Content-Security' RETURN c.code AS code, c.file_path AS file_path, c.line AS line
+    [discover/tool] shape=B - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'escape' OR c.code CONTAINS 'encodeURI' OR c.code CONTAINS 'htmlEscape' RETURN c.code AS code, c.file_path AS file_path, c.line AS line
+    [discover/tool] shape=B - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'bcrypt' OR c.code CONTAINS 'scrypt' OR c.code CONTAINS 'argon2' OR c.code CONTAINS 'crypto' OR c.code CONTAINS 'password' OR c.code CONTAINS 'session' OR c.code CONTAINS 'req.user' OR c.code CONTAINS 'isAdmin' 
+    [discover/tool] shape=B - MATCH (m:CpgModule {scan_id:$scan_id}) RETURN m.import_name AS import_name, m.language AS language
+    [discover/usage] shape=B - {"model": "", "input_tokens": 16, "output_tokens": 10689, "cache_creation_input_tokens": 26924, "cache_read_input_tokens": 188642, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 26924, "total_cost_usd": 0.25486064500000005, "num_turns": 16}
+    [discover/done] shape=B - 1 lead(s)
+    [discover/tool] shape=D - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name AS name, d.version AS version ORDER BY d.name
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code =~ '.*RegExp.*' RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line, c.reachable_from_entry AS reachable, c.centrality AS centrality LIMIT 100
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.name IN ['match','test','replace','search','split','exec'] RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line, c.reachable_from_entry AS reachable, c.centrality AS centrality LIMIT 2
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) RETURN DISTINCT c.name AS name, count(*) AS cnt ORDER BY cnt DESC LIMIT 100
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS '/' AND (c.code CONTAINS ')+' OR c.code CONTAINS ')*' OR c.code CONTAINS '+)' OR c.code CONTAINS '*)') RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line LIMIT 100
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS '/' RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line LIMIT 200
+    [discover/tool] shape=D - MATCH (f:CpgFile {scan_id:$scan_id}) RETURN f.file_path AS file_path ORDER BY f.file_path
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS '\\\\' OR c.code CONTAINS 'Regex' OR c.code CONTAINS 'regex' OR c.code CONTAINS 'pattern' RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line LIMIT 100
+    [discover/tool] shape=D - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d LIMIT 15
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.name CONTAINS 'regex' OR c.name CONTAINS 'Regex' OR c.name CONTAINS 'Literal' RETURN c.uid, c.name, c.code, c.file_path, c.line LIMIT 50
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) RETURN c.uid AS uid, c.name AS name, c.code AS code, c.file_path AS file_path, c.line AS line ORDER BY c.file_path, c.line
+    [discover/tool] shape=D - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line > 8 RETURN c.uid AS uid, c.name AS name, c.code AS code, c.line AS line ORDER BY c.line
+    [discover/usage] shape=D - {"model": "", "input_tokens": 22, "output_tokens": 11113, "cache_creation_input_tokens": 26894, "cache_read_input_tokens": 249085, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 26894, "total_cost_usd": 0.27146737000000004, "num_turns": 21}
+    [discover/done] shape=D - 3 lead(s)
+    [discover/tool] shape=A - MATCH (cf:CandidateFlow {scan_id:$scan_id}) RETURN cf.rank, cf.sink_category, cf.source_uid, cf.sink_uid, cf.path_uids ORDER BY cf.rank
+    [discover/tool] shape=A - MATCH (e:EntryPoint {scan_id:$scan_id})-[:ENTERS_AT]->(m:CpgMethod {scan_id:$scan_id}) RETURN e.method_full_name, e.exposure, e.kind, m.full_name, m.file_path, m.line LIMIT 100
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id})-[f:FLOWS_TO {scan_id:$scan_id}]->(c2:CpgCall {scan_id:$scan_id}) WHERE c.uid = c2.uid RETURN c.uid, c.name, c.code, c.file_path, c.line, c.reachable_from_entry, c.hop_distance, c.centrality LIMIT 100
+    [discover/tool] shape=A - MATCH (f:CpgFile {scan_id:$scan_id}) RETURN f.file_path ORDER BY f.file_path
+    [discover/tool] shape=A - MATCH (m:CpgMethod {scan_id:$scan_id}) WHERE m.file_path = 'index.js' RETURN m.full_name, m.name, m.line, m.reachable_from_entry, m.hop_distance ORDER BY m.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'index.js' RETURN c.uid, c.name, c.code, c.line, c.reachable_from_entry, c.hop_distance, c.centrality ORDER BY c.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' RETURN c.uid, c.name, c.code, c.line, c.reachable_from_entry, c.hop_distance, c.centrality ORDER BY c.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line >= 26 AND c.line <= 70 RETURN c.uid, c.name, c.code, c.line, c.reachable_from_entry, c.hop_distance, c.centrality ORDER BY c.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line >= 70 RETURN c.uid, c.name, c.code, c.line, c.reachable_from_entry, c.hop_distance, c.centrality ORDER BY c.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line >= 56 AND c.line <= 70 RETURN c.uid, c.name, c.code, c.line, c.reachable_from_entry, c.hop_distance, c.centrality ORDER BY c.line
+    [discover/tool] shape=A - MATCH (m:CpgMethod {scan_id:$scan_id}) WHERE m.file_path = 'lib/sanitize.js' RETURN m.full_name, m.name, m.line, m.reachable_from_entry, m.hop_distance, m.centrality ORDER BY m.line
+    [discover/tool] shape=A - MATCH (c:CpgMethod {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.name = 'sanitize' RETURN c.full_name, c.line LIMIT 5
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id})-[r:RESOLVES_TO {scan_id:$scan_id}]->(m:CpgMethod {scan_id:$scan_id}) WHERE c.file_path = 'index.js' RETURN c.uid, c.name, c.line, m.full_name, m.file_path
+    [discover/tool] shape=A - MATCH (c1:CpgCall {scan_id:$scan_id})-[f:FLOWS_TO {scan_id:$scan_id}]->(c2:CpgCall {scan_id:$scan_id}) WHERE c1.file_path IN ['index.js','lib/sanitize.js'] AND c1.uid <> c2.uid RETURN c1.uid, c1.name, c1.line, c1.file_path, c2.uid, c2.name, c2.line, c2.file_path, f.arg_
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.file_path = 'lib/sanitize.js' AND c.line >= 19 AND c.line <= 26 RETURN c.uid, c.name, c.code, c.line ORDER BY c.line
+    [discover/tool] shape=A - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE toLower(c.code) CONTAINS 'proto' OR toLower(c.code) CONTAINS 'constructor' RETURN c.uid, c.code, c.file_path, c.line
+    [discover/usage] shape=A - {"model": "", "input_tokens": 24, "output_tokens": 21724, "cache_creation_input_tokens": 60535, "cache_read_input_tokens": 393721, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 60535, "total_cost_usd": 0.54411682, "num_turns": 21}
+    [discover/done] shape=A - 1 lead(s)
+    [discover/done] - 5 candidate leads
+    [verify/start] - verifying 5 leads
+    [verify/start] shape=B lead=1 - The express-xss-sanitizer middleware (`xss` exported from index.js) sanitizes req.body, req.params, req.headers, and req.query against XSS payloads, but never includes req.cookies in the sanitized key
+    [verify/start] shape=D lead=2 - No regex literals, RegExp construction, or pattern-matching sinks (match/test/replace/search/exec) exist anywhere in the scanned codebase -- exhaustive sweep of all 174 CpgCall nodes across the only t
+    [verify/start] shape=D lead=3 - Declared dependency body-parser is pinned with range ^1.19.0 (>=1.19.0 <2.0.0), which permits resolving to versions below 1.20.3 -- versions in that range carry a known denial-of-service advisory (CVE
+    [verify/start] shape=A lead=0 - The Express 'xss' sanitizer middleware (index.js::middleware, an EntryPoint handler) takes attacker-controlled req.body, req.params, req.headers (index.js:7-9: `req[k] = sanitize(req[k], options)`) an
+    [?/tool] - MATCH (f:CpgFile {scan_id:$scan_id}) RETURN f.file_path AS file_path ORDER BY file_path
+    [?/tool] - MATCH (c:CpgCall {scan_id:$scan_id}) RETURN count(c) AS total
+    [?/tool] - MATCH (c:CpgCall {scan_id:$scan_id}) WHERE toLower(c.code) CONTAINS 'regex' OR toLower(c.code) CONTAINS '.test(' OR toLower(c.code) CONTAINS '.match(' OR toLower(c.code) CONTAINS '.replace(' OR toLower(c.code) CONTAINS '.exec(' OR toLower(c.code) CONTAINS '.search(' OR c.name IN ['mat
+    [?/usage] - {"model": "", "input_tokens": 8, "output_tokens": 5410, "cache_creation_input_tokens": 23674, "cache_read_input_tokens": 78510, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 23674, "total_cost_usd": 0.167438995, "num_turns": 11}
+    [verify/verdict] shape=D lead=2 - CONFIRM
+    [verify/start] shape=D lead=4 - Declared devDependency eslint is pinned at ^7.20.0, a major version line (ESLint 7) that is end-of-life and no longer receives security/bugfix patches from upstream. Low impact since it is a lint-only
+    [?/tool] - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version
+    [?/tool] - MATCH (f:CpgFile {scan_id:$scan_id}) RETURN f.file_path
+    [?/tool] - MATCH (e:EntryPoint {scan_id:$scan_id}) RETURN e.method_full_name, e.exposure, e.kind
+    [?/usage] - {"model": "", "input_tokens": 12, "output_tokens": 5455, "cache_creation_input_tokens": 12937, "cache_read_input_tokens": 130468, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 12937, "total_cost_usd": 0.13416597000000002, "num_turns": 13}
+    [verify/verdict] shape=B lead=1 - REJECT
+    [?/tool] - MATCH (d:Dependency {scan_id:$scan_id}) WHERE d.name = 'body-parser' RETURN d.name, d.version
+    [?/usage] - {"model": "", "input_tokens": 16, "output_tokens": 6272, "cache_creation_input_tokens": 9920, "cache_read_input_tokens": 168193, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 9920, "total_cost_usd": 0.13714359499999998, "num_turns": 18}
+    [verify/verdict] shape=D lead=3 - CONFIRM
+    [?/tool] - MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version
+    [?/usage] - {"model": "", "input_tokens": 12, "output_tokens": 3662, "cache_creation_input_tokens": 5943, "cache_read_input_tokens": 124925, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 5943, "total_cost_usd": 0.086261245, "num_turns": 9}
+    [verify/verdict] shape=D lead=4 - CONFIRM
+    [?/tool] - MATCH (m:CpgMethod {scan_id:'1fa1d2becc579e43515ae153fe53bb03237c055d', file_path:'lib/sanitize.js'}) RETURN m.full_name, m.name, m.line, m.reachable_from_entry, m.hop_distance, m.centrality ORDER BY m.centrality DESC
+    [?/tool] - MATCH (c:CpgCall {scan_id:'1fa1d2becc579e43515ae153fe53bb03237c055d'}) WHERE c.file_path IN ['lib/sanitize.js','index.js'] RETURN c.file_path, c.line, c.name, c.code, c.reachable_from_entry, c.hop_distance ORDER BY c.file_path, c.line
+    [?/tool] - MATCH (e:EntryPoint {scan_id:'1fa1d2becc579e43515ae153fe53bb03237c055d'})-[:ENTERS_AT]->(m:CpgMethod) RETURN e.method_full_name, e.exposure, e.kind, m.full_name, m.reachable_from_entry, m.line
+    [?/tool] - MATCH (c:CpgCall {scan_id:'1fa1d2becc579e43515ae153fe53bb03237c055d'}) WHERE c.executed = true OR c.hit_count IS NOT NULL RETURN c.file_path, c.line, c.code, c.executed, c.hit_count LIMIT 20
+    [?/tool] - MATCH (d:Dependency {scan_id:'1fa1d2becc579e43515ae153fe53bb03237c055d'}) RETURN d.name, d.version ORDER BY d.name
+    [?/usage] - {"model": "", "input_tokens": 18, "output_tokens": 27783, "cache_creation_input_tokens": 32974, "cache_read_input_tokens": 252527, "cache_creation_5m_input_tokens": 0, "cache_creation_1h_input_tokens": 32974, "total_cost_usd": 0.46280727000000005, "num_turns": 21}
+    [verify/verdict] shape=A lead=0 - REJECT
+    [verify/done] - 5 verdicts
+    [report/start] - rendering 5 verdicts
+    [report/done] - report rendered
+    
+    ======================================================================
+    Orion: 5 candidate leads (3 CONFIRM, 2 REJECT)
+    
+    [CONFIRM] lead 2 - shape D - confidence HIGH
+      claim:             No regex literals, RegExp construction, or pattern-matching sinks (match/test/replace/search/exec) exist anywhere in the scanned codebase -- exhaustive sweep of all 174 CpgCall nodes across the only two files (index.js, lib/sanitize.js) found none. The ReDoS/catastrophic-bac
+      lead evidence:     Ran: MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code =~ '.*RegExp.*' -> 0 rows; MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.name IN ['match','test','replace','search','split','exec'] -> 0 rows; MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS '/' AND (contains '
+      verdict reason:    Independently verified absence of any regex/RegExp/pattern-matching sinks. Read the full source of both scanned files (index.js, lib/sanitize.js) directly — no RegExp construction, regex literals, or .match/.test/.replace/.search/.exec calls appear anywhere; the only sink is
+      verifier evidence: Cypher: MATCH (f:CpgFile {scan_id:'1fa1d2becc579e43515ae153fe53bb03237c055d'}) RETURN f.file_path -> [index.js, lib/sanitize.js]. MATCH (c:CpgCall {scan_id:...}) RETURN count(c) -> 174. MATCH (c:CpgCall {scan_id:...}) WHERE toLower(c.code) CONTAINS 'regex' OR ... OR c.name I
+    
+    [CONFIRM] lead 3 - shape D - confidence LOW
+      location:          package.json:37-37 CWE-400 LOW
+      claim:             Declared dependency body-parser is pinned with range ^1.19.0 (>=1.19.0 <2.0.0), which permits resolving to versions below 1.20.3 -- versions in that range carry a known denial-of-service advisory (CVE-2024-45590) related to inefficient handling of URL-encoded request bodies.
+      lead evidence:     Ran: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version -> row {"name":"body-parser","version":"^1.19.0"}. Attempted mcp__orion__exploit_search for 'body-parser denial of service vulnerability' -> exploit corpus unavailable (not indexed), so CVE correlation is 
+      verdict reason:    Re-derived independently: package.json (and the CpgDependency node) both confirm body-parser is declared at range "^1.19.0" (>=1.19.0 <2.0.0), which can resolve to any pre-1.20.3 1.x release. CVE-2024-45590 (body-parser DoS via inefficient URL-encoded body handling, fixed in
+      verifier evidence: Graph: MATCH (d:Dependency {scan_id}) WHERE d.name='body-parser' RETURN d.name,d.version -> {"name":"body-parser","version":"^1.19.0"}. Source: /tmp/workspaces/7178a408dc740c43/tree/package.json lines 36-37 show body-parser under "devDependencies", not "dependencies". Grep a
+    
+    [CONFIRM] lead 4 - shape D - confidence LOW
+      location:          package.json:39-39 CWE-1104 LOW
+      claim:             Declared devDependency eslint is pinned at ^7.20.0, a major version line (ESLint 7) that is end-of-life and no longer receives security/bugfix patches from upstream. Low impact since it is a lint-only dev dependency not present in the runtime attack surface of the two scanne
+      lead evidence:     Ran: MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name, d.version -> row {"name":"eslint","version":"^7.20.0"}. EOL status is prior knowledge, not independently re-verified via a CVE/advisory tool this session (exploit_search corpus unavailable).
+      verdict reason:    Independently verified: package.json devDependencies declares "eslint": "^7.20.0" (line 39), and the graph's Dependency node matches exactly (name=eslint, version=^7.20.0). Grepping the whole source tree shows eslint is never required/imported by runtime code — its only appe
+      verifier evidence: package.json line 39: "eslint": "^7.20.0" under devDependencies; Cypher MATCH (d:Dependency {scan_id:$scan_id}) RETURN d.name,d.version returned {"d.name":"eslint","d.version":"^7.20.0"}; grep for "eslint" across the tree returns only package.json (devDependencies + lint scr
+    
+    [REJECT] lead 0 - shape A - confidence MEDIUM
+      location:          lib/sanitize.js:51-60 (sanitize) CWE-1321 LOW
+      claim:             The Express 'xss' sanitizer middleware (index.js::middleware, an EntryPoint handler) takes attacker-controlled req.body, req.params, req.headers (index.js:7-9: `req[k] = sanitize(req[k], options)`) and req.query (index.js:12: `sanitize(req.query, options)`, a FLOWS_TO self-l
+      lead evidence:     Ran: MATCH (cf:CandidateFlow {scan_id:$scan_id}) ... -> 0 rows (no precomputed shortlist). Ran: MATCH (e:EntryPoint)-[:ENTERS_AT]->(m:CpgMethod) -> index.js::program:middleware is an EntryPoint (kind=handler, exposure=reachable). Ran: MATCH (c:CpgCall)-[f:FLOWS_TO]->(c2:CpgC
+      verdict reason:    I confirmed the code shape the analyst cites is real (read index.js:1-26 and lib/sanitize.js:1-72 directly), and confirmed via mcp__orion__run_cypher that lib/sanitize.js::program:sanitize is reachable_from_entry=true, hop_distance=0, centrality=0.01205 (highest in file, mat
+    
+    However, the actual exploitability claim fails on JS/Node semantics I verified against this package's own test file (test/test.js:10-18 shows `bodyParser.urlencoded({extended:true})` + `bodyParser.json()` as the standard config). (1) req.body/req.query parsed via JSON.parse: per the ECMAScript s
+      verifier evidence: Read index.js:1-26 (lines 7-9, 12-18 match analyst's citation exactly) and lib/sanitize.js:1-72 (lines 51-60 match exactly, no proto/constructor guard). Cypher: MATCH (m:CpgMethod {file_path:'lib/sanitize.js'}) RETURN ... -> program:sanitize line 32, reachable_from_entry=tru
+    
+    [REJECT] lead 1 - shape B - confidence MEDIUM
+      location:          index.js:7-18 (middleware) CWE-79 LOW
+      claim:             The express-xss-sanitizer middleware (`xss` exported from index.js) sanitizes req.body, req.params, req.headers, and req.query against XSS payloads, but never includes req.cookies in the sanitized key set. Cookies are a standard attacker-controlled input channel (the task's 
+      lead evidence:     Ran: MATCH (c:CpgCall {scan_id:$scan_id}) WHERE c.code CONTAINS 'cookie' OR c.code CONTAINS 'Cookie' RETURN c.code, c.file_path, c.line -> 0 rows (no cookie handling anywhere in the 2-file codebase). Ran: MATCH (m:CpgMethod {scan_id:$scan_id, name:'middleware', file_path:'in
+      verdict reason:    The factual code observation is correct (verified myself): index.js:7-18 sanitizes only req.body/req.params/req.headers (explicit array at line 7) and req.query (separately, lines 12-18); req.cookies is never touched. However this is not a security defect in this codebase, i
+      verifier evidence: index.js:7-18 (verified source) shows the explicit allowlist ['body','params','headers'].forEach(...) plus separate req.query handling, with no 'cookies' entry anywhere in the file or in lib/sanitize.js. package.json:4 and README.md:2 both document the library's scope as exa
+    
+    
+    report, verdicts and SARIF saved under .orion/runs/1fa1d2becc579e43515ae153fe53bb03237c055d/20261031T192213Z
+    wrote 5 verdicts to /home/lutherleo/orion-bench/eval/runs-ext/vlb/orion-sonnet5/0bCRIkhJ/patched/1/verdicts.json
+[2/2] orion-sonnet5 0bCRIkhJ patched run 1: ok in 585.7s, 2138614 tokens, CLI $2.2919
+done: {'ok': 2, 'aborted_retries': 0, 'failed': 0, 'skipped': 0}

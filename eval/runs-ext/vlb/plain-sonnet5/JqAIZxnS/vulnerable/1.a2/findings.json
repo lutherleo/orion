@@ -1,0 +1,109 @@
+{
+  "findings": [
+    {
+      "file": "jose/jwe.py",
+      "function": "_decrypt_and_auth",
+      "line_start": 208,
+      "line_end": 243,
+      "cwe": "CWE-696",
+      "title": "JWE CBC-HMAC decrypts ciphertext before verifying the authentication tag (padding oracle)",
+      "explanation": "For the AES-CBC + HMAC (\"A128CBC-HS256\", \"A192CBC-HS384\", \"A256CBC-HS512\") content-encryption algorithms, _decrypt_and_auth computes the expected HMAC (auth_tag_check) but then unconditionally calls encryption_key.decrypt(cipher_text, iv, aad, auth_tag) (line 239) BEFORE comparing auth_tag to auth_tag_check (line 240-241). The CBC decrypt path (CryptographyAESKey.decrypt in jose/backends/cryptography_backend.py) performs PKCS7 un-padding and raises a distinct exception when the padding is malformed, and that exception propagates out of _decrypt_and_auth (and is re-wrapped as JWEError in jwe.decrypt) before the MAC comparison is ever reached. This violates RFC 7516's requirement to reject the input \"without emitting any decrypted output\" when the tag is invalid, and reproduces the classic Vaudenay CBC padding-oracle condition: an attacker who can submit arbitrary/modified JWE ciphertexts to an application using A*CBC-HS* and observe whether decryption fails with a padding-related error versus an \"Invalid JWE Auth Tag\" error (or observe timing differences, since the padding error short-circuits before any constant-time check) can use the oracle to decrypt ciphertext or forge plaintext without knowing the key, via the standard byte-at-a-time CBC padding-oracle algorithm. Correct Encrypt-then-MAC handling requires verifying the MAC first and only attempting to decrypt/un-pad if it is valid.",
+      "path": [
+        {
+          "file": "jose/jwe.py",
+          "function": "decrypt",
+          "line": 79,
+          "role": "source"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "decrypt",
+          "line": 178,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "_decrypt_and_auth",
+          "line": 232,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "_decrypt_and_auth",
+          "line": 239,
+          "role": "sink"
+        },
+        {
+          "file": "jose/backends/cryptography_backend.py",
+          "function": "CryptographyAESKey.decrypt",
+          "line": 509,
+          "role": "sink"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "_decrypt_and_auth",
+          "line": 240,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "jose/jwe.py",
+      "function": "_decrypt_and_auth",
+      "line_start": 240,
+      "line_end": 241,
+      "cwe": "CWE-208",
+      "title": "Non-constant-time comparison of the JWE authentication tag",
+      "explanation": "After computing the independently-derived HMAC (auth_tag_check) for A*CBC-HS* content encryption, the code compares it to the attacker-supplied auth_tag using the plain `!=` operator instead of a constant-time comparison such as hmac.compare_digest (which the library correctly uses elsewhere, e.g. HMACKey.verify in jose/backends/native.py and jose/backends/cryptography_backend.py). CPython's bytes equality short-circuits on the first differing byte, so the comparison time leaks information about how many leading bytes of a forged tag are correct, giving a remote attacker who can measure response timing a side channel useful for forging a valid authentication tag byte-by-byte instead of brute-forcing it in one shot.",
+      "path": [
+        {
+          "file": "jose/jwe.py",
+          "function": "decrypt",
+          "line": 79,
+          "role": "source"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "_decrypt_and_auth",
+          "line": 232,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "_decrypt_and_auth",
+          "line": 240,
+          "role": "sink"
+        }
+      ]
+    },
+    {
+      "file": "jose/jwe.py",
+      "function": "_decompress",
+      "line_start": 437,
+      "line_end": 456,
+      "cwe": "CWE-409",
+      "title": "Unbounded zlib decompression of JWE plaintext (decompression bomb)",
+      "explanation": "When a JWE header specifies \"zip\":\"DEF\", jwe.decrypt() calls _decompress(), which invokes zlib.decompress(compressed) with no output-size limit (line 453). Any party able to produce a validly-encrypted/authenticated JWE for the recipient's key (e.g. a legitimate sender in a multi-party or key-rotation setup, or any holder of a shared \"dir\" key) can craft a small ciphertext that decompresses to a huge amount of data, exhausting memory/CPU on the decrypting host (a zlib/\"zip bomb\" denial of service) before the application ever sees the oversized payload.",
+      "path": [
+        {
+          "file": "jose/jwe.py",
+          "function": "decrypt",
+          "line": 186,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "decrypt",
+          "line": 187,
+          "role": "propagator"
+        },
+        {
+          "file": "jose/jwe.py",
+          "function": "_decompress",
+          "line": 453,
+          "role": "sink"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "arm": "P",
+  "label": "P-plain-sonnet5",
+  "eval_arm": "plain-sonnet5",
+  "benchmark": "nodegoat",
+  "fixture_commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+  "model": "claude-sonnet-5",
+  "effort": "xhigh",
+  "status": "crashed",
+  "usage": [
+    {
+      "uncached_in": 0,
+      "cache_read": 0,
+      "cache_write": 0,
+      "out": 0,
+      "reasoning": null
+    }
+  ],
+  "wallclock_s": 0.8,
+  "findings": []
+}
