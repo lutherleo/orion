@@ -18,8 +18,8 @@ RepoQA's pinned commit, rooted at RepoQA's `entrypoint_path` -- the code RepoQA'
 Orion's file paths are prefixed with that path before matching. A failed build / index / query is recorded as
 missing (excluded from every rate, counted in `missing`), never as a miss.
 
-Caveat measured, not corrected: Orion's vector and keyword searches overfetch from GLOBAL indexes (top 200) and
-then keep this scan's rows, so other scans in the same Neo4j can crowd a scan out. Each query records how many
+Caveat measured, not corrected: Orion's searches overfetch from GLOBAL indexes (at k = 10: top 200 in vector mode,
+top 800 in keyword and hybrid) and then keep this scan's rows, so other scans in the same Neo4j can crowd a scan out. Each query records how many
 rows came back (`returned`) and each repo the database's total Chunk count when it was queried.
 
     python -m eval.repoqa run [--data F] [--repos DIR] [--out eval/results/repoqa-pilot.json] [--languages ...]
