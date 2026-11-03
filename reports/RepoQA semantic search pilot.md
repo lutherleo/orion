@@ -298,9 +298,7 @@ The interim result on 280 needles was vector 0.60 / 0.83 / 0.67, keyword 0.11 / 
 
 ## Where everything is
 
-All of these are in commit a93054b on branch `Ifrit`, which has no upstream, so it is not pushed. Four have
-uncommitted changes on top: this report, the corrected and added notes in `eval/results/repoqa-pilot.json` and
-`.md`, and the overfetch figure in the docstring of `eval/repoqa.py`.
+All of these are committed on branch `Ifrit`, which has no upstream, so it is not pushed.
 
 | file | what it is |
 |---|---|
