@@ -16,7 +16,10 @@ Confidence = Literal["LOW", "MEDIUM", "HIGH"]
 Decision = Literal["CONFIRM", "REJECT", "INCONCLUSIVE", "ERROR"]
 Severity = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
 _SEVERITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
-_CWE = re.compile(r"(?:CWE)?[\s:_-]*(\d{1,4})$", re.IGNORECASE)
+# One CWE id, optionally followed by its name ("CWE-89: SQL Injection", "CWE-89 (SQL injection)"); a list
+# ("CWE-79, CWE-80") or a trailing second id names no single class and is dropped.
+_CWE = re.compile(r"(?:CWE)?[\s:_-]*(\d{1,4})(?P<tail>\s*[:(\-\u2013\u2014].*)?$", re.IGNORECASE | re.DOTALL)
+_ANOTHER_CWE = re.compile(r"CWE[\s:_-]*\d", re.IGNORECASE)
 
 
 def clean_location(raw: dict) -> dict:
@@ -26,7 +29,8 @@ def clean_location(raw: dict) -> dict:
     plain agent are scored the same way. Anything malformed is DROPPED (the field stays None), not
     repaired into something the agent did not say: `file` is forward-slashed and stripped of `./`;
     lines must be positive ints (line_end >= line_start); `cwe` normalizes "89" / "cwe_89" /
-    "CWE-89" to "CWE-89"; `severity` must be one of LOW/MEDIUM/HIGH/CRITICAL. Pure."""
+    "CWE-89" / "CWE-89: SQL Injection" to "CWE-89" (two ids are dropped); `severity` must be one of
+    LOW/MEDIUM/HIGH/CRITICAL. Pure."""
     out: dict = {}
     f = raw.get("file")
     if isinstance(f, str) and f.strip():
@@ -42,7 +46,7 @@ def clean_location(raw: dict) -> dict:
     if isinstance(fn, str) and fn.strip():
         out["function"] = fn.strip()
     m = _CWE.match(str(raw.get("cwe") or "").strip())
-    if m:
+    if m and not _ANOTHER_CWE.search(m.group("tail") or ""):
         out["cwe"] = f"CWE-{int(m.group(1))}"
     sev = raw.get("severity")
     if isinstance(sev, str) and sev.strip().upper() in _SEVERITIES:
@@ -107,13 +111,23 @@ class Verdict:
 
     def location(self) -> dict:
         """Effective {file, line_start, line_end, function, cwe}: the verifier's value where it gave
-        one, else the lead's. A corrected file resets the line range to the verifier's."""
+        one, else the lead's. A corrected file resets the line range to the verifier's. The lines are a
+        PAIR: a verifier start never borrows the lead's end (start 40 + the lead's end 12 was "40-12", an
+        inverted range SARIF forbids), and an end below the start is dropped."""
         lead = self.lead
         moved = bool(self.file and self.file != lead.file)
+        if self.line_start:
+            start, end = self.line_start, self.line_end
+        elif moved:
+            start, end = None, self.line_end
+        else:
+            start, end = lead.line_start, self.line_end or lead.line_end
+        if start is not None and end is not None and end < start:
+            end = None
         return {
             "file": self.file or lead.file,
-            "line_start": self.line_start or (None if moved else lead.line_start),
-            "line_end": self.line_end or (None if moved else lead.line_end),
+            "line_start": start,
+            "line_end": end,
             "function": None if moved else lead.function,
             "cwe": self.cwe or lead.cwe,
         }

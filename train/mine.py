@@ -72,13 +72,13 @@ DROPPED_FIELDS = ("id", "source", "source_id", "cve", "ghsa", "repo", "repo_url"
 
 def _dump(path, obj):
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=None, separators=(",", ":"), sort_keys=True, default=sorted)
         f.write("\n")
 
 
 def _load(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -255,7 +255,7 @@ def build(raw: str, work: str, out: str, *, cache_path: str = enrich_gh.DEFAULT_
                                                     if d["reason"] == "post_cutoff_repo").most_common(15))
     st["sizes_bytes"] = {f: os.path.getsize(os.path.join(out, f)) for f in ("pairs.json", "dropped.json")}
     _dump(os.path.join(work, "build_stats.json"), st)
-    with open(os.path.join(work, "tables.md"), "w") as f:
+    with open(os.path.join(work, "tables.md"), "w", encoding="utf-8") as f:
         f.write(tables(st))
     log(tables(st))
     return st

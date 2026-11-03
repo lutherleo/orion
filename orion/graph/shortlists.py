@@ -56,7 +56,7 @@ _JS_REGEX_LITERAL = re.compile(
     r"(?:^|[=(,:;!&|?{}\[\s])/((?![*/])(?:\\.|\[(?:\\.|[^\]\\])*\]|[^/\\\n\[])+)/[a-z]*")
 _REGEX_CALL = re.compile(
     r"(?:\bRegExp|\bre\.(?:compile|match|search|fullmatch|sub|subn|findall|finditer|split)|"
-    r"Pattern\.compile|regexp\.(?:MustCompile|Compile)|\bRegex)\s*\(\s*(.*)")
+    r"Pattern\.compile|regexp\.(?:MustCompile|Compile)|\bRegex)\s*\(\s*")
 _STRING_LITERAL = re.compile(r"""^[rbuf]{0,2}(["'`])((?:\\.|(?!\1).)*)\1""")
 
 
@@ -206,7 +206,7 @@ def controls_rows(files: list[tuple[str, list]], profile) -> list[dict]:
 def hedge_rows(files: list[tuple[str, list]]) -> list[dict]:
     """A comment with a hedge word and a security term within `_C_WINDOW` lines, scored by hedge
     strength, the security term, and commented-out code right below it. Consecutive hits in one
-    comment block collapse into the first line."""
+    comment block collapse into the first line; code between two comments makes them separate rows."""
     rows: list[dict] = []
     for rel, split in files:
         by_line = {ln: (raw, code, comment) for ln, raw, code, comment in split}
@@ -215,7 +215,8 @@ def hedge_rows(files: list[tuple[str, list]]) -> list[dict]:
             m = _HEDGE.search(comment) if comment else None
             if not m:
                 continue
-            if lineno - last_hit <= _C_WINDOW + 1:
+            same_block = all(not by_line[k][1].strip() for k in range(last_hit + 1, lineno) if k in by_line)
+            if lineno - last_hit <= _C_WINDOW + 1 and same_block:
                 last_hit = lineno
                 continue
             # The comment's own security term first (it names the bug), then the surrounding lines.
@@ -301,14 +302,21 @@ def nested_quantifier(pattern: str) -> bool:
 
 
 def _regexes_in(code: str) -> list[tuple[str, str]]:
-    """(kind, regex text) found in one line of code: literal regexes, and the first argument of a
-    regex constructor -- a string literal, or a variable (a regex built from data)."""
+    """(kind, regex text) found in one line of code: literal regexes, and the first argument of EVERY
+    regex constructor on the line -- a plain string literal, or a regex built from data: a variable, a
+    literal concatenated with `+`, a template with `${...}`, or a Python f-string."""
     out = [("literal", m.group(1)) for m in _JS_REGEX_LITERAL.finditer(code)]
     for m in _REGEX_CALL.finditer(code):
-        arg = m.group(1).lstrip()
+        arg = code[m.end():]
         lit = _STRING_LITERAL.match(arg)
         if lit:
-            out.append(("literal", lit.group(2)))
+            prefix = arg[:arg.index(lit.group(1))].lower()
+            built = ("f" in prefix or (lit.group(1) == "`" and "${" in lit.group(2))
+                     or arg[lit.end():].lstrip().startswith("+"))
+            if built:
+                out.append(("dynamic", re.split(r"[),]", arg, maxsplit=1)[0].strip()[:80]))
+            else:
+                out.append(("literal", lit.group(2)))
         elif arg and (arg[0].isalpha() or arg[0] == "_") and not arg.startswith(("r'", 'r"')):
             out.append(("dynamic", re.split(r"[),]", arg, maxsplit=1)[0].strip()[:80]))
     return out
@@ -352,11 +360,16 @@ def shortlists(batch: schema.Batch, profile, repo: str | None) -> dict:
     # No files read means nothing can be called absent: B (and C) need source to say anything.
     for shape, rows in (("B", controls_rows(files, profile) if files else []), ("C", hedge_rows(files)),
                         ("D", pattern_rows(files, batch))):
-        rows = rows[:MAX_PER_SHAPE]
-        for rank, row in enumerate(rows):
+        unique, seen = [], set()
+        for row in rows:   # one row per uid: the same regex twice on a line is one candidate, and two
+            uid = _uid(batch.scan_id, shape, row["kind"], row["file_path"], row["line"], row["detail"])
+            if uid not in seen:   # rows with one uid would collapse into one node and lose a rank
+                seen.add(uid)
+                unique.append((uid, row))
+        rows = unique[:MAX_PER_SHAPE]
+        for rank, (uid, row) in enumerate(rows):
             row.pop("_k", None)
-            props = {"uid": _uid(batch.scan_id, shape, row["kind"], row["file_path"], row["line"], row["detail"]),
-                     "shape": shape, "rank": rank, **{k: v for k, v in row.items() if v is not None}}
+            props = {"uid": uid, "shape": shape, "rank": rank, **{k: v for k, v in row.items() if v is not None}}
             batch.emit_node("CandidateFinding", props)
         out[shape] = len(rows)
     return out

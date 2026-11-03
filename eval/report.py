@@ -792,7 +792,7 @@ def pareto(rows, *, svg_path=None, cost_label="cost (tokens per vulnerable run)"
                      f"{'yes' if r['arm'] in front else ('-' if r.get('cost') is None or r.get('accuracy') is None else 'no')} |")
     svg = _svg(rows, front, cost_label=cost_label, acc_label=accuracy_label)
     if svg_path:
-        with open(svg_path, "w") as fh:
+        with open(svg_path, "w", encoding="utf-8") as fh:
             fh.write(svg)
     return "\n".join(lines) + "\n\n" + svg
 
@@ -934,10 +934,10 @@ def main(argv=None):
     sample = _owasp.load_sample(a.owasp) if a.owasp else None
     prices = pairs = None
     if a.prices:
-        with open(a.prices) as fh:
+        with open(a.prices, encoding="utf-8") as fh:
             prices = json.load(fh)
     if a.pairs:
-        with open(a.pairs) as fh:
+        with open(a.pairs, encoding="utf-8") as fh:
             pairs = [tuple(p) for p in json.load(fh)]
     conn = open_readonly(a.db)
     print(render(conn, a.lm, a.vs, manifest=man, owasp_sample=sample, prices=prices, pairs=pairs, B=a.B,

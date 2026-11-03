@@ -52,16 +52,17 @@ def _to_leads(final_json: dict, shape: str) -> list[Lead]:
             continue
         text = item.get("text")
         evidence = item.get("evidence")
-        if not text or not evidence:
-            continue
+        if not (isinstance(text, str) and text.strip() and isinstance(evidence, str) and evidence.strip()):
+            continue                        # a list text crashed dedup; an int one crashed verify
         confidence = item.get("confidence")
         if confidence not in ("LOW", "MEDIUM", "HIGH"):
             confidence = "LOW"
         item_shape = item.get("shape")
         if item_shape not in ("A", "B", "C", "D"):
             item_shape = shape
-        source_uid = item.get("source_uid") or None
-        sink_uid = item.get("sink_uid") or None
+        source_uid = item.get("source_uid") if isinstance(item.get("source_uid"), str) else None
+        sink_uid = item.get("sink_uid") if isinstance(item.get("sink_uid"), str) else None
+        source_uid, sink_uid = source_uid or None, sink_uid or None
         loc = clean_location(item)
         loc.pop("severity", None)           # a verdict field; leads carry confidence instead
         leads.append(Lead(index=i, shape=item_shape, text=text, evidence=evidence,
@@ -147,6 +148,10 @@ async def _run_shape(scan_id: str, shape: str, on_event: OnEvent, profile=None,
         on_event(_event(phase="discover", shape=shape, event="error", detail=detail))
         return []
 
+    if not isinstance(result.get("leads"), list):
+        # e.g. {"findings": [...]} from a model with no schema enforcement: a broken shape, never a clean 0
+        on_event(_event(phase="discover", shape=shape, event="error", detail="malformed result: no leads array"))
+        return []
     leads = _to_leads(result, shape)
     on_event(_event(phase="discover", shape=shape, event="done", detail=f"{len(leads)} lead(s)"))
     return leads

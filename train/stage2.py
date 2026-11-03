@@ -42,7 +42,6 @@ import json
 import os
 import random
 import re
-import shutil
 import signal
 import sys
 from collections import Counter
@@ -238,7 +237,7 @@ def load_templates(path: str) -> list[str] | None:
     """`train/templates/queries.json` (a JSON list of query strings), validated; None when absent."""
     if not os.path.exists(path):
         return None
-    with open(path) as fh:
+    with open(path, encoding="utf-8") as fh:
         templates = json.load(fh)
     if not isinstance(templates, list) or not all(isinstance(t, str) for t in templates):
         raise ValueError(f"{path} must be a JSON list of query strings")
@@ -273,7 +272,7 @@ def _reconcile(out_jsonl: str, ledger: str) -> None:
     if not os.path.exists(out_jsonl):
         return
     done, keep = _done_ids(ledger), []
-    with open(out_jsonl) as fh:
+    with open(out_jsonl, encoding="utf-8") as fh:
         for line in fh:
             try:
                 r = json.loads(line)
@@ -283,7 +282,7 @@ def _reconcile(out_jsonl: str, ledger: str) -> None:
             except (ValueError, AttributeError):
                 continue
     tmp = out_jsonl + ".tmp"
-    with open(tmp, "w") as fh:
+    with open(tmp, "w", encoding="utf-8") as fh:
         fh.writelines(keep)
         fh.flush()
         os.fsync(fh.fileno())
@@ -407,7 +406,7 @@ def _one_pair(pair, db, mirror_root, work_root, *, budget, n_negatives, seed, te
         row.update(status="error", reason=f"{type(exc).__name__}: {exc}"[:1500], n_examples=0, n_traces=0)
         return [], row
     finally:
-        shutil.rmtree(trees, ignore_errors=True)
+        erepo.remove_tree(trees)
         try:
             os.rmdir(os.path.dirname(trees))
         except OSError:

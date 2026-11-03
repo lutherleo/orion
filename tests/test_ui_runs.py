@@ -605,6 +605,8 @@ def test_location_and_fingerprint_mirror_the_contracts():
         Verdict(_lead(0, **base), "CONFIRM", "r", file="app/b.js"),                      # moved: no lines
         Verdict(_lead(0, **base), "CONFIRM", "r", file="app/b.js", line_start=4),
         Verdict(_lead(0, **base), "CONFIRM", "r", file="app/a.js", line_start=20),       # "moved" to itself
+        Verdict(_lead(0, **base), "CONFIRM", "r", line_start=40),                        # never 40-12
+        Verdict(_lead(0, **base), "CONFIRM", "r", line_end=3),                           # end below start
         Verdict(_lead(0), "REJECT", "r"),                                                # no location
         Verdict(_lead(0, file="app/a.js", cwe="CWE-79"), "REJECT", "r"),                 # no function/line
     ]

@@ -11,7 +11,7 @@ HUNK = [{"file": "app.py", "old_file": "app.py", "old_start": 2, "old_end": 3, "
 def _idx(tmp_path, text=VULN):
     (tmp_path / "app.py").write_text(text); return ci.RepoIndex(str(tmp_path))
 
-def test_single_function_fix_gives_vuln_patched_negatives(tmp_path):
+def test_single_function_fix_gives_vuln_patched_negatives(needs_tree_sitter, tmp_path):
     """The changed function is the positive, its fixed version the negative pair, and unchanged functions are extra negatives."""
     ex, rec = stage1.cases_from(PAIR, HUNK, _idx(tmp_path), {"app.py": PATCHED},
                                 budget=cases.CaseBudget(), n_negatives=2, seed=0)
@@ -27,18 +27,18 @@ def test_seeded_negatives_are_deterministic(tmp_path):
     b, _ = stage1.cases_from(PAIR, HUNK, _idx(tmp_path), {"app.py": PATCHED}, budget=cases.CaseBudget(), n_negatives=1, seed=3)
     assert a == b
 
-def test_annotation_beats_changed_functions(tmp_path):
+def test_annotation_beats_changed_functions(needs_tree_sitter, tmp_path):
     pair = {**PAIR, "vuln_methods": [{"file": "app.py", "method": "third", "start_line": 11, "end_line": 15, "vulnerable_lines": [12]}]}
     ex, rec = stage1.cases_from(pair, HUNK, _idx(tmp_path), {"app.py": PATCHED}, budget=cases.CaseBudget(), n_negatives=0, seed=0)
     assert ex[0]["lead"]["function"] == "third" and ex[0]["lead"]["line"] == 12 and rec["tiers"] == {"annotated": 1}
 
-def test_deleted_function_keeps_vulnerable_drops_patched(tmp_path):
+def test_deleted_function_keeps_vulnerable_drops_patched(needs_tree_sitter, tmp_path):
     """Review Focus 2."""
     ex, rec = stage1.cases_from(PAIR, HUNK, _idx(tmp_path), {"app.py": VULN.split("def other")[0].replace("view", "renamed")},
                                 budget=cases.CaseBudget(), n_negatives=0, seed=0)
     assert [e["label"] for e in ex] == ["vulnerable"] and "patched_missing" in rec["reason"]
 
-def test_sprawling_and_test_only_fixes_yield_nothing(tmp_path):
+def test_sprawling_and_test_only_fixes_yield_nothing(needs_tree_sitter, tmp_path):
     """More than MAX_MULTI changed functions is too noisy to label; test-only fixes have no target."""
     vuln4 = VULN + "\ndef fourth(c):\n    g(c)\n    return c\n"          # fourth = lines 17-19
     four = [{"file": "app.py", "old_file": "app.py", "old_start": s, "old_end": s, "new_start": s, "new_end": s}
@@ -57,7 +57,7 @@ def test_primary_cwe_prefers_dataflow_then_first():
     assert stage1.primary_cwe({"cwe": ["CWE-20", "CWE-400"]}) == "CWE-20"
     assert stage1.primary_cwe({"cwe": []}) is None
 
-def test_patched_example_does_not_mutate_the_vulnerable_index(tmp_path):
+def test_patched_example_does_not_mutate_the_vulnerable_index(needs_tree_sitter, tmp_path):
     idx = _idx(tmp_path)
     before = (dict(idx.files), dict(idx._text))
     stage1.cases_from(PAIR, HUNK, idx, {"app.py": PATCHED}, budget=cases.CaseBudget(), n_negatives=0, seed=0)
@@ -65,7 +65,7 @@ def test_patched_example_does_not_mutate_the_vulnerable_index(tmp_path):
     ex, _ = stage1.cases_from(PAIR, HUNK, idx, {"app.py": PATCHED}, budget=cases.CaseBudget(), n_negatives=0, seed=0)
     assert "q = 'SELECT '" in ex[0]["case"]["snippets"][0]["code"]
 
-def test_sink_location_resolves_by_suffix_and_locations_by_line(tmp_path):
+def test_sink_location_resolves_by_suffix_and_locations_by_line(needs_tree_sitter, tmp_path):
     (tmp_path / "pkg").mkdir()
     (tmp_path / "pkg" / "app.py").write_text(VULN)
     idx = ci.RepoIndex(str(tmp_path))
@@ -76,18 +76,18 @@ def test_sink_location_resolves_by_suffix_and_locations_by_line(tmp_path):
     t, _ = stage1.targets({**PAIR, **loc}, h, idx, {})
     assert [x["name"] for x in t] == ["other", "third"]
 
-def test_unresolvable_annotation_falls_back_to_changed_function(tmp_path):
+def test_unresolvable_annotation_falls_back_to_changed_function(needs_tree_sitter, tmp_path):
     pair = {**PAIR, "vuln_methods": [{"file": "gone.py", "method": "x", "start_line": 1, "end_line": 2, "vulnerable_lines": [1]}]}
     t, _ = stage1.targets(pair, HUNK, _idx(tmp_path), {"app.py": PATCHED})
     assert t[0]["tier"] == "single" and t[0]["name"] == "view"
     assert t[0]["anchor_old"] == 2 and t[0]["patched_span"].name == "view" and t[0]["anchor_new"] == 2
 
-def test_add_only_hunk_anchors_on_insertion_line(tmp_path):
+def test_add_only_hunk_anchors_on_insertion_line(needs_tree_sitter, tmp_path):
     h = [{"file": "app.py", "old_file": "app.py", "old_start": 7, "old_end": 6, "new_start": 8, "new_end": 8}]
     t, _ = stage1.targets(PAIR, h, _idx(tmp_path), {"app.py": VULN.replace("    x = a\n", "    x = a\n    check(x)\n")})
     assert t[0]["name"] == "other" and t[0]["anchor_old"] == 7
 
-def test_multi_tier_and_unknown_class(tmp_path):
+def test_multi_tier_and_unknown_class(needs_tree_sitter, tmp_path):
     h = [{"file": "app.py", "old_file": "app.py", "old_start": s, "old_end": s, "new_start": s, "new_end": s} for s in (2, 6)]
     fixed = VULN.replace("'SELECT ' + r", "'SELECT ' + esc(r)").replace("log(a)", "log(b)")   # both really change
     t, _ = stage1.targets(PAIR, h, _idx(tmp_path), {"app.py": fixed})
@@ -96,7 +96,7 @@ def test_multi_tier_and_unknown_class(tmp_path):
                                 budget=cases.CaseBudget(), n_negatives=0, seed=0)
     assert ex == [] and rec["reason"] == "no_cwe"
 
-def test_unchanged_patched_function_gets_no_patched_example(tmp_path):
+def test_unchanged_patched_function_gets_no_patched_example(needs_tree_sitter, tmp_path):
     pair = {**PAIR, "vuln_methods": [{"file": "app.py", "method": "third", "start_line": 11, "end_line": 15, "vulnerable_lines": [12]}]}
     ex, rec = stage1.cases_from(pair, HUNK, _idx(tmp_path), {"app.py": PATCHED}, budget=cases.CaseBudget(), n_negatives=0, seed=0)
     assert [e["label"] for e in ex] == ["vulnerable"] and "patched_unchanged" in rec["reason"]
@@ -120,7 +120,7 @@ def _real(tmp_path, hermetic_git, old: dict, new: dict):
     return ci.RepoIndex(repo.path), hunks, {k: v for k, v in new.items()}
 
 
-def test_negative_never_nested_in_or_around_a_target(tmp_path):
+def test_negative_never_nested_in_or_around_a_target(needs_tree_sitter, tmp_path):
     """I1 (P1, P1b)."""
     src = "def outer():\n    a = 1\n    def inner():\n        log(a)\n        x = a\n        y = x\n        return y\n    return inner\n"
     (tmp_path / "app.py").write_text(src)
@@ -133,7 +133,7 @@ def test_negative_never_nested_in_or_around_a_target(tmp_path):
     assert "negative" not in [e["label"] for e in ex]
 
 
-def test_annotated_functions_past_the_cap_are_never_negatives(tmp_path):
+def test_annotated_functions_past_the_cap_are_never_negatives(needs_tree_sitter, tmp_path):
     """I2 (P2)."""
     src = "".join(f"def f{i}(a):\n    log(a)\n    x = a\n    y = x\n    return y\n\n" for i in range(5))
     (tmp_path / "app.py").write_text(src)
@@ -160,7 +160,7 @@ def test_untouched_neighbour_is_not_a_target(tmp_path, hermetic_git, name, new):
     assert ex == [] and rec["reason"] == "no_target", name
 
 
-def test_insertion_strictly_inside_a_body_is_a_target(tmp_path, hermetic_git):
+def test_insertion_strictly_inside_a_body_is_a_target(needs_tree_sitter, tmp_path, hermetic_git):
     idx, hunks, patched = _real(tmp_path, hermetic_git, {"m.py": PY_OLD},
                                 {"m.py": PY_OLD.replace("    return a", "    check(a)\n    return a")})
     t, _ = stage1.targets(PAIR, hunks, idx, patched)
@@ -174,7 +174,7 @@ def test_new_function_inserted_between_functions_is_not_a_target(tmp_path, herme
     assert stage1.targets(PAIR, hunks, idx, patched) == ([], "no_target")
 
 
-def test_unchanged_long_function_does_not_get_both_labels(tmp_path):
+def test_unchanged_long_function_does_not_get_both_labels(needs_tree_sitter, tmp_path):
     """I4 (P4): whole-function comparison, not budget windows."""
     big = "def big(a):\n" + "".join(f"    x{i} = a + {i}\n" for i in range(200)) + "    return a\n"
     other = "\ndef small(b):\n    log(b)\n    return b\n"
@@ -187,7 +187,7 @@ def test_unchanged_long_function_does_not_get_both_labels(tmp_path):
     assert [e["label"] for e in ex] == ["vulnerable"] and "patched_unchanged" in rec["reason"]
 
 
-def test_overloads_each_get_their_own_patched_code(tmp_path, hermetic_git):
+def test_overloads_each_get_their_own_patched_code(needs_tree_sitter, tmp_path, hermetic_git):
     """I5 (probe4): the first overload grows by 4 lines; the second must still pair with its own fix."""
     old = ("class P {\n  int parse(String a) {\n    return raw(a);\n  }\n\n"
            "  int parse(String a, int b) {\n    return raw(a) + b;\n  }\n}\n")
@@ -208,7 +208,7 @@ VIEW_FIX = "def view(r):\n    return db.execute('SELECT ?', [r])\n"
 OTHER_FN = "def other(a):\n    log(a)\n    x = a\n    y = x\n    return y\n"
 
 
-def test_moved_unchanged_helper_is_not_a_target(tmp_path, hermetic_git):
+def test_moved_unchanged_helper_is_not_a_target(needs_tree_sitter, tmp_path, hermetic_git):
     """The fix rewrites view() and moves an unchanged helper() to the top: git's delete hunk spans the old
     helper, but its whole text is the same on both sides, so it gets no HIGH vulnerable lead."""
     old = VIEW_OLD + "\n\n" + OTHER_FN + "\n\n" + HELPER
@@ -237,7 +237,7 @@ def test_only_unchanged_targets_left_is_no_target(tmp_path):
     assert stage1.targets(PAIR, h, idx, {"app.py": VULN}) == ([], "no_target")
 
 
-def test_annotated_targets_are_kept_even_when_unchanged(tmp_path):
+def test_annotated_targets_are_kept_even_when_unchanged(needs_tree_sitter, tmp_path):
     """I4 applies to the single/multi tiers only: an annotation is the pair's own evidence."""
     pair = {**PAIR, "vuln_methods": [{"file": "app.py", "method": "third", "start_line": 11, "end_line": 15,
                                       "vulnerable_lines": [12]}]}

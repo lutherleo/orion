@@ -175,7 +175,7 @@ class Cache:
         self.records: dict[str, dict] = {}
         self.skipped_lines = 0
         if os.path.exists(path):
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -192,7 +192,7 @@ class Cache:
 
     def add(self, rec: dict) -> None:
         os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
-        with open(self.path, "a+") as f:
+        with open(self.path, "a+", encoding="utf-8") as f:
             if f.tell() > 0:                  # never glue a record onto a line cut short by Ctrl-C
                 f.seek(f.tell() - 1)
                 if f.read(1) != "\n":
@@ -357,11 +357,11 @@ def main(argv=None) -> int:
     ap.add_argument("--limit", type=int, default=None, help="stop after this many API objects")
     ap.add_argument("--reserve", type=int, default=200, help="leave this much hourly quota unused")
     args = ap.parse_args(argv)
-    with open(args.candidates) as f:
+    with open(args.candidates, encoding="utf-8") as f:
         rows = json.load(f)
     repos = []
     if args.repos:
-        with open(args.repos) as f:
+        with open(args.repos, encoding="utf-8") as f:
             repos = json.load(f)
     summary = run(rows, args.cache, repos=repos, limit=args.limit, reserve=args.reserve,
                   log=lambda *a: print(*a, flush=True))

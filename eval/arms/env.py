@@ -46,6 +46,6 @@ def ensure_codex_home(home: str) -> str:
     os.makedirs(home, exist_ok=True)
     cfg = os.path.join(home, "config.toml")
     if not os.path.exists(cfg):
-        with open(cfg, "w") as fh:
+        with open(cfg, "w", encoding="utf-8") as fh:
             fh.write(CODEX_CONFIG_TOML)
     return home

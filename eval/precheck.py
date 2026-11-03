@@ -41,7 +41,6 @@ import argparse
 import json
 import os
 import re
-import shutil
 import sys
 import tempfile
 import time
@@ -164,7 +163,7 @@ def buildable(repo_url: str, sha: str, *, mirror_root: str, builder=None, tmp_ro
             out["nodes"] = e.nodes
         out["error"] = f"{e.__class__.__name__}: {e}"[:4000]
     finally:
-        shutil.rmtree(work, ignore_errors=True)
+        repo.remove_tree(work)
     return out
 
 
@@ -198,7 +197,7 @@ def _preflight() -> list:
 
 def _save(path: str, data: dict) -> None:
     tmp = f"{path}.tmp"
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=1)   # the manifest's own format (eval/dataset/mine.py _dump)
         f.write("\n")
     os.replace(tmp, path)
@@ -250,7 +249,7 @@ def main(argv=None) -> int:
     report_path = args.report or os.path.join(os.path.dirname(args.manifest) or ".", "precheck_report.json")
     report = {"manifest": args.manifest, "rows": {}}
     if os.path.exists(report_path):
-        with open(report_path) as f:
+        with open(report_path, encoding="utf-8") as f:
             report = json.load(f)
     todo = [r for r in rows if not args.id or r.get("id") in args.id]
     commit = _orion_commit()

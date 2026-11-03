@@ -345,6 +345,16 @@ def _run_scan(args: argparse.Namespace) -> int:
                           stream=args.stream, queue_size=args.queue_size,
                           on_batch=None if lm_engine else _index_semantic, **build_kwargs)
         on_event(_event("build", "done", detail="graph build complete"))
+        if lm_engine:
+            from .graph import scans
+            try:
+                err = scans.pathfind_error(scans.get_record(scan_id))
+            except Exception:  # noqa: BLE001 -- unreadable now means discovery's own flow read fails too (exit 3)
+                err = None
+            if err:   # no CandidateFlows: discovery would judge nothing and report a clean 0 leads
+                print(f"orion scan: the flow search failed at build ({err}); recompute it with: "
+                      f"orion reanalyze --scan-id {scan_id} --engine lm", file=sys.stderr)
+                return 3
     else:
         on_event(_event("build", "done", detail=f"using existing scan_id {scan_id}"))
         if args.repo and not lm_engine:
@@ -531,14 +541,14 @@ def _run_scan(args: argparse.Namespace) -> int:
     text = report.render(verdicts)
     on_event(_event("report", "done", detail="report rendered"))
 
-    print("\n" + "=" * 70)
-    print(text)
-
+    # The files first: a console that cannot print the report must never cost the run its results.
     payload = json.dumps([dataclasses.asdict(v) for v in verdicts], indent=2, default=str)
     Path(run_dir, "verdicts.json").write_text(payload, encoding="utf-8")
     Path(run_dir, "report.txt").write_text(text, encoding="utf-8")
     sarif = json.dumps(sarif_mod.to_sarif(verdicts), indent=2)
     Path(run_dir, "results.sarif").write_text(sarif, encoding="utf-8")
+    print("\n" + "=" * 70)
+    print(text)
     print(f"\nreport, verdicts and SARIF saved under {run_dir}")
     if args.json:
         n = write_verdicts_json(args.json, verdicts)
@@ -548,6 +558,11 @@ def _run_scan(args: argparse.Namespace) -> int:
         print(f"wrote SARIF to {args.sarif}")
 
     code = _exit_code(verdicts, getattr(args, "fail_on", "none"))
+    unverified = [v for v in verdicts if v.decision == "ERROR" and v.route == "lm-verify"]
+    if code == 0 and unverified and not lm_failures:
+        print(f"\norion scan: incomplete -- {len(unverified)} lead(s) not verified by --lm-verify "
+              "(ERROR verdicts above)", file=sys.stderr)
+        return 3
     if code == 0 and lm_failures:
         print(f"\norion scan: incomplete -- {len(lm_failures)} Orion-LM batch(es) not judged "
               "(ERROR verdicts above)", file=sys.stderr)
@@ -639,6 +654,9 @@ def _build_parser() -> argparse.ArgumentParser:
     gc.add_argument("--include-unrecorded", dest="include_unrecorded", action="store_true",
                     help="also delete scans with no OrionScan record (built before records existed); "
                          "refused until a --dry-run --include-unrecorded has listed them")
+    gc.add_argument("--include-building", dest="include_building", action="store_true",
+                    help="also delete records still 'building' (a crashed build; gc cannot tell one from a "
+                         "build or reanalyze still running, so they are kept by default)")
 
     tr = sub.add_parser("trace",
                         help="runtime stage on its own: drive the target and record what ran into an "
@@ -680,7 +698,20 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _safe_stdout() -> None:
+    """stdout that cannot encode a character prints '?' for it instead of raising. Redirected on Windows
+    it is cp1252, and the report and progress lines carry agent text (arrows, non-Latin names) and the
+    route 'light\u2192full': one such print used to kill a scan mid-verify."""
+    enc = (getattr(sys.stdout, "encoding", None) or "").lower().replace("-", "")
+    if enc != "utf8" and hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(errors="replace")
+        except (ValueError, OSError):
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _safe_stdout()
     args = _build_parser().parse_args(argv)
 
     if args.cmd == "scan":
@@ -802,7 +833,7 @@ def _run_gc(args: argparse.Namespace) -> int:
     from .graph import scans
     try:
         out = scans.gc(keep=args.keep, prefix=args.prefix, dry_run=args.dry_run,
-                       include_unrecorded=args.include_unrecorded)
+                       include_unrecorded=args.include_unrecorded, include_building=args.include_building)
     except scans.GcRefused as exc:
         print(f"orion gc: {exc}", file=sys.stderr)
         return 2
@@ -813,6 +844,8 @@ def _run_gc(args: argparse.Namespace) -> int:
         removed = row.get("removed")
         what = (", ".join(f"{k} {v}" for k, v in removed.items() if v) or "nothing") if removed else ""
         print(f"{verb:<13} {row['scan_id']} ({row['status'] or 'unrecorded'}){': ' + what if what else ''}")
+    for sid in out.get("building", []):
+        print(f"not touched   {sid} (building: running, or crashed; delete it with --include-building)")
     if out["unrecorded"] and not args.include_unrecorded:
         print(f"{len(out['unrecorded'])} unrecorded scan(s) not touched; list them with "
               "--dry-run --include-unrecorded")

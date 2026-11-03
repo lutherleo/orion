@@ -43,17 +43,24 @@ def _url_to_path(url: str) -> str | None:
 def _script_relpath(url: str, repo: str) -> str | None:
     """Repo-relative path for a first-party script; None for internals, node_modules, or outside."""
     path = _url_to_path(url)
-    if not path or "node_modules" in path:
+    rel = relativize(path, repo) if path else None
+    # node_modules INSIDE the repo is third-party; a repo that itself sits under one (a dependency
+    # scanned in place) is not, so the test runs on the repo-relative path
+    if rel is None or "node_modules" in rel.replace("\\", "/").split("/"):
         return None
-    return relativize(path, repo)
+    return rel
 
 
-def _line_counts(ranges: list[tuple[int, int, int]], starts: list[int]) -> dict[int, int]:
+def _line_counts(ranges: list[tuple[int, int, int]], starts: list[int],
+                 dead_lines: frozenset[int] | set[int] = frozenset()) -> dict[int, int]:
     """Per-line execution count from one script's ranges: a line takes the count of the INNERMOST
     range containing its first byte. V8 ranges nest lexically (a function inside the module, a
     block inside a function), and a count-0 inner block is how V8 marks code that did NOT run -- so
     crediting only a range's start line (the naive read) would miss every other executed line.
-    One sweep: ranges sorted outer-first, a stack of the ranges open at the current line."""
+    One sweep: ranges sorted outer-first, a stack of the ranges open at the current line.
+    `dead_lines` are lines where a function that never ran STARTS: its range begins mid-line (after the
+    indentation, `key:` or `=`), so the line's first byte sits in the enclosing range and a never-called
+    one-liner was credited with its caller's count. They are left out (a lower bound, never a false hit)."""
     ranges.sort(key=lambda r: (r[0], -r[1]))
     out: dict[int, int] = {}
     stack: list[tuple[int, int, int]] = []
@@ -68,7 +75,7 @@ def _line_counts(ranges: list[tuple[int, int, int]], starts: list[int]) -> dict[
                 stack.pop()
             if r[1] > s:
                 stack.append(r)
-        if stack and stack[-1][2] > 0:
+        if stack and stack[-1][2] > 0 and lineno not in dead_lines:
             out[lineno] = stack[-1][2]
     return out
 
@@ -104,6 +111,7 @@ def parse_v8_coverage(blobs: list[dict], repo: str, read_source) -> tuple[Runtim
                 continue
             ranges: list[tuple[int, int, int]] = []
             methods: list[ObservedMethod] = []
+            dead: set[int] = set()        # lines where a never-called function starts
             for fn in entry.get("functions") or []:
                 for i, rng in enumerate((fn.get("ranges") if isinstance(fn, dict) else None) or []):
                     try:
@@ -115,7 +123,9 @@ def parse_v8_coverage(blobs: list[dict], repo: str, read_source) -> tuple[Runtim
                     if i == 0 and count > 0:
                         methods.append(ObservedMethod(fn.get("functionName") or "", rel,
                                                       offset_to_line(starts, start), count))
-            hits = tuple(Hit(rel, ln, n) for ln, n in _line_counts(ranges, starts).items())
+                    elif i == 0 and fn.get("functionName"):   # a named function that never ran
+                        dead.add(offset_to_line(starts, start))
+            hits = tuple(Hit(rel, ln, n) for ln, n in _line_counts(ranges, starts, dead).items())
             acc.add(RuntimeTrace(coverage=hits, methods=tuple(methods)))
     return acc.freeze(), malformed
 
@@ -197,8 +207,11 @@ class V8Tracer:
         preload = Path(work) / "orion_exit_flush.cjs"
         preload.write_text("for (const s of ['SIGTERM', 'SIGINT', 'SIGBREAK']) "
                            "process.on(s, () => process.exit(0));\n")
+        # Forward slashes: inside NODE_OPTIONS' double quotes a backslash is an escape, so a Windows path
+        # ("C:\\Users\\...") reached node as "C:Users..." and every node the target started died at boot.
         return {"NODE_V8_COVERAGE": str(cov),
-                "NODE_OPTIONS": f'--cpu-prof --cpu-prof-dir="{prof}" --require "{preload}"'}
+                "NODE_OPTIONS": f'--cpu-prof --cpu-prof-dir="{Path(prof).as_posix()}" '
+                                f'--require "{preload.as_posix()}"'}
 
     def script_command(self, script: str, repo: str, work: Path) -> tuple[list[str], dict[str, str]]:
         """argv + env to run a harness SCRIPT under `_boot_js`, dumping into the same dirs. With no

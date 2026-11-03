@@ -51,7 +51,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import sys
 import tempfile
 import time
@@ -220,7 +219,7 @@ def _build_side(mdir: str, sha: str, *, builder, tmp_root, _export) -> dict:
             out["stage"] = "setup"            # the machine, not the commit
         out["error"] = f"{e.__class__.__name__}: {e}"[:4000]
     finally:
-        shutil.rmtree(work, ignore_errors=True)
+        repo.remove_tree(work)
     return out
 
 
@@ -328,7 +327,7 @@ def main(argv=None) -> int:
     report_path = args.report or os.path.join(os.path.dirname(args.manifest) or ".", "pathgt_report.json")
     report = {"manifest": args.manifest, "rows": {}}
     if os.path.exists(report_path):
-        with open(report_path) as f:
+        with open(report_path, encoding="utf-8") as f:
             report = json.load(f)
     todo = [r for r in rows if not args.id or r.get("id") in args.id]
     commit = _orion_commit()

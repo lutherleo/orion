@@ -281,13 +281,17 @@ def _failure(turn: int, batch: list[dict], reason: str) -> dict:
 
 
 def _session_failure(steps: list[dict]) -> str | None:
-    """Why a session that RETURNED still judged nothing: the context overflowed, or the forced final was
-    not a valid final. None when the session ended with a real answer (an empty `leads` list included)."""
+    """Why a session that RETURNED still judged nothing: the context overflowed, or its final (forced or
+    not) was not a valid final. None when the session ended with a real answer (an empty `leads` list
+    included). `{"action": "final"}` with no valid `leads` passes the action schema, so a regular final
+    can be invalid too: it used to count as a clean "found nothing" (and lm-verify made it a REJECT)."""
     for step in steps or []:
         if step.get("kind") == "context_overflow":
             return f"context overflow: {step.get('error')}"
         if step.get("kind") == "forced_final" and step.get("error"):
             return f"forced final failed: {step.get('error')}"
+        if step.get("kind") == "final" and step.get("error"):
+            return f"invalid final: {step.get('error')}"
     return None
 
 
