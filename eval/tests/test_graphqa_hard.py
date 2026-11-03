@@ -593,3 +593,9 @@ def test_a_run_and_its_score_can_be_narrowed_to_some_fixtures():
     assert gh.select_fixtures(data, "") is data
     one = gh.select_fixtures(data, "b")
     assert list(one["fixtures"]) == ["b"] and [q["id"] for q in one["questions"]] == ["b1"]
+
+
+def test_python_oracle_follows_a_subscripted_base_class(tmp_path):
+    t = tree(tmp_path, "py", {"a.py": "class Base:\n    def visit(self):\n        return 1\n\n\n"
+                                      "class Child(Base[int]):\n    def go(self):\n        return self.visit()\n"})
+    assert ("go", "visit") in edges(gh.py_callgraph(t))

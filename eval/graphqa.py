@@ -1324,7 +1324,7 @@ def _skey(qid: str, rev, model: str, path: str) -> tuple:
 
 # A session cut off mid-way ends "You've hit your 5-hour limit · resets 12:10am" (captured 2026-11-02, CLI 2.1.316), which
 # eval.run's signatures miss: without this, a re-run cut off the same way would be scored as the model's failure.
-_PLAN_LIMIT = re.compile(r"hour limit ·|\bweekly limit", re.I)     # the error tail can cut the "5-" off
+_PLAN_LIMIT = re.compile(r"· resets \d|\bweekly limit", re.I)      # the error tail can cut anything before "· resets"
 
 
 def _limit_hit(error: str, usage: list[dict]) -> bool:

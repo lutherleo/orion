@@ -242,7 +242,7 @@ class _PyOracle:
 
     def _link_bases(self, c: _Class) -> None:
         for b in c.node.bases:
-            parts = _dotted(b)
+            parts = _dotted(b.value if isinstance(b, ast.Subscript) else b)     # `class LineGenerator(Visitor[Line])`
             kind, val = self._lookup(parts, c.module, {}) if parts else (None, None)
             if kind == "class":
                 c.bases.append(val)

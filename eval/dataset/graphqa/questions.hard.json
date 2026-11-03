@@ -88,14 +88,14 @@
     "oracle_functions": 363,
     "graph_functions": 363,
     "both": 363,
-    "oracle_edges": 488,
+    "oracle_edges": 496,
     "graph_edges": 513,
-    "common": 449,
-    "oracle_only": 39,
-    "graph_only": 64,
+    "common": 450,
+    "oracle_only": 46,
+    "graph_only": 63,
     "graph_only_on_an_object": 38,
-    "recall": 0.9201,
-    "precision": 0.8752
+    "recall": 0.9073,
+    "precision": 0.8772
    },
    "skipped_candidates": {
     "reach_down: answer size outside 3..20": 20,
@@ -962,6 +962,7 @@
     "normalize_string_quotes",
     "normalize_trailing_prefix",
     "sub_twice",
+    "visit",
     "visit_default"
    ],
    "check": {
@@ -1001,7 +1002,29 @@
    "candidate": "black/linegen.py:234",
    "status": "proposed",
    "scan_id": "264f3f2f29af73ca88571f89540e4bd806e78cdd",
-   "rev": 1
+   "rev": 1,
+   "gold_before": {
+    "gold": [
+     "_cached_compile",
+     "format_complex_number",
+     "format_float_or_int_string",
+     "format_hex",
+     "format_scientific_notation",
+     "generate_comments",
+     "is_async_stmt_or_funcdef",
+     "line",
+     "list_comments",
+     "make_comment",
+     "make_simple_prefix",
+     "normalize_numeric_literal",
+     "normalize_string_prefix",
+     "normalize_string_quotes",
+     "normalize_trailing_prefix",
+     "sub_twice",
+     "visit_default"
+    ],
+    "why": "oracle fix: a subscripted base class (`class LineGenerator(Visitor[Line])`) was not followed, so `self.visit` was missed. Found because both paths answered `visit`. The question stays frozen: it had been asked. Asked fresh, it would be skipped, since `visit_default` then names two functions."
+   }
   },
   {
    "fixture": "black",
