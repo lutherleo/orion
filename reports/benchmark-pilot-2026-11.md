@@ -169,10 +169,11 @@ The memory benchmarks can't test Orion directly, so these test its two memory la
 These queries are plain English. Agents' queries can contain identifiers, which is what hybrid was built for, and that
 case is not tested.
 
-**Graph as memory: no better than grep so far, at about 1.6x the tokens** (`reports/Graph-as-memory Q&A pilot.md`). On
-20 questions every row was exact on every question, so that set only measures cost. The harder set stopped on the plan
-limit at 18 of 24 questions (Sonnet, black + poetry): an unscored hand tally has the graph exact on 11 and grep on 13.
-12 sessions remain, and no harder-set full run has been done on Opus.
+**Graph as memory: no sign that it makes answers more accurate** (`reports/Graph-as-memory Q&A pilot.md`). On 20 easier
+questions both paths were exact every time and the graph used about 1.56x the tokens, so that set only measures cost. On
+the harder 24 (Sonnet, black + poetry, one session each) the graph was exact on 16 and grep on 17, with 2 out of turns on
+each path, at $17.91 against $18.78 and 8,568 s against 6,212 s. Two of grep's misses are sessions that searched an empty
+folder. Opus, NodeGoat and PyGoat were not run on the harder set.
 
 ## Scale-up decision
 
@@ -191,7 +192,7 @@ or $1,000 a week. On that rough rate the Sonnet pair needs about 0.7 of a week a
 
 1. **Don't scale this setup.** Opus + Orion tied Opus alone on all 10 external tasks at L2, and more runs of the same
    setup would mainly resolve small differences at high cost.
-2. **Fix what the pilot found first:** the lost shape, the embed fix and `src/` layout (PR #7).
+2. **Fix what the pilot found first:** the lost shape, the embed fix (PR #8) and `src/` layout (PR #7).
 3. **Cut the verifier's cost:** it is 43-74% of Orion's spend. `--verify-routing` exists, is off by default and is
    unmeasured.
 4. **Then repeat the 5-task pilot on Sonnet only, with and without routing.** At the measured rate that is about $33 for
@@ -205,8 +206,9 @@ or $1,000 a week. On that rough rate the Sonnet pair needs about 0.7 of a week a
 3. The verifier CONFIRMs "no X found" leads.
 4. The verifier rejected the right-place leads on express-xss-sanitizer and parse-url on Sonnet.
 5. PyGoat FLOWS_TO gaps at `views.py:150` and `mitre.py:243` (Graph Q&A report).
-6. `embed.index` runs out of memory on a 4 GB GPU (fixed on `claude/happy-meninsky-ac2c8a`, not merged).
+6. `embed.index` runs out of memory on a 4 GB GPU (fix in PR #8, open).
 7. A plain scan of a `src/`-layout Python repo misses imported calls (PR #7, open).
+8. Vector search returns the same chunk more than once, mostly on Python (RepoQA report; left unfixed for now).
 
 ## Files and how to re-score
 
