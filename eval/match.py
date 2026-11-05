@@ -157,7 +157,7 @@ def path_levels(finding: dict, answer_key: dict) -> dict:
     `line`, from eval.pathgt, +/-10; an entry point without a line cannot be hit), and waypoint_f1 is
     computed over (file, line) windows (_lm_waypoint_f1). Plain arms' nodes name the enclosing
     function, so for them entry_hit and waypoint_f1 compare (file, function) via eval.names.
-    KRISH CHECK: the two rules make the secondary path metrics less comparable across arms.
+    LOVE KUSH CHECK: the two rules make the secondary path metrics less comparable across arms.
     """
     path = finding.get("path") or []
     fixes = answer_key.get("fix_sites") or []

@@ -138,7 +138,7 @@ It never removes a build file: `pom.xml`, `web.xml`, `build.xml`, gradle files, 
   - The crawler file `data/benchmark-crawler-http.xml` carries only URL, `tcName`,
     `tcType="SERVLET"` and input values.
 
-**CONCERN (left in place, for Krish).** Java test-case comments hint at the answer. They are part
+**CONCERN (left in place, for Love Kush).** Java test-case comments hint at the answer. They are part
 of OWASP's published test code, and removing them would edit the code under test, so they were not
 stripped. They do not change behaviour, but every arm reads them.
 
@@ -291,7 +291,7 @@ CLI (run from the repo root):
   - The manifest copy was byte-identical afterwards (sha256 check OK), and no report file was
     created.
   - No Joern problem was reported: the binaries under `~/joern/joern-cli` are present.
-- The full pre-check (2 × 258 = 516 Joern builds) is Krish's next step. Run one `--id` first as the
+- The full pre-check (2 × 258 = 516 Joern builds) is Love Kush's next step. Run one `--id` first as the
   smoke.
 
 ## Old-CVE check

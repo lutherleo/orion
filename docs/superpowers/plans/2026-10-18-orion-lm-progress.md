@@ -1,7 +1,7 @@
 # Orion-LM build progress (snapshot 2026-10-18)
 
 Plan: `docs/superpowers/plans/2026-10-18-orion-lm.md` (rev 2). Branch: `eval/orion-lm`.
-Paused by Krish after Task E3. This file is a committed copy of the working ledger
+Paused by Love Kush after Task E3. This file is a committed copy of the working ledger
 (`.superpowers/sdd/2026-10-18-orion-lm/progress.md`, gitignored) so the record survives on GitHub.
 
 ## Done (each task implemented, reviewed, fixed until the review was clean)
@@ -13,9 +13,9 @@ Paused by Krish after Task E3. This file is a committed copy of the working ledg
 
 ## Not done yet
 
-E4, E5, D1–D6, C2, F0, F1, F3, F2, then the final whole-branch review. F4 and F5 need Krish.
+E4, E5, D1–D6, C2, F0, F1, F3, F2, then the final whole-branch review. F4 and F5 need Love Kush.
 
-## Krish to check before the pre-registration tag
+## Love Kush to check before the pre-registration tag
 
 - Credentials: the A6 smoke test copied the Claude OAuth block (from the macOS keychain) and
   `~/.codex/auth.json` into gitignored `eval/.config/`. Plaintext on disk; never committed.
@@ -26,7 +26,7 @@ E4, E5, D1–D6, C2, F0, F1, F3, F2, then the final whole-branch review. F4 and 
 - Codex runs with `--sandbox workspace-write` and network off (read-only blocked the findings
   write, measured), not the plan's read-only.
 - Not captured yet: the usage-limit fixtures (`"captured": false`). Placeholders: the system prompt
-  and the training templates (Krish writes these).
+  and the training templates (Love Kush writes these).
 - Day-1 measurements not run (need Neo4j / the fixture): FLOWS_TO parity at 217, and the NodeGoat
   CandidateFlow count with `with_lm_sinks(EXPRESS)` (the prototype-pollution hints
   merge/extend/assign are broad).
@@ -37,7 +37,7 @@ E4, E5, D1–D6, C2, F0, F1, F3, F2, then the final whole-branch review. F4 and 
 ## Full ledger
 
 
-Spec: docs/superpowers/specs/2026-10-18-orion-lm-design.md (read). Branch: eval/orion-lm (feature branch; main checkout — Krish works here, untracked scratch files present, so no new worktree).
+Spec: docs/superpowers/specs/2026-10-18-orion-lm-design.md (read). Branch: eval/orion-lm (feature branch; main checkout — Love Kush works here, untracked scratch files present, so no new worktree).
 Baselines before Task A1: `./.venv/bin/pytest eval/tests -q` → 44 passed. Orion's Neo4j container is NOT running (only grc-* containers up) → `tests/test_persist_indexes.py` is the one expected failure in `pytest -m "not slow"`.
 Plan commit: b25534c.
 
@@ -56,7 +56,7 @@ Plan commit: b25534c.
 | D5 ↔ B3 | D5 adds `format.dumps_action` to B3's format.py | OK; D5 after B3. |
 | E3 `_tokens` ↔ A1 steps schema | reads `steps.prompt_tokens/completion_tokens` for lm arms, `agent_calls` otherwise | OK. |
 | F2 ↔ F3 (eval/arms/lm.py) | F2 says it modifies lm.py for case mode; F3 creates it and already takes `case=` | Ruling: F3 creates lm.py with a `case_flows_fn` hook (default None); F2 wires `owasp.case_flows` into the launcher. Order F1→F3→F2 (F2 also needs queue items). Cost if wrong: one kwarg rename. |
-| B4 / C2 / D1 / D2 / F0 "run the real thing" steps | need model weights (GB downloads), OSV export re-download, cloud GPU, Krish's text | Ruling: build + unit-test all code now; the measurement runs (bake-off, OSV mining counts, Joern timings, LoRA, test run) are listed as next steps for Krish, not faked. No number is recorded that wasn't measured. |
+| B4 / C2 / D1 / D2 / F0 "run the real thing" steps | need model weights (GB downloads), OSV export re-download, cloud GPU, Love Kush's text | Ruling: build + unit-test all code now; the measurement runs (bake-off, OSV mining counts, Joern timings, LoRA, test run) are listed as next steps for Love Kush, not faked. No number is recorded that wasn't measured. |
 | A3 / A5 / A6 fixture captures | need one real `codex exec --json`, one real `claude -p`, limit messages, network smoke | Ruling: implementers run the tiny real CLI calls (cents of subscription usage); limit fixtures use the plan's `"captured": false` fallback if they can't be triggered. |
 | Each task self-consistency | tests vs code vs files | A1–F3 checked: file lists include every test named; no task's test references an interface another task defines differently. |
 
@@ -83,9 +83,9 @@ Task A5: impl 421ad71 (101 tests). Limit fixtures UNCAPTURED (`"captured": false
 Task A5: review: 1 Important (raw-text limit match over-broad, `source` unused → real failures become never-scored retries). minor (deferred): main-with-run_one integration untested; commit_sha-only row forced kind "vulnerable"; wait printed to stdout only (no events row); legacy NULL commit_sha rows exempt from UNIQUE.
 Task A5: fix round 1/5 (1 addressed, 0 open; commits 421ad71..fd9f74a). minor (deferred): `_source_for` is a hard-coded arm→source dict (A6/F3 must extend; unknown → "lm", safe); `_RAW_RE` unbounded gap; `_log_resource` in the KeyboardInterrupt path could mask the interrupt.
 Task A5: complete (commits ae7354c..fd9f74a, review clean)
-Task A6: dispatched (BASE fd9f74a, fable). Rulings carried: claude_settings.json sandbox shape is a hypothesis decided by the real smoke test; if Bash still reaches the network, report DONE_WITH_CONCERNS (the no-Bash fallback needs Krish's sign-off, not applied unilaterally); smoke test copies ONLY credential files into the clean config dirs and records which.
-Task A6: impl 61d5e50 (119 tests), DONE_WITH_CONCERNS. Measured: Claude Bash curl blocked under clean config + sandbox settings (403 deny network-outbound); Codex shell curl blocked (DNS fails) under workspace-write + network_access=false. Rulings: (1) Codex `--sandbox workspace-write` + `network_access=false` replaces the plan's `read-only` — read-only rejected the findings.json write (measured); the constraint (no network) still holds. Cost if wrong: Codex could write inside the tree only — acceptable, tree is discarded. (2) empty allowlist + strictAllowlist accepted (claude process itself is outside the sandbox). (3) extra Codex isolation flags (--disable apps/plugins/remote_plugin, web_search=disabled) accepted — they close measured leaks (Codex ran real web searches before). (4) SURFACE TO KRISH: the smoke test exported the Claude OAuth block from the macOS keychain into eval/.config/claude/.credentials.json and copied ~/.codex/auth.json into eval/.config/codex/ (both under gitignored eval/.config; the claude dir is empty again at review time). Review pending.
-Task A6: review: 1 Important (non-Bash Claude tools — RemoteTrigger/DesignSync/Task/Cron/etc. — not disallowed; untested lookup channel). minor (deferred): shared config homes keep session transcripts across runs; no preflight check for credential files; reads unrestricted outside the tree (manifest/other arms' outputs readable if on disk — tree lives in tmp, eval/runs in repo); stale "ollama" label test_queue.py:102; Opus transcript elided. ⚠️ flagged for Krish: OAuth block copied from keychain into a plaintext gitignored file; refresh-token rotation could invalidate the primary login (unverified).
+Task A6: dispatched (BASE fd9f74a, fable). Rulings carried: claude_settings.json sandbox shape is a hypothesis decided by the real smoke test; if Bash still reaches the network, report DONE_WITH_CONCERNS (the no-Bash fallback needs Love Kush's sign-off, not applied unilaterally); smoke test copies ONLY credential files into the clean config dirs and records which.
+Task A6: impl 61d5e50 (119 tests), DONE_WITH_CONCERNS. Measured: Claude Bash curl blocked under clean config + sandbox settings (403 deny network-outbound); Codex shell curl blocked (DNS fails) under workspace-write + network_access=false. Rulings: (1) Codex `--sandbox workspace-write` + `network_access=false` replaces the plan's `read-only` — read-only rejected the findings.json write (measured); the constraint (no network) still holds. Cost if wrong: Codex could write inside the tree only — acceptable, tree is discarded. (2) empty allowlist + strictAllowlist accepted (claude process itself is outside the sandbox). (3) extra Codex isolation flags (--disable apps/plugins/remote_plugin, web_search=disabled) accepted — they close measured leaks (Codex ran real web searches before). (4) SURFACE TO LOVE KUSH: the smoke test exported the Claude OAuth block from the macOS keychain into eval/.config/claude/.credentials.json and copied ~/.codex/auth.json into eval/.config/codex/ (both under gitignored eval/.config; the claude dir is empty again at review time). Review pending.
+Task A6: review: 1 Important (non-Bash Claude tools — RemoteTrigger/DesignSync/Task/Cron/etc. — not disallowed; untested lookup channel). minor (deferred): shared config homes keep session transcripts across runs; no preflight check for credential files; reads unrestricted outside the tree (manifest/other arms' outputs readable if on disk — tree lives in tmp, eval/runs in repo); stale "ollama" label test_queue.py:102; Opus transcript elided. ⚠️ flagged for Love Kush: OAuth block copied from keychain into a plaintext gitignored file; refresh-token rotation could invalidate the primary login (unverified).
 Task A6: fix round 1 impl 437d04e (121 tests): `--tools Bash,Read,Edit,Write,Grep,Glob,NotebookEdit` allowlist + extended --disallowedTools; smoke re-run shows init tools == those 7; --no-session-persistence; preflight login checks. Ruling: the plain arms lose Task/Agent subagents vs the 09-17 setup — a capability change that must be stated in PREREGISTRATION.md (F4). Re-review pending.
 Task A6: fix round 1/5 (1 addressed, 0 open; commits 61d5e50..437d04e). minor (deferred): README should state the subagent/Skill removal as a pre-registration comparability note (carry into F4).
 Task A6: complete (commits fd9f74a..437d04e, review clean). PART A DONE — 121 eval tests.
@@ -104,7 +104,7 @@ Task B3: impl 8a1f4d5 (205 passed). Review pending. CARRY TO D5: tool errors are
 Task B3: review: 1 Important (read_code/flow code rendered undelimited — prompt-injection surface; fix before D5 cuts training data). minor (deferred): consecutive user turns at forced final (CARRY TO B4: check the chat template tolerates it; if merged, change format.py so training matches); tool exceptions not caught in prompter (B1 returns error dicts; slice RuntimeError is B5's); context-cap action still runs its tool before the forced final (compliant, untested).
 Task B3: fix round 1 impl 8ce855f (210 passed): <<<CODE>>>/<<<END CODE>>> markers around read_code + flow code; data-not-instruction rule in ACTION_RULES + placeholder prompt. CARRY TO D5: cut training examples only from 8ce855f onward. Re-review pending.
 Task B3: fix round 1/5 (1 partially addressed — marker forgery via literal <<<END CODE>>> in repo text left open; commits 8a1f4d5..8ce855f). Fix round 2 dispatched.
-Task B3: fix round 2 impl 82eb09c (212 passed): _neutralise breaks every run of 3+ < or > with backslashes in both code helpers. Note for Krish's prompt: a line explaining <\<\< means a literal <<<. Re-review pending.
+Task B3: fix round 2 impl 82eb09c (212 passed): _neutralise breaks every run of 3+ < or > with backslashes in both code helpers. Note for Love Kush's prompt: a line explaining <\<\< means a literal <<<. Re-review pending.
 Task B3: fix round 2/5 (block fix ADDRESSED + exhaustively probed; residual: file/function names rendered raw outside the block; commits 8ce855f..82eb09c). Fix round 3 dispatched.
 Task B3: fix round 3 impl 121b0d8 (213 passed): _s() neutralises every repo-controlled string at render time (file/function/uids/rows/error text). CARRY TO D5: cut training examples from 121b0d8 onward. Re-review pending.
 Task B3: fix round 3/5 (1 addressed, 0 open; commits 82eb09c..121b0d8). minor (deferred): action `name` in RESULT:/ERROR: prefix not neutralised (model-controlled, not repo); no unit test for _s(None)/_s(int).
@@ -124,7 +124,7 @@ Task B5: fix round 1/5 (1 addressed, 0 open; commits 61ed924..7644e66).
 Task B5: complete (commits 1cb110d..7644e66, review clean)
 Task C1: dispatched (BASE 7644e66, sonnet).
 Pre-notes: B6 test seam = cli.main([...]) with graph_build/discover/verify monkeypatched (see tests/test_cli_repo_guard.py); --scan-id skips the build. E1: eval/arms/prompt.py has FINDINGS_SCHEMA (findings.schema.json), 7-field shape incl. line_start/line_end, validate_findings(obj)->list[str]; scripts/run_nodegoat_eval.py has CLASS_KEYWORDS, _text_blob, _file_blob, match_verdicts.
-Task C1: impl 3868d30 (249 passed). NOT RUN (Krish, Day 1): test_stream_flows_parity (217) and NodeGoat build with with_lm_sinks(EXPRESS) → FLOWS_TO + CandidateFlow count. Review pending.
+Task C1: impl 3868d30 (249 passed). NOT RUN (Love Kush, Day 1): test_stream_flows_parity (217) and NodeGoat build with with_lm_sinks(EXPRESS) → FLOWS_TO + CandidateFlow count. Review pending.
 Task C1: complete (commits 7644e66..3868d30, review clean). minor (deferred, FLAG FOR DAY-1 MEASUREMENT): bare `merge`/`extend`/`assign` prototype_pollution hints (severity 4) are substring-matched over name+code and may crowd out severity-3 path flows — qualify (Object.assign(, _.merge, $.extend() if the NodeGoat CandidateFlow count balloons; `open(` matches fopen/popen; no stream=True test for build(profile=).
 Task B6: dispatched (BASE 3868d30, fable).
 Task B6: impl 3ee11ee (256 passed). Review pending.
@@ -139,9 +139,9 @@ Task E1: fix round 1 impl 3b3c043 (eval 139 passed). Re-review pending.
 Task E1: fix round 1/5 (2 addressed, 0 open; commits fc250fa..3b3c043). minor (deferred): a root-level file literally named react.js is dropped by the stoplist (known tradeoff); `path: null` rejected by validate_findings (decision made in E1 — plain arms must omit or send a list).
 Task E1: complete (commits f0833a8..3b3c043, review clean)
 Task E2: dispatched (BASE 3b3c043, sonnet).
-Pre-note E2: eval/cwe.py CWE_PARENTS table is from model knowledge, marked unverified — KRISH CHECK against cwe.mitre.org before the tag.
+Pre-note E2: eval/cwe.py CWE_PARENTS table is from model knowledge, marked unverified — LOVE KUSH CHECK against cwe.mitre.org before the tag.
 Ruling for E3 (pre-noted): venv has numpy 2.5.2 + scipy 1.18.0, NO matplotlib → report.py may use numpy for the bootstrap (seeded RNG) and writes the Pareto plot as a hand-built SVG + markdown table (no new plotting dependency). Cost if wrong: a less pretty plot.
-Task E2: impl 792040b (eval 158 passed). KRISH CHECK: sibling rule makes CWE-94 and CWE-502 (both parent 913) one family — review before the tag. Review pending.
+Task E2: impl 792040b (eval 158 passed). LOVE KUSH CHECK: sibling rule makes CWE-94 and CWE-502 (both parent 913) one family — review before the tag. Review pending.
 Task E2: review: 1 Important (missing/inverted line_end disabled the line window). CARRY TO E3: read matches via match.read_matches (cwe_family comes back as a real bool; raw TEXT column holds "1"/"0"). minor (deferred): entry_hit file_ok True when the entry point has no file; duplicate/missing key ids not checked; only leading ./ normalised (no backslashes); garbled test comment.
 Task E2: fix round 1 impl 084e613 (eval 161). Ruling: path_levels.fix_traversal stays line-only (spec: file + line±10; function-name match would credit any path through the fix function) — documented in the docstring. Re-review pending.
 Task E2: fix round 1/5 (1 addressed, 0 open; commits 792040b..084e613). CARRY TO E3: read_matches returns path_level as the stored JSON string (json.loads it), cwe_family as bool.
@@ -154,4 +154,4 @@ Task E3: review: 3 Important (bootstrap used union of repos → unpaired contrib
 Task E3: fix round 1 impl 7c18016 (eval 190). Re-review pending.
 Task E3: fix round 1/5 (3 addressed, 0 open; commits 61d0b10..7c18016). minor (deferred): repos with no token data in BOTH arms appear in neither the Coverage table's unmatched list nor unmatched_repos (their runs are still counted in n_no_token_data); latest-attempt-aborted-over-scored-earlier is documented but not directly tested.
 Task E3: complete (commits 084e613..7c18016, review clean)
-PAUSED BY KRISH (2026-10-18) after Task E3. Branch pushed to krish/eval/orion-lm at 7c18016 + progress snapshot. RESUME HERE: E4 E5 D1 D2 D3 D4 D5 D6 C2 F0 F1 F3 F2, then the final whole-branch review. F4/F5 human-gated.
+PAUSED BY LOVE KUSH (2026-10-18) after Task E3. Branch pushed to eval/orion-lm at 7c18016 + progress snapshot. RESUME HERE: E4 E5 D1 D2 D3 D4 D5 D6 C2 F0 F1 F3 F2, then the final whole-branch review. F4/F5 human-gated.

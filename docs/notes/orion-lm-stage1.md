@@ -33,7 +33,7 @@ with a recorded reason, then the affected pairs are rebuilt.
 - Examples: 4.37 per pair × 4,579 eligible pairs ≈ 20,000 examples, ≈ 17,000 of them train (train share
   3,883 / 4,579 eligible pairs).
 
-## Minified-file fix (2026-10-23, approved by Krish)
+## Minified-file fix (2026-10-23, approved by Love Kush)
 
 `codeindex.MAX_LINE_CHARS = 2_000`: a file with any longer line is skipped as
 `minified (a line over 2000 chars)`, in the walk and in `update()`. In the 126 pairs built before the fix,
@@ -49,7 +49,7 @@ Started 2026-10-23 with `PYTHONUNBUFFERED=1 python -m train.stage1 2>&1 | tee tr
 an empty ledger, with the fix. Final counts are recorded here when it finishes.
 
 Finished 2026-10-23 23:20 (read from `stage1_ledger.jsonl` and `stage1.jsonl`). The run was stopped and resumed
-from the ledger several times. On 2026-10-23 22:32 Krish skipped the last 19 liferay/liferay-portal pairs
+from the ledger several times. On 2026-10-23 22:32 Love Kush skipped the last 19 liferay/liferay-portal pairs
 (~70 s per pair, 105 in the repo); their ledger rows say `skipped_by_user`.
 
 | metric | value |

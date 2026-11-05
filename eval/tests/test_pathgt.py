@@ -309,7 +309,7 @@ def test_cli_dry_run_writes_only_the_report(tmp_path, monkeypatch):
 
 
 def test_cli_write_merges_fields_and_never_touches_a_labeled_row(tmp_path, monkeypatch):
-    signed = dict(ROW, id="CVE-2", labelers=["krish"], fix_sites=[{"file": "human.js", "line": 1}])
+    signed = dict(ROW, id="CVE-2", labelers=["lovekush"], fix_sites=[{"file": "human.js", "line": 1}])
     rc, man, calls, report = _cli(tmp_path, monkeypatch, "--write", rows=[dict(ROW), signed])
     assert rc == 0 and calls == ["CVE-1"]                                       # CVE-2 never even built
     rows = {r["id"]: r for r in json.loads(man.read_text())["repos"]}

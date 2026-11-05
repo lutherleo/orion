@@ -8,7 +8,7 @@ from eval import manifest
 def _row(**kw):
     base = {"id": "r1", "repo_url": "https://x/r", "tier": "headline", "vulnerable_commit": "v",
             "patched_commit": "p", "cwe": "CWE-89", "fix_sites": [], "accepted_entry_points": [],
-            "labelers": ["krish"]}
+            "labelers": ["lovekush"]}
     base.update(kw)
     return base
 

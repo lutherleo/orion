@@ -15,7 +15,7 @@ from collections import Counter
 
 LABELS = ("real_other_bug", "false_alarm", "unsure")
 
-# Krish freezes the judge model id and the prompt text at the pre-registration tag (Task F4); both are
+# Love Kush freezes the judge model id and the prompt text at the pre-registration tag (Task F4); both are
 # recorded for that gate. None = not yet chosen; nothing is guessed.
 JUDGE_MODEL = None
 
@@ -179,7 +179,7 @@ def judge_record() -> dict:
 
 
 # ---- location-less findings (the frozen matching rule, 2026-09-17; built 2026-10-29) --------------
-# "Deterministic matcher first, LLM judge only for location-less findings (validated vs Krish's labels
+# "Deterministic matcher first, LLM judge only for location-less findings (validated vs Love Kush's labels
 # on >=100)". A finding that names no file cannot meet the L1 location rule, so -- and only then -- the
 # judge is asked whether it describes the answer key's vulnerability. A "same_vulnerability" answer is
 # credited as a match at level "J1" (counted like L1, never as L2), and ONLY after the judge was
@@ -247,7 +247,7 @@ def credit_locationless(conn, run_id, findings: list, answer_keys: list, *, ask,
 
     Refuses (ValueError) unless the judge model is frozen (JUDGE_MODEL) and `calibration` is a
     `calibrate(..., categories=MATCH_LABELS)` result with `min_n_met` -- the frozen rule's >=100 labels.
-    Whether its agreement is good enough to use is Krish's call, recorded with the tag."""
+    Whether its agreement is good enough to use is Love Kush's call, recorded with the tag."""
     from eval import match as _match
     if JUDGE_MODEL is None:
         raise ValueError("the judge model is not frozen (judge.JUDGE_MODEL is None)")

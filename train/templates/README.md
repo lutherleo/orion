@@ -1,6 +1,6 @@
 # Stage 2 query templates
 
-`train/templates/queries.json` does not exist yet. Krish writes it. Until it does, `stage2.trace_for`
+`train/templates/queries.json` does not exist yet. Love Kush writes it. Until it does, `stage2.trace_for`
 returns `None` and `stage2.build` writes only the example rows (vulnerable / patched / negative), no
 traces.
 

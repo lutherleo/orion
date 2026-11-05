@@ -117,7 +117,7 @@ Outputs:
   R = 3), the run is about 3.5× the N = 60 at the upper end of the spec's rough 4–8-day
   estimate (N ≈ 29–60).
   Cutting it to ≈60 needs a selection rule set before the tag, such as a seeded random sample
-  stratified by language, or one row per repo. F0 does not choose one; that is Krish's call.
+  stratified by language, or one row per repo. F0 does not choose one; that is Love Kush's call.
 
 ## Fix round 1 (2026-10-22): before -> after
 
@@ -150,7 +150,7 @@ Changes:
   `entry_evidence`, `graph_missed`): E5 (`eval/pathgt.py`) on real builds of both commits.
 - **Scale tier:** F2's graph-build pre-check on every test commit (both sides). Rows whose
   build fails move to scale for all arms, before the tag. `loc_first_party` stays `null`.
-- **Labels:** `labelers`, `guard`, `agreement` (Krish + second labeler), plus the protected
+- **Labels:** `labelers`, `guard`, `agreement` (Love Kush + second labeler), plus the protected
   operation for access-control rows.
 - **The 09-17 rule 3 write-up check:** no public write-up of the bug before the cutoff (issue
   and PR creation dates). It is not automated here; the fix-date and earlier-public rules are the

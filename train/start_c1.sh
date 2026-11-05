@@ -1,5 +1,5 @@
 #!/bin/bash
-# Orion-LM run C1, training (Krish starts it): opens TensorBoard (live loss / learning rate / tokens per second /
+# Orion-LM run C1, training (Love Kush starts it): opens TensorBoard (live loss / learning rate / tokens per second /
 # peak memory / gradient norm) in the browser, then trains in this terminal under the 9 GB guard with the Mac kept
 # awake. 1 epoch over train/data/mlx/train.jsonl (balanced data v2), LoRA r16/alpha16 on the top 8 layers of
 # models/orion-lm-base, validation loss on 100 fixed dev rows every 100 steps, a checkpoint every

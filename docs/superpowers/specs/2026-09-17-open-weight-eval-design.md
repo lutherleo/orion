@@ -201,8 +201,8 @@ Recorded by this branch, straight from the tools' own output. Nothing here is co
 Built later, in a separate session, over `eval/runs.db` + `eval/runs/` + the manifest:
 matching findings to the answer key (caught; caught with the right type; missed), "still reported on
 the patched commit", consistency across the 3 runs, cost per bug caught, confidence intervals, and
-labeling of unmatched findings. Labeling is **the user (Krish) plus an LLM judge**, with the judge
-validated against Krish's labels on ≥ 100 findings and the validation disclosed. This branch only
+labeling of unmatched findings. Labeling is **the user (Love Kush) plus an LLM judge**, with the judge
+validated against Love Kush's labels on ≥ 100 findings and the validation disclosed. This branch only
 guarantees that everything those need is captured.
 
 ### 8a. Deferred: exploit validation (NOT in this study)
@@ -236,7 +236,7 @@ Any later change gets a new tag (`eval-prereg-v2`, …) and a dated reason in `e
 - **Caught, right type:** the above AND the finding's CWE is in the same CWE family as the answer key.
 - **Matcher:** a deterministic pass (regex/substring + line window) decides every finding that carries
   a locatable file/line; an LLM judge decides only findings with no clear location, and is validated
-  against Krish's own labels on ≥ 100 findings with the agreement reported. Applied in the scoring
+  against Love Kush's own labels on ≥ 100 findings with the agreement reported. Applied in the scoring
   session (§8), frozen here so it cannot be tuned to the results.
 
 ## 10. Phases
@@ -264,4 +264,4 @@ Any later change gets a new tag (`eval-prereg-v2`, …) and a dated reason in `e
 - **Dataset size.** Post-May-2026 advisories with clean, localized fixes in large JS/Python/Java repos
   are limited; if the target isn't reachable, the smaller size is stated, not padded with control rows.
 - **Git remote.** `origin` (lutherleo/orion) is currently unreachable from this machine; the branch is
-  based on local `Dante` (the most complete copy) and pushed to `krish`.
+  based on local `Dante` (the most complete copy).

@@ -1,8 +1,8 @@
 # Merge plan Phase 6: the three measurement gates
 
-Each gate answers one open decision of the Oracle + krish/main merge (decisions D2, D4, D5). Its rule was
-written down BEFORE any run (proposed 2026-10-29; Krish and Love Kush confirm or change it first), so the
-numbers cannot choose it. Gates 1 and 2 run on Krish's Mac (MLX). Gate 3 runs on any box with Neo4j, Joern,
+Each gate answers one open decision of the Oracle + Orion-LM main merge (decisions D2, D4, D5). Its rule was
+written down BEFORE any run (proposed 2026-10-29; Love Kush confirms or change it first), so the
+numbers cannot choose it. Gates 1 and 2 run on Love Kush's Mac (MLX). Gate 3 runs on any box with Neo4j, Joern,
 the fixtures and a logged-in `claude`. Gates 1 and 2 use no Claude tokens; Gate 3 does.
 
 | Gate | Question | Where | Command | Rule (proposed) |

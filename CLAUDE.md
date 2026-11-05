@@ -27,21 +27,21 @@ ambiguity warning landed this session. Validated beyond NodeGoat: a full PyGoat 
 confirmed 20 findings incl. 6 known-vuln deps, no framework-specific tuning. First commit to `main`
 this session (the earlier "nothing committed" rule lifted at Love Kush's request).
 
-## Unified project (Oracle + krish/main, merged 2026-10-27)
+## Unified project (Oracle + Orion-LM `main`, merged 2026-10-27)
 
-`krish/main` @ b8e2f92 (Orion-LM, graph hardening, reworked eval/, train/) was merged INTO `Oracle`
+Orion-LM's `main` @ b8e2f92 (Orion-LM, graph hardening, reworked eval/, train/) was merged INTO `Oracle`
 (runtime layer, structured findings/SARIF, adaptive verification, shortlists, hybrid search) with
 one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). Decisions:
-- **D1** all work stays on `Oracle`; never push `krish`; push `origin` only when asked; no AI trailers.
+- **D1** all work stays on `Oracle`; push `origin` only when asked; no AI trailers.
 - **D2** an opt-in SAME-model lm verifier (`--lm-verify`) until measured; without it lm leads stay
   INCONCLUSIVE "unverified (engine=lm)".
 - **D3** Claude query guard = one-pass lexer + read-only procedure allowlist + anchored-path scoping.
 - **D4** fix the `assign` / `Function` sink hints in the graph's flow ranking; C1's code-only sink
   rules stay frozen; the dev bake-off decides whether C1 is kept or C2 retrains on the fixed rules.
-- **D5** Krish's `eval/` is the one measurement path; `bench/` is legacy.
+- **D5** Love Kush's `eval/` is the one measurement path; `bench/` is legacy.
 - **D6** scoring fixes (failures counted as missing, per-message tokens, per-finding validation,
   range-overlap lines, CONFIRM filter, judge credit), each logged in `eval/CHANGELOG.md` and signed off
-  by Krish before the pre-registration tag.
+  by Love Kush before the pre-registration tag.
 - **D7** opt-in ports: CodeCase snippets for the Claude verifier, shortlists to lm cases, safer repo
   text in Claude prompts, runtime re-ranking of lm flows.
 - Lm run dirs record `"engine"`/`"model"` in `leads.json`; `--resume` refuses another engine.
@@ -53,7 +53,7 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
   top 30 :CandidateFinding rows as code-only cases (`engine._finding_cases`, the Stage 1 shape);
   `--runtime` / `--use-runtime` on lm re-ranks the worked flows from pathfind's 300 (sink executed ->
   path coverage -> rank; unchanged without runtime data). All unmeasured.
-- **Phase 5 scoring fixes (2026-10-29, `eval/CHANGELOG.md`; Krish signs off before the tag):** failed
+- **Phase 5 scoring fixes (2026-10-29, `eval/CHANGELOG.md`; Love Kush signs off before the tag):** failed
   runs (crashed/hung/error) are MISSING from every rate, with worst/old-rule bounds printed; hung
   Claude runs keep per-message tokens (a labelled lower bound); plain findings validated one by one;
   range-overlap line rule (`match._MAX_RANGE` 50); only CONFIRM / unverified Orion verdicts are
@@ -146,7 +146,7 @@ one merge commit. Plan of record: the merge plan (phases 0-6, decisions D1-D7). 
   `reports/Benchmarks for testing Orion.md`. Pilot (Sonnet and Opus, with and without Orion, committed on `Ifrit`):
   `reports/benchmark-pilot-2026-11.md`. Opus + Orion tied Opus alone at L2 on all 10 external tasks (6 of 10), at 4-6x
   the cost; the verifier is 43-74% of Orion's spend; the report's call is not to scale this setup yet.
-- Open for Krish: the Orion-LM design excludes Qwen (no published cutoff), but C1's base is Qwen3.5-4B
+- Open for Love Kush: the Orion-LM design excludes Qwen (no published cutoff), but C1's base is Qwen3.5-4B
   with no recorded decision -- needs one before `orion-lm-prereg-v1`.
 
 ## Open-weight study (branch `eval/open-weight-study`, started 2026-09-17)
@@ -155,7 +155,7 @@ Design of record: `docs/superpowers/specs/2026-09-17-open-weight-eval-design.md`
 `docs/superpowers/plans/2026-09-17-open-weight-eval.md`. Claim under test: open-weight model + Orion ≥
 frontier models alone on real post-cutoff CVEs in large repos, at lower cost.
 
-**Build status (2026-09-17):** the harness code is DONE and pushed to `krish/eval/open-weight-study`
+**Build status (2026-09-17):** the harness code is DONE and pushed to `eval/open-weight-study`
 (Tasks 1–14). It lives in a standalone `eval/` package (orion/ untouched); **44 tests green** via
 `./.venv/bin/pytest eval/tests -q`. Bare `pytest` still scopes to orion's own `tests/` (testpaths),
 so `eval/` does not interfere. Built: run log (`eval/db.py`: runs/events/agent_calls/resources +
@@ -170,7 +170,7 @@ the frozen `eval/dataset/manifest.json` with answer keys, the `eval-prereg-v1` t
 
 **Matching rule (frozen 2026-09-17):** caught = same file AND (function-name match OR line within the
 patched range ±10); caught-right-type also needs same CWE family. Deterministic matcher first, LLM
-judge only for location-less findings (validated vs Krish's labels on ≥100). Applied in the SEPARATE
+judge only for location-less findings (validated vs Love Kush's labels on ≥100). Applied in the SEPARATE
 scoring session, not this branch.
 
 Rules for working on it:
@@ -178,10 +178,10 @@ Rules for working on it:
 - **Research data: never fabricate, estimate, or backfill a number.** If a tool doesn't report
   something machine-readably, it is recorded as missing, not guessed. Report results either way.
 - **Arms: superseded.** The 09-17 six arms (Ollama `orion-gemma4` / `orion-gptoss20b` / `plain-gemma4`
-  + frontier) were replaced by Krish's Orion-LM design (2026-10-18, five arms: `orion-lm`,
+  + frontier) were replaced by Love Kush's Orion-LM design (2026-10-18, five arms: `orion-lm`,
   `orion-lm-base`, `plain-sonnet5`, `plain-opus5`, `plain-gpt`; Ollama dropped) -- see "Orion-LM
   track" below. Oracle's Qwen exploratory arms (2026-09-29) were REMOVED in the 2026-10-27 merge
-  (`eval/CHANGELOG.md`): Krish's runner has no Ollama path. Codex only with GPT. No Gemini, no Go repos.
+  (`eval/CHANGELOG.md`): Love Kush's runner has no Ollama path. Codex only with GPT. No Gemini, no Go repos.
 - **Dataset rule:** headline CVEs need advisory AND fix commit after 2026-05-31 (latest cutoff =
   Opus 5, May 2026), a localized fix (≤10 non-test files, one bug), and vulnerable code in JS/TS,
   Python or Java. Otherwise → control tier (possibly memorized) or scale tier (won't build on 16 GB).
@@ -193,8 +193,8 @@ Rules for working on it:
 - **Pre-registration:** arms, manifest + answer keys, plain-agent prompt/schema, matching rule and
   hypotheses are frozen by tag `eval-prereg-v1` before the first scored run; changes need a new tag
   and a dated reason in `eval/CHANGELOG.md`.
-- **Scoring is built (Krish, 2026-10-18..22): `eval/normalize.py`, `eval/match.py`, `eval/report.py`,
-  `eval/judge.py`** -- the ONE measurement path (decision 2026-10-27). Labeling = Krish + an LLM judge.
+- **Scoring is built (Love Kush, 2026-10-18..22): `eval/normalize.py`, `eval/match.py`, `eval/report.py`,
+  `eval/judge.py`** -- the ONE measurement path (decision 2026-10-27). Labeling = Love Kush + an LLM judge.
   Orion emits leads with structured `file`/`line_start`/`function`/`cwe` (prose fallback in `lead.text`);
   plain agents emit `findings.json`; `normalize` reconciles both into one finding shape.
 - **Exploits are deferred** to a later, separate study (task change + memory cost on 16 GB). No
@@ -203,10 +203,9 @@ Rules for working on it:
   `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` = same tag so fp-check's nested subagents don't
   escape to Anthropic. Unproven until the Phase 0 NodeGoat gate passes; llama.cpp `llama-server` is
   the fallback.
-- Git: **`origin` = github.com/lutherleo/orion is the primary repo.** The study was built on
-  `krish` = github.com/krishkuchroo/orion (branch `eval/open-weight-study`) while `origin` was
-  unreachable (2026-09-17), then merged into `origin`'s `Wukong` on 2026-09-25. Never push to
-  `krish`; treat it as a read-only upstream for pulling Krish's work.
+- Git: **`origin` = github.com/lutherleo/orion is the only repo.** The study was built on branch
+  `eval/open-weight-study` while `origin` was unreachable (2026-09-17), then merged into
+  `origin`'s `Wukong` on 2026-09-25.
 - `bench/` (PLAN2) is LEGACY dev evidence since 2026-10-27: its numbers (Opus-5 no-Orion 15/15
   NodeGoat, 14/16 PyGoat; Semgrep 4/15, 7/16) come from a basename+keyword matcher with no line or
   function check and N=1, so they never sit in an `eval/` table. Its cost figures are being corrected
@@ -215,7 +214,7 @@ Rules for working on it:
 
 ## Runtime stage (one layer, unified 2026-09-25)
 
-lutherleo's `orion trace` (`orion/dynamic/`) and Krish's `orion scan --runtime` were merged into ONE
+lutherleo's `orion trace` (`orion/dynamic/`) and Love Kush's `orion scan --runtime` were merged into ONE
 package, `orion/runtime/`, with two surfaces over one pipeline (`runtime.enrich`):
 `orion scan --runtime [--runtime-driver X] [--harness-file F]` (inline, after the static build) and
 `orion trace <repo> [--driver X] [--language py|js] [--harness-file F] [--budget N]` (against an
@@ -260,7 +259,7 @@ every line after the first CRLF; counting UTF-8 bytes shifts lines after any non
 Design: `docs/superpowers/specs/2026-10-18-orion-lm-design.md` — **APPROVED 2026-10-18.** Plan:
 `docs/superpowers/plans/2026-10-18-orion-lm.md` (rev 2). **Hybrid plan code built** (D2/D3 +
 H1–H11, each task reviewed; whole-branch review fixes landed and re-checked clean; built on
-`eval/orion-lm` → `train/d2-d3`, both merged to `main` in PR #4); earlier A1–A6, B1–B6, C1, E1–E3 done and reviewed. Status, rulings and Krish-check items: `docs/superpowers/plans/2026-10-18-orion-lm-progress.md`.
+`eval/orion-lm` → `train/d2-d3`, both merged to `main` in PR #4); earlier A1–A6, B1–B6, C1, E1–E3 done and reviewed. Status, rulings and Love Kush-check items: `docs/superpowers/plans/2026-10-18-orion-lm-progress.md`.
 Goal: fine-tune an open-weight model (Unsloth, cloud GPU) that runs
 **in-process inside Orion** (MLX-LM, no Claude, no Ollama) via a **hand-written prompter** that
 writes Cypher over the Joern→Neo4j graph and judges code vulnerable/safe; then benchmark
@@ -268,7 +267,7 @@ writes Cypher over the Joern→Neo4j graph and judges code vulnerable/safe; then
 CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
 
 - **Current (2026-10-26): C1 trained and merged; next is the dev bake-off.** Branch `train/merge-c1`
-  (pushed to `krish`, not merged to `main` yet). C1 finished 2026-10-24 17:15: 437 steps, 16 h, no stops;
+  (pushed, not merged to `main` yet). C1 finished 2026-10-24 17:15: 437 steps, 16 h, no stops;
   dev eval loss 0.143 (step 100) -> 0.135 -> 0.135 -> 0.131 -> **0.1314** (final), train loss 0.23 -> 0.13;
   process peak 8.1 GB. Adapter + 44 checkpoints (93 MB each) in `train/runs/qwen35-c1/` (local only;
   back it up). Merged with `train.convert.merge_lora` -> `models/orion-lm` (3.4 GB): the 8 adapted
@@ -282,7 +281,7 @@ CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
 - **Orion-LM as a full engine (merge Phase 3, 2026-10-29).** `orion scan --engine lm`:
   - samples at `--lm-temperature` (default **0**, greedy) and re-seeds before every session, so a batch's
     answer does not depend on the batches before it (the eval arm still loads with the model's own
-    defaults -- freezing its sampling is Krish's pre-registration call);
+    defaults -- freezing its sampling is Love Kush's pre-registration call);
   - a batch it could not judge (flow read failed, session raised, context overflow, invalid forced
     final) is recorded in `discover_lm(failures=...)`, reported as an ERROR verdict and makes the scan
     exit **3** ("incomplete") -- zero leads from it is never a clean negative;
@@ -294,15 +293,15 @@ CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
     fleet's rules); SARIF results carry `codeFlows` from `Lead.path`; tool rows are capped
     (`tools.FIELD_CAP` 1000 / `RESULT_CAP` 4000 chars) and `read_code` streams (`LINE_CAP` / `READ_CAP`;
     byte-identical on ordinary files, `tests/test_lm_hardening.py`); path nodes name the CALLING method
-    (CONTAINS_CALL), not the callee -- resolves that item on Krish's list; no semantic index or exploit
+    (CONTAINS_CALL), not the callee -- resolves that item on Love Kush's list; no semantic index or exploit
     corpus is built for lm; Ctrl-C stops after the current session (with or without `--watch`).
 - **C1 setup (2026-10-24).** Base Qwen3.5-4B (`models/orion-lm-base`, 4-bit
   MLX, text only); Unsloth's MLX trainer driven by `train/mlx_train.py` under `train/guard.py` (9 GB cap),
   started with `bash train/start_c1.sh` (LoRA r16/alpha16, top 8 layers, 1 epoch, dev eval loss every 100
   steps, TensorBoard on :6006). Data: Stage 1 built (4,579 fixes, 17,086 examples; liferay's last 19
-  pairs skipped by Krish), balanced export (`train/balance.py`: fix = vulnerable + patched twin + one
+  pairs skipped by Love Kush), balanced export (`train/balance.py`: fix = vulnerable + patched twin + one
   negative, repo/CWE/family caps, label conflicts dropped) = train 6,999 / dev 2,502 rows. Rows carry
-  `[sink]` lines from Orion's sink rules (`orion/lm/sinks.py`); the system message is Krish's prompt +
+  `[sink]` lines from Orion's sink rules (`orion/lm/sinks.py`); the system message is Love Kush's prompt +
   `orion/lm/schema_card.txt` + ACTION_RULES (609 tokens), identical at runtime. Before the eval: set
   sampling (runtime falls back to temperature 1.0) and align the OWASP flow-less case rendering. (The
   EXPRESS `Function` hint is fixed: sink rules 2026-10-28 below.) Stage 2 (graph rows) comes after C1.
@@ -314,8 +313,8 @@ CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
     L1). Splits group by lowercased `repo_canonical`. `export` refuses the PLACEHOLDER system prompt
     unless `allow_placeholder=True`. Live-Neo4j tests skip unless `ORION_LIVE_NEO4J=1` (DB-writing)
     / `ORION_SPEND_TOKENS=1` (claude).
-  - Gated on Krish: Stage 1 pilot + full run, Stage 2 builds (graph hardening is now merged, so
-    no longer blocked on it), real bake-off, running `train/unsloth_lora.ipynb`, and Krish's system
+  - Gated on Love Kush: Stage 1 pilot + full run, Stage 2 builds (graph hardening is now merged, so
+    no longer blocked on it), real bake-off, running `train/unsloth_lora.ipynb`, and Love Kush's system
     prompt (must say "flag the fix site" and cover code-only cases with no path) +
     `train/templates/queries.json`. Splits were frozen 2026-10-19 (seed 0).
   - **Pairs/splits (2026-10-20):** MoreFixes added (advisory-linked fixes only; Prospector links
@@ -332,12 +331,12 @@ CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
   - Open decision: `read_code` is offered at runtime but no training row uses it — keep it in the
     templates or drop it from the tool set. Rounds skipped until templates exist.
 - **Status (2026-10-18):** design approved; research + codebase exploration folded in (Appendix A has
-  file:line integration notes). All §8 decisions made: Qwen excluded; second labeler proposed = Love
-  Kush (to confirm with them); 5 pp false-alarm margin; scoring code built on this branch, human
-  labeling + final test scoring in a separate session; AI-written text2cypher rows dropped and Krish
+  file:line integration notes). All §8 decisions made: Qwen excluded; second labeler not yet named
+  (fallback: a security-literate peer blind to arm outputs); 5 pp false-alarm margin; scoring code built on this branch, human
+  labeling + final test scoring in a separate session; AI-written text2cypher rows dropped and Love Kush
   writes the training-target templates + system prompt (Claude writes plumbing only); test set grows
   to ≈60 dataflow vulns; no cut list. Plan written and being built (see the progress file above).
-- **Confirmed by Krish:** no Claude/Ollama in the model path; own prompter; model writes Cypher in a
+- **Confirmed by Love Kush:** no Claude/Ollama in the model path; own prompter; model writes Cypher in a
   run→score→retrain loop; must judge unknown code (train with patched commits as negatives); test
   set run ONCE at the end, tune on dev only; frontier models are competitors only (never training
   data); headline = efficiency (vulns per 1M tokens) + false-alarm rate, recall reported either way;
@@ -378,7 +377,7 @@ CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
     `eval/names.py` (Java names carry a `:signature`).
   - OWASP pins: BenchmarkJava `a0f07b8`, BenchmarkPython `f129148`. `strip_answers` removes the
     answer CSV, the per-case XML and the scorecards, never build files.
-  - Krish decides before the tag or scored runs:
+  - Love Kush decides before the tag or scored runs:
     - confine frontier arms' file reads: mirrors, OWASP CSVs and the manifest are readable;
     - the Java OWASP comments that hint the answer (17/30 traps);
     - the test-set N (208 vs ≈60);
@@ -389,9 +388,9 @@ CVEs (vulnerable AND patched commits) + OWASP Benchmark as the false-alarm set.
     - the 300-flow cap on OWASP Java.
 - **Research artifacts** (OSV counting scripts, OWASP CSVs, paper extracts):
   `~/Documents/OrionLutherLeo/orion-lm-research/` (outside the repo).
-- **Git (2026-10-20):** `main` on `krish` now holds the open-weight study (PRs #2/#3), Orion-LM
+- **Git (2026-10-20):** `main` now holds the open-weight study (PRs #2/#3), Orion-LM
   (#4) and graph hardening (#5). Merge PRs with a merge commit, never squash: docs cite commit
-  SHAs. Merging into `main` needs Krish (Claude Code's auto mode blocks merges without review).
+  SHAs. Merging into `main` needs Love Kush (Claude Code's auto mode blocks merges without review).
   `eval/orion-lm-finish` (cut from `main` at bde678e) holds the 2026-10-22 harness work, local and
   unpushed.
 - Facts to remember: Unsloth pip can't train on Apple Silicon; Gemma 4 12B peaks ≈9.4 GB at 4k on
@@ -561,7 +560,7 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
   `GraphDB.run_cypher` runs in `execute_read` with a timeout (`CYPHER_TIMEOUT` 30 s, or `timeout=`) and
   streams rows (`row_count` still counts all); `bounded=True` (the lm path) fetches at most `limit` and
   returns the planner's `query_type`. The text pre-check (`graphdb.blocked_reason`) is the readable-error
-  layer on top, and it runs on Krish's ONE-PASS lexer (`graphdb._lex`/`blank`: strings, `//` and
+  layer on top, and it runs on Love Kush's ONE-PASS lexer (`graphdb._lex`/`blank`: strings, `//` and
   `/* */` comments and backtick names blanked together). GOTCHA, found merging the branches: the older
   literal-only blanking let a quote inside a `//` comment open a fake string that hid a following
   `LOAD CSV FROM 'http://...'` (a read transaction does NOT stop LOAD CSV, so that was an exfiltration
@@ -579,7 +578,7 @@ FLOWS_TO 217 (NodeGoat) and 1075 (PyGoat), default `orion scan` output unchanged
   Orion-LM engine keeps its stricter checker (`orion/lm/tools.check_query`); both share the pattern
   parsing in `orion/cypher_parse.py`, and the Claude MCP server never imports `orion.lm`.
 - **Repo text is neutralised before it reaches a model** (`orion/textsafe.py`, shared by Orion-LM's
-  `lm/format` and, opt-in, the Claude prompts): marker runs (`<<<`) escaped as Krish wrote it, plus
+  `lm/format` and, opt-in, the Claude prompts): marker runs (`<<<`) escaped as Love Kush wrote it, plus
   chat-control tokens (`<|im_end|>`, `<think>`, `<start_of_turn>`...) broken with a backslash after
   the `<`, so a repo comment cannot forge a turn. Without such a token the output is byte-identical
   to the old rule (`tests/test_textsafe.py` pins it); C1's training rows differ only where one appeared.

@@ -159,7 +159,7 @@ def test_export_refuses_a_placeholder_prompt_and_records_the_system_hash(tmp_pat
     import hashlib
     s1 = tmp_path / "s1.jsonl"
     _write(s1, [{"pair_id": "P", "label": "patched", "tier": "single", "case": CASE, "lead": None, "split": "train"}])
-    monkeypatch.setattr(fmt, "system_prompt_text", lambda: "PLACEHOLDER — Krish writes it")
+    monkeypatch.setattr(fmt, "system_prompt_text", lambda: "PLACEHOLDER — Love Kush writes it")
     with pytest.raises(ValueError, match="PLACEHOLDER"):
         examples.export(str(s1), None, None, out_dir=str(tmp_path / "a"), schema_text="S", shares={"stage1": 1.0}, seed=0)
     assert not (tmp_path / "a").exists()

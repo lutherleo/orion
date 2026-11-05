@@ -31,7 +31,7 @@ from orion.lm import verify
 from train import devscore
 
 # Gate 2 (D2): on by default only if the verifier keeps (almost) every real vuln discovery found AND
-# measurably cuts its false alarms. PROPOSED 2026-10-29; Krish / Love Kush confirm or change it before the run.
+# measurably cuts its false alarms. PROPOSED 2026-10-29; Love Kush confirms or changes it before the run.
 GATE2 = {
     "max_vuln_loss": 0.02,       # share of discovery's flagged vulnerable rows the verifier un-flags (count)
     "false_alarm_cut_lo": 0.0,   # lower CI bound of the nonvuln_silence gain must be ABOVE this

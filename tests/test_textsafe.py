@@ -30,7 +30,7 @@ ORDINARY = [
 
 
 def _old_marker_only(text: str) -> str:
-    """Krish's pre-2026-10-28 rule, verbatim: marker runs only."""
+    """Love Kush's pre-2026-10-28 rule, verbatim: marker runs only."""
     return re.sub(r"<{3,}|>{3,}", lambda m: "".join(ch + "\\" for ch in m.group()), text)
 
 

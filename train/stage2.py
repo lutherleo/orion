@@ -25,7 +25,7 @@ split}` plus `stage: 2`:
 
 Traces (`trace_for`) are `{case, actions: [*run_cypher, final], results, meta}`; `meta` carries `pair_id`
 and `split` (train/examples.py `export` needs them), plus `fix_site` on the vulnerable trace (train/rounds.py).
-They are written only when `train/templates/queries.json` exists (Krish writes it, see
+They are written only when `train/templates/queries.json` exists (Love Kush writes it, see
 train/templates/README.md); until then only the example rows are produced. Every model input is built later
 by orion/lm/format.py from these CodeCases; nothing here builds a message by hand.
 

@@ -79,7 +79,7 @@ Two harnesses do this out of the box in late 2026: **UK AISI Inspect** (its `san
 - **Sampling freeze:** the bridge silently drops `temperature` unless `forward_generation_config=True`. Any Inspect wrapper must set it, or the frozen sampling will not reach the model.
 - **Orion-LM:** the in-process MLX model cannot use the bridge, which only speaks OpenAI/Anthropic/Google APIs. It would need an OpenAI-compatible server (e.g. MLX-LM's server) or a custom Inspect model provider, and either could change behaviour versus the in-process arm. Keeping `eval/arms/lm.py` in-process and only borrowing the statistics is lower risk.
 - **Status flags for the report:** Vivaria is archived and simple-evals is deprecated. lm-eval-harness, HELM and bigcode-evaluation-harness are the wrong shape for agentic repo scans. Garak, PyRIT and Promptfoo fit only a separate study of whether hostile repo text can steer Orion's agents.
-- **Decision D5 still holds:** Krish's `eval/` is the one measurement path. Inspect or Harbor would wrap *execution* (sandboxing, transcripts). Scoring would still go through `eval/normalize` + `eval/match`.
+- **Decision D5 still holds:** Love Kush's `eval/` is the one measurement path. Inspect or Harbor would wrap *execution* (sandboxing, transcripts). Scoring would still go through `eval/normalize` + `eval/match`.
 
 ### Gaps
 - I did not read `inspect_swe`'s per-agent reference page, so its options are unverified: system prompt override, MCP server config, `--add-dir`-style folder restriction, version pinning.
@@ -206,7 +206,7 @@ Use a **paired, within-task design**: same vulns, same repos, same model, Orion 
   4. Report pass@1 (mean over runs), pass^3 ("caught in all 3 runs", reliability) and pass@3 ("caught in any run", ceiling). A scanner is run once by users, so pass@1 and pass^3 matter more than pass@3.
   5. Run a power check before running: by Miller's formula, ~200 binary items detect only roughly a 13-point gap at K=1, and fewer items detect only larger gaps. Frame a small set as "can detect large effects only", or pool runs (K=3) to shrink the minimum detectable effect.
   6. Correct for multiple comparisons (Holm) across secondary metrics and ablations, or label them exploratory.
-- **LLM judge:** validate on ≥100 Krish-labelled items, as Orion's rule already says. Report Cohen's kappa (two labelers, or judge vs human), not raw agreement. Freeze the judge prompt and model before scoring, and report credited items with and without the judge (a sensitivity analysis).
+- **LLM judge:** validate on ≥100 Love Kush-labelled items, as Orion's rule already says. Report Cohen's kappa (two labelers, or judge vs human), not raw agreement. Freeze the judge prompt and model before scoring, and report credited items with and without the judge (a sensitivity analysis).
 - **Contamination:**
   - Orion's post-2026-05-31 advisory + fix rule is a time split. Add a canary GUID to manifests and answer keys so leaks into future training corpora can be detected.
   - Run a memorization probe: ask the plain model to name the CVE or fix for a repo/version without code. A hit means the row is control-tier.

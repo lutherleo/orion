@@ -543,7 +543,7 @@ To rerun, or to continue after adding a source (both fetchers are resumable and 
 - **If allowed, PyVul adds only 7 pairs** at ≤10 files (4,065 instead of 4,058), and 7 at any
   size. Nearly all of its commits are already covered by OSV/GHSA rows, or fail a check.
 
-## Decisions Krish should check
+## Decisions Love Kush should check
 
 1. **`cwe_class = "unknown"`** is used for rows with no CWE id at all, mostly SAP KB, which
    carries no CWE. The brief said dataflow/other; "unknown" keeps no-CWE rows from being

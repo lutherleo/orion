@@ -33,7 +33,7 @@ CODE_CLOSE = "<<<END CODE>>>"
 # are untouched (they cannot form a marker). Deterministic, so training examples stay consistent.
 # This rewrites REAL source too (`List<List<List<X>>>>`, CUDA `kernel<<<grid, block>>>`, heredoc or
 # merge-conflict markers), always the same way, so the model sees `<\<\<\` wherever the file has a
-# literal `<<<` — Krish's system prompt can say so. Every repo-controlled string that lands in a
+# literal `<<<` — Love Kush's system prompt can say so. Every repo-controlled string that lands in a
 # message (file names, function names, uids, code, rows, tool error text) goes through `_s`/`_neutralise`
 # at the point of rendering, inside or outside a CODE block, so the marker count is always honest.
 _MARKER_RUN = re.compile(r"<{3,}|>{3,}")

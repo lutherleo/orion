@@ -4,7 +4,7 @@ CWE_PARENTS maps a CWE number to its immediate parent in the CWE-1000 (Research 
 for the 9 target CWEs plus the immediate children/parents that matter for L2.
 
 verified against cwe.mitre.org <date>: NO -- verify before the tag (written from memory; the
-controller records this as a Krish check before `eval-prereg-v1`/`orion-lm-prereg-v1`).
+controller records this as a Love Kush check before `eval-prereg-v1`/`orion-lm-prereg-v1`).
 """
 CWE_PARENTS = {
     22: 706,    # Path Traversal -> Use of Incorrectly-Resolved Name or Reference

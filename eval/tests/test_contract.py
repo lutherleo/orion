@@ -55,7 +55,7 @@ def _run(conn, kind, sha, findings, tokens):
                       cache_read=0, cache_write=0, turns_used=1, turn_limit=None, peak_context=None,
                       exit_reason="ok", error_head=None)
     row = _row()
-    row["labelers"] = ["krish"]
+    row["labelers"] = ["lovekush"]
     match.write_matches(conn, rid, match.match_run(findings, manifest.answer_keys(row, kind)))
     return rid
 
@@ -66,7 +66,7 @@ def test_an_unlabeled_row_is_refused_until_its_sites_are_signed():
     assert row["fix_sites_patched"][0]["line"] == 10 and row["fix_sites_patched"][0]["end_line"] == 11
     errs = manifest.validate({"repos": [row]}, require_labels=True)
     assert any("labelers" in e for e in errs)
-    row["labelers"] = ["krish"]
+    row["labelers"] = ["lovekush"]
     assert manifest.validate({"repos": [row]}, require_labels=True) == []
     with pytest.raises(ValueError, match="fix_sites_patched"):
         manifest.answer_keys(dict(row, fix_sites_patched=[]), "patched")

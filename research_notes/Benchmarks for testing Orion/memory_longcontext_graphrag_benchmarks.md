@@ -236,7 +236,7 @@ There are now five-plus public text-to-Cypher resources: Neo4j's Text2Cypher (20
 | Mind the Query | D (component) + A | Executable graphs → execution accuracy; its released **synthesis pipeline** can be pointed at Orion's CPG schema | 2025, pre-cutoff |
 | CypherBench | D (component) | Execution-accuracy scoring and "pattern-type" breakdown (multi-hop, aggregation) map to Orion's query mix; the read-only nature fits Orion's guard | Dec 2024, pre-cutoff |
 | SpCQL | N | Chinese, small, old | Old |
-| CypherSmith | A | A training-data recipe for Orion-LM's Cypher skill (note: Orion's plan says AI-written text2cypher rows were dropped and Krish writes templates, per [CLAUDE.md](C:/Users/h/Downloads/orion/CLAUDE.md), so this is only a reference point) | 2026 |
+| CypherSmith | A | A training-data recipe for Orion-LM's Cypher skill (note: Orion's plan says AI-written text2cypher rows were dropped and Love Kush writes templates, per [CLAUDE.md](C:/Users/h/Downloads/orion/CLAUDE.md), so this is only a reference point) | 2026 |
 | PIPE-Cypher | A (strong) | Generate a **fresh, post-cutoff CPG text-to-Cypher benchmark** from Orion's own Neo4j graphs (NodeGoat/PyGoat scans) — contamination-free by construction | 2026 |
 
 Orion-specific adapter issues (inference): public Cypher benchmarks assume one graph per database; Orion's MCP guard refuses any pattern not anchored to `scan_id` and any procedure outside a read-only allowlist ([CLAUDE.md](C:/Users/h/Downloads/orion/CLAUDE.md)), so running them through Orion's real tool path needs either a scan_id-stamping loader or scoring the model's Cypher on a bare Neo4j outside the guard (which then no longer tests the guard).

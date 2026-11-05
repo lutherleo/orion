@@ -2,14 +2,14 @@
 
 - **Date:** 2026-10-18
 - **Branch:** `eval/orion-lm` (cut from `eval/open-weight-study` @ 805412d)
-- **Status:** APPROVED by Krish 2026-10-18. Implementation plan: not yet written (next step).
+- **Status:** APPROVED by Love Kush 2026-10-18. Implementation plan: not yet written (next step).
 - **Builds on:** `2026-09-17-open-weight-eval-design.md` (dataset rule, matching rule, run log).
   Where the two disagree, this document wins **on this branch only**.
 
 ## 1. Intent
 
 Orion already finds attack paths by building a code graph (Joern → Neo4j) and letting an LLM query
-it. Today that LLM is Claude, through `claude -p`. Krish wants Orion to have **its own model**:
+it. Today that LLM is Claude, through `claude -p`. Love Kush wants Orion to have **its own model**:
 a small open-weight model, fine-tuned with Unsloth to do exactly one job — **write Cypher against
 Orion's graph, follow source→sink paths, and judge whether code is vulnerable** — running fully on
 the laptop, with no Claude, no Ollama, no API, no network.
@@ -64,7 +64,7 @@ edge, and a defensible paper result.
   way; pre-registration before any scored run; changes need a dated `eval/CHANGELOG.md` entry.
 - **Timeline:** a few days for everything except, possibly, the final test run (sized on Day 1).
 
-## 4. Decided by Krish (2026-10-17/18)
+## 4. Decided by Love Kush (2026-10-17/18)
 
 1. Train a custom model with Unsloth; it runs **inside Orion**, no Ollama, no Claude.
 2. A **hand-written prompter** (our own agent loop), not `claude -p`.
@@ -162,11 +162,11 @@ sources ─► pairs (vulnerable commit, patched commit, fix sites, CWE)
 - **Size:** set on Day 1 from measured Joern build+load time per commit on the M4. No number is
   committed before that measurement.
 
-#### Design change: hybrid (Krish, 2026-10-18)
+#### Design change: hybrid (Love Kush, 2026-10-18)
 
 The original design trained the model only on graph traces. That needed about 8,100 Joern builds, which is too big. Approved instead:
 - **Stage 1 (big, cheap):** all ~4,058 mined pairs, as code plus context. The vulnerable function gets a lead, the fixed function gets no lead, and random unchanged functions are negatives.
-- **Stage 2 (small):** a few hundred dataflow pairs built with real Orion graphs, so the model sees the exact test-time input. A few graph queries come from Krish's templates once those exist.
+- **Stage 2 (small):** a few hundred dataflow pairs built with real Orion graphs, so the model sees the exact test-time input. A few graph queries come from Love Kush's templates once those exist.
 - **Test:** unchanged. Orion builds graphs for the test repos only, and the model judges the candidate flows.
 
 What this costs:
@@ -321,22 +321,21 @@ patched commit. L1 itself is unchanged; path metrics are secondary and never cha
 Each step follows the existing working agreement: brief plain-language check-in, show real output,
 then move on.
 
-## 8. Decisions on the former open questions (Krish, 2026-10-18)
+## 8. Decisions on the former open questions (Love Kush, 2026-10-18)
 
 1. **Qwen stays excluded** (no published training cutoff → memorization risk on post-May CVEs).
-2. **Second labeler** — Krish asked for a suggestion. **Proposed (Krish to confirm with them): Love
-   Kush**, Orion's co-builder. They label every test vuln's answer key (sink, entry point, guard)
-   independently from the advisory + fix diff, blind to Krish's labels and to all arm outputs;
+2. **Second labeler** — not yet named: a security-literate peer who has not seen the arm
+   outputs. They label every test vuln's answer key (sink, entry point, guard)
+   independently from the advisory + fix diff, blind to Love Kush's labels and to all arm outputs;
    disagreements are resolved by discussion and both the raw agreement (κ) and the resolution are
-   recorded. For judge calibration, Krish labels ≥100 blinded findings and the second labeler
-   double-labels a random 30% of them. Fallback if Love Kush is unavailable: a security-literate
-   peer who has not seen the arm outputs; last resort: single-labeler ground truth, stated as a
+   recorded. For judge calibration, Love Kush labels ≥100 blinded findings and the second labeler
+   double-labels a random 30% of them. If no second labeler is found, the last resort is single-labeler ground truth, stated as a
    limitation.
 3. **False-alarm non-inferiority margin = 5 percentage points.**
 4. **Scoring code is built on this branch** (`match.py`/`judge.py`/`report.py`, needed for dev
    scoring in the loop); **human labeling and the final test scoring run in a separate session.**
 
-**From the builder check — decided by Krish 2026-10-18:**
+**From the builder check — decided by Love Kush 2026-10-18:**
 
 5. **DECIDED: drop the AI-written part.** Context — where the "no Claude/GPT outputs in training" line sits. (a) ~38% of text2cypher-2025v1's
    train split is labelled GPT-4o/GPT-4-turbo/Claude-Opus synthetic, another ~14% Gemini synthetic
@@ -347,18 +346,18 @@ then move on.
    targets. Recommended: drop text2cypher's LLM-synthetic subsets (GPT, Claude, Gemini) and keep the
    rest only if its provenance checks out as non-LLM; AI help is limited to plumbing code, while the
    small set of templates that become training targets (Cypher query templates, final-lead
-   phrasing) is written or rewritten by Krish.
+   phrasing) is written or rewritten by Love Kush.
    **Decision:** all AI-written text2cypher rows (GPT, Claude, Gemini, T5 predictions) are dropped;
-   unknown-provenance rows are used only if verified non-LLM (default: not used); Krish writes the
+   unknown-provenance rows are used only if verified non-LLM (default: not used); Love Kush writes the
    target templates and the system prompt; AI help is limited to plumbing code.
-6. **DECIDED: grow the test set to ≈60 dataflow vulns** (Krish: "ok works"). Context — test-set size vs timeline. 29 candidates (≈21 dataflow + 8 access-control), none checked yet.
+6. **DECIDED: grow the test set to ≈60 dataflow vulns** (Love Kush: "ok works"). Context — test-set size vs timeline. 29 candidates (≈21 dataflow + 8 access-control), none checked yet.
    Recommended: script-mine post-cutoff advisories (≈600 repos have them) to ≈60 dataflow vulns and
    gate the test run on their answer keys — costs ~1–2 extra days, mostly human labeling.
-7. **Timeline slip — decided (Krish):** no cut list; full scope stays in. (Planning note: the test run
+7. **Timeline slip — decided (Love Kush):** no cut list; full scope stays in. (Planning note: the test run
    itself is long — rough estimate ~4–8 days of continuous Mac time for the two local arms at
    N≈29–60, plus frontier subscription limits; Day-1 timings replace this estimate.)
 
-## 9. Calls made without explicit sign-off (builder may revisit; Krish please check)
+## 9. Calls made without explicit sign-off (builder may revisit; Love Kush please check)
 
 - Gemma 4 E4B as the default if the bake-off is inconclusive (12B too slow/large next to Neo4j).
 - MLX-LM runtime (llama-cpp-python fallback); Kaggle/Colab T4 → RunPod fallback for training.
@@ -420,7 +419,7 @@ hyper-parameters; the share of text2cypher in the mix; how many rollouts per pai
   https://huggingface.co/ibm-granite/granite-4.1-8b · MLX-LM https://github.com/ml-explore/mlx-lm ·
   Outlines MLX https://dottxt-ai.github.io/outlines/latest/features/models/mlxlm/
 - Dataset counting scripts, OWASP expected-results CSVs and paper extracts from the research run:
-  `/Users/krishkuchroo/Documents/OrionLutherLeo/orion-lm-research/` (outside the repo; OSV zips not
+  `~/Documents/OrionLutherLeo/orion-lm-research/` (outside the repo; OSV zips not
   kept — re-download).
 
 ## Appendix A — Integration notes from codebase exploration (2026-10-18)

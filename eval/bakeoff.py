@@ -27,7 +27,7 @@ COLUMNS = ["model", "n", "vuln_recall", "patched_silence", "negative_silence", "
            "parse_fail_rate", "tokens", "tok_per_s", "peak_rss_mb", "train_cutoff", "temperature"]
 
 # Gate 1 (D4): keep C1, and with it the frozen code-only sink rules, only if it is measurably better than its
-# own base on the dev pairs and no worse on patched code. PROPOSED 2026-10-29; Krish / Love Kush confirm or
+# own base on the dev pairs and no worse on patched code. PROPOSED 2026-10-29; Love Kush confirms or
 # change it before the run. Both bounds are the paired 95% cluster-bootstrap CI (cluster = pair).
 GATE1 = {
     "pair_correct_gain_lo": 0.0,       # lower CI bound of C1 - base pair_correct must be ABOVE this

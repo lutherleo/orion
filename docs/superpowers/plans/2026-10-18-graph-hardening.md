@@ -48,7 +48,7 @@ The pasted brief lost text in several places. My reading (correct me if wrong):
 | change 1 | "different PYTHONHASHSEED values …low output" | …and compare the flow output |
 | out of scope | "train/ and eva… reuse code from tools.py" | train/ and eval/; you may reuse code from tools.py; don't change it |
 
-## Rulings (Krish, 2026-10-18) — these override the options below
+## Rulings (Love Kush, 2026-10-18) — these override the options below
 
 - **D1:** cloned `https://github.com/adeyosemanputra/pygoat` → `fixtures/PyGoat`, **pinned commit
   `19d17cc8874861142b330636d068bbde54e86b85`** (2026-03-28, "Fix incorrect route name for
@@ -71,7 +71,7 @@ The pasted brief lost text in several places. My reading (correct me if wrong):
   `--include-unrecorded`, which is refused unless a `--dry-run --include-unrecorded` listing ran
   first: the dry run saves the listed ids to `.orion/gc_unrecorded_plan.json`, and the real run
   deletes only ids from that listing that are still unrecorded (then removes the file). The 38 old
-  scans are for Krish to clean; I only dry-run that listing.
+  scans are for Love Kush to clean; I only dry-run that listing.
 
 ## Decisions I needed from you before Phase 2 (answered above)
 

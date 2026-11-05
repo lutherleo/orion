@@ -10,11 +10,11 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-18-orion-lm-design.md`, plus the design change below. This plan supersedes Tasks C2 and D4–D6 of `docs/superpowers/plans/2026-10-18-orion-lm.md`. It keeps D1 (done) and D2/D3 (Stage 2 and E5 path ground truth).
 
-## Design change (Krish, 2026-10-18): hybrid training
+## Design change (Love Kush, 2026-10-18): hybrid training
 
 The original design trained the model only on graph traces. That needed about 8,100 Joern builds, which is too big. Approved instead:
 - **Stage 1 (big, cheap):** all ~4,058 mined pairs, as code plus context. The vulnerable function gets a lead, the fixed function gets no lead, and random unchanged functions are negatives.
-- **Stage 2 (small):** a few hundred dataflow pairs built with real Orion graphs, so the model sees the exact test-time input. A few graph queries come from Krish's templates once those exist.
+- **Stage 2 (small):** a few hundred dataflow pairs built with real Orion graphs, so the model sees the exact test-time input. A few graph queries come from Love Kush's templates once those exist.
 - **Test:** unchanged. Orion builds graphs for the test repos only, and the model judges the candidate flows.
 
 What this costs:
@@ -34,7 +34,7 @@ What this costs:
 
 ## Global Constraints
 
-- Don't push without Krish.
+- Don't push without Love Kush.
 - **No Claude, no Ollama, no network in the model path** (`orion/lm/` at runtime). Network is allowed only in `train/` fetchers (git partial clone, `gh api`) and the cloud LoRA notebook.
 - **Never fabricate, estimate or backfill a measured value.** Fetch time, bytes, index time, example counts, throughput and dev scores are all measured, or stored as null. Projections are labelled as projections and computed only from measurements.
 - **Data rules:**
@@ -44,7 +44,7 @@ What this costs:
 - **One formatter, one case builder.** Every model input, at runtime and in training, is built by `orion/lm/format.py` from CodeCases built by `orion/lm/cases.py`. Nothing in `train/` builds a message or a case by hand.
 - **Repo text is untrusted.** Snippet code renders only through `format.code_block` and `format._s` (neutralised markers).
 - **Cypher rules from commit 515225b.** Any template query must pass `orion.lm.tools.is_scoped` (enforced in H8).
-- **Branch order.** Work in the worktree `/Users/krishkuchroo/Documents/OrionLutherLeo/orion-train`, on a branch cut from `train/d2-d3` after D2/D3 land. Run Python as `PYTHONPATH=$PWD ../orion/.venv/bin/python` and `PYTHONPATH=$PWD ../orion/.venv/bin/pytest`. No real Stage 2 build runs until `fix/graph-hardening` is merged into `eval/orion-lm` and this branch is rebased on it.
+- **Branch order.** Work in the worktree `~/Documents/OrionLutherLeo/orion-train`, on a branch cut from `train/d2-d3` after D2/D3 land. Run Python as `PYTHONPATH=$PWD ../orion/.venv/bin/python` and `PYTHONPATH=$PWD ../orion/.venv/bin/pytest`. No real Stage 2 build runs until `fix/graph-hardening` is merged into `eval/orion-lm` and this branch is rebased on it.
 - **Baselines to keep green after every task:**
   - `pytest -m "not slow" -q`: 369 passed with Neo4j up.
   - `pytest eval/tests -q`: 190.
@@ -465,7 +465,7 @@ The implementer writes the fixture body: a real `git init` with filters, the sam
 - [ ] **Step 3: Implement `build` and `main`.**
 - [ ] **Step 4: Run it and confirm it passes**, plus `pytest train/tests -q`.
 - [ ] **Step 5: Commit:** `git commit -m "train: Stage-1 runner (repo-grouped snapshots, resumable ledger, stoppable)"`
-- [ ] **Step 6: GATE: Krish confirms the source list is final.** Then run `splits.write("train/data/splits.json", splits.assign(pairs, seed=0), seed=0)` and commit `train/data/splits.json`: `git commit -m "train: freeze by-repo splits (seed 0)"`. From here on, `splits.load` refuses any change.
+- [ ] **Step 6: GATE: Love Kush confirms the source list is final.** Then run `splits.write("train/data/splits.json", splits.assign(pairs, seed=0), seed=0)` and commit `train/data/splits.json`: `git commit -m "train: freeze by-repo splits (seed 0)"`. From here on, `splits.load` refuses any change.
 - [ ] **Step 7: Pilot (measure).** `python -m train.stage1 --per-language 10` (seeded sample: 10 js, 10 py, 10 java). Record into `docs/notes/orion-lm-stage1.md`:
   - per-pair seconds_fetch, bytes, seconds_index, n_examples, and status counts with reasons
   - tier counts
@@ -533,7 +533,7 @@ Add a test that `export` never writes a `dev` or `oldcve` pair_id into `train.js
 ### Task H8: Stage 2, real-graph examples on a small subset
 
 **Files:**
-- Create: `train/repo_sizes.py`, `train/stage2.py`, `train/templates/README.md` (Krish writes `queries.json`; until then this README says the templates are absent)
+- Create: `train/repo_sizes.py`, `train/stage2.py`, `train/templates/README.md` (Love Kush writes `queries.json`; until then this README says the templates are absent)
 - Test: `train/tests/test_stage2.py`, `train/tests/test_repo_sizes.py`
 
 **Interfaces:**
@@ -596,7 +596,7 @@ The StubDB used through `tools.run_cypher` must accept `**kw` and return `"query
 - [ ] **Step 4: Run it and confirm it passes**, plus `pytest train/tests -q`.
 - [ ] **Step 5: Commit:** `git commit -m "train: Stage-2 real-graph examples (size-capped language-balanced subset, gold/patched/negative flows, scoped template traces)"`
 - [ ] **Step 6: GATE: graph-hardening is merged into `eval/orion-lm` and this branch is rebased on it.** Then run `repo_sizes.fetch_sizes` over the dataflow repos (measured, cached).
-- [ ] **Step 7: Timing run (measure).** `stage2.build` on 10 selected pairs (n=10, `max_repo_kb` = the 75th percentile of the measured sizes). Record per-stage seconds, peak RSS, Neo4j nodes, cpg size and the yield reasons in `docs/notes/orion-lm-stage2.md`. Choose `n` and `max_repo_kb` for the real Stage 2 from these numbers, record the choice and its reason, and confirm it with Krish. Then run it in the background.
+- [ ] **Step 7: Timing run (measure).** `stage2.build` on 10 selected pairs (n=10, `max_repo_kb` = the 75th percentile of the measured sizes). Record per-stage seconds, peak RSS, Neo4j nodes, cpg size and the yield reasons in `docs/notes/orion-lm-stage2.md`. Choose `n` and `max_repo_kb` for the real Stage 2 from these numbers, record the choice and its reason, and confirm it with Love Kush. Then run it in the background.
 
 ---
 
@@ -637,7 +637,7 @@ The bake-off test: `run_candidate` with an injected `load` returning a scripted 
 
 - [ ] **Step 2: Run it and confirm it fails.** **Step 3: Implement.** **Step 4: Run it and confirm it passes.**
 - [ ] **Step 5: Commit:** `git commit -m "train/eval: tool-less dev judge (pair-correct, silence rates, tokens) + bake-off harness"`
-- [ ] **Step 6: Real bake-off (measure).** Candidates: Gemma 4 E4B, Granite 4.1 8B, and Gemma 4 12B only if its published cutoff is before 2026-05-31. Each runs on the same 300-example dev sample through the same `mlx_lm convert -q` pipeline (H10 `to_mlx`). Record the table in `docs/notes/orion-lm-bakeoff.md`. The winner, or E4B if the results are inconclusive, is confirmed with Krish.
+- [ ] **Step 6: Real bake-off (measure).** Candidates: Gemma 4 E4B, Granite 4.1 8B, and Gemma 4 12B only if its published cutoff is before 2026-05-31. Each runs on the same 300-example dev sample through the same `mlx_lm convert -q` pipeline (H10 `to_mlx`). Record the table in `docs/notes/orion-lm-bakeoff.md`. The winner, or E4B if the results are inconclusive, is confirmed with Love Kush.
 
 ---
 
@@ -659,7 +659,7 @@ The bake-off test: `run_candidate` with an injected `load` returning a scripted 
     - **cell 2 measures throughput on 200 examples and prints a projection from that measurement** before the full run;
     - merges and saves the model.
 
-    Krish runs it on a cloud GPU.
+    Love Kush runs it on a cloud GPU.
 
 - [ ] **Step 1: Write the failing tests:**
   - `to_mlx` builds exactly that argv through an injected `run`.
@@ -708,7 +708,7 @@ Before writing the assertions, check how `eval.match.l1` reads an answer key: th
 - [ ] **Step 2: Run it and confirm it fails.** **Step 3: Implement.** **Step 4: Run it and confirm it passes.**
 - [ ] **Step 5: Commit:** `git commit -m "train: pair test (flag vuln, silent at fix on patched, anti-spray) + ReST-EM rounds for Stage-2 traces"`
 
-> **Status (2026-10-18):** functions and tests shipped (`train/rounds.py`). Rounds skipped: no templates yet (`train/templates/queries.json` is Krish's). Built as: `pair_test` scores with `eval.match.l1` against an answer-key-shaped fix site `{file, function, line_start, line_end}` built from the fix hunk (final-review I1, 2026-10-18: ONE location convention, the FIX SITE, in Stage 1, the Stage 2 lead (`stage2._lead`: the fix-site node on the gold path, never the sink), the rounds and the test rule; Stage 2 writes it as `meta.fix_site` on the vulnerable trace); `rollout_round` takes a required `repo_for(pair_id, side)` and an optional `on_event`, skips pairs whose scans are gone (`scan_missing`), and never trains. The caller rebuilds Stage 2 scans and retrains from the base model each round.
+> **Status (2026-10-18):** functions and tests shipped (`train/rounds.py`). Rounds skipped: no templates yet (`train/templates/queries.json` is Love Kush's). Built as: `pair_test` scores with `eval.match.l1` against an answer-key-shaped fix site `{file, function, line_start, line_end}` built from the fix hunk (final-review I1, 2026-10-18: ONE location convention, the FIX SITE, in Stage 1, the Stage 2 lead (`stage2._lead`: the fix-site node on the gold path, never the sink), the rounds and the test rule; Stage 2 writes it as `meta.fix_site` on the vulnerable trace); `rollout_round` takes a required `repo_for(pair_id, side)` and an optional `on_event`, skips pairs whose scans are gone (`scan_missing`), and never trains. The caller rebuilds Stage 2 scans and retrains from the base model each round.
 
 ---
 
@@ -721,8 +721,8 @@ Human gates:
 - H8 Step 6: graph-hardening is merged.
 - H8 Step 7: the Stage 2 size is confirmed.
 - H9 Step 6: the bake-off winner.
-- H10: Krish runs the notebook.
-- Before the prereg tag: Krish's system prompt (it must state the 515225b query rules) and `train/templates/queries.json`.
+- H10: Love Kush runs the notebook.
+- Before the prereg tag: Love Kush's system prompt (it must state the 515225b query rules) and `train/templates/queries.json`.
 
 ## Self-review
 

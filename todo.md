@@ -60,7 +60,7 @@ The weekly limit was at 85% on 2026-11-03 and resets on 2026-11-05.
 
 - PyGoat with Opus + Orion stays at 12/16 on 3 of 4 shapes; the report says so. A re-run would cost about $18.
 
-## Needs Krish or a human reviewer
+## Needs Love Kush or a human reviewer
 
 - [ ] Sign the proposed answer keys (`eval/dataset/devbench/`, VLB and BountyBench fix sites).
 - [ ] Review the Q&A questions (`eval/dataset/graphqa/`, all `"status": "proposed"`).

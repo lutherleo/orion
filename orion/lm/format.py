@@ -93,7 +93,7 @@ ACTION_RULES = (
 
 @functools.lru_cache(maxsize=1)
 def system_prompt_text() -> str:
-    """Krish's system prompt (`orion/lm/system_prompt.txt`), read once per process."""
+    """Love Kush's system prompt (`orion/lm/system_prompt.txt`), read once per process."""
     with open(_SYSTEM_PROMPT_PATH, encoding="utf-8") as f:
         return f.read().strip()
 

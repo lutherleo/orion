@@ -6,7 +6,7 @@ The read transaction stops writes, but not these, measured live:
     repo could send data out in it);
   - SHOW TRANSACTIONS / TERMINATE TRANSACTIONS -> list or kill other sessions' transactions;
   - USE <db>, and CALL of a procedure outside the read-only allowlist (db.schema.*, db.labels, ...).
-The policy is orion/cypher_guard.claude_problem (decision D3, 2026-10-27: Krish's one-pass lexer +
+The policy is orion/cypher_guard.claude_problem (decision D3, 2026-10-27: Love Kush's one-pass lexer +
 Oracle's procedure allowlist + scan scoping). Unscoped MATCHes are refused on this path.
 Live Neo4j. The LOAD CSV test points Neo4j at a throwaway HTTP server on this machine
 (host.docker.internal -> the host's loopback), so nothing leaves the box.

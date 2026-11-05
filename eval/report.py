@@ -32,7 +32,7 @@ Which runs count (never changes anywhere in this module):
     of its run slots (`status_counts`: the latest attempt of each slot, ok / hung / crashed / error /
     aborted), and efficiency / FAR also carry a `sensitivity` with the failures put back: FAR with
     every failed patched run a false alarm (worst case) and with every one clean (the old rule), and
-    E with failed vulnerable runs scored as before. Krish signs this off before the prereg tag.
+    E with failed vulnerable runs scored as before. Love Kush signs this off before the prereg tag.
   * case_id == '' only: OWASP Benchmark rows (case_id != '') feed Youden J (`youden_detail`, from
     each run's findings.json via eval.owasp.score / youden) and are NOT part of efficiency / FAR /
     recall.

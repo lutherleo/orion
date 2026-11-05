@@ -148,7 +148,7 @@ class StaticIndex:
 class MethodResolver:
     """Resolve a (file_path, line) to the full_name of the CpgMethod that contains it.
 
-    Krish's pre-unification resolver, kept verbatim because train/fixmap.py maps fix-diff lines to
+    Love Kush's pre-unification resolver, kept verbatim because train/fixmap.py maps fix-diff lines to
     methods with it: the frozen Stage 1/2 pair yields were computed this way, so they must stay
     reproducible. The runtime's own correlation uses StaticIndex (exact definition line first, then
     containing method, then a unique basename), which can answer differently on ties and basenames.

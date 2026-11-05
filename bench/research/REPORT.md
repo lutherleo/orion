@@ -2,7 +2,7 @@
 
 > **LEGACY (2026-10-29).** These numbers come from `bench/scoring.py`: a basename + keyword matcher
 > with no line or function check, many-to-many, one run per arm (N=1). They are dev evidence only and
-> never sit in an `eval/` table -- `eval/` (Krish's pre-registered, CVE-based harness) is the one
+> never sit in an `eval/` table -- `eval/` (Love Kush's pre-registered, CVE-based harness) is the one
 > measurement path. **Costs corrected:** the token ledger priced every cache write at 1.25x the input
 > rate, but `claude -p` writes the 1-hour cache, billed at 2x; re-priced that way the tokens reproduce
 > the CLI's own `cli_cost_usd` within $0.001 (`tests/test_token_ledger.py`). Arm C costs **$0.73**

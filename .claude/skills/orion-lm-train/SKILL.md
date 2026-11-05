@@ -33,10 +33,10 @@ A pair is metadata only (repo, commits, CWE); Stage 1 fetches the code from GitH
 
 | # | Do | Done when |
 |---|---|---|
-| 0 | Krish writes `orion/lm/system_prompt.txt`: flag the fix site; code-only cases with no path; Cypher rules from `train/templates/README.md`; one case per session | file no longer starts with `PLACEHOLDER` |
+| 0 | Love Kush writes `orion/lm/system_prompt.txt`: flag the fix site; code-only cases with no path; Cypher rules from `train/templates/README.md`; one case per session | file no longer starts with `PLACEHOLDER` |
 | 1 | Pilot: `python -m train.stage1 --per-language 10`; record numbers in `docs/notes/orion-lm-stage1.md` | ledger has 30 lines |
 | 2 | Full: `python -m train.stage1 2>&1 \| tee train/data/stage1.log` (resumes from ledger, Ctrl-C safe) | ledger has 4,579 lines (4,850 minus 271 `unknown` CWE) |
-| 3 | Bake-off per candidate: `to_mlx('<HF repo>', 'models/<name>-base')`, then `python -m eval.bakeoff --one models/<name>-base --dev train/data/stage1.jsonl --train-cutoff <date>`; table in `docs/notes/orion-lm-bakeoff.md` | Krish picks the winner (E4B if inconclusive); cutoff < 2026-05-31 |
+| 3 | Bake-off per candidate: `to_mlx('<HF repo>', 'models/<name>-base')`, then `python -m eval.bakeoff --one models/<name>-base --dev train/data/stage1.jsonl --train-cutoff <date>`; table in `docs/notes/orion-lm-bakeoff.md` | Love Kush picks the winner (E4B if inconclusive); cutoff < 2026-05-31 |
 | 4 | Export: `examples.export('train/data/stage1.jsonl', None, None, out_dir='train/data/sft', shares={'stage1': 1.0}, seed=0, total=7000, sampler='balanced', pairs_path='train/data/pairs.json')`, then `python -m train.unsloth_data --in train/data/sft/<s>.jsonl --out train/data/mlx/<s>.jsonl --tokenizer unsloth/Qwen3.5-4B --max-len 4096 --tokenized` for train and dev | `train/data/mlx/{train,dev}.jsonl`, `train.balance.json` |
 | 5 | Train on the Mac: `bash train/start_c1.sh` (base `models/orion-lm-base`, LoRA r16/alpha16, top 8 layers, 1 epoch, dev eval every 100 steps, 9 GB cap, checkpoint every 10 steps; rerunning it continues from the newest complete checkpoint). Never next to a Stage 1/2 build or Joern | adapter in `train/runs/qwen35-c1/` |
 | 6 | Merge: `train.convert.merge_lora(base, run_dir, 'models/orion-lm')` keeps the adapted layers bf16 (never re-quantize to 4-bit: it rounds the fine-tune away); check its dev loss matches the trainer's final eval; then rerun step 3's bakeoff on it | row comparable to the base row (same sample, seed 0) |
