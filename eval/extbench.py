@@ -14,6 +14,10 @@ Arms:
   orion-sonnet5 / orion-opus5   `orion scan <tree>` with default options, on the plain twin's exact model id and
                                 effort (eval/run.py MODEL_TAGS / EFFORT), so a gap between twins is Orion's
   orion-*:leads                 scored only: the same Orion run's leads.json, before verification
+  lm-<alias>                    `orion scan <tree> --engine lm --model <local model> --lm-verify`: a small local
+                                model on the in-process Orion-LM engine (eval/localmodels.py; registry
+                                eval/dataset/local_models.json). No tokens billed; tokens/cost recorded as missing
+  lm-<alias>:leads              scored only: the same lm run's leads, before --lm-verify
 
 The Orion arm uses the operator's normal Claude home (the verifier's fp-check plugin lives there); the plain
 arm uses eval's clean home. Runs are sequential, grouped by model (all sonnet runs, then all opus runs), and
@@ -35,7 +39,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from eval import bountybench, devbench, repo, vlb
+from eval import bountybench, devbench, localmodels, repo, vlb
 from eval.arms.launch import stream_subprocess
 from eval.arms.plain import TASK_PROMPT, _build_cmd, plain_arm, sandbox_problem
 from eval.run import _RAW_RE, EFFORT, MODEL_TAGS, TREE_ROOT_NAME, _leak_guard, git_head
@@ -61,7 +65,10 @@ ORION_OPTION_VARS = ("ORION_MODEL", "ORION_EFFORT", "ORION_MAX_TURNS", "ORION_VE
 
 
 def model_of(arm: str) -> tuple[str, str]:
-    """(exact model id, effort) of an arm: an Orion arm runs on its plain twin's."""
+    """(exact model id, effort) of an arm: an Orion arm runs on its plain twin's; an lm arm on its local model
+    (greedy sampling, the engine's default temperature 0)."""
+    if localmodels.is_lm(arm):
+        return localmodels.model_path(arm, check=False), "greedy"
     twin = ORION.get(arm, arm)
     return MODEL_TAGS[twin], EFFORT[twin]
 
@@ -315,15 +322,16 @@ def _clear_scan(scan_id: str) -> str:
         return f"not cleared ({type(exc).__name__}: {exc})"
 
 
-def run_orion_arm(arm: str, tree: str, run_dir: Path, on_line, *, _stream=stream_subprocess, _clear=_clear_scan) -> dict:
+def run_orion_arm(arm: str, tree: str, run_dir: Path, on_line, *, _stream=stream_subprocess, _clear=_clear_scan,
+                  _cmd=None, _env=None) -> dict:
     procs, lines = [], []
 
     def _line(l):
         lines.append(l)
         on_line(l)
 
-    status = _stream(orion_cmd(tree, run_dir), env=orion_env(arm, dict(os.environ)), cwd=str(run_dir),
-                     on_line=_line, on_start=procs.append)
+    status = _stream(_cmd or orion_cmd(tree, run_dir), env=_env or orion_env(arm, dict(os.environ)),
+                     cwd=str(run_dir), on_line=_line, on_start=procs.append)
     rc = procs[0].returncode if procs else None
     odir = _orion_run_dir(run_dir)
     incomplete = rc == 3
@@ -342,6 +350,19 @@ def run_orion_arm(arm: str, tree: str, run_dir: Path, on_line, *, _stream=stream
             pass
     if out["scan_id"]:
         out["graph"] = _clear(out["scan_id"])
+    return out
+
+
+def run_lm_arm(arm: str, tree: str, run_dir: Path, on_line, *, _stream=stream_subprocess, _clear=_clear_scan) -> dict:
+    """A local model on the Orion-LM engine. Same status rules as the Orion arm (exit 3 = incomplete but scored);
+    no usage events exist, so `usage` is empty and run.json's usage_total is all missing; `behaviour` holds the
+    progress-log counts."""
+    model = localmodels.model_path(arm)
+    out = run_orion_arm(arm, tree, run_dir, on_line, _stream=_stream, _clear=_clear,
+                        _cmd=localmodels.scan_cmd(tree, model, run_dir / "verdicts.json"),
+                        _env=localmodels.scan_env(dict(os.environ)))
+    odir = run_dir / out["orion_run_dir"] if out.get("orion_run_dir") else None
+    out.update(usage=[], lm_model=model, behaviour=localmodels.behaviour(odir / "progress.jsonl") if odir else {})
     return out
 
 
@@ -375,15 +396,20 @@ def run(benchmark: str, task_ids: list[str], arms: list[str], *, runs: int = 1, 
     """Run every planned (task, snapshot, arm, run) not yet `ok`. Returns {"ok", "aborted_retries", "failed", "skipped"}.
     An aborted run is retried until its `max_attempts`-th attempt, then left aborted (a failure) and the loop moves on.
     A plain arm on a host whose Claude sandbox cannot start is refused up front: each run would exit in a second."""
-    bad = [a for a in arms if a not in ARMS]
+    bad = [a for a in arms if a not in ARMS and not localmodels.is_lm(a)]
     if bad:
-        raise ValueError(f"unknown arm(s) {bad} (known: {', '.join(ARMS)})")
+        raise ValueError(f"unknown arm(s) {bad} (known: {', '.join(ARMS)}, or lm-<alias> from "
+                         f"{localmodels.REGISTRY.relative_to(ROOT)})")
+    for a in arms:
+        if localmodels.is_lm(a) and not dry_run:
+            localmodels.model_path(a)        # refuse up front: unknown alias or a model file not on disk
     data = load_keys(benchmark)
     all_tasks = tasks(benchmark, data)
     missing = [t for t in task_ids if t not in all_tasks]
     if missing:
         raise ValueError(f"unknown {benchmark} task(s): {missing}")
-    runners = _arms or {**{a: run_plain_arm for a in PLAIN}, **{a: run_orion_arm for a in ORION}}
+    runners = _arms or {**{a: run_plain_arm for a in PLAIN}, **{a: run_orion_arm for a in ORION},
+                        **{a: run_lm_arm for a in arms if localmodels.is_lm(a)}}
     if not dry_run and any(runners.get(a) is run_plain_arm for a in arms) and (problem := _sandbox()):
         raise ValueError(problem)
     tree_root = tree_root or os.path.join(tempfile.gettempdir(), TREE_ROOT_NAME)
@@ -402,8 +428,9 @@ def run(benchmark: str, task_ids: list[str], arms: list[str], *, runs: int = 1, 
             model, effort = model_of(arm)
             tree = os.path.join(tree_root, "<token>", "tree")
             _leak_guard(tree)
-            argv = orion_cmd(tree, run_dir_for(benchmark, arm, task["id"], snap, n, 1, root)) if arm in ORION \
-                else ["<TASK_PROMPT>" if x == TASK_PROMPT else x for x in _build_cmd(arm, tree, model, effort)]
+            d1 = run_dir_for(benchmark, arm, task["id"], snap, n, 1, root)
+            argv = orion_cmd(tree, d1) if arm in ORION else \
+                localmodels.scan_cmd(tree, model, d1 / "verdicts.json") if localmodels.is_lm(arm) else ["<TASK_PROMPT>" if x == TASK_PROMPT else x for x in _build_cmd(arm, tree, model, effort)]
             print(f"{tag}\n    mirror https://github.com/{task['repo']}.git -> {mirror}\n    export {ref} -> {tree} "
                   f"(leak guard ok)\n    {model} effort {effort}\n    argv {' '.join(argv)}", flush=True)
             continue
@@ -435,11 +462,13 @@ def run(benchmark: str, task_ids: list[str], arms: list[str], *, runs: int = 1, 
             rec = {"benchmark": benchmark, "task": task["id"], "repo": task["repo"], "snapshot": snap, "ref": ref,
                    "commit": sha, "arm": arm, "model": model, "effort": effort, "run_no": n, "attempt": attempt,
                    "wall_s": round(time.monotonic() - t0, 1), "orion_commit": commit,
-                   "usage_total": usage_total(res.get("usage") or []), **res}
+                   "usage_total": localmodels.NO_USAGE if localmodels.is_lm(arm)
+                   else usage_total(res.get("usage") or []), **res}
             (d / "run.json").write_text(json.dumps(rec, indent=1, default=str), encoding="utf-8")
             tot = rec["usage_total"]
-            print(f"{tag}: {rec['status']} in {rec['wall_s']}s, {tot['tokens']} tokens, CLI ${tot['cli_cost_usd']}",
-                  flush=True)
+            print(f"{tag}: {rec['status']} in {rec['wall_s']}s, {tot['tokens']} tokens, CLI ${tot['cli_cost_usd']}"
+                  + (f", {rec.get('behaviour', {}).get('graph_queries')} graph queries" if localmodels.is_lm(arm)
+                     else ""), flush=True)
             if rec["status"] == "aborted" and attempt >= max_attempts:
                 print(f"{tag}: still aborted after {attempt} attempts; left as a failure", flush=True)
             elif rec["status"] == "aborted":
@@ -494,9 +523,12 @@ def collect(benchmark: str, arm: str, task_ids: list[str], snapshots: dict[str, 
     return runs, missing, recs
 
 
-def _cost_row(recs: list[dict]) -> dict:
+def _cost_row(recs: list[dict], arm: str = "") -> dict:
+    wall = round(sum(r.get("wall_s") or 0 for r in recs), 1)
+    if localmodels.is_lm(arm):
+        return {**localmodels.NO_USAGE, "wall_s": wall}       # the lm engine reports no tokens: missing, not 0
     blocks = [b for r in recs for b in (r.get("usage") or [])]
-    return {**usage_total(blocks), "wall_s": round(sum(r.get("wall_s") or 0 for r in recs), 1)}
+    return {**usage_total(blocks), "wall_s": wall}
 
 
 def score(benchmark: str, task_ids: list[str], arms: list[str], run_no: int = 1, root: Path = RUNS_ROOT) -> dict:
@@ -515,7 +547,7 @@ def score(benchmark: str, task_ids: list[str], arms: list[str], run_no: int = 1,
             summ = {"n": len(rows), "l1": sum(r["l1"] for r in rows), "l2": sum(r["l2"] for r in rows),
                     "n_findings": sum(r["n_findings"] for r in rows),
                     "l2_tight": sum(r["l2"] for r in rows if r["bounty"] not in flagged)}
-        cost = _cost_row([] if arm.endswith(LEADS) else recs)
+        cost = _cost_row([] if arm.endswith(LEADS) else recs, arm)
         commits = sorted({r.get("orion_commit") for r in recs if r.get("orion_commit")})
         out["arms"][arm] = {"summary": summ, "missing": missing, "cost": cost, "orion_commits": commits,
                             "incomplete_runs": sum(1 for r in recs if r.get("incomplete")), "rows": rows}
@@ -538,8 +570,8 @@ def table(result: dict) -> str:
     for arm, a in result["arms"].items():
         s, c = a["summary"], a["cost"]
         per = round(c["cli_cost_usd"] / s["l2"], 2) if c["cli_cost_usd"] is not None and s["l2"] else None
-        cost = ("(same run)", "(same run)", "-") if arm.endswith(LEADS) else (c["tokens"], _fmt(c["cli_cost_usd"], 2),
-                                                                             _fmt(per, 2))
+        cost = ("(same run)", "(same run)", "-") if arm.endswith(LEADS) else (_fmt(c["tokens"]),
+                                                                             _fmt(c["cli_cost_usd"], 2), _fmt(per, 2))
         if b == "vlb":
             silent = f"{s['silent']} / {s['n_paired']}" if s["n_paired"] else "-"
             pair = f"{s['pair_correct']} / {s['n_paired']}" if s["n_paired"] else "-"
@@ -551,14 +583,16 @@ def table(result: dict) -> str:
                          f"{s['n_findings']} | {cost[0]} | {cost[1]} | {cost[2]} | "
                          f"{'-' if arm.endswith(LEADS) else c['wall_s']} |")
     lines += ["", "CLI $ is the cost `claude -p` reports (notional on a subscription login). `:leads` rows score the "
-              "same Orion run before its verifier. Missing = no ok run on the vulnerable snapshot (excluded, not "
+              "same Orion run before its verifier. lm-* arms run a local model (no tokens reported: '-'). Missing = no ok run on the vulnerable snapshot (excluded, not "
               "counted as a miss)."]
     return "\n".join(lines)
 
 
 def _arms_on_disk(benchmark: str, root: Path) -> list[str]:
     have = [a for a in ARMS if (root / benchmark / a).is_dir()]
-    return [x for a in have for x in ((a, a + LEADS) if a in ORION else (a,))]
+    lm = sorted(p.name for p in (root / benchmark).glob(localmodels.PREFIX + "*") if p.is_dir()) \
+        if (root / benchmark).is_dir() else []
+    return [x for a in (*have, *lm) for x in ((a, a + LEADS) if a in ORION or localmodels.is_lm(a) else (a,))]
 
 
 def _task_ids(benchmark: str, tasks_file: str | None) -> list[str]:
@@ -577,7 +611,7 @@ def main(argv=None) -> int:
     r = sub.add_parser("run", help="run the arms on the task list (spends model usage unless --dry-run)")
     r.add_argument("--benchmark", choices=BENCHMARKS, required=True)
     r.add_argument("--tasks", default=None, help="a pilot.json or a JSON list of task ids (default: the pilot)")
-    r.add_argument("--arms", default=",".join(ARMS))
+    r.add_argument("--arms", default=",".join(ARMS), help="comma list; lm-<alias> runs a local model (eval/localmodels.py)")
     r.add_argument("--runs", type=int, default=1)
     r.add_argument("--resume-wait", type=int, default=900, help="seconds to wait after a usage limit")
     r.add_argument("--dry-run", action="store_true", help="print the plan; no clone, no model call")

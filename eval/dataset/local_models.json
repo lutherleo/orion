@@ -1,0 +1,15 @@
+{
+ "note": "Local small models for the lm-<alias> arms (eval/localmodels.py). 'mlx' = an MLX model dir (used on macOS) or 'hf:<repo id>'; 'gguf' = a .gguf file for llama.cpp (used on Windows/WSL/Linux, needs `pip install llama-cpp-python` built with GPU support). Relative paths resolve against the checkout; models/ is gitignored. Override this file with ORION_LOCAL_MODELS=<path>.",
+ "models": {
+  "orion-lm-base": {"mlx": "models/orion-lm-base", "gguf": "models/orion-lm-base.gguf",
+                    "about": "Qwen3.5-4B, 4-bit, untrained (C1's base)"},
+  "orion-lm":      {"mlx": "models/orion-lm", "gguf": "models/orion-lm.gguf",
+                    "about": "C1 fine-tune of Qwen3.5-4B (trained on Orion's action format)"},
+  "gemma4-e4b":    {"mlx": "models/gemma4-e4b", "gguf": "models/gemma4-e4b.gguf",
+                    "about": "Gemma 4 E4B instruct, 4-bit"},
+  "granite41-8b":  {"mlx": "models/granite41-8b", "gguf": "models/granite41-8b.gguf",
+                    "about": "Granite 4.1 8B instruct, 4-bit (spills past 4 GB of VRAM)"},
+  "llama32-3b":    {"mlx": "models/llama32-3b", "gguf": "models/llama32-3b.gguf",
+                    "about": "Llama 3.2 3B instruct, 4-bit"}
+ }
+}
